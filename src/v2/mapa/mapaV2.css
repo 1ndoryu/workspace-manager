@@ -29,6 +29,16 @@
     cursor: pointer;
 }
 
+/* Cuadricula iso de separacion entre celdas: trazo mas fino y mas tenue que
+ * las cajas para que estas sigan siendo el foco visual. */
+.mapaV2Cuadricula {
+    fill: none;
+    stroke: var(--v2-borde);
+    stroke-width: 0.5;
+    opacity: 0.35;
+    vector-effect: non-scaling-stroke;
+}
+
 .mapaV2Piso,
 .mapaV2ParedIzq,
 .mapaV2ParedDer {

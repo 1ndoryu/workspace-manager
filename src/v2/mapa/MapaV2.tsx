@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import type { Proyecto } from '../../shared/types.js';
 import {
   TILE,
+  pathCuadricula,
   posicionGrid,
   verticesParedDer,
   verticesParedIzq,
@@ -74,6 +75,13 @@ export function MapaV2() {
         role="img"
         aria-label="Mapa de proyectos del area de trabajo"
       >
+        {/* Cuadricula iso de separacion, dibujada detras de las cajas. */}
+        {grid.length > 0 && (
+          <path
+            d={pathCuadricula(porFila - 1, Math.max(...grid.map((g) => g.fila)))}
+            className="mapaV2Cuadricula"
+          />
+        )}
         {grid.map(({ p, fila, col }) => {
           const estado = estadoProyecto(p);
           const techo = verticesTecho(col, fila);
