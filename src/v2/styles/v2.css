@@ -1,0 +1,62 @@
+/* Estilos del shell v2: monocromo estricto, sin radios, sin sombras, sin bold.
+ * [por que] Reglas del front v2 del usuario. Las variables viven en
+ * variables-v2.css (importadas primero, igual que v1 hace con variables.css). */
+@import './variables-v2.css';
+
+/* Reset v2: sin bold en ningun elemento, esquinas cuadradas, sin sombras. */
+.v2App {
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: var(--v2-font);
+    line-height: 1.5;
+    font-weight: normal;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.v2App * {
+    font-weight: normal !important;
+    border-radius: 0 !important;
+}
+
+.v2App button,
+.v2App input {
+    font-family: inherit;
+    font-weight: normal;
+}
+
+/* Cabecera v2: monocroma, borde inferior simple. */
+.v2Cabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceMd);
+    padding: var(--v2-spaceMd) var(--v2-spaceLg);
+    border-bottom: 2px solid var(--v2-borde);
+    font-size: var(--v2-textMd);
+}
+
+.v2CabeceraTitulo {
+    font-size: var(--v2-textLg);
+    font-weight: normal;
+}
+
+.v2CabeceraEstado {
+    margin-left: auto;
+    font-size: var(--v2-textSm);
+}
+
+.v2Contenido {
+    padding: var(--v2-spaceLg);
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* Estados de carga y error monocromos. */
+.v2Cargando,
+.v2Error {
+    padding: var(--v2-spaceLg);
+    text-align: center;
+    font-size: var(--v2-textMd);
+    border: 1px solid var(--v2-borde);
+}
