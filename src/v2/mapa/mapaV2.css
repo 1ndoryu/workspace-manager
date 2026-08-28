@@ -22,7 +22,7 @@
     background: var(--v2-fondo);
 }
 
-/* Caja wireframe: todas identicas, sin relleno, trazo solido de 1px.
+/* Caja wireframe con relleno blanco: todas identicas, trazo solido de 1px.
  * vector-effect: non-scaling-stroke mantiene el trazo en 1px real aunque el
  * SVG escale con viewBox (si no, el stroke se engrosa al escalar). */
 .mapaV2Tile {
@@ -32,7 +32,7 @@
 .mapaV2Piso,
 .mapaV2ParedIzq,
 .mapaV2ParedDer {
-    fill: none;
+    fill: var(--v2-fondo);
     stroke: var(--v2-borde);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
