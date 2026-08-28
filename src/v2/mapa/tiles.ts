@@ -1,33 +1,33 @@
-/* Cajas isometricas 2:1 para el mapa v2.
- * [por que] Cada proyecto es una caja con 3 caras visibles: techo (diamante)
- * + pared izquierda + pared derecha. sepFila separa las filas en vertical
- * para que las paredes de una fila no se pisen con el techo de la siguiente
- * (el paso natural del grid es solo alto/2, insuficiente). */
+/* Cajas isometricas wireframe 2:1 para el mapa v2.
+ * [por que] Proyeccion isometrica PURA: el espaciado del grid va en la celda
+ * (celdaAncho/celdaAlto con relacion 2:1) y la caja se dibuja mas pequena,
+ * centrada en la celda. Asi las diagonales se alinean correctamente y las
+ * cajas quedan separadas SIN romper la perspectiva (el fallo anterior era
+ * meter la separacion dentro del paso diagonal). */
 
 export interface PuntoIso {
   x: number;
   y: number;
 }
 
-/* Cajas mas pequenas y con aire entre ellas: ancho/alto reducidos y
- * separacion extra tanto en filas (sepFila) como en columnas (sepCol), para
- * que el mapa no se vea apretado. */
 export const TILE = {
-  ancho: 22,
-  alto: 11,
-  altoPared: 14,
-  sepFila: 36,
-  sepCol: 26,
+  /* Celda del grid: define el espaciado. Relacion 2:1 = perspectiva iso. */
+  celdaAncho: 64,
+  celdaAlto: 32,
+  /* Tamano de la caja dibujada dentro de la celda (mas pequena que la celda
+   * para que queden separadas). */
+  ancho: 36,
+  alto: 18,
+  altoPared: 22,
 };
 
-/** Centro del techo (diamante) del tile en pantalla.
- * [por que] Cada fila suma sepFila extra en vertical y cada columna sepCol
- * en horizontal: asi las cajas quedan separadas sin solaparse las paredes. */
+/** Centro de la celda (col, fila) en pantalla.
+ * [por que] Proyeccion iso 2:1 pura: x = (col-fila)*w/2, y = (col+fila)*h/2.
+ * No se anade separacion dentro del paso: eso rompia la perspectiva. */
 export function posicionGrid(col: number, fila: number): PuntoIso {
-  const { ancho, alto, sepFila, sepCol } = TILE;
   return {
-    x: (col - fila) * (ancho / 2 + sepCol),
-    y: (col + fila) * (alto / 2) + fila * sepFila,
+    x: (col - fila) * (TILE.celdaAncho / 2),
+    y: (col + fila) * (TILE.celdaAlto / 2),
   };
 }
 
