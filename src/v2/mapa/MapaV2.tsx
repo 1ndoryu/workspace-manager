@@ -48,9 +48,8 @@ export function MapaV2() {
     <div className="mapaV2">
       <svg
         className="mapaV2Svg"
-        width={ancho}
-        height={alto}
         viewBox={`0 0 ${ancho} ${alto}`}
+        preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="Mapa de proyectos del area de trabajo"
       >

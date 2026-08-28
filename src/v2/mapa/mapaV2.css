@@ -2,13 +2,22 @@
  * [por que] Los estados se diferencian por relleno y patrones (rayado, borde
  * doble, punteado), nunca por color. */
 .mapaV2 {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--v2-spaceLg);
+    justify-content: center;
+    gap: var(--v2-spaceMd);
 }
 
+/* El SVG escala con viewBox para caber siempre en el espacio disponible:
+ * asi la pagina principal nunca hace scroll. */
 .mapaV2Svg {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
     display: block;
     background: var(--v2-fondo);
 }
