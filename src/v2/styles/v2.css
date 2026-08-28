@@ -25,24 +25,10 @@
     font-weight: normal;
 }
 
-/* Cabecera v2: monocroma, borde inferior simple. */
-.v2Cabecera {
-    display: flex;
-    align-items: center;
-    gap: var(--v2-spaceMd);
-    padding: var(--v2-spaceMd) var(--v2-spaceLg);
-    border-bottom: 2px solid var(--v2-borde);
-    font-size: var(--v2-textMd);
-}
-
-.v2CabeceraTitulo {
-    font-size: var(--v2-textLg);
-    font-weight: normal;
-}
-
-.v2CabeceraEstado {
-    margin-left: auto;
-    font-size: var(--v2-textSm);
+/* Marco del mapa: cuadro con borde de 1px alrededor de todo el mapa. */
+.v2MapaMarco {
+    border: 1px solid var(--v2-borde);
+    padding: var(--v2-spaceLg);
 }
 
 .v2Contenido {

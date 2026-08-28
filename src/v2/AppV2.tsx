@@ -19,18 +19,15 @@ export function AppV2() {
 
   return (
     <div className="v2App">
-      <header className="v2Cabecera">
-        <span className="v2CabeceraTitulo">workspace-manager</span>
-        <span className="v2CabeceraEstado">
-          {cargando ? 'escaneando…' : snapshot ? `${snapshot.resumen.total} proyectos` : ''}
-        </span>
-      </header>
-
       <main className="v2Contenido">
         {error && <div className="v2Error">{error}</div>}
         {!snapshot && cargando && <div className="v2Cargando">Cargando workspace…</div>}
         {!snapshot && !cargando && !error && <div className="v2Cargando">Sin datos. Reintenta.</div>}
-        {snapshot && <MapaV2 />}
+        {snapshot && (
+          <div className="v2MapaMarco">
+            <MapaV2 />
+          </div>
+        )}
       </main>
     </div>
   );
