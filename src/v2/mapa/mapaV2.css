@@ -22,33 +22,45 @@
     background: var(--v2-fondo);
 }
 
-/* Tile base: contorno negro sobre fondo blanco. */
+/* Tile base: caja isometrica con 3 caras (techo + 2 paredes laterales).
+ * Monocromo: la pared derecha en negro, la izquierda en blanco, para que las
+ * 3 caras se distingan sin usar color. */
 .mapaV2Tile {
     cursor: pointer;
 }
 
-/* [gotcha] Solo el piso (diamante) captura eventos de puntero: las paredes se
- * extienden 40px hacia abajo y taparian el tile de la fila siguiente,
- * bloqueando hover/click. El evento burbujea al <g> con onClick/onMouseEnter. */
+/* [gotcha] Solo el techo (diamante) captura eventos de puntero: las paredes
+ * cuelgan por debajo y taparian la caja de la fila siguiente, bloqueando
+ * hover/click. El evento burbujea al <g> con onClick/onMouseEnter. */
 .mapaV2Piso {
     pointer-events: visiblePainted;
 }
 
-.mapaV2Pared,
+.mapaV2ParedIzq,
+.mapaV2ParedDer,
 .mapaV2Etiqueta {
     pointer-events: none;
 }
 
+/* Techo (diamante superior). */
 .mapaV2Piso {
     fill: var(--v2-fondo);
     stroke: var(--v2-borde);
-    stroke-width: 1.5;
+    stroke-width: 1;
 }
 
-.mapaV2Pared {
+/* Pared derecha: relleno negro (cara en sombra). */
+.mapaV2ParedDer {
+    fill: var(--v2-texto);
+    stroke: var(--v2-borde);
+    stroke-width: 1;
+}
+
+/* Pared izquierda: relleno blanco (cara iluminada). */
+.mapaV2ParedIzq {
     fill: var(--v2-fondo);
     stroke: var(--v2-borde);
-    stroke-width: 1.5;
+    stroke-width: 1;
 }
 
 /* Repo limpio: contorno simple. */
@@ -56,20 +68,22 @@
     fill: var(--v2-fondo);
 }
 
-/* Dirty: relleno negro (invertido). */
+/* Dirty: todo el tile invertido (negro). */
 .mapaV2Tile--dirty .mapaV2Piso,
-.mapaV2Tile--dirty .mapaV2Pared {
+.mapaV2Tile--dirty .mapaV2ParedDer,
+.mapaV2Tile--dirty .mapaV2ParedIzq {
     fill: var(--v2-texto);
 }
 
-/* Con gate: relleno rayado diagonal (patron SVG). */
+/* Con gate: techo con rayado diagonal (patron SVG). */
 .mapaV2Tile--gate .mapaV2Piso {
     fill: url(#v2Rayado);
 }
 
 /* Carpeta (no git): contorno punteado, sin relleno. */
 .mapaV2Tile--carpeta .mapaV2Piso,
-.mapaV2Tile--carpeta .mapaV2Pared {
+.mapaV2Tile--carpeta .mapaV2ParedIzq,
+.mapaV2Tile--carpeta .mapaV2ParedDer {
     fill: none;
     stroke-dasharray: 3 3;
 }
@@ -87,9 +101,10 @@
     fill: var(--v2-invertido);
 }
 
-/* Hover: invertir tile completo (negro con texto blanco). */
+/* Hover: invertir el tile completo (negro con texto blanco). */
 .mapaV2Tile:hover .mapaV2Piso,
-.mapaV2Tile:hover .mapaV2Pared {
+.mapaV2Tile:hover .mapaV2ParedIzq,
+.mapaV2Tile:hover .mapaV2ParedDer {
     fill: var(--v2-texto);
 }
 

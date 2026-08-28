@@ -1,46 +1,65 @@
-/* Proyeccion isometrica 2:1 para el mapa v2.
- * [por que] Misma proyeccion que v1 pero autocontenida en v2: la v1 se
- * reemplazara por completo y no debe haber acoplamiento entre ambas. */
+/* Cajas isometricas 2:1 para el mapa v2.
+ * [por que] Cada proyecto es una caja con 3 caras visibles: techo (diamante)
+ * + pared izquierda + pared derecha. sepFila separa las filas en vertical
+ * para que las paredes de una fila no se pisen con el techo de la siguiente
+ * (el paso natural del grid es solo alto/2, insuficiente). */
 
 export interface PuntoIso {
   x: number;
   y: number;
 }
 
-/** Convierte grid (x,y,z) a coordenadas de pantalla con angulo isometrico 2:1. */
-export function iso(x: number, y: number, z: number, ancho: number, alto: number): PuntoIso {
-  const px = (x - y) * ancho;
-  const py = ((x + y) * alto) / 2 - z;
-  return { x: px, y: py };
+/* Cajas mas pequenas y con aire entre ellas: ancho/alto reducidos y
+ * separacion extra tanto en filas (sepFila) como en columnas (sepCol), para
+ * que el mapa no se vea apretado. */
+export const TILE = {
+  ancho: 22,
+  alto: 11,
+  altoPared: 14,
+  sepFila: 36,
+  sepCol: 26,
+};
+
+/** Centro del techo (diamante) del tile en pantalla.
+ * [por que] Cada fila suma sepFila extra en vertical y cada columna sepCol
+ * en horizontal: asi las cajas quedan separadas sin solaparse las paredes. */
+export function posicionGrid(col: number, fila: number): PuntoIso {
+  const { ancho, alto, sepFila, sepCol } = TILE;
+  return {
+    x: (col - fila) * (ancho / 2 + sepCol),
+    y: (col + fila) * (alto / 2) + fila * sepFila,
+  };
 }
 
-/** Tamaño de tile isometrico (diamante). */
-export const TILE = { ancho: 48, alto: 24, altoPared: 40 };
-
-/** Genera los vertices de un tile isometrico (diamante) en pantalla. */
-export function verticesTile(x: number, y: number, z: number): string {
-  const { ancho, alto } = TILE;
-  const p = iso(x, y, z, ancho, alto);
-  const hw = ancho / 2;
-  const hh = alto / 2;
-  return [
-    `${p.x},${p.y - hh}`,
-    `${p.x + hw},${p.y}`,
-    `${p.x},${p.y + hh}`,
-    `${p.x - hw},${p.y}`,
-  ].join(' ');
-}
-
-/** Genera los vertices de la pared frontal de un tile (efecto volumen 3D). */
-export function verticesPared(x: number, y: number, z: number): string {
+function puntosCaja(col: number, fila: number) {
   const { ancho, alto, altoPared } = TILE;
-  const p = iso(x, y, z, ancho, alto);
+  const c = posicionGrid(col, fila);
   const hw = ancho / 2;
   const hh = alto / 2;
-  return [
-    `${p.x - hw},${p.y}`,
-    `${p.x},${p.y + hh}`,
-    `${p.x},${p.y + hh + altoPared}`,
-    `${p.x - hw},${p.y + altoPared}`,
-  ].join(' ');
+  return {
+    c,
+    top: { x: c.x, y: c.y - hh },
+    right: { x: c.x + hw, y: c.y },
+    bottom: { x: c.x, y: c.y + hh },
+    left: { x: c.x - hw, y: c.y },
+    altoPared,
+  };
+}
+
+/** Techo (diamante superior) de la caja. */
+export function verticesTecho(col: number, fila: number): string {
+  const { top, right, bottom, left } = puntosCaja(col, fila);
+  return `${top.x},${top.y} ${right.x},${right.y} ${bottom.x},${bottom.y} ${left.x},${left.y}`;
+}
+
+/** Pared lateral izquierda (paralelogramo vertical). */
+export function verticesParedIzq(col: number, fila: number): string {
+  const { left, bottom, altoPared } = puntosCaja(col, fila);
+  return `${left.x},${left.y} ${bottom.x},${bottom.y} ${bottom.x},${bottom.y + altoPared} ${left.x},${left.y + altoPared}`;
+}
+
+/** Pared lateral derecha (paralelogramo vertical). */
+export function verticesParedDer(col: number, fila: number): string {
+  const { right, bottom, altoPared } = puntosCaja(col, fila);
+  return `${right.x},${right.y} ${bottom.x},${bottom.y} ${bottom.x},${bottom.y + altoPared} ${right.x},${right.y + altoPared}`;
 }
