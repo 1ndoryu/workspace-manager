@@ -74,19 +74,11 @@ export function MapaV2() {
         role="img"
         aria-label="Mapa de proyectos del area de trabajo"
       >
-        <defs>
-          {/* Patron monocromo de rayado diagonal para tiles con gate. */}
-          <pattern id="v2Rayado" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="6" height="6" fill="white" />
-            <line x1="0" y1="0" x2="0" y2="6" stroke="black" strokeWidth="1.5" />
-          </pattern>
-        </defs>
         {grid.map(({ p, fila, col }) => {
           const estado = estadoProyecto(p);
           const techo = verticesTecho(col, fila);
           const paredIzq = verticesParedIzq(col, fila);
           const paredDer = verticesParedDer(col, fila);
-          const centro = posicionGrid(col, fila);
           return (
             <g
               key={p.id}
@@ -104,9 +96,6 @@ export function MapaV2() {
               <polygon points={paredDer} className="mapaV2ParedDer" />
               <polygon points={paredIzq} className="mapaV2ParedIzq" />
               <polygon points={techo} className="mapaV2Piso" />
-              <text x={centro.x} y={centro.y + 4} className="mapaV2Etiqueta" textAnchor="middle">
-                {p.id.length > 14 ? p.id.slice(0, 13) + '…' : p.id}
-              </text>
             </g>
           );
         })}
@@ -129,10 +118,7 @@ export function MapaV2() {
       )}
 
       <div className="mapaV2Leyenda">
-        <span className="mapaV2LeyendaItem"><span className="mapaV2Muestra mapaV2Muestra--repo" /> repo</span>
-        <span className="mapaV2LeyendaItem"><span className="mapaV2Muestra mapaV2Muestra--dirty" /> dirty</span>
-        <span className="mapaV2LeyendaItem"><span className="mapaV2Muestra mapaV2Muestra--gate" /> con gate</span>
-        <span className="mapaV2LeyendaItem"><span className="mapaV2Muestra mapaV2Muestra--carpeta" /> carpeta</span>
+        <span className="mapaV2LeyendaItem"><span className="mapaV2Muestra" /> caja = proyecto · pasa el cursor para ver detalles</span>
       </div>
     </div>
   );
