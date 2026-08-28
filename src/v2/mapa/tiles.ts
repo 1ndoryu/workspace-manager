@@ -63,3 +63,25 @@ export function verticesParedDer(col: number, fila: number): string {
   const { right, bottom, altoPared } = puntosCaja(col, fila);
   return `${right.x},${right.y} ${bottom.x},${bottom.y} ${bottom.x},${bottom.y + altoPared} ${right.x},${right.y + altoPared}`;
 }
+
+/** Lineas de la cuadricula iso 2:1 que separa las celdas.
+ * [por que] Las cajas estan centradas en posiciones enteras (col, fila); la
+ * rejilla debe pasar ENTRE ellas, en los puntos medios (offsets de 0.5), para
+ * formar rombos con cada caja centrada dentro. Dos familias de diagonales
+ * (pendiente +0.5 y -0.5 en pantalla) forman la rejilla. */
+export function pathCuadricula(maxCol: number, maxFila: number): string {
+  const segmentos: string[] = [];
+  // Familia A: diagonales entre filas (fila + 0.5), de borde a borde.
+  for (let f = -1; f <= maxFila; f++) {
+    const a = posicionGrid(-0.5, f + 0.5);
+    const b = posicionGrid(maxCol + 0.5, f + 0.5);
+    segmentos.push(`M${a.x},${a.y} L${b.x},${b.y}`);
+  }
+  // Familia B: diagonales entre columnas (col + 0.5), de borde a borde.
+  for (let c = -1; c <= maxCol; c++) {
+    const a = posicionGrid(c + 0.5, -0.5);
+    const b = posicionGrid(c + 0.5, maxFila + 0.5);
+    segmentos.push(`M${a.x},${a.y} L${b.x},${b.y}`);
+  }
+  return segmentos.join(' ');
+}
