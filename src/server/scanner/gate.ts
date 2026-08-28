@@ -36,12 +36,23 @@ export function estadoGate(ruta: string): EstadoGate {
 export function doctorSentinel(ruta: string): string | null {
   try {
     /* [por que] `sentinel` en Windows es un shim .cmd: execFileSync no ejecuta
-     * .cmd/.bat sin shell=true, devolvia siempre null ("sin salida"). */
+     * .cmd/.bat sin shell=true, devolvia siempre null ("sin salida").
+     * [seguridad] shell=true concatena args sin escapar (warning DEP0190); en
+     * su lugar resolvemos el shim a su comando real (cmd /c) con args aparte,
+     * sin pasar por un string de shell. */
+    if (process.platform === 'win32') {
+      const out = execFileSync('cmd', ['/d', '/s', '/c', 'sentinel', 'doctor', '--json', '--workspace', ruta], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 15000,
+        windowsHide: true,
+      });
+      return out.trim().slice(0, 2000);
+    }
     const out = execFileSync('sentinel', ['doctor', '--json', '--workspace', ruta], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 15000,
-      shell: process.platform === 'win32',
     });
     return out.trim().slice(0, 2000);
   } catch {
