@@ -1,0 +1,27 @@
+/* Variables de diseño v2 del workspace-manager.
+ * [por que] Reglas del usuario para el front v2: SOLO blanco y negro,
+ * sin border-radius, sin sombra, sin bold. Monocromo estricto.
+ * [gotcha] No usar colores intermedios ni grises: los estados se diferencian
+ * con patrones (relleno negro / rayado) y bordes, no con color. */
+:root {
+    /* Monocromo estricto: solo blanco y negro */
+    --v2-fondo: #ffffff;
+    --v2-texto: #000000;
+    --v2-invertido: #ffffff;      /* texto/relleno sobre negro */
+    --v2-borde: #000000;
+
+    /* Tipografia: Departure Mono (misma fuente del proyecto), sin bold */
+    --v2-font: 'Departure Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+
+    /* Espaciado (sin radios ni sombras por regla) */
+    --v2-spaceXs: 6px;
+    --v2-spaceSm: 10px;
+    --v2-spaceMd: 16px;
+    --v2-spaceLg: 24px;
+
+    /* Escala tipografica */
+    --v2-textXs: 0.72rem;
+    --v2-textSm: 0.85rem;
+    --v2-textMd: 1rem;
+    --v2-textLg: 1.15rem;
+}

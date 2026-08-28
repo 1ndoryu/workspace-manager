@@ -1,0 +1,157 @@
+/* Estilos del mapa v2: monocromo estricto, sin radios, sin sombras, sin bold.
+ * [por que] Los estados se diferencian por relleno y patrones (rayado, borde
+ * doble, punteado), nunca por color. */
+.mapaV2 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--v2-spaceLg);
+}
+
+.mapaV2Svg {
+    display: block;
+    background: var(--v2-fondo);
+}
+
+/* Tile base: contorno negro sobre fondo blanco. */
+.mapaV2Tile {
+    cursor: pointer;
+}
+
+/* [gotcha] Solo el piso (diamante) captura eventos de puntero: las paredes se
+ * extienden 40px hacia abajo y taparian el tile de la fila siguiente,
+ * bloqueando hover/click. El evento burbujea al <g> con onClick/onMouseEnter. */
+.mapaV2Piso {
+    pointer-events: visiblePainted;
+}
+
+.mapaV2Pared,
+.mapaV2Etiqueta {
+    pointer-events: none;
+}
+
+.mapaV2Piso {
+    fill: var(--v2-fondo);
+    stroke: var(--v2-borde);
+    stroke-width: 1.5;
+}
+
+.mapaV2Pared {
+    fill: var(--v2-fondo);
+    stroke: var(--v2-borde);
+    stroke-width: 1.5;
+}
+
+/* Repo limpio: contorno simple. */
+.mapaV2Tile--repo .mapaV2Piso {
+    fill: var(--v2-fondo);
+}
+
+/* Dirty: relleno negro (invertido). */
+.mapaV2Tile--dirty .mapaV2Piso,
+.mapaV2Tile--dirty .mapaV2Pared {
+    fill: var(--v2-texto);
+}
+
+/* Con gate: relleno rayado diagonal (patron SVG). */
+.mapaV2Tile--gate .mapaV2Piso {
+    fill: url(#v2Rayado);
+}
+
+/* Carpeta (no git): contorno punteado, sin relleno. */
+.mapaV2Tile--carpeta .mapaV2Piso,
+.mapaV2Tile--carpeta .mapaV2Pared {
+    fill: none;
+    stroke-dasharray: 3 3;
+}
+
+.mapaV2Etiqueta {
+    font-family: var(--v2-font);
+    font-size: var(--v2-textXs);
+    fill: var(--v2-texto);
+    font-weight: normal;
+    pointer-events: none;
+}
+
+/* Etiqueta sobre relleno negro (dirty): texto invertido. */
+.mapaV2Tile--dirty .mapaV2Etiqueta {
+    fill: var(--v2-invertido);
+}
+
+/* Hover: invertir tile completo (negro con texto blanco). */
+.mapaV2Tile:hover .mapaV2Piso,
+.mapaV2Tile:hover .mapaV2Pared {
+    fill: var(--v2-texto);
+}
+
+.mapaV2Tile:hover .mapaV2Etiqueta {
+    fill: var(--v2-invertido);
+}
+
+/* Tooltip monocromo: caja negra con borde y texto blanco. */
+.mapaV2Tooltip {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    border: 1px solid var(--v2-borde);
+    padding: var(--v2-spaceMd);
+    font-size: var(--v2-textSm);
+    min-width: 220px;
+}
+
+.mapaV2TooltipTitulo {
+    margin-bottom: var(--v2-spaceSm);
+}
+
+.mapaV2TooltipDatos {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Leyenda monocroma. */
+.mapaV2Leyenda {
+    display: flex;
+    gap: var(--v2-spaceLg);
+    font-size: var(--v2-textSm);
+    padding: var(--v2-spaceMd);
+    border-top: 1px solid var(--v2-borde);
+}
+
+.mapaV2LeyendaItem {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+}
+
+.mapaV2Muestra {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid var(--v2-borde);
+}
+
+.mapaV2Muestra--repo {
+    background: var(--v2-fondo);
+}
+
+.mapaV2Muestra--dirty {
+    background: var(--v2-texto);
+}
+
+.mapaV2Muestra--gate {
+    background: repeating-linear-gradient(
+        45deg,
+        var(--v2-fondo) 0px,
+        var(--v2-fondo) 3px,
+        var(--v2-texto) 3px,
+        var(--v2-texto) 5px
+    );
+}
+
+.mapaV2Muestra--carpeta {
+    background: none;
+    border-style: dashed;
+}
