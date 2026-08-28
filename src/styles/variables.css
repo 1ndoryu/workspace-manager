@@ -1,0 +1,75 @@
+/* Variables del sistema de diseño del workspace-manager.
+ * [por que] Toda decision visual vive aqui (colores, espaciados, tipografia),
+ * nunca dentro de los componentes. Fuente: Departure Mono (self-hosted),
+ * la misma que usa el proyecto task. */
+@font-face {
+    font-family: 'Departure Mono';
+    src: url('../assets/fonts/DepartureMono-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    /* Tipografia: unica fuente monoespaciada (decisión del usuario) */
+    --font: 'Departure Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+
+    /* Superficies */
+    --surface: #10151d;
+    --surfaceRaised: #18212c;
+    --itemSurface: #0f172a;
+    --selectedSurface: #164e63;
+
+    /* Texto */
+    --text: #f3f4f6;
+    --muted: #9ca3af;
+
+    /* Acentos y estados */
+    --accent: #7dd3fc;
+    --border: #334155;
+    --danger: #fca5a5;
+    --dangerBorder: #7f1d1d;
+    --pending: #a16207;
+    --ok: #4ade80;
+    --okBorder: #14532d;
+    --warn: #fbbf24;
+
+    /* Espaciados y radios */
+    --spaceXs: 6px;
+    --spaceSm: 8px;
+    --spaceMd: 12px;
+    --spaceLg: 20px;
+    --radiusSm: 8px;
+    --radiusMd: 12px;
+
+    /* Escala tipografica (Departure Mono es condensada) */
+    --textXs: 0.72rem;
+    --textSm: 0.8rem;
+    --textMd: 0.95rem;
+    --textLg: 1.1rem;
+    --textXl: 1.4rem;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-width: 320px;
+    min-height: 100vh;
+    background: radial-gradient(circle at top right, #20354a, var(--surface) 42%);
+    color: var(--text);
+    font-family: var(--font);
+    line-height: 1.5;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+button {
+    font-family: inherit;
+}

@@ -1,0 +1,46 @@
+/* Estilos del Boton atomico. */
+.boton {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radiusSm);
+    border: 1px solid var(--border);
+    background: var(--surfaceRaised);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: var(--textSm);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.boton:hover {
+    background: var(--itemSurface);
+    border-color: var(--accent);
+}
+
+.boton--primario {
+    background: var(--selectedSurface);
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+.boton--primario:hover {
+    background: color-mix(in srgb, var(--selectedSurface) 80%, white);
+}
+
+.boton--secundario {
+    background: transparent;
+}
+
+.boton--enlace {
+    background: transparent;
+    border-color: transparent;
+    color: var(--accent);
+    padding: 4px 8px;
+}
+
+.boton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

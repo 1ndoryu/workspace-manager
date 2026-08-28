@@ -1,0 +1,84 @@
+/* Estilos de la lista de proyectos. */
+.listaContenedor {
+    background: var(--surfaceRaised);
+    border: 1px solid var(--border);
+    border-radius: var(--radiusMd);
+    overflow: hidden;
+}
+
+.listaControles {
+    display: flex;
+    align-items: center;
+    gap: var(--spaceMd);
+    padding: var(--spaceMd);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.listaBuscar {
+    flex: 1;
+    min-width: 180px;
+    padding: 6px 10px;
+    background: var(--itemSurface);
+    border: 1px solid var(--border);
+    border-radius: var(--radiusSm);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: var(--textSm);
+}
+
+.listaFiltros {
+    display: flex;
+    gap: var(--spaceXs);
+}
+
+.listaFiltro {
+    padding: var(--spaceXs) var(--spaceMd);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radiusSm);
+    color: var(--muted);
+    font-family: var(--font);
+    font-size: var(--textXs);
+    cursor: pointer;
+}
+
+.listaFiltro--activo {
+    background: var(--selectedSurface);
+    color: var(--text);
+    border-color: var(--accent);
+}
+
+.listaTabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--textSm);
+}
+
+.listaTabla th {
+    text-align: left;
+    padding: var(--spaceSm) var(--spaceMd);
+    color: var(--muted);
+    font-size: var(--textXs);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.listaTabla td {
+    padding: var(--spaceSm) var(--spaceMd);
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+}
+
+.listaFila {
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.listaFila:hover {
+    background: var(--itemSurface);
+}
+
+.listaNombre {
+    font-weight: bold;
+}

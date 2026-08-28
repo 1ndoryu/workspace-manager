@@ -1,0 +1,89 @@
+/* Estilos del detalle de proyecto. */
+.detallePestanas {
+    display: flex;
+    gap: var(--spaceXs);
+    margin-bottom: var(--spaceMd);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: var(--spaceSm);
+    flex-wrap: wrap;
+}
+
+.detallePestana {
+    padding: 4px 14px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radiusSm);
+    color: var(--muted);
+    font-family: var(--font);
+    font-size: var(--textSm);
+    cursor: pointer;
+}
+
+.detallePestana--activa {
+    background: var(--selectedSurface);
+    color: var(--text);
+    border-color: var(--accent);
+}
+
+.detalleContenido {
+    font-size: var(--textSm);
+}
+
+.detalleGrilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--spaceMd);
+}
+
+.detalleEtiqueta {
+    display: block;
+    font-size: var(--textXs);
+    color: var(--muted);
+    margin-bottom: var(--spaceXs);
+}
+
+.detalleSubmodulos,
+.detalleCommit {
+    grid-column: 1 / -1;
+    margin-top: var(--spaceSm);
+}
+
+.detalleCommitHash {
+    color: var(--accent);
+}
+
+.detalleCommitFecha {
+    color: var(--muted);
+    font-size: var(--textXs);
+}
+
+.detalleIds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spaceXs);
+    margin-top: var(--spaceMd);
+}
+
+.detalleResumen {
+    margin-top: var(--spaceMd);
+    color: var(--muted);
+}
+
+.detalleDoctor {
+    grid-column: 1 / -1;
+    margin-top: var(--spaceSm);
+}
+
+.detalleDoctorSalida {
+    margin-top: var(--spaceSm);
+    padding: var(--spaceMd);
+    background: var(--itemSurface);
+    border: 1px solid var(--border);
+    border-radius: var(--radiusSm);
+    font-family: var(--font);
+    font-size: var(--textXs);
+    color: var(--muted);
+    white-space: pre-wrap;
+    max-height: 300px;
+    overflow: auto;
+}

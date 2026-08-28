@@ -1,0 +1,36 @@
+/* Estilos del resumen del area. */
+.resumenGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--spaceMd);
+}
+
+.resumenItem {
+    background: var(--itemSurface);
+    border: 1px solid var(--border);
+    border-radius: var(--radiusSm);
+    padding: var(--spaceMd);
+    text-align: center;
+}
+
+.resumenValor {
+    font-size: var(--textXl);
+    font-weight: bold;
+    color: var(--accent);
+}
+
+.resumenEtiqueta {
+    font-size: var(--textXs);
+    color: var(--muted);
+    margin-top: var(--spaceXs);
+}
+
+.resumenPie {
+    margin-top: var(--spaceMd);
+    font-size: var(--textXs);
+    color: var(--muted);
+}
+
+.resumenCache {
+    color: var(--pending);
+}
