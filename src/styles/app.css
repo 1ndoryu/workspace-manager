@@ -1,0 +1,54 @@
+/* Estilos globales del workspace-manager: layout, cabecera y shell. */
+@import './variables.css';
+
+.appContenedor {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.cabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--spaceMd);
+    padding: var(--spaceMd) var(--spaceLg);
+    border-bottom: 1px solid var(--border);
+    background: var(--surfaceRaised);
+}
+
+.cabeceraTitulo {
+    font-size: var(--textLg);
+    font-weight: bold;
+    color: var(--text);
+}
+
+.cabeceraNav {
+    display: flex;
+    gap: var(--spaceSm);
+    margin-left: auto;
+}
+
+.cabeceraEstado {
+    font-size: var(--textXs);
+    color: var(--muted);
+}
+
+.contenido {
+    flex: 1;
+    padding: var(--spaceLg);
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* Estados de carga y error */
+.cargando,
+.error {
+    padding: var(--spaceLg);
+    text-align: center;
+    color: var(--muted);
+}
+
+.error {
+    color: var(--danger);
+}

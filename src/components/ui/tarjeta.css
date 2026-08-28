@@ -1,0 +1,32 @@
+/* Estilos de la Tarjeta atomica. */
+.tarjeta {
+    background: var(--surfaceRaised);
+    border: 1px solid var(--border);
+    border-radius: var(--radiusMd);
+    overflow: hidden;
+}
+
+.tarjetaCabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spaceSm);
+    padding: var(--spaceMd) var(--spaceLg);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.tarjetaTitulo {
+    font-size: var(--textMd);
+    font-weight: bold;
+    color: var(--text);
+}
+
+.tarjetaAccion {
+    display: flex;
+    gap: var(--spaceXs);
+}
+
+.tarjetaCuerpo {
+    padding: var(--spaceLg);
+}

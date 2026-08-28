@@ -1,0 +1,5 @@
+# Configuracion de workspace pnpm.
+# [workspace-manager] pnpm 11 no lee "pnpm.onlyBuiltDependencies" del package.json;
+# los build scripts aprobados viven aqui (esbuild es requisito de Vite).
+allowBuilds:
+  esbuild: true

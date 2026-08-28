@@ -1,0 +1,78 @@
+/* Estilos del mapa isometrico. */
+.isoMapContenedor {
+    position: relative;
+    overflow: auto;
+    padding: var(--spaceMd);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radiusMd);
+}
+
+.isoMapSvg {
+    display: block;
+    max-width: none;
+}
+
+.isoTile {
+    cursor: pointer;
+}
+
+.isoTile .isoPiso {
+    fill: var(--itemSurface);
+    stroke: var(--border);
+    stroke-width: 1;
+    transition: fill 0.15s;
+}
+
+.isoTile .isoPared {
+    fill: var(--surfaceRaised);
+    stroke: var(--border);
+    stroke-width: 1;
+    transition: fill 0.15s;
+}
+
+.isoTile:hover .isoPiso,
+.isoTile:focus .isoPiso {
+    fill: var(--selectedSurface);
+}
+
+.isoEtiqueta {
+    fill: var(--muted);
+    font-family: var(--font);
+    font-size: var(--textXs);
+    pointer-events: none;
+    user-select: none;
+}
+
+.isoTile--limpio .isoPiso {
+    fill: color-mix(in srgb, var(--ok) 30%, var(--itemSurface));
+}
+
+.isoTile--dirty .isoPiso {
+    fill: color-mix(in srgb, var(--warn) 35%, var(--itemSurface));
+}
+
+.isoTile--rojo .isoPiso {
+    fill: color-mix(in srgb, var(--danger) 35%, var(--itemSurface));
+}
+
+.isoTile--carpeta .isoPiso {
+    fill: var(--surfaceRaised);
+}
+
+.isoTooltip {
+    background: var(--surfaceRaised);
+    border: 1px solid var(--border);
+    border-radius: var(--radiusSm);
+    padding: var(--spaceSm) var(--spaceMd);
+    font-size: var(--textXs);
+    color: var(--text);
+    pointer-events: none;
+    z-index: 10;
+    max-width: 260px;
+}
+
+.isoTooltipRama {
+    color: var(--muted);
+    margin-top: var(--spaceXs);
+}

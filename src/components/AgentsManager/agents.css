@@ -1,0 +1,80 @@
+/* Estilos de la gestion de AGENTS y skills. */
+.agentsContenedor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spaceLg);
+}
+
+.agentsFila {
+    display: flex;
+    align-items: center;
+    gap: var(--spaceSm);
+    flex-wrap: wrap;
+}
+
+.agentsRuta {
+    font-size: var(--textXs);
+    color: var(--muted);
+}
+
+.agentsChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spaceXs);
+    margin-top: var(--spaceMd);
+}
+
+.agentsColumnas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spaceLg);
+}
+
+@media (max-width: 640px) {
+    .agentsColumnas {
+        grid-template-columns: 1fr;
+    }
+}
+
+.agentsSubTitulo {
+    font-size: var(--textSm);
+    color: var(--muted);
+    margin-bottom: var(--spaceSm);
+}
+
+.agentsLista {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spaceXs);
+}
+
+.agentsLista li {
+    display: flex;
+    align-items: center;
+    gap: var(--spaceSm);
+    font-size: var(--textSm);
+}
+
+.agentsLista code {
+    background: var(--itemSurface);
+    border: 1px solid var(--border);
+    border-radius: var(--radiusSm);
+    padding: var(--spaceXs);
+    color: var(--accent);
+}
+
+.agentsReglas {
+    color: var(--muted);
+    font-size: var(--textXs);
+}
+
+.agentsSkill {
+    flex-direction: column;
+    align-items: flex-start !important;
+}
+
+.agentsSkillDesc {
+    color: var(--muted);
+    font-size: var(--textXs);
+}
