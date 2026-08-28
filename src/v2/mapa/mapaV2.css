@@ -9,6 +9,35 @@
     align-items: center;
     justify-content: center;
     gap: var(--v2-spaceMd);
+    position: relative;
+}
+
+/* Controles de zoom en la esquina superior derecha del mapa. */
+.mapaV2Zoom {
+    position: absolute;
+    top: var(--v2-spaceMd);
+    right: var(--v2-spaceMd);
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+}
+
+.mapaV2ZoomBoton {
+    width: 32px;
+    height: 32px;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    font-family: var(--v2-font);
+    font-size: var(--v2-textLg);
+    line-height: 1;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.mapaV2ZoomBoton:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
 }
 
 /* El SVG escala con viewBox para caber siempre en el espacio disponible:
@@ -97,26 +126,4 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-}
-
-/* Leyenda monocroma. */
-.mapaV2Leyenda {
-    display: flex;
-    gap: var(--v2-spaceLg);
-    font-size: var(--v2-textSm);
-    padding: var(--v2-spaceMd);
-    border-top: 1px solid var(--v2-borde);
-}
-
-.mapaV2LeyendaItem {
-    display: flex;
-    align-items: center;
-    gap: var(--v2-spaceXs);
-}
-
-.mapaV2Muestra {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border: 1px solid var(--v2-borde);
 }
