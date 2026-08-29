@@ -852,14 +852,15 @@
 }
 .fjInput:focus { outline: 1px solid var(--v2-invertido); }
 .fjInput--num { width: 90px; }
-/* Tags editables para una lista de valores simples (una fila). */
+/* Tags editables para una lista de valores simples (una columna). */
 .fjTags { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; }
-.fjTagsLista { display: flex; flex-wrap: wrap; gap: 4px; }
+.fjTagsLista { display: flex; flex-direction: column; gap: 4px; }
 .fjTag {
-  display: inline-flex; align-items: center; gap: 2px;
+  display: flex; align-items: center; gap: 2px;
   border: 1px solid var(--v2-invertido); border-radius: 3px;
   background: transparent;
 }
+.fjTag .fjTagInput { flex: 1 1 auto; }
 .fjTagInput {
   font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro);
   background: transparent; border: none; padding: 2px 4px; min-width: 80px; flex: 1 1 auto;
@@ -879,3 +880,19 @@
   padding: 3px 10px; border: 1px solid var(--v2-invertido); background: transparent;
   color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; flex-shrink: 0;
 }
+
+/* ---- Editor por esquema (EditorEsquema): indicadores de estado ---- */
+.ejEstado { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 7px 10px; border-bottom: 1px solid var(--v2-borde); }
+.ejEstado--falte { opacity: .72; }
+.ejEstado--falte .ejEtiqueta::after { content: ' · falta'; font-style: italic; }
+.ejEtiqueta { display: flex; align-items: center; gap: 5px; font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em; min-width: 0; }
+.ejRutaLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ejMarca { font-size: 11px; opacity: .8; flex-shrink: 0; }
+.ejControl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ejValorTexto { font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ejSugerencia { font-size: 11px; font-style: italic; opacity: .6; }
+.ejAgregar { font-family: inherit; font-size: 11px; letter-spacing: .05em; margin-top: 2px; padding: 3px 8px; width: max-content; border: 1px dashed var(--v2-invertido); background: transparent; color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; }
+.ejQuitar { font-family: inherit; font-size: 11px; letter-spacing: .05em; padding: 2px 8px; border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; }
+.fjFila--mal .fjControl { border-left: 2px solid var(--v2-invertido); padding-left: 8px; }
+.fjSelect { font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro); background: var(--v2-fondo); border: 1px solid var(--v2-borde); padding: 3px 6px; border-radius: 3px; }
+.fjTag--ro { padding: 2px 6px; }
