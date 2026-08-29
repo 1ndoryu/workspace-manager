@@ -34,6 +34,13 @@ interface EntradaDocs {
   reglas?: number;
 }
 
+/* Grupo de la lista lateral: documentos que comparten ubicacion. */
+interface GrupoDocs {
+  titulo: string;
+  ubicacion: string;
+  entradas: EntradaDocs[];
+}
+
 /* Plantilla minima para crear un AGENTS.md sin contenido previo. */
 const PLANTILLA = `# AGENTS.md
 
@@ -75,12 +82,30 @@ export function PanelDocs() {
     snapshot.agentes.global.reglas.length,
   );
 
-  /* Lista unica: primero las skills (etiqueta 'skill'), luego los AGENTS.md
-   * (etiqueta 'AGENTS.md'). Orden natural y cada entrada se identifica por su
-   * etiqueta, no por secciones separadas. */
-  const entradas: EntradaDocs[] = [
-    ...skills.map((s): EntradaDocs => ({ id: s.nombre, nombre: s.nombre, etiqueta: 'skill', descripcion: s.descripcion })),
-    ...docs.map((d): EntradaDocs => ({ id: d.id, nombre: d.nombre, etiqueta: 'AGENTS.md', tiene: d.tiene, reglas: d.reglas })),
+  /* Lista agrupada por ubicacion: skills globales (~/.agents/skills),
+   * AGENTS.md de la raiz del area y AGENTS.md de cada proyecto. Cada grupo
+   * muestra su ubicacion como cabecera; dentro, cada entrada se identifica
+   * por su etiqueta (skill / AGENTS.md). */
+  const grupos: GrupoDocs[] = [
+    {
+      titulo: `skills globales (${skills.length})`,
+      ubicacion: '~/.agents/skills',
+      entradas: skills.map((s): EntradaDocs => ({ id: s.nombre, nombre: s.nombre, etiqueta: 'skill', descripcion: s.descripcion })),
+    },
+    {
+      titulo: 'raíz (area-trabajo)',
+      ubicacion: snapshot.agentes.global.ruta ?? 'AGENTS.md',
+      entradas: docs
+        .filter((d) => d.id === 'raiz')
+        .map((d): EntradaDocs => ({ id: d.id, nombre: d.nombre, etiqueta: 'AGENTS.md', tiene: d.tiene, reglas: d.reglas })),
+    },
+    {
+      titulo: `proyectos (${docs.filter((d) => d.id !== 'raiz').length})`,
+      ubicacion: 'area-trabajo/<proyecto>/AGENTS.md',
+      entradas: docs
+        .filter((d) => d.id !== 'raiz')
+        .map((d): EntradaDocs => ({ id: d.id, nombre: d.nombre, etiqueta: 'AGENTS.md', tiene: d.tiene, reglas: d.reglas })),
+    },
   ];
 
   async function abrirSkill(skill: SkillGlobal) {
@@ -147,41 +172,51 @@ export function PanelDocs() {
     <div className="panelDocs" aria-label="Documentación">
       <div className="panelDocsLista">
         <section className="panelDocsSeccion">
-          <header className="panelDocsCabecera">documentos ({entradas.length})</header>
+          <header className="panelDocsCabecera">
+            documentación ({grupos.reduce((n, g) => n + g.entradas.length, 0)})
+          </header>
           <div className="panelDocsEntradas">
-            {entradas.length === 0 && <div className="docsVacio">no se detectaron documentos</div>}
-            {entradas.map((e) => {
-              const activa =
-                seleccion !== null && e.id === seleccion.id && e.etiqueta === (esSkill ? 'skill' : 'AGENTS.md');
-              return (
-                <button
-                  key={`${e.etiqueta}:${e.id}`}
-                  type="button"
-                  className={`docsFila${activa ? ' docsFila--activa' : ''}`}
-                  onClick={() => {
-                    if (e.etiqueta === 'skill') {
-                      const s = skills.find((x) => x.nombre === e.id);
-                      if (s) void abrirSkill(s);
-                    } else {
-                      const d = docs.find((x) => x.id === e.id);
-                      if (d) void abrirAgents(d);
-                    }
-                  }}
-                  title={e.descripcion ?? e.nombre}
-                >
-                  <span className="docsFilaEtiqueta">{e.etiqueta}</span>
-                  <span className="docsFilaNombre">{e.nombre}</span>
-                  {/* [por que] La descripcion larga de una skill estorba la
-                   * lista y tapa el nombre; va al tooltip (title). En los
-                   * AGENTS.md el meta corto (reglas/crear) si se muestra. */}
-                  {e.etiqueta !== 'skill' && (
-                    <span className="docsFilaMeta">
-                      {e.tiene ? `${e.reglas} regla(s)` : 'crear'}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            {grupos.length === 0 && <div className="docsVacio">no se detectaron documentos</div>}
+            {grupos.map((grupo) => (
+              <div key={grupo.titulo} className="docsGrupo">
+                <div className="docsGrupoCabecera">
+                  <span className="docsGrupoTitulo">{grupo.titulo}</span>
+                  <span className="docsGrupoUbicacion">{grupo.ubicacion}</span>
+                </div>
+                {grupo.entradas.map((e) => {
+                  const activa =
+                    seleccion !== null && e.id === seleccion.id && e.etiqueta === (esSkill ? 'skill' : 'AGENTS.md');
+                  return (
+                    <button
+                      key={`${e.etiqueta}:${e.id}`}
+                      type="button"
+                      className={`docsFila${activa ? ' docsFila--activa' : ''}`}
+                      onClick={() => {
+                        if (e.etiqueta === 'skill') {
+                          const s = skills.find((x) => x.nombre === e.id);
+                          if (s) void abrirSkill(s);
+                        } else {
+                          const d = docs.find((x) => x.id === e.id);
+                          if (d) void abrirAgents(d);
+                        }
+                      }}
+                      title={e.descripcion ?? e.nombre}
+                    >
+                      <span className="docsFilaEtiqueta">{e.etiqueta}</span>
+                      <span className="docsFilaNombre">{e.nombre}</span>
+                      {/* [por que] La descripcion larga de una skill estorba la
+                       * lista y tapa el nombre; va al tooltip (title). En los
+                       * AGENTS.md el meta corto (reglas/crear) si se muestra. */}
+                      {e.etiqueta !== 'skill' && (
+                        <span className="docsFilaMeta">
+                          {e.tiene ? `${e.reglas} regla(s)` : 'crear'}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </section>
       </div>

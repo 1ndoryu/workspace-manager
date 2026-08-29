@@ -374,6 +374,36 @@
     color: var(--v2-invertido);
 }
 
+/* Grupo de la lista: cabecera (titulo + ubicacion) y entradas debajo. */
+.docsGrupo {
+    display: flex;
+    flex-direction: column;
+}
+
+.docsGrupoCabecera {
+    display: flex;
+    align-items: baseline;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.docsGrupoTitulo {
+    flex: none;
+    font-size: var(--v2-textXs);
+}
+
+.docsGrupoUbicacion {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+    font-size: var(--v2-textXs);
+}
+
 /* Etiqueta de tipo de cada documento (skill o AGENTS.md). */
 .docsFilaEtiqueta {
     flex: none;
