@@ -384,8 +384,16 @@
     align-items: baseline;
     gap: var(--v2-spaceSm);
     padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-top: 1px solid var(--v2-borde);
     border-bottom: 1px solid var(--v2-borde);
+    margin-top: var(--v2-spaceXs);
     margin-bottom: var(--v2-spaceXs);
+}
+
+/* [por que] La primera cabecera no repite la linea superior: el panel ya
+ * arranca en el borde, solo las cabeceras siguientes necesitan separador. */
+.docsGrupoCabecera--primera {
+    border-top: none;
 }
 
 .docsGrupoTitulo {
