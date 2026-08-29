@@ -3,7 +3,10 @@
  * [por que] El usuario pidio un panel central para crear/manejar documentos:
  * las skills globales son esos documentos (SKILL.md en ~/.agents/skills) y
  * los agents.md de cada proyecto + el de la carpeta principal. Los datos de
- * deteccion vienen del snapshot; el contenido se lee/escribe por API. */
+ * deteccion vienen del snapshot; el contenido se lee/escribe por API.
+ * [v2.2] Skills y AGENTS.md son una SOLA lista lateral con una etiqueta que
+ * dice que es cada entrada; el contenido abre en el unico panel de la
+ * derecha. */
 import { useState } from 'react';
 import axios from 'axios';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
@@ -19,6 +22,16 @@ interface DocAgentes {
   nombre: string;
   tiene: boolean;
   reglas: number;
+}
+
+/* Entrada unificada de la lista: skill o AGENTS.md, con etiqueta de tipo. */
+interface EntradaDocs {
+  id: string;
+  nombre: string;
+  etiqueta: 'skill' | 'AGENTS.md';
+  descripcion?: string;
+  tiene?: boolean;
+  reglas?: number;
 }
 
 /* Plantilla minima para crear un AGENTS.md sin contenido previo. */
@@ -61,6 +74,14 @@ export function PanelDocs() {
     snapshot.agentes.global.tieneAgentsMd,
     snapshot.agentes.global.reglas.length,
   );
+
+  /* Lista unica: primero las skills (etiqueta 'skill'), luego los AGENTS.md
+   * (etiqueta 'AGENTS.md'). Orden natural y cada entrada se identifica por su
+   * etiqueta, no por secciones separadas. */
+  const entradas: EntradaDocs[] = [
+    ...skills.map((s): EntradaDocs => ({ id: s.nombre, nombre: s.nombre, etiqueta: 'skill', descripcion: s.descripcion })),
+    ...docs.map((d): EntradaDocs => ({ id: d.id, nombre: d.nombre, etiqueta: 'AGENTS.md', tiene: d.tiene, reglas: d.reglas })),
+  ];
 
   async function abrirSkill(skill: SkillGlobal) {
     setSeleccion({ tipo: 'skill', id: skill.nombre, nombre: skill.nombre, descripcion: skill.descripcion });
@@ -126,49 +147,45 @@ export function PanelDocs() {
     <div className="panelDocs" aria-label="Documentación">
       <div className="panelDocsLista">
         <section className="panelDocsSeccion">
-          <header className="panelDocsCabecera">skills globales ({skills.length})</header>
+          <header className="panelDocsCabecera">documentos ({entradas.length})</header>
           <div className="panelDocsEntradas">
-            {skills.length === 0 && <div className="docsVacio">no se detectaron skills</div>}
-            {skills.map((s) => (
-              <button
-                key={s.nombre}
-                type="button"
-                className={`docsFila${seleccion?.id === s.nombre && esSkill ? ' docsFila--activa' : ''}`}
-                onClick={() => void abrirSkill(s)}
-                title={s.ruta}
-              >
-                <span className="docsFilaNombre">{s.nombre}</span>
-                {s.descripcion && <span className="docsFilaMeta">{s.descripcion}</span>}
-              </button>
-            ))}
-          </div>
-        </section>
-        <section className="panelDocsSeccion">
-          <header className="panelDocsCabecera">AGENTS.md ({docs.filter((d) => d.tiene).length} con)</header>
-          <div className="panelDocsEntradas">
-            {docs.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                className={`docsFila${seleccion?.id === d.id && !esSkill ? ' docsFila--activa' : ''}`}
-                onClick={() => void abrirAgents(d)}
-                title={d.nombre}
-              >
-                <span
-                  className={`docsFilaEstado${d.tiene ? '' : ' docsFilaEstado--vacío'}`}
-                  aria-hidden="true"
-                />
-                <span className="docsFilaNombre">{d.nombre}</span>
-                <span className="docsFilaMeta">
-                  {d.tiene ? `${d.reglas} regla(s)` : 'crear'}
-                </span>
-              </button>
-            ))}
+            {entradas.length === 0 && <div className="docsVacio">no se detectaron documentos</div>}
+            {entradas.map((e) => {
+              const activa =
+                seleccion !== null && e.id === seleccion.id && e.etiqueta === (esSkill ? 'skill' : 'AGENTS.md');
+              return (
+                <button
+                  key={`${e.etiqueta}:${e.id}`}
+                  type="button"
+                  className={`docsFila${activa ? ' docsFila--activa' : ''}`}
+                  onClick={() => {
+                    if (e.etiqueta === 'skill') {
+                      const s = skills.find((x) => x.nombre === e.id);
+                      if (s) void abrirSkill(s);
+                    } else {
+                      const d = docs.find((x) => x.id === e.id);
+                      if (d) void abrirAgents(d);
+                    }
+                  }}
+                  title={e.descripcion ?? e.nombre}
+                >
+                  <span className="docsFilaEtiqueta">{e.etiqueta}</span>
+                  <span className="docsFilaNombre">{e.nombre}</span>
+                  <span className="docsFilaMeta">
+                    {e.etiqueta === 'skill'
+                      ? e.descripcion
+                      : e.tiene
+                        ? `${e.reglas} regla(s)`
+                        : 'crear'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </section>
       </div>
       <div className="panelDocsContenido">
-        {!seleccion && <div className="docsVacio">elige una skill o un AGENTS.md para verlo/crearlo</div>}
+        {!seleccion && <div className="docsVacio">elige un documento para verlo/crearlo</div>}
         {seleccion && cargando && <div className="docsVacio">cargando…</div>}
         {seleccion && !cargando && contenido === null && mensaje && (
           <div className="docsVacio">{mensaje}</div>

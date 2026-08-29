@@ -27,6 +27,14 @@ export function NavBar() {
   const visibles = useWorkspaceStore((s) => s.visibles);
   const setPanelVisible = useWorkspaceStore((s) => s.setPanelVisible);
 
+  /* [por que] En documentacion y repos no existen paneles detalle/lista: solo
+   * la consola tiene sentido. Por eso los toggles de detalle y lista solo se
+   * muestran en el modo mapa. */
+  const togglesVisibles =
+    panelCentral === 'mapa'
+      ? TOGGLES
+      : TOGGLES.filter((t) => t.clave === 'consola');
+
   return (
     <nav className="v2Nav" aria-label="Navegación principal">
       <div className="v2NavCentral" role="tablist" aria-label="Panel central">
@@ -46,7 +54,7 @@ export function NavBar() {
         ))}
       </div>
       <div className="v2NavVisible" role="group" aria-label="Visibilidad de paneles">
-        {TOGGLES.map((t) => (
+        {togglesVisibles.map((t) => (
           <button
             key={t.clave}
             type="button"
