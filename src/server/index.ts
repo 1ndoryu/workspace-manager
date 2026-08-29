@@ -2,8 +2,8 @@
  * y el build estatico del cliente. [por que] Node http nativo, sin framework:
  * rapido, cero deps, coherente con el stack ligero del proyecto. */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
-import { extname, join, normalize } from 'node:path';
+import { readdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { basename, extname, join, normalize, relative, sep } from 'node:path';
 import { obtenerSnapshot } from './cache.js';
 import { escanearWorkspace } from './scanner/workspace.js';
 import { doctorSentinel } from './scanner/gate.js';
@@ -62,6 +62,35 @@ function leerArchivo(ruta: string): string | null {
   } catch {
     return null;
   }
+}
+
+/* Carpetas de ruido que no se listan en el navegador: internas de build,
+ * dependencias y VCS. [por que] Navegar el area con node_modules/.git/target
+ * al lado no aporta y ralentiza; el usuario pidio moverse entre carpetas
+ * utiles del proyecto. */
+const CARPETAS_OCULTAS = new Set([
+  'node_modules', '.git', '.sentinel', 'target', 'dist', 'build', '.next',
+  '.nuxt', '.cache', '.cargo', '.venv', 'venv', '__pycache__', '.idea',
+]);
+
+/* Limite de entradas a stat para mostrar tamanos; mas alla se omite el
+ * tamano (evita statSync masivo en carpetas como node_modules). */
+const MAX_STAT_ENTRADAS = 500;
+
+/* Resuelve una ruta relativa al area dentro del area; null si escapa
+ * (path traversal). [por que] El cliente solo envia rutas relativas; nunca
+ * se acepta un path absoluto ni una subida fuera de la raiz. */
+function resolverArea(rutaRel: string): string | null {
+  const abs = normalize(join(RAÍZ_AREA, rutaRel));
+  const rel = relative(normalize(RAÍZ_AREA), abs);
+  if (rel.startsWith('..') || rel.includes(`..${sep}`)) return null;
+  return abs;
+}
+
+/* Directorio padre de una ruta relativa ('a/b' -> 'a'; '' -> ''). */
+function padreDe(rutaRel: string): string {
+  const idx = rutaRel.lastIndexOf('/');
+  return idx <= 0 ? '' : rutaRel.slice(0, idx);
 }
 
 /* Escaner con cache; el flag `forzar` re-escanea. */
@@ -226,6 +255,89 @@ export function crearServidor() {
             return;
           }
           json(res, 405, { error: 'Metodo no permitido' });
+          return;
+        }
+        if (ruta === '/api/archivos' || ruta.startsWith('/api/archivos/')) {
+          const sub = ruta.slice('/api/archivos'.length);
+          const rutaRel = url.searchParams.get('ruta') ?? '';
+          /* GET /api/archivos?ruta=<rel>: listado de un directorio. */
+          if (sub === '' || sub === '/') {
+            if (req.method !== 'GET') {
+              json(res, 405, { error: 'Metodo no permitido' });
+              return;
+            }
+            const dir = resolverArea(rutaRel);
+            if (dir === null) {
+              json(res, 400, { error: 'Ruta fuera del area de trabajo', ruta: rutaRel });
+              return;
+            }
+            if (!existsSync(dir) || !statSync(dir).isDirectory()) {
+              json(res, 404, { error: 'Directorio no encontrado', ruta: rutaRel });
+              return;
+            }
+            const entradasRaw = readdirSync(dir, { withFileTypes: true });
+            const conTamano = entradasRaw.length <= MAX_STAT_ENTRADAS;
+            const entradas = entradasRaw
+              .filter((d) => !CARPETAS_OCULTAS.has(d.name))
+              .map((d) => {
+                const esCarpeta = d.isDirectory();
+                const ruta = rutaRel ? `${rutaRel}/${d.name}` : d.name;
+                let tamano: number | null = null;
+                if (!esCarpeta && conTamano) {
+                  try {
+                    tamano = statSync(join(dir, d.name)).size;
+                  } catch {
+                    tamano = null;
+                  }
+                }
+                return { nombre: d.name, ruta, tipo: esCarpeta ? 'carpeta' : 'archivo', tamano };
+              })
+              .sort((a, b) =>
+                a.tipo === b.tipo
+                  ? a.nombre.localeCompare(b.nombre)
+                  : a.tipo === 'carpeta'
+                    ? -1
+                    : 1,
+              );
+            json(res, 200, { ruta: rutaRel, padre: padreDe(rutaRel), entradas });
+            return;
+          }
+          /* GET /api/archivos/contenido?ruta=<rel>: contenido de un archivo. */
+          if (sub === '/contenido') {
+            if (req.method !== 'GET') {
+              json(res, 405, { error: 'Metodo no permitido' });
+              return;
+            }
+            const archivo = resolverArea(rutaRel);
+            if (archivo === null) {
+              json(res, 400, { error: 'Ruta fuera del area de trabajo', ruta: rutaRel });
+              return;
+            }
+            if (!existsSync(archivo) || !statSync(archivo).isFile()) {
+              json(res, 404, { error: 'Archivo no encontrado', ruta: rutaRel });
+              return;
+            }
+            const tam = statSync(archivo).size;
+            if (tam > 1_000_000) {
+              json(res, 413, { error: 'Archivo demasiado grande para previsualizar', tamano: tam });
+              return;
+            }
+            const contenido = leerArchivo(archivo);
+            if (contenido === null) {
+              json(res, 500, { error: 'No se pudo leer el archivo', ruta: rutaRel });
+              return;
+            }
+            /* Detecta binarios por byte NUL: no se pueden mostrar como texto. */
+            const binario = contenido.includes('\u0000');
+            json(res, 200, {
+              ruta: rutaRel,
+              nombre: basename(archivo),
+              binario,
+              contenido: binario ? null : contenido,
+            });
+            return;
+          }
+          json(res, 404, { error: 'Subruta de archivos desconocida', sub });
           return;
         }
         json(res, 404, { error: 'Ruta no encontrada', ruta });

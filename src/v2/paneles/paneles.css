@@ -618,3 +618,94 @@
     text-decoration: none;
     opacity: 0.6;
 }
+
+/* ============================================================
+ * Panel central: navegador de archivos.
+ * Reutiliza la estructura de docs (lista lateral + visor) con su
+ * propia fila de ruta (breadcrumb + boton de subir).
+ * ============================================================ */
+.navegadorRuta {
+    flex: none;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--v2-spaceXs);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.navegadorRutaSeg {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+}
+
+.navegadorRutaSep {
+    color: var(--v2-texto);
+    opacity: 0.5;
+}
+
+.navegadorRutaChip {
+    border: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    padding: 1px 6px;
+    cursor: pointer;
+}
+
+.navegadorRutaChip:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.navegadorRutaChip--activo {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.navegadorSubir {
+    margin-left: auto;
+    border: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    padding: 1px 8px;
+    cursor: pointer;
+}
+
+.navegadorSubir:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.navegadorFila {
+    display: flex;
+    align-items: baseline;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border: none;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textSm);
+    text-align: left;
+    cursor: pointer;
+}
+
+.navegadorFila:hover,
+.navegadorFila--activa {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.navegadorFilaEtiqueta {
+    flex: none;
+    border: 1px solid currentColor;
+    padding: 0 4px;
+    font-size: var(--v2-textXs);
+    line-height: 1.5;
+    align-self: center;
+}

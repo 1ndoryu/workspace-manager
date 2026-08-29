@@ -28,7 +28,7 @@ const seleccionInicial = seleccionGuardada();
  * layout y la seleccion: sobreviven a recargas. [por que] El usuario pidio
  * un nav para cambiar el panel central (mapa/docs/repos) y controlar que
  * paneles laterales/consola estan visibles. */
-export type PanelCentral = 'mapa' | 'docs' | 'repos';
+export type PanelCentral = 'mapa' | 'docs' | 'repos' | 'navegador';
 
 export interface VisibilidadPaneles {
   detalle: boolean;
@@ -48,7 +48,9 @@ function uiGuardada(): { panelCentral: PanelCentral; visibles: VisibilidadPanele
     if (!raw) return UI_DEFECTO;
     const d = JSON.parse(raw) as { panelCentral?: unknown; visibles?: Partial<VisibilidadPaneles> };
     const panelCentral: PanelCentral =
-      d.panelCentral === 'docs' || d.panelCentral === 'repos' ? d.panelCentral : 'mapa';
+      d.panelCentral === 'docs' || d.panelCentral === 'repos' || d.panelCentral === 'navegador'
+        ? d.panelCentral
+        : 'mapa';
     const visibles: VisibilidadPaneles = { ...UI_DEFECTO.visibles, ...(d.visibles ?? {}) };
     for (const k of ['detalle', 'lista', 'consola'] as const) {
       visibles[k] = typeof visibles[k] === 'boolean' ? visibles[k] : true;

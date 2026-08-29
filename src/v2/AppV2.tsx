@@ -13,6 +13,7 @@ import { PanelConsola } from './paneles/PanelConsola.js';
 import { PanelDetalle } from './paneles/PanelDetalle.js';
 import { PanelDocs } from './paneles/PanelDocs.js';
 import { PanelLista } from './paneles/PanelLista.js';
+import { PanelNavegador } from './paneles/PanelNavegador.js';
 import { PanelRepos } from './paneles/PanelRepos.js';
 import { Resizer } from './Resizer.js';
 import './styles/v2.css';
@@ -88,6 +89,7 @@ export function AppV2() {
     mapa: <MapaV2 />,
     docs: <PanelDocs />,
     repos: <PanelRepos />,
+    navegador: <PanelNavegador />,
   }[panelCentral];
 
   /* [por que] El marco con borde solo envuelve al mapa (el usuario pidio el
