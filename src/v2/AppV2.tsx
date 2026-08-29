@@ -90,6 +90,13 @@ export function AppV2() {
     repos: <PanelRepos />,
   }[panelCentral];
 
+  /* [por que] El marco con borde solo envuelve al mapa (el usuario pidio el
+   * mapa dentro de un cuadro). En docs y repos cada panel interno es su
+   * propia caja (lista y visor en docs; cabecera+contenido en repos), asi
+   * que el contenedor no lleva borde exterior. */
+  const claseCentral =
+    panelCentral === 'mapa' ? 'v2CentralMarco' : 'v2CentralMarco v2CentralMarco--contenido';
+
   return (
     <div
       className="v2App"
@@ -127,7 +134,7 @@ export function AppV2() {
                   }
                 />
               )}
-              <div className="v2CentralMarco">{panelCentralRender}</div>
+              <div className={claseCentral}>{panelCentralRender}</div>
               {panelCentral === 'mapa' && visibles.lista && (
                 <Resizer
                   orientacion="vertical"
