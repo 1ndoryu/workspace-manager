@@ -70,6 +70,9 @@ export interface AgentesInfo {
 
 export interface SnapshotWorkspace {
   escaneadoEn: string;
+  /* Raiz del area: permite al cliente convertir rutas absolutas de proyectos
+   * en rutas relativas para el navegador de archivos. */
+  raiz: string;
   proyectos: Proyecto[];
   agentes: AgentesInfo;
   resumen: {

@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import type { EntradaArchivo, ListadoDirectorio } from '../../shared/types.js';
+import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import './paneles.css';
 
 interface ArchivoAbierto {
@@ -37,6 +38,8 @@ function segmentos(ruta: string): string[] {
 }
 
 export function PanelNavegador() {
+  const navegadorRuta = useWorkspaceStore((s) => s.navegadorRuta);
+  const consumirNavegadorRuta = useWorkspaceStore((s) => s.consumirNavegadorRuta);
   const [dir, setDir] = useState('');
   const [padre, setPadre] = useState('');
   const [entradas, setEntradas] = useState<EntradaArchivo[]>([]);
@@ -81,10 +84,21 @@ export function PanelNavegador() {
     }
   }
 
-  /* Al montar, listar la raiz del area. */
+  /* Al montar, listar la raiz del area (si hay una ruta objetivo pendiente
+   * viene de la consola y la gestiona el efecto de abajo). */
   useEffect(() => {
-    void cargarDir('');
+    if (navegadorRuta === null) void cargarDir('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* Cuando la consola pide abrir la carpeta de un proyecto, navegar ahi. */
+  useEffect(() => {
+    if (navegadorRuta !== null) {
+      void cargarDir(navegadorRuta);
+      consumirNavegadorRuta();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navegadorRuta]);
 
   const partes = segmentos(dir);
 
