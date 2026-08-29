@@ -709,3 +709,128 @@
     line-height: 1.5;
     align-self: center;
 }
+
+/* --- Configuracion por proyecto (PanelConfig) --- */
+.excFila {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceXs);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.excFilaNombre {
+    flex: 1;
+    min-width: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+    font: inherit;
+    font-size: var(--v2-textSm);
+    color: var(--v2-texto);
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    padding: 2px 0;
+}
+
+.excFilaNombre:hover {
+    text-decoration: underline;
+}
+
+.excBoton {
+    flex: none;
+    background: none;
+    border: 1px solid var(--v2-borde);
+    border-radius: 0;
+    font: inherit;
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    padding: 3px 8px;
+    cursor: pointer;
+}
+
+.excBoton:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.docsVisorCabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.docsVisorTitulo {
+    font-size: var(--v2-textSm);
+    font-weight: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.configMeta {
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.configBadges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.configBadge {
+    border: 1px solid var(--v2-borde);
+    padding: 1px 7px;
+    font-size: var(--v2-textXs);
+    line-height: 1.6;
+}
+
+.configBadge--sin {
+    opacity: 0.45;
+}
+
+.gateEditores {
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceMd);
+    overflow: auto;
+}
+
+.gateEditor {
+    border: 1px solid var(--v2-borde);
+    display: flex;
+    flex-direction: column;
+}
+
+.gateEditorCabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceSm);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.gateEditorNombre {
+    font-size: var(--v2-textXs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gateEditorTexto {
+    border: none;
+}

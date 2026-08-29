@@ -43,6 +43,11 @@ export interface ResumenAgents {
 
 export interface Proyecto {
   id: string;
+  /* Clave unica: ruta relativa al area, separador '/'. [por que] El id (nombre
+   * de carpeta) es ambiguo (p. ej. '01' puede ser 3D/01 u otro); para ignorar
+   * y para el menu contextual se usa la ruta relativa, que identifica sin
+   * colisionar. */
+  clave: string;
   ruta: string;
   esGit: boolean;
   tipo: TipoProyecto;
@@ -51,6 +56,13 @@ export interface Proyecto {
   roadmap?: ResumenRoadmap;
   agents?: ResumenAgents;
   padre?: string;
+}
+
+export interface ConfigWorkspace {
+  version: number;
+  /* Claves (rutas relativas al area) de proyectos ignorados: no aparecen en
+   * el snapshot, se listan en la pagina de excepciones. */
+  ignorados: string[];
 }
 
 export interface SkillGlobal {
@@ -75,6 +87,10 @@ export interface SnapshotWorkspace {
   raiz: string;
   proyectos: Proyecto[];
   agentes: AgentesInfo;
+  /* Config persistente del area (ignorados, overrides por proyecto).
+   * [por que] El escaner la lee para filtrar y el cliente la muestra en la
+   * pagina de excepciones/configuracion. */
+  config: ConfigWorkspace;
   resumen: {
     total: number;
     repos: number;

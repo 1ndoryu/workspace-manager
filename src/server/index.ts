@@ -6,7 +6,8 @@ import { readdirSync, readFileSync, writeFileSync, existsSync, statSync } from '
 import { basename, extname, join, normalize, relative, sep } from 'node:path';
 import { obtenerSnapshot } from './cache.js';
 import { escanearWorkspace } from './scanner/workspace.js';
-import { doctorSentinel } from './scanner/gate.js';
+import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
+import { cambiarIgnorado, leerConfigArea } from './configArea.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || 'C:/Users/Owner/.agents/skills';
@@ -142,6 +143,67 @@ export function crearServidor() {
           json(res, 200, snapshot.proyectos);
           return;
         }
+        /* Gate por proyecto: leer/editar los archivos de config (sentinel /
+         * varsense). [por que] El panel de configuracion por proyecto muestra
+         * el estado del gate y permite controlar sus reglas editando el JSON
+         * real; la ruta se resuelve desde el snapshot por clave y el nombre
+         * esta en whitelist (anti-traversal). */
+        if (ruta === '/api/proyecto/gate') {
+          const clave = url.searchParams.get('clave') ?? '';
+          const { snapshot } = snapshotArea(false);
+          const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
+          if (!proyecto) {
+            json(res, 404, { error: 'Proyecto no encontrado', clave });
+            return;
+          }
+          if (req.method === 'GET') {
+            const archivos = ARCHIVOS_GATE.map((n) => ({
+              nombre: n,
+              existe: existsSync(join(proyecto.ruta, n)),
+            })).filter((a) => a.existe);
+            /* [por que] JSON valido con comentarios: el JSON del gate puede
+             * traer // y /* *\/ (JSONC). Para editarlo se envia el archivo
+             * crudo; la validacion estricta solo se exige al escribir. */
+            const contenidos = Object.fromEntries(
+              archivos.map((a) => [a.nombre, leerArchivo(join(proyecto.ruta, a.nombre))]),
+            );
+            json(res, 200, { clave, estado: proyecto.gate, archivos, contenidos });
+            return;
+          }
+          if (req.method === 'POST') {
+            const body = (await leerBody(req)) as { nombre?: unknown; contenido?: unknown };
+            const nombre = typeof body.nombre === 'string' ? body.nombre : '';
+            const contenido = typeof body.contenido === 'string' ? body.contenido : null;
+            if ((ARCHIVOS_GATE as readonly string[]).includes(nombre) === false || contenido === null) {
+              json(res, 400, { error: 'archivo o contenido invalido' });
+              return;
+            }
+            /* [por que] Validar JSON antes de escribir: no se permite romper
+             * el gate de un proyecto con JSON invalido. Solo se exige
+             * parseable (no se re-serializa, para no reformatear). */
+            try {
+              JSON.parse(contenido);
+            } catch {
+              json(res, 422, { error: 'JSON invalido', detalle: 'el contenido no es JSON valido' });
+              return;
+            }
+            const ruta = join(proyecto.ruta, nombre);
+            try {
+              writeFileSync(ruta, contenido, 'utf8');
+              try {
+                snapshotArea(true);
+              } catch (err) {
+                console.warn('[gate] re-escaneo tras guardar fallo:', err);
+              }
+              json(res, 200, { ok: true, clave, nombre, ruta });
+            } catch (err) {
+              json(res, 500, { error: 'No se pudo escribir', detalle: String(err) });
+            }
+            return;
+          }
+          json(res, 405, { error: 'Metodo no permitido' });
+          return;
+        }
         if (ruta === '/api/proyectos/doctor') {
           const id = url.searchParams.get('id') ?? '';
           const { snapshot } = snapshotArea(false);
@@ -152,6 +214,34 @@ export function crearServidor() {
           }
           const doctor = doctorSentinel(proyecto.ruta);
           json(res, 200, { id, doctor });
+          return;
+        }
+        /* Config del area: alternar un proyecto entre ignorar / dejar de
+         * ignorar. La clave es la ruta relativa (no el nombre). */
+        if (ruta === '/api/config') {
+          if (req.method !== 'POST') {
+            json(res, 405, { error: 'Metodo no permitido' });
+            return;
+          }
+          const body = (await leerBody(req)) as { op?: unknown; clave?: unknown };
+          const op = body.op;
+          const clave = typeof body.clave === 'string' ? body.clave : '';
+          if ((op !== 'ignorar' && op !== 'quitar') || clave === '') {
+            json(res, 400, { error: 'op o clave invalidos' });
+            return;
+          }
+          try {
+            cambiarIgnorado(RAÍZ_AREA, clave, op === 'ignorar');
+            /* Re-escaneo best-effort: no debe convertir el cambio en un 500. */
+            try {
+              snapshotArea(true);
+            } catch (err) {
+              console.warn('[config] re-escaneo tras ignorar fallo:', err);
+            }
+            json(res, 200, { ok: true, config: leerConfigArea(RAÍZ_AREA) });
+          } catch (err) {
+            json(res, 500, { error: 'No se pudo guardar la config', detalle: String(err) });
+          }
           return;
         }
         if (ruta.startsWith('/api/skills/')) {

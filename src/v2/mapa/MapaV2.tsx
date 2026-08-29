@@ -46,6 +46,7 @@ const estadoInicial = estadoGuardado();
 export function MapaV2() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
+  const abrirMenuContextual = useWorkspaceStore((s) => s.abrirMenuContextual);
   const [hover, setHover] = useState<Proyecto | null>(null);
   /* Posicion del tooltip: sigue al cursor. [por que] Antes era fijo en la
    * esquina superior derecha y chocaria con el nuevo panel de lista. */
@@ -241,6 +242,11 @@ export function MapaV2() {
               className={`mapaV2Tile mapaV2Tile--${estado}`}
               onClick={() => {
                 if (!modoArrastre) seleccionar(p.id);
+              }}
+              onContextMenu={(e) => {
+                if (modoArrastre) return;
+                e.preventDefault();
+                abrirMenuContextual({ x: e.clientX, y: e.clientY, id: p.id, clave: p.clave });
               }}
               onMouseEnter={() => {
                 if (!modoArrastre) setHover(p);

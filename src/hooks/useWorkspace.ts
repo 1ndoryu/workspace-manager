@@ -26,9 +26,18 @@ const seleccionInicial = seleccionGuardada();
 
 /* Panel central y visibilidad de paneles (nav), persistidos igual que el
  * layout y la seleccion: sobreviven a recargas. [por que] El usuario pidio
- * un nav para cambiar el panel central (mapa/docs/repos) y controlar que
- * paneles laterales/consola estan visibles. */
-export type PanelCentral = 'mapa' | 'docs' | 'repos' | 'navegador';
+ * un nav para cambiar el panel central (mapa/docs/repos/config) y controlar
+ * que paneles laterales/consola estan visibles. */
+export type PanelCentral = 'mapa' | 'docs' | 'repos' | 'navegador' | 'config';
+
+/* Posicion del menu contextual (clic derecho) sobre un proyecto. La seleccion
+ * usa el id (nombre) y la clave (ruta relativa) para ignorar/configurar. */
+export interface MenuContextual {
+  x: number;
+  y: number;
+  id: string;
+  clave: string;
+}
 
 export interface VisibilidadPaneles {
   detalle: boolean;
@@ -48,7 +57,10 @@ function uiGuardada(): { panelCentral: PanelCentral; visibles: VisibilidadPanele
     if (!raw) return UI_DEFECTO;
     const d = JSON.parse(raw) as { panelCentral?: unknown; visibles?: Partial<VisibilidadPaneles> };
     const panelCentral: PanelCentral =
-      d.panelCentral === 'docs' || d.panelCentral === 'repos' || d.panelCentral === 'navegador'
+      d.panelCentral === 'docs' ||
+      d.panelCentral === 'repos' ||
+      d.panelCentral === 'navegador' ||
+      d.panelCentral === 'config'
         ? d.panelCentral
         : 'mapa';
     const visibles: VisibilidadPaneles = { ...UI_DEFECTO.visibles, ...(d.visibles ?? {}) };
@@ -85,6 +97,10 @@ interface EstadoWorkspace {
   panelCentral: PanelCentral;
   visibles: VisibilidadPaneles;
   navegadorRuta: string | null;
+  /* Menu contextual (clic derecho) sobre un proyecto: posicion y clave. */
+  menuContextual: MenuContextual | null;
+  /* Proyecto que configura la pagina 'config' (se abre desde el menu). */
+  proyectoAConfigurar: string | null;
   cargar: (forzar?: boolean) => Promise<void>;
   seleccionar: (id: string | null) => void;
   setFiltro: (f: EstadoWorkspace['filtro']) => void;
@@ -93,6 +109,11 @@ interface EstadoWorkspace {
   setPanelVisible: (clave: keyof VisibilidadPaneles, valor: boolean) => void;
   irAArchivos: (ruta: string) => void;
   consumirNavegadorRuta: () => void;
+  abrirMenuContextual: (m: { x: number; y: number; id: string; clave: string }) => void;
+  cerrarMenuContextual: () => void;
+  configurarProyecto: (clave: string) => void;
+  /* Ignorar / dejar de ignorar un proyecto por su clave y re-escanea. */
+  cambiarIgnorado: (clave: string, ignorar: boolean) => Promise<void>;
 }
 
 export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
@@ -107,6 +128,8 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   panelCentral: uiInicial.panelCentral,
   visibles: uiInicial.visibles,
   navegadorRuta: null,
+  menuContextual: null,
+  proyectoAConfigurar: null,
 
   cargar: async (forzar = false) => {
     set({ cargando: true, error: null });
@@ -158,6 +181,29 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
     set({ panelCentral: 'navegador', navegadorRuta: ruta });
   },
   consumirNavegadorRuta: () => set({ navegadorRuta: null }),
+  abrirMenuContextual: (m) => {
+    set({ menuContextual: m });
+    /* [por que] El clic derecho tambien selecciona el proyecto, igual que el
+     * clic izquierdo, para que 'configurar' actue sobre el correcto. */
+    get().seleccionar(m.id);
+  },
+  cerrarMenuContextual: () => set({ menuContextual: null }),
+  configurarProyecto: (clave) => {
+    set({ menuContextual: null, proyectoAConfigurar: clave });
+    get().setPanelCentral('config');
+  },
+  cambiarIgnorado: async (clave, ignorar) => {
+    try {
+      await axios.post('/api/config', { op: ignorar ? 'ignorar' : 'quitar', clave });
+      /* [por que] Re-escanea para que el proyecto desaparezca/aparezca de
+       * mapa/lista/consola al instante. El que sea best-effort en el server
+       * no basta para la UI: aqui se fuerza la recarga. */
+      await get().cargar(true);
+    } catch (err) {
+      const detalle = (err as { response?: { data?: { detalle?: string } } })?.response?.data?.detalle;
+      throw new Error(detalle ?? 'no se pudo guardar la config');
+    }
+  },
 }));
 
 /* Selectores derivados: lista filtrada por estado + busqueda. */

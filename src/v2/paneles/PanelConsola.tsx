@@ -87,6 +87,7 @@ export function PanelConsola() {
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const irAArchivos = useWorkspaceStore((s) => s.irAArchivos);
+  const abrirMenuContextual = useWorkspaceStore((s) => s.abrirMenuContextual);
   const [filtro, setFiltro] = useState<'todos' | Categoria>('todos');
 
   const problemas = useMemo(() => {
@@ -139,6 +140,10 @@ export function PanelConsola() {
                   seleccionar(pr.p.id);
                   /* Abrir la carpeta del proyecto en el navegador de archivos. */
                   irAArchivos(rutaRelativa(snapshot?.raiz, pr.p.ruta));
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  abrirMenuContextual({ x: e.clientX, y: e.clientY, id: pr.p.id, clave: pr.p.clave });
                 }}
                 title={pr.p.ruta}
               >
