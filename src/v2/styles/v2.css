@@ -142,6 +142,13 @@ html {
     flex-direction: column;
 }
 
+/* [por que] En docs y repos el contenedor central NO lleva borde: cada panel
+ * interno (lista y visor en docs; cabecera y contenido en repos) es su
+ * propia caja de 1px. Solo el mapa va envuelto en un cuadro. */
+.v2CentralMarco--contenido {
+    border: none;
+}
+
 .panelLista {
     flex: 0 0 auto;
     width: var(--ancho-lista, 260px);

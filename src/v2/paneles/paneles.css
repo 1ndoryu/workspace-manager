@@ -468,6 +468,9 @@
     word-break: break-word;
     resize: none;
     outline: none;
+    /* [por que] Contenido largo: el visor hace scroll interno en vez de
+     * desbordarse fuera de la caja del documento. */
+    overflow-y: auto;
 }
 
 .docsVacio {
