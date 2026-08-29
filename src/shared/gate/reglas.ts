@@ -2,7 +2,8 @@
  * [por que] El esquema canónico no lista reglas por nombre: las reglas viven en
  * el runtime (`out/config/defaultRules.js`). Extraje los 14 ids estaticos reales
  * de la version 0.7.4 para poder ofrecerlas todas (agregar la que falte) sin
- * depender de lo que haya escrito el agente. */
+ * depender de lo que haya escrito el agente. Vive en shared/gate (no v2/schemas)
+ * para que tambien lo use el server al diagnosticar la config. */
 
 /* Severidad permitida por regla (defaultRules/ruleRegistry). */
 export const SEVERIDADES = ['error', 'warning', 'information', 'hint'] as const;

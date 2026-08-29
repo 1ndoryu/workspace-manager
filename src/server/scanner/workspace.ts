@@ -5,7 +5,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { basename, join, normalize, relative, sep } from 'node:path';
 import { detectarGit, estadoGit } from './git.js';
-import { estadoGate } from './gate.js';
+import { estadoGate, diagnosticarGate } from './gate.js';
 import { resumenRoadmap } from './roadmap.js';
 import { resumenAgents, agentesGlobales } from './agents.js';
 import { leerConfigArea } from '../configArea.js';
@@ -36,9 +36,24 @@ export interface OpcionesEscaneo {
 }
 
 /* Clave unica de un proyecto: ruta relativa al area, separador '/'. */
-function claveDe(ruta: string, raiz: string): string {
+export function claveDe(ruta: string, raiz: string): string {
   const rel = relative(normalize(raiz), normalize(ruta));
   return rel.split(sep).join('/');
+}
+
+/* Recalcula el resumen (conteos) de un snapshot dado su array de proyectos.
+ * [por que] Al mutar el snapshot (ignorar/quitar) se recalcula el resumen sin
+ * re-escandear; el resumen es un derivado barato de proyectos. */
+export function resumenDe(proyectos: Proyecto[]): SnapshotWorkspace['resumen'] {
+  return {
+    total: proyectos.length,
+    repos: proyectos.filter((p) => p.tipo === 'repo').length,
+    worktrees: proyectos.filter((p) => p.tipo === 'worktree').length,
+    carpetas: proyectos.filter((p) => p.tipo === 'carpeta').length,
+    dirty: proyectos.filter((p) => p.git?.dirty).length,
+    conGate: proyectos.filter((p) => p.gate?.declarado).length,
+    pendientesRoadmap: proyectos.reduce((acc, p) => acc + (p.roadmap?.pendientes ?? 0), 0),
+  };
 }
 
 /** Escanea la raiz y devuelve el snapshot completo del workspace. */
@@ -90,15 +105,7 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
     proyectos: visibles,
     agentes,
     config,
-    resumen: {
-      total: visibles.length,
-      repos: visibles.filter(p => p.tipo === 'repo').length,
-      worktrees: visibles.filter(p => p.tipo === 'worktree').length,
-      carpetas: visibles.filter(p => p.tipo === 'carpeta').length,
-      dirty: visibles.filter(p => p.git?.dirty).length,
-      conGate: visibles.filter(p => p.gate?.declarado).length,
-      pendientesRoadmap: visibles.reduce((acc, p) => acc + (p.roadmap?.pendientes ?? 0), 0),
-    },
+    resumen: resumenDe(visibles),
   };
 }
 
@@ -119,6 +126,7 @@ function proyectoCompleto(
     padre: padre ?? undefined,
     git: estadoGit(ruta) ?? undefined,
     gate: estadoGate(ruta),
+    gateProblemas: diagnosticarGate(ruta),
     roadmap: resumenRoadmap(ruta),
     agents: resumenAgents(ruta, ''),
   };
