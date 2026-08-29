@@ -385,6 +385,7 @@
     gap: var(--v2-spaceSm);
     padding: var(--v2-spaceSm) var(--v2-spaceMd);
     border-bottom: 1px solid var(--v2-borde);
+    margin-bottom: var(--v2-spaceXs);
 }
 
 .docsGrupoTitulo {
