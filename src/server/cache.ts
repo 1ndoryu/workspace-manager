@@ -14,7 +14,7 @@ export function leerCache(rutaCache: string): SnapshotWorkspace | null {
   if (!existsSync(rutaCache)) return null;
   try {
     const data = JSON.parse(readFileSync(rutaCache, 'utf8'));
-    if (data && Array.isArray(data.proyectos)) {
+    if (data && typeof data.raiz === 'string' && Array.isArray(data.proyectos)) {
       return data as SnapshotWorkspace;
     }
     return null;

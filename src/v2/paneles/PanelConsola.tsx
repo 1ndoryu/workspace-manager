@@ -71,10 +71,22 @@ const ETIQUETA_CATEGORIA: Record<Categoria, string> = {
   gate: 'sentinel',
 };
 
+/* Ruta relativa de un proyecto respecto a la raiz del area, para abrir su
+ * carpeta en el navegador de archivos. Fuera del area devuelve ''. */
+function rutaRelativa(raiz: string | undefined, rutaAbs: string): string {
+  if (!raiz) return '';
+  const base = raiz.replace(/\\/g, '/').replace(/\/+$/, '');
+  const r = rutaAbs.replace(/\\/g, '/');
+  if (r === base) return '';
+  if (r.startsWith(base + '/')) return r.slice(base.length + 1);
+  return '';
+}
+
 export function PanelConsola() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
+  const irAArchivos = useWorkspaceStore((s) => s.irAArchivos);
   const [filtro, setFiltro] = useState<'todos' | Categoria>('todos');
 
   const problemas = useMemo(() => {
@@ -123,7 +135,11 @@ export function PanelConsola() {
               <button
                 type="button"
                 className={`consolaFila${pr.p.id === seleccionadoId ? ' consolaFila--seleccionada' : ''}`}
-                onClick={() => seleccionar(pr.p.id)}
+                onClick={() => {
+                  seleccionar(pr.p.id);
+                  /* Abrir la carpeta del proyecto en el navegador de archivos. */
+                  irAArchivos(rutaRelativa(snapshot?.raiz, pr.p.ruta));
+                }}
                 title={pr.p.ruta}
               >
                 <span className="consolaFilaNombre">{pr.p.id}</span>

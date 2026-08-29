@@ -70,6 +70,7 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
 
   return {
     escaneadoEn: new Date().toISOString(),
+    raiz: opts.raiz,
     proyectos,
     agentes,
     resumen: {

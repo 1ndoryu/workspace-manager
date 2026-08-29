@@ -84,12 +84,15 @@ interface EstadoWorkspace {
   buscar: string;
   panelCentral: PanelCentral;
   visibles: VisibilidadPaneles;
+  navegadorRuta: string | null;
   cargar: (forzar?: boolean) => Promise<void>;
   seleccionar: (id: string | null) => void;
   setFiltro: (f: EstadoWorkspace['filtro']) => void;
   setBuscar: (b: string) => void;
   setPanelCentral: (p: PanelCentral) => void;
   setPanelVisible: (clave: keyof VisibilidadPaneles, valor: boolean) => void;
+  irAArchivos: (ruta: string) => void;
+  consumirNavegadorRuta: () => void;
 }
 
 export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
@@ -103,6 +106,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   buscar: '',
   panelCentral: uiInicial.panelCentral,
   visibles: uiInicial.visibles,
+  navegadorRuta: null,
 
   cargar: async (forzar = false) => {
     set({ cargando: true, error: null });
@@ -147,6 +151,13 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
     guardarUi(get().panelCentral, visibles);
     set({ visibles });
   },
+  /* Abre la carpeta de un proyecto en el navegador de archivos: cambia el
+   * panel central a 'navegador' y deja la ruta objetivo para el panel. */
+  irAArchivos: (ruta) => {
+    guardarUi('navegador', get().visibles);
+    set({ panelCentral: 'navegador', navegadorRuta: ruta });
+  },
+  consumirNavegadorRuta: () => set({ navegadorRuta: null }),
 }));
 
 /* Selectores derivados: lista filtrada por estado + busqueda. */
