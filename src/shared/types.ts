@@ -82,3 +82,17 @@ export interface SnapshotWorkspace {
     pendientesRoadmap: number;
   };
 }
+
+/* Entrada del navegador de archivos: carpeta o archivo dentro del area. */
+export interface EntradaArchivo {
+  nombre: string;
+  ruta: string;
+  tipo: 'carpeta' | 'archivo';
+  tamano: number | null;
+}
+
+export interface ListadoDirectorio {
+  ruta: string;
+  padre: string;
+  entradas: EntradaArchivo[];
+}
