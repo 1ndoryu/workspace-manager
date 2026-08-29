@@ -36,6 +36,12 @@ export function rutaCache(raiz: string): string {
   return join(raiz, 'data', 'cache', 'workspace.json');
 }
 
+/* Snapshot en memoria del ultimo escaneo: permite mutarlo (ignorar/quitar)
+ * sin re-escandear, y sirve de cache caliente para el siguiente GET. [por
+ * que] El escaneo con git es lento (~2.6s); alternar un ignorado no cambia
+ * git/gate/roadmap, solo la visibilidad, asi que se muta este snapshot. */
+let snapshotMemoria: SnapshotWorkspace | null = null;
+
 /** Devuelve el snapshot: usa cache si existe, si no escanea y cachea. */
 export function obtenerSnapshot(
   raiz: string,
@@ -44,10 +50,24 @@ export function obtenerSnapshot(
 ): CacheResultado {
   const cache = rutaCache(raiz);
   if (!forzar) {
+    /* Cache caliente en memoria primero: evita re-leer/parsear el JSON y
+     * permite servir mutaciones recientes sin re-escaneo. */
+    if (snapshotMemoria) return { snapshot: snapshotMemoria, desdeCache: true };
     const existente = leerCache(cache);
-    if (existente) return { snapshot: existente, desdeCache: true };
+    if (existente) {
+      snapshotMemoria = existente;
+      return { snapshot: existente, desdeCache: true };
+    }
   }
   const snapshot = escanear();
+  snapshotMemoria = snapshot;
   escribirCache(cache, snapshot);
   return { snapshot, desdeCache: false };
+}
+
+/* Actualiza el snapshot cacheado (memoria + disco) con el snapshot mutado
+ * que devuelve la operacion (p. ej. ignorar). No re-escanea. */
+export function actualizarSnapshot(snapshot: SnapshotWorkspace): void {
+  snapshotMemoria = snapshot;
+  escribirCache(rutaCache(snapshot.raiz), snapshot);
 }

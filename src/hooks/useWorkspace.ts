@@ -194,11 +194,15 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   },
   cambiarIgnorado: async (clave, ignorar) => {
     try {
-      await axios.post('/api/config', { op: ignorar ? 'ignorar' : 'quitar', clave });
-      /* [por que] Re-escanea para que el proyecto desaparezca/aparezca de
-       * mapa/lista/consola al instante. El que sea best-effort en el server
-       * no basta para la UI: aqui se fuerza la recarga. */
-      await get().cargar(true);
+      const { data } = await axios.post<{ ok: boolean; snapshot?: SnapshotWorkspace }>('/api/config', {
+        op: ignorar ? 'ignorar' : 'quitar',
+        clave,
+      });
+      /* [por que] El server devuelve el snapshot ya mutado (ignorar/quitar
+       * solo cambia visibilidad, no requiere re-escaneo completo). Se aplica
+       * directo: la UI se actualiza al instante sin esperar el escaneo git
+       * (~2.6s) que antes se hacia dos veces (server + cliente). */
+      if (data.snapshot) set({ snapshot: data.snapshot, desdeCache: false });
     } catch (err) {
       const detalle = (err as { response?: { data?: { detalle?: string } } })?.response?.data?.detalle;
       throw new Error(detalle ?? 'no se pudo guardar la config');
