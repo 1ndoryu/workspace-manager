@@ -171,13 +171,14 @@ export function PanelDocs() {
                 >
                   <span className="docsFilaEtiqueta">{e.etiqueta}</span>
                   <span className="docsFilaNombre">{e.nombre}</span>
-                  <span className="docsFilaMeta">
-                    {e.etiqueta === 'skill'
-                      ? e.descripcion
-                      : e.tiene
-                        ? `${e.reglas} regla(s)`
-                        : 'crear'}
-                  </span>
+                  {/* [por que] La descripcion larga de una skill estorba la
+                   * lista y tapa el nombre; va al tooltip (title). En los
+                   * AGENTS.md el meta corto (reglas/crear) si se muestra. */}
+                  {e.etiqueta !== 'skill' && (
+                    <span className="docsFilaMeta">
+                      {e.tiene ? `${e.reglas} regla(s)` : 'crear'}
+                    </span>
+                  )}
                 </button>
               );
             })}
