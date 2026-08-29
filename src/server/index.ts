@@ -4,10 +4,11 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { basename, extname, join, normalize, relative, sep } from 'node:path';
-import { obtenerSnapshot } from './cache.js';
-import { escanearWorkspace } from './scanner/workspace.js';
+import { obtenerSnapshot, actualizarSnapshot } from './cache.js';
+import { escanearWorkspace, claveDe, resumenDe } from './scanner/workspace.js';
 import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
 import { cambiarIgnorado, leerConfigArea } from './configArea.js';
+import type { SnapshotWorkspace } from '../shared/types.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || 'C:/Users/Owner/.agents/skills';
@@ -231,14 +232,29 @@ export function crearServidor() {
             return;
           }
           try {
-            cambiarIgnorado(RAÍZ_AREA, clave, op === 'ignorar');
-            /* Re-escaneo best-effort: no debe convertir el cambio en un 500. */
-            try {
-              snapshotArea(true);
-            } catch (err) {
-              console.warn('[config] re-escaneo tras ignorar fallo:', err);
-            }
-            json(res, 200, { ok: true, config: leerConfigArea(RAÍZ_AREA) });
+            /* [por que] cambiarIgnorado persiste en disco y devuelve la config
+             * nueva; se usa esa (no la del snapshot, que aun tiene la vieja). */
+            const configNueva = cambiarIgnorado(RAÍZ_AREA, clave, op === 'ignorar');
+            /* Mutacion en memoria del snapshot cacheado: ignorar/quitar solo
+             * cambia la visibilidad (no git/gate/roadmap), asi que NO se
+             * re-escanea (escaneo completo ~2.6s). [por que] El usuario pidio
+             * que el cambio se refleje en tiempo real; re-escandear aqui y
+             * luego otra vez en el cliente duplicaba la latencia. */
+            const base = snapshotArea(false);
+            const ignoradoSet = new Set(configNueva.ignorados);
+            const proyectos = base.snapshot.proyectos
+              .map((p) => ({ ...p, clave: claveDe(p.ruta, RAÍZ_AREA) }))
+              .filter((p) => !ignoradoSet.has(p.clave));
+            const mutado: SnapshotWorkspace = {
+              ...base.snapshot,
+              config: configNueva,
+              proyectos,
+              resumen: resumenDe(proyectos),
+              escaneadoEn: new Date().toISOString(),
+            };
+            actualizarSnapshot(mutado);
+            json(res, 200, { ok: true, config: configNueva, snapshot: mutado });
+            return;
           } catch (err) {
             json(res, 500, { error: 'No se pudo guardar la config', detalle: String(err) });
           }
