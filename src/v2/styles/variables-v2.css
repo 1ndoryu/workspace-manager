@@ -3,6 +3,19 @@
  * sin border-radius, sin sombra, sin bold. Monocromo estricto.
  * [gotcha] No usar colores intermedios ni grises: los estados se diferencian
  * con patrones (relleno negro / rayado) y bordes, no con color. */
+
+/* Departure Mono 1.500 self-hosted (misma fuente del zip que pidio el
+ * usuario, mismo archivo woff2 que ya usaba v1). [por que] v2 no importa el
+ * variables.css de v1 donde vivia el @font-face, asi que sin esto la fuente
+ * caia al mono del sistema; con esto la fuente es la misma en todo. */
+@font-face {
+    font-family: 'Departure Mono';
+    src: url('../../assets/fonts/DepartureMono-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
     /* Monocromo estricto: solo blanco y negro */
     --v2-fondo: #ffffff;
@@ -19,7 +32,8 @@
     --v2-spaceMd: 16px;
     --v2-spaceLg: 24px;
 
-    /* Escala tipografica */
+    /* Escala tipografica (rem; la base del root es 13px, ver v2.css, asi que
+     * 0.72rem ~= 9.4px, 0.85rem ~= 11.1px, 1rem = 13px, 1.15rem ~= 15px) */
     --v2-textXs: 0.72rem;
     --v2-textSm: 0.85rem;
     --v2-textMd: 1rem;
