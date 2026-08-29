@@ -860,60 +860,70 @@
     text-decoration: none;
 }
 
-/* Formulario JSON (EditorJson.tsx): interfaz ordenada apilada en vertical.
- * Cada grupo es una tarjeta con titulo; cada clave es un campo con su
- * etiqueta ARRIBA y el control DEBAJO; las listas de valores son tags
- * editables. [por que] El usuario pidio una interfaz normal (no un arbol de
- * cajas): el apilado vertical no deja columnas que colapsen ni espacios
- * en blanco. Es generico (ninguna clave hardcodeada). */
-.fjGrupo {
-  border: 1px solid var(--v2-borde); border-radius: 3px; margin: 4px 0;
-  background: var(--v2-fondo);
-}
-.fjGrupoCab {
-  display: flex; align-items: center; gap: 8px; padding: 4px 8px;
+/* Formulario JSON (EditorJson.tsx): interfaz de ajustes normal.
+ * Cada objeto es una SECCION con titulo visible + conteo. Cada clave es una
+ * FILA horizontal [ etiqueta | control ]. Los booleanos son un SWITCH.
+ * Las listas de valores son TAGS en linea. Las secciones internas vienen
+ * COLAPSADAS para no abrumar. Generico (ninguna clave hardcodeada).
+ * [por que] Las versiones previas (arbol de cajas, grupos anidados, columnas
+ * que colapsaban) se veian raras/rotas; esto es el patron clasico de
+ * formulario. */
+.fjSec { display: block; min-width: 0; }
+.fjSecCab {
+  display: flex; align-items: baseline; gap: 8px;
+  width: 100%; text-align: left; font-family: inherit;
+  background: transparent; border: none; cursor: pointer;
   border-bottom: 1px solid var(--v2-borde);
+  padding: 6px 0; margin: 4px 0;
 }
-.fjGrupoTitulo {
-  font-size: var(--v2-font); font-weight: 700; letter-spacing: .02em;
-  color: var(--v2-invertido); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.fjSecCab:hover .fjTitulo { color: var(--v2-invertido); }
+.fjFlecha { color: var(--v2-oscuro); opacity: .6; width: 14px; flex-shrink: 0; }
+.fjTitulo {
+  font-size: calc(var(--v2-font) + 1px); font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--v2-oscuro);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.fjGrupoConteo { color: var(--v2-oscuro); opacity: .6; font-style: italic; flex-shrink: 0; }
-.fjGrupoCuerpo {
-  display: flex; flex-direction: column; gap: 6px; padding: 6px 8px 8px;
+.fjConteo { color: var(--v2-oscuro); opacity: .5; font-size: var(--v2-font); flex-shrink: 0; }
+.fjSecCuerpo {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 2px 0 6px 14px;
 }
-.fjCampo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.fjCampoEtiqueta {
-  font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .8;
-  letter-spacing: .02em;
+/* Fila de ajuste normal: etiqueta a la izquierda, control a la derecha. */
+.fjFila {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-width: 0; padding: 3px 0;
 }
-.fjCampoControl { display: flex; min-width: 0; }
-.fjCampoControl > .fjInput { flex: 1 1 auto; }
+.fjEtiqueta {
+  font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .85;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fjControl {
+  display: flex; align-items: center; justify-content: flex-end;
+  flex: 0 0 auto; width: 55%; min-width: 0;
+}
+.fjControl > .fjInput { width: 100%; }
 .fjVacio { font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .55; font-style: italic; }
-.fjToggle {
-  font-family: inherit; font-size: var(--v2-font); letter-spacing: .04em;
-  padding: 2px 12px; border: 1px solid var(--v2-invertido); color: var(--v2-oscuro);
-  background: transparent; cursor: pointer; border-radius: 3px; line-height: 1.5;
+/* Switch (booleano). */
+.fjSwitch {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+  border: 1px solid var(--v2-invertido); border-radius: 11px;
+  background: transparent; cursor: pointer; padding: 0;
 }
-.fjToggle:hover { background: var(--v2-borde); }
-.fjToggle--on { background: var(--v2-invertido); color: var(--v2-fondo); }
+.fjSwitchPalo {
+  position: absolute; top: 3px; left: 3px; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--v2-oscuro); transition: left .12s ease;
+}
+.fjSwitch--on { background: var(--v2-invertido); }
+.fjSwitch--on .fjSwitchPalo { left: 21px; background: var(--v2-fondo); }
 .fjInput {
   font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro);
   background: transparent; border: 1px solid var(--v2-borde); padding: 3px 8px;
   border-radius: 3px; width: 100%; min-width: 0; line-height: 1.4; box-sizing: border-box;
 }
 .fjInput:focus { outline: 1px solid var(--v2-invertido); }
-/* Lista de tags (values simples): chips con input editable + quitar. */
-.fjTags { display: flex; flex-direction: column; gap: 4px; }
-.fjTags--anidado { padding-left: 0; }
-.fjTagsCab {
-  display: flex; align-items: center; gap: 8px; padding: 2px 0;
-  border-bottom: 1px solid var(--v2-borde); margin-bottom: 2px;
-}
-.fjTagsTitulo {
-  font-size: var(--v2-font); font-weight: 700; letter-spacing: .02em;
-  color: var(--v2-invertido);
-}
+.fjInput--num { width: 90px; }
+/* Tags editables para listas de valores simples. */
+.fjTags { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
 .fjTagsLista { display: flex; flex-wrap: wrap; gap: 4px; }
 .fjTag {
   display: inline-flex; align-items: center; gap: 2px;
@@ -922,7 +932,7 @@
 }
 .fjTagInput {
   font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro);
-  background: transparent; border: none; padding: 2px 4px; min-width: 60px; flex: 1 1 auto;
+  background: transparent; border: none; padding: 2px 4px; min-width: 80px; flex: 1 1 auto;
   box-sizing: border-box;
 }
 .fjTagInput:focus { outline: none; background: var(--v2-borde); }
@@ -932,27 +942,21 @@
   border-radius: 2px; flex-shrink: 0;
 }
 .fjTagQuitar:hover { background: var(--v2-invertido); color: var(--v2-fondo); }
-.fjTagsAgregar { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-.fjTagsAgregar .fjInput--tagNuevo { flex: 0 1 220px; }
+/* Fila para agregar valores / items. */
+.fjAgregar { display: flex; align-items: center; gap: 6px; }
+.fjAgregar .fjInput--nuevo { flex: 0 1 220px; }
 .fjBoton {
   font-family: inherit; font-size: var(--v2-font); letter-spacing: .05em;
   padding: 3px 10px; border: 1px solid var(--v2-invertido); background: transparent;
   color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; flex-shrink: 0;
 }
 .fjBoton:hover { background: var(--v2-borde); }
-/* Lista de objetos: tarjetas editables con indice. */
-.fjListaObj { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.fjListItem {
-  border: 1px solid var(--v2-borde); border-radius: 3px; padding: 4px 6px;
+/* Lista de objetos: cada item su seccion con indice. */
+.fjLista { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.fjItem { display: block; }
+.fjItemCab {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  border-bottom: 1px dashed var(--v2-borde);
+  padding: 2px 0; margin-bottom: 2px;
 }
-.fjListItemCab {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 0 2px;
-}
-.fjListItemIndex {
-  font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .7; font-style: italic;
-}
-.fjListItem > .fjObjeto { width: 100%; }
-.fjListItem .fjGrupo { border: none; border-radius: 0; margin: 0; }
-.fjListItem .fjGrupoCab { border-bottom: none; padding: 2px 0; }
-.fjListItem .fjGrupoCuerpo { padding: 2px 0; }
+.fjItemIndex { font-style: italic; opacity: .7; font-size: var(--v2-font); letter-spacing: .02em; }

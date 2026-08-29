@@ -1,23 +1,13 @@
-/* Formulario JSON legible y generico: en vez de editar el JSON crudo o un
- * arbol de cajas, renderiza el valor como un formulario ordenado apilado:
- * cada grupo es una tarjeta con titulo, cada clave una fila con su etiqueta
- * ARRIBA y el control DEBAJO (vertical). [por que] El usuario pidio una
- * interfaz normal, no un arbol: el apilado vertical elimina las columnas
- * que se colapsaban y deja claro que es cada campo. Sigue siendo generico:
- * ninguna regla/el clave esta hardcodeada.
- *
- * Mapeo de tipos -> control (siempre funciona con datos reales):
- *   boolean -> toggle sí/no
- *   string  -> input de texto
- *   number  -> input numerico
- *   string[]-> lista de tags editables (quitar + agregar)
- *   objeto  -> tarjeta anidada "titulo"
- *   array de objetos -> lista de tarjetas editables (agregar/quitar)
- *   null/vacio -> etiqueta "—"
- *
- * Componente controlado: onChange(nuevoValor). La serializacion la hace el
- * padre al guardar. */
-import { useState, type ChangeEvent } from 'react';
+/* Formulario JSON generico que se ve como una pagina normal de ajustes
+ * (settings). [por que] Las versiones previas (arbol de cajas, grupos
+ * apilados) «funcionaban» pero se veian raras y desordenadas. Esta version
+ * usa el patrón clasico de formulario: cada objeto es una seccion con
+ * titulo visible, cada clave es una fila horizontal [ etiqueta | control ],
+ * los booleanos son un switch y las listas de valores son tags en linea.
+ * Las secciones vienen ABIERTAS por defecto para que el panel se llene de
+ * contenido y no deje un hueco enorme (cada una es colapsable). Sigue
+ * siendo generico: ninguna clave/regla esta hardcodeada. */
+import { useState } from 'react';
 import { toastInfo } from './toast.js';
 
 export type JsonValue = boolean | number | string | null | JsonValue[] | { [k: string]: JsonValue };
@@ -26,59 +16,38 @@ interface Props {
   value: JsonValue;
   onChange: (v: JsonValue) => void;
   etiqueta?: string;
-  /* Nivel de profundidad para alternar tarjetas con/sin borde. */
+  /* profundidad: los objetos anidados (>=1) son colapsables. */
   profundo?: number;
+  tituloRaiz?: string;
 }
-/* Construye una tarjeta de grupo con titulo propio. */
-function Grupo({
+
+/* Seccion con titulo visible y colapso para los niveles internos. */
+function Seccion({
   titulo,
   conteo,
+  colapsable,
   children,
 }: {
   titulo: string;
   conteo: number;
+  colapsable: boolean;
   children: React.ReactNode;
 }) {
+  const [abierto, setAbierto] = useState(true);
   return (
-    <div className="fjGrupo">
-      <header className="fjGrupoCab">
-        <span className="fjGrupoTitulo">{titulo}</span>
-        <span className="fjGrupoConteo">({conteo})</span>
-      </header>
-      <div className="fjGrupoCuerpo">{children}</div>
+    <div className="fjSec">
+      <button
+        type="button"
+        className={`fjSecCab${abierto ? ' fjSecCab--abierta' : ''}`}
+        onClick={() => colapsable && setAbierto((a) => !a)}
+        aria-expanded={abierto}
+      >
+        {colapsable && <span className="fjFlecha">{abierto ? '▾' : '▸'}</span>}
+        <span className="fjTitulo">{titulo}</span>
+        <span className="fjConteo">({conteo})</span>
+      </button>
+      {abierto && <div className="fjSecCuerpo">{children}</div>}
     </div>
-  );
-}
-
-/* Fila de campo: etiqueta arriba, control debajo (vertical). */
-function Campo({
-  etiqueta,
-  children,
-}: {
-  etiqueta: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="fjCampo">
-      <span className="fjCampoEtiqueta">{etiqueta}</span>
-      <span className="fjCampoControl">{children}</span>
-    </label>
-  );
-}
-
-/* Fila de campo dentro de un grupo, sin borde de tarjeta adicional. */
-function CampoLinea({
-  etiqueta,
-  children,
-}: {
-  etiqueta: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="fjCampo fjCampo--linea">
-      <span className="fjCampoEtiqueta">{etiqueta}</span>
-      <span className="fjCampoControl">{children}</span>
-    </label>
   );
 }
 
@@ -86,202 +55,132 @@ export function EditorJson({ value, onChange, etiqueta, profundo = 0 }: Props) {
   const esArr = Array.isArray(value);
   const esObj = value !== null && typeof value === 'object' && !esArr;
 
-  /* Array -> grupos/items listables. */
   if (esArr) {
-    /* Array de primitivas -> lista de tags editables. */
-    if (value.every((v) => v === null || typeof v !== 'object')) {
-      return (
-        <TagLista
-          tags={(value as (string | number | boolean)[]).map(String)}
-          onCambiar={(tags) => onChange(tags.map((t) => (t === 'true' ? true : t === 'false' ? false : t)))}
-          etiqueta={etiqueta}
-          profundo={profundo}
-        />
-      );
-    }
-    /* Array de objetos -> lista de tarjetas editables con agregar/quitar. */
     return (
-      <ListaObjetos
-        items={value}
-        onChange={(items) => onChange(items)}
-        etiqueta={etiqueta}
-        profundo={profundo}
-      />
+      <Seccion titulo={etiqueta ?? 'lista'} conteo={(value as unknown[]).length} colapsable={false}>
+        <EditorArray value={value} onChange={onChange} />
+      </Seccion>
     );
   }
 
-  /* Objeto -> tarjeta de grupo con una fila por clave. */
   if (esObj) {
     const obj = value as { [k: string]: JsonValue };
     const claves = Object.keys(obj).sort();
+    const titulo = etiqueta ?? 'configuración';
     return (
-      <Grupo titulo={etiqueta ?? 'configuración'} conteo={claves.length}>
+      <Seccion titulo={titulo} conteo={claves.length} colapsable={profundo >= 1}>
         {claves.length === 0 && <div className="fjVacio">sin opciones</div>}
         {claves.map((k) => {
           const v = obj[k];
-          const vEsArr = Array.isArray(v);
-          const vEsObj = v !== null && typeof v === 'object' && !vEsArr;
-          /* Anidados se renderizan como su propio grupo/lista. */
-          if (vEsArr || vEsObj) {
+          const interno = Array.isArray(v) || (v !== null && typeof v === 'object');
+          /* Valor simple -> fila horizontal [ etiqueta | control ]. */
+          if (!interno) {
             return (
-              <EditorJson
-                key={k}
-                value={v}
-                onChange={(nv) => onChange({ ...obj, [k]: nv })}
-                etiqueta={k}
-                profundo={profundo + 1}
-              />
+              <div className="fjFila" key={k}>
+                <span className="fjEtiqueta">{k}</span>
+                <span className="fjControl">
+                  <ControlSimple
+                    value={v}
+                    onChange={(nv) => onChange({ ...obj, [k]: nv })}
+                  />
+                </span>
+              </div>
             );
           }
+          /* Valor anidado -> su propia seccion (colapsada a partir del 2do nivel). */
           return (
-            <CampoLinea key={k} etiqueta={k}>
-              <ControlPrimitiva value={v} onChange={(nv) => onChange({ ...obj, [k]: nv })} />
-            </CampoLinea>
+            <EditorJson
+              key={k}
+              value={v}
+              onChange={(nv) => onChange({ ...obj, [k]: nv })}
+              etiqueta={k}
+              profundo={profundo + 1}
+            />
           );
         })}
-      </Grupo>
+      </Seccion>
     );
   }
 
-  /* Primitiva suelta (raiz no objetual) */
-  return <ControlPrimitiva value={value} onChange={onChange} />;
+  return <ControlSimple value={value} onChange={onChange} />;
 }
 
-/* Control para un valor simple. */
-function ControlPrimitiva({
-  value,
-  onChange,
-}: {
-  value: JsonValue;
-  onChange: (v: JsonValue) => void;
-}) {
-  if (value === null) {
-    return <span className="fjVacio">—</span>;
-  }
+/* Control para un valor simple, apilado dentro de .fjControl. */
+function ControlSimple({ value, onChange }: { value: JsonValue; onChange: (v: JsonValue) => void }) {
+  if (value === null) return <span className="fjVacio">—</span>;
   if (typeof value === 'boolean') {
     return (
-      <button
-        type="button"
-        className={`fjToggle${value ? ' fjToggle--on' : ''}`}
-        onClick={() => onChange(!value)}
-        aria-pressed={value}
-      >
-        {value ? 'sí' : 'no'}
+      <button type="button" className={`fjSwitch${value ? ' fjSwitch--on' : ''}`} onClick={() => onChange(!value)} aria-pressed={value}>
+        <span className="fjSwitchPalo" />
       </button>
     );
   }
   if (typeof value === 'number') {
     return (
-      <input
-        type="number"
-        className="fjInput"
-        value={String(value)}
-        /* [por que] number input espera value numerico; String() evita el
-         * conflicto y NaN se descarta. */
-        onChange={(e) => {
-          const n = Number(e.target.value);
-          onChange(Number.isNaN(n) ? value : n);
-        }}
+      <input type="number" className="fjInput fjInput--num" value={String(value)}
+        onChange={(e) => { const n = Number(e.target.value); onChange(Number.isNaN(n) ? value : n); }} />
+    );
+  }
+  return <input type="text" className="fjInput" value={value as string} onChange={(e) => onChange(e.target.value)} />;
+}
+
+/* Array: si es de primitivas, tags en linea; si es de objetos, items. */
+function EditorArray({ value, onChange }: { value: JsonValue[]; onChange: (v: JsonValue) => void }) {
+  const todosPrimitivos = value.every((v) => v === null || typeof v !== 'object');
+  if (todosPrimitivos) {
+    return (
+      <TagLista
+        valores={(value as (string | number | boolean | null)[]).map((x) => String(x))}
+        onCambiar={(vals) =>
+          onChange(
+            vals.map((t) => (t === 'true' ? true : t === 'false' ? false : t)),
+          )
+        }
       />
     );
   }
   return (
-    <input
-      type="text"
-      className="fjInput"
-      value={value as string}
-      onChange={(e) => onChange(e.target.value)}
-    />
+    <ListaObjetos items={value} onChange={onChange} />
   );
 }
 
-/* Lista de "tags" (values simples) con quitar x + agregar. */
-function TagLista({
-  tags,
-  onCambiar,
-  etiqueta,
-  profundo,
-}: {
-  tags: string[];
-  onCambiar: (tags: string[]) => void;
-  etiqueta?: string;
-  profundo: number;
-}) {
+/* Tags en linea editables para listas de valores simples. */
+function TagLista({ valores, onCambiar }: { valores: string[]; onCambiar: (v: string[]) => void }) {
   const [nuevo, setNuevo] = useState('');
-  const titulo = etiqueta ?? 'lista';
-
   function agregar() {
     const txt = nuevo.trim();
-    if (!txt) {
-      toastInfo('escribe un valor');
-      return;
-    }
-    onCambiar([...tags, txt]);
+    if (!txt) { toastInfo('escribe un valor'); return; }
+    onCambiar([...valores, txt]);
     setNuevo('');
   }
-
+  if (valores.length === 0) {
+    return (
+      <div className="fjAgregar">
+        <input className="fjInput fjInput--nuevo" value={nuevo} onChange={(e) => setNuevo(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && agregar()} placeholder="agregar valor…" />
+        <button type="button" className="fjBoton" onClick={agregar}>agregar</button>
+      </div>
+    );
+  }
   return (
-    <div className={`fjTags${profundo > 0 ? ' fjTags--anidado' : ''}`}>
-      <header className="fjTagsCab">
-        <span className="fjTagsTitulo">{titulo}</span>
-        <span className="fjGrupoConteo">({tags.length})</span>
-      </header>
-      {tags.length === 0 ? (
-        <div className="fjVacio">vacío</div>
-      ) : (
-        <div className="fjTagsLista">
-          {tags.map((t, i) => (
-            <span className="fjTag" key={`${t}-${i}`}>
-              <input
-                className="fjTagInput"
-                value={t}
-                onChange={(e) => onCambiar([...tags.slice(0, i), e.target.value, ...tags.slice(i + 1)])}
-                aria-label={`valor ${i + 1}`}
-              />
-              <button
-                type="button"
-                className="fjTagQuitar"
-                onClick={() => onCambiar(tags.filter((_, j) => j !== i))}
-                title="quitar"
-                aria-label="quitar"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="fjTagsAgregar">
-        <input
-          type="text"
-          className="fjInput fjInput--tagNuevo"
-          value={nuevo}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setNuevo(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') agregar();
-          }}
-          placeholder="agregar valor…"
-        />
-        <button type="button" className="fjBoton" onClick={agregar}>
-          agregar
-        </button>
+    <div className="fjTags">
+      <div className="fjTagsLista">
+        {valores.map((t, i) => (
+          <span className="fjTag" key={`${t}-${i}`}>
+            <input className="fjTagInput" value={t} onChange={(e) => onCambiar([...valores.slice(0, i), e.target.value, ...valores.slice(i + 1)])} aria-label={`valor ${i + 1}`} />
+            <button type="button" className="fjTagQuitar" onClick={() => onCambiar(valores.filter((_, j) => j !== i))} title="quitar" aria-label="quitar">×</button>
+          </span>
+        ))}
+      </div>
+      <div className="fjAgregar">
+        <input className="fjInput fjInput--nuevo" value={nuevo} onChange={(e) => setNuevo(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && agregar()} placeholder="agregar valor…" />
+        <button type="button" className="fjBoton" onClick={agregar}>agregar</button>
       </div>
     </div>
   );
 }
 
-/* Lista de objetos: cada item es una tarjeta con sus claves, editable. */
-function ListaObjetos({
-  items,
-  onChange,
-  etiqueta,
-  profundo,
-}: {
-  items: JsonValue[];
-  onChange: (items: JsonValue[]) => void;
-  etiqueta?: string;
-  profundo: number;
-}) {
+/* Lista de objetos: cada item editable con indice. */
+function ListaObjetos({ items, onChange }: { items: JsonValue[]; onChange: (v: JsonValue[]) => void }) {
   function itemNuevo(): JsonValue {
     if (items.length === 0) return {};
     const primero = items[0];
@@ -297,42 +196,20 @@ function ListaObjetos({
     }
     return {};
   }
-
   return (
-    <div className="fjListaObj">
-      <header className="fjTagsCab">
-        {etiqueta && <span className="fjTagsTitulo">{etiqueta}</span>}
-        <span className="fjGrupoConteo">({items.length})</span>
-      </header>
-      {items.length === 0 ? (
-        <div className="fjVacio">vacío</div>
-      ) : (
-        items.map((item, i) => (
-          <div className="fjListItem" key={i}>
-            <div className="fjListItemCab">
-              <span className="fjListItemIndex">#{i + 1}</span>
-              <button
-                type="button"
-                className="fjTagQuitar"
-                onClick={() => onChange(items.filter((_, j) => j !== i))}
-                title="quitar item"
-                aria-label="quitar item"
-              >
-                ×
-              </button>
-            </div>
-            <EditorJson
-              value={item}
-              onChange={(nv) => onChange([...items.slice(0, i), nv, ...items.slice(i + 1)])}
-              profundo={profundo + 1}
-            />
+    <div className="fjLista">
+      {items.length === 0 && <div className="fjVacio">vacío</div>}
+      {items.map((item, i) => (
+        <div className="fjItem" key={i}>
+          <div className="fjItemCab">
+            <span className="fjItemIndex">item #{i + 1}</span>
+            <button type="button" className="fjTagQuitar" onClick={() => onChange(items.filter((_, j) => j !== i))} title="quitar item" aria-label="quitar item">×</button>
           </div>
-        ))
-      )}
-      <div className="fjTagsAgregar">
-        <button type="button" className="fjBoton" onClick={() => onChange([...items, itemNuevo()])}>
-          agregar item
-        </button>
+          <EditorJson value={item} onChange={(nv) => onChange([...items.slice(0, i), nv, ...items.slice(i + 1)])} profundo={1} />
+        </div>
+      ))}
+      <div className="fjAgregar">
+        <button type="button" className="fjBoton" onClick={() => onChange([...items, itemNuevo()])}>agregar item</button>
       </div>
     </div>
   );
