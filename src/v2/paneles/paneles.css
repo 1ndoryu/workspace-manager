@@ -308,6 +308,8 @@
 
 /* ============================================================
  * Panel central: documentacion (skills globales + AGENTS.md).
+ * [v2.2] Una sola lista lateral con etiqueta de tipo por entrada;
+ * el contenido abre en el unico panel de la derecha.
  * ============================================================ */
 .panelDocs {
     height: 100%;
@@ -315,32 +317,36 @@
     gap: var(--v2-spaceMd);
 }
 
-/* Lista izquierda: dos secciones (skills y AGENTS.md) apiladas. */
+/* Lista lateral unica (panel izquierdo del central de docs). */
 .panelDocsLista {
     width: 340px;
     min-height: 0;
     flex: none;
     display: flex;
     flex-direction: column;
-    gap: var(--v2-spaceMd);
-    overflow-y: auto;
-}
-
-.panelDocsSeccion {
     border: 1px solid var(--v2-borde);
 }
 
+.panelDocsSeccion {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
 .panelDocsCabecera {
+    flex: none;
     padding: var(--v2-spaceSm) var(--v2-spaceMd);
     border-bottom: 1px solid var(--v2-borde);
     font-size: var(--v2-textSm);
 }
 
 .panelDocsEntradas {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    max-height: 220px;
-    overflow-y: auto;
 }
 
 .docsFila {
@@ -368,6 +374,16 @@
     color: var(--v2-invertido);
 }
 
+/* Etiqueta de tipo de cada documento (skill o AGENTS.md). */
+.docsFilaEtiqueta {
+    flex: none;
+    border: 1px solid currentColor;
+    padding: 0 4px;
+    font-size: var(--v2-textXs);
+    line-height: 1.5;
+    align-self: center;
+}
+
 .docsFilaNombre {
     flex: 0 1 auto;
     min-width: 0;
@@ -383,20 +399,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: var(--v2-textXs);
-}
-
-/* Indicador de la fila AGENTS: cuadrado (vacio = crear, relleno = tiene). */
-.docsFilaEstado {
-    flex: none;
-    width: 8px;
-    height: 8px;
-    align-self: center;
-    border: 1px solid currentColor;
-    background: currentColor;
-}
-
-.docsFilaEstado--vacío {
-    background: transparent;
 }
 
 /* Visor abierto a la derecha. */

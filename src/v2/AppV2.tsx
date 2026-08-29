@@ -112,8 +112,13 @@ export function AppV2() {
         {snapshot && (
           <>
             <div className="v2Columnas">
-              {visibles.detalle && seleccionadoId !== null && <PanelDetalle />}
-              {visibles.detalle && seleccionadoId !== null && (
+              {/* [por que] Detalle y lista solo existen en el modo mapa; en
+               * documentacion y repos no se renderizan aunque el estado de
+               * visibilidad persistido los tenga activos. */}
+              {panelCentral === 'mapa' && visibles.detalle && seleccionadoId !== null && (
+                <PanelDetalle />
+              )}
+              {panelCentral === 'mapa' && visibles.detalle && seleccionadoId !== null && (
                 <Resizer
                   orientacion="vertical"
                   ariaLabel="Ajustar ancho del panel de detalle"
@@ -123,7 +128,7 @@ export function AppV2() {
                 />
               )}
               <div className="v2CentralMarco">{panelCentralRender}</div>
-              {visibles.lista && (
+              {panelCentral === 'mapa' && visibles.lista && (
                 <Resizer
                   orientacion="vertical"
                   ariaLabel="Ajustar ancho del panel de lista"
@@ -132,7 +137,7 @@ export function AppV2() {
                   }
                 />
               )}
-              {visibles.lista && <PanelLista />}
+              {panelCentral === 'mapa' && visibles.lista && <PanelLista />}
             </div>
             {visibles.consola && (
               <Resizer
