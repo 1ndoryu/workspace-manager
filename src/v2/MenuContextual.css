@@ -1,0 +1,33 @@
+/* Menu contextual (clic derecho) sobre un proyecto.
+ * [por que] Flotante, monocromo, con caja y sin esquinas redondeadas; se
+ * abre en la posicion del cursor y se cierra con clic fuera / Escape. */
+.menuContextual {
+  position: fixed;
+  z-index: 1000;
+  min-width: 150px;
+  background: var(--v2-fondo, #fff);
+  border: var(--v2-borde, 1px solid #000);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.menuContextualItem {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--v2-texto, #000);
+  text-align: left;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.menuContextualItem:hover {
+  background: var(--v2-texto, #000);
+  color: var(--v2-fondo, #fff);
+}

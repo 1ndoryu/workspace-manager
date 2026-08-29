@@ -3,11 +3,12 @@
  * [por que] RESTAURANTE es un worktree cuyo .git es un ARCHIVO (no carpeta);
  * TRABAJOS CLIENTES/ contiene ONG AGAPE que si es repo -> se baja un nivel. */
 import { existsSync, readdirSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, join, normalize, relative, sep } from 'node:path';
 import { detectarGit, estadoGit } from './git.js';
 import { estadoGate } from './gate.js';
 import { resumenRoadmap } from './roadmap.js';
 import { resumenAgents, agentesGlobales } from './agents.js';
+import { leerConfigArea } from '../configArea.js';
 import type { Proyecto, SnapshotWorkspace } from '../../shared/types.js';
 
 /* Carpetas que nunca se tratan como proyecto */
@@ -34,6 +35,12 @@ export interface OpcionesEscaneo {
   carpetaSkills: string;
 }
 
+/* Clave unica de un proyecto: ruta relativa al area, separador '/'. */
+function claveDe(ruta: string, raiz: string): string {
+  const rel = relative(normalize(raiz), normalize(ruta));
+  return rel.split(sep).join('/');
+}
+
 /** Escanea la raiz y devuelve el snapshot completo del workspace. */
 export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
   const proyectos: Proyecto[] = [];
@@ -45,7 +52,7 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
     const info = detectarGit(ruta);
 
     if (info.esRepo) {
-      proyectos.push(proyectoCompleto(ruta, nombre, info.esWorktree ? 'worktree' : 'repo', info.padre));
+      proyectos.push(proyectoCompleto(opts.raiz, ruta, nombre, info.esWorktree ? 'worktree' : 'repo', info.padre));
     } else if (RECURSIVAS.has(nombre)) {
       /* bajar un nivel: ONG AGAPE dentro de TRABAJOS CLIENTES */
       const internos = leerEntradas(ruta);
@@ -54,39 +61,50 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
         if (IGNORADAS.has(interno)) continue;
         const infoInterno = detectarGit(rutaInterna);
         if (infoInterno.esRepo) {
-          proyectos.push(proyectoCompleto(rutaInterna, interno, infoInterno.esWorktree ? 'worktree' : 'repo', infoInterno.padre));
+          proyectos.push(proyectoCompleto(opts.raiz, rutaInterna, interno, infoInterno.esWorktree ? 'worktree' : 'repo', infoInterno.padre));
         } else {
-          proyectos.push({ id: interno, ruta: rutaInterna, esGit: false, tipo: 'carpeta', padre: nombre });
+          proyectos.push({ id: interno, clave: claveDe(rutaInterna, opts.raiz), ruta: rutaInterna, esGit: false, tipo: 'carpeta', padre: nombre });
         }
       }
     } else {
-      proyectos.push({ id: nombre, ruta, esGit: false, tipo: 'carpeta' });
+      proyectos.push({ id: nombre, clave: claveDe(ruta, opts.raiz), ruta, esGit: false, tipo: 'carpeta' });
     }
   }
 
-  proyectos.sort((a, b) => a.id.localeCompare(b.id));
+  /* Clave en los proyectos git y filtro de ignorados. [por que] La config
+   * persistente define que proyectos se ignoran (p. ej. 3D/01); se quitan del
+   * snapshot para que no aparezcan en mapa/lista/consola. */
+  const config = leerConfigArea(opts.raiz);
+  const ignoradoSet = new Set(config.ignorados);
+  const visibles: Proyecto[] = proyectos
+    .map((p) => ({ ...p, clave: claveDe(p.ruta, opts.raiz) }))
+    .filter((p) => !ignoradoSet.has(p.clave));
+
+  visibles.sort((a, b) => a.id.localeCompare(b.id));
 
   const agentes = agentesGlobales(opts.raiz, opts.carpetaSkills);
 
   return {
     escaneadoEn: new Date().toISOString(),
     raiz: opts.raiz,
-    proyectos,
+    proyectos: visibles,
     agentes,
+    config,
     resumen: {
-      total: proyectos.length,
-      repos: proyectos.filter(p => p.tipo === 'repo').length,
-      worktrees: proyectos.filter(p => p.tipo === 'worktree').length,
-      carpetas: proyectos.filter(p => p.tipo === 'carpeta').length,
-      dirty: proyectos.filter(p => p.git?.dirty).length,
-      conGate: proyectos.filter(p => p.gate?.declarado).length,
-      pendientesRoadmap: proyectos.reduce((acc, p) => acc + (p.roadmap?.pendientes ?? 0), 0),
+      total: visibles.length,
+      repos: visibles.filter(p => p.tipo === 'repo').length,
+      worktrees: visibles.filter(p => p.tipo === 'worktree').length,
+      carpetas: visibles.filter(p => p.tipo === 'carpeta').length,
+      dirty: visibles.filter(p => p.git?.dirty).length,
+      conGate: visibles.filter(p => p.gate?.declarado).length,
+      pendientesRoadmap: visibles.reduce((acc, p) => acc + (p.roadmap?.pendientes ?? 0), 0),
     },
   };
 }
 
 /** Construye un proyecto completo con git + gate + roadmap + agents. */
 function proyectoCompleto(
+  raiz: string,
   ruta: string,
   id: string,
   tipo: 'repo' | 'worktree',
@@ -94,6 +112,7 @@ function proyectoCompleto(
 ): Proyecto {
   return {
     id,
+    clave: claveDe(ruta, raiz),
     ruta,
     esGit: true,
     tipo,

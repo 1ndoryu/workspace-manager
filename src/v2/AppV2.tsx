@@ -12,8 +12,10 @@ import { NavBar } from './NavBar.js';
 import { PanelConsola } from './paneles/PanelConsola.js';
 import { PanelDetalle } from './paneles/PanelDetalle.js';
 import { PanelDocs } from './paneles/PanelDocs.js';
+import { PanelConfig } from './paneles/PanelConfig.js';
 import { PanelLista } from './paneles/PanelLista.js';
 import { PanelNavegador } from './paneles/PanelNavegador.js';
+import { MenuContextual } from './MenuContextual.js';
 import { PanelRepos } from './paneles/PanelRepos.js';
 import { Resizer } from './Resizer.js';
 import { Toaster } from './Toaster.js';
@@ -91,6 +93,7 @@ export function AppV2() {
     docs: <PanelDocs />,
     repos: <PanelRepos />,
     navegador: <PanelNavegador />,
+    config: <PanelConfig />,
   }[panelCentral];
 
   /* [por que] El marco con borde solo envuelve al mapa (el usuario pidio el
@@ -162,6 +165,7 @@ export function AppV2() {
           </>
         )}
       </main>
+      <MenuContextual />
       {/* [por que] Toaster fuera del main para que no se vea afectado por
        * el scroll ni el padding del contenido; flota por encima de todo. */}
       <Toaster />

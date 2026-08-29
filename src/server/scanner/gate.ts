@@ -60,6 +60,19 @@ export function doctorSentinel(ruta: string): string | null {
   }
 }
 
+/* Nombres de archivos de gate editables por proyecto, en orden de
+ * preferencia para mostrarse. [por que] El panel de configuracion por
+ * proyecto edita la source of truth JSON (reglas sentinel/varsense); solo
+ * estos nombres son escritura permitida (whitelist anti-traversal). */
+export const ARCHIVOS_GATE = [
+  'sentinel.config.json',
+  'sentinel.lock.json',
+  'quality-tools.json',
+  'varsense.config.json',
+] as const;
+
+export type ArchivoGate = (typeof ARCHIVOS_GATE)[number];
+
 /** Lee sentinel.lock.json de forma segura (manifest de herramientas). */
 export function leerSentinelLock(ruta: string): Record<string, unknown> | null {
   const lock = join(ruta, 'sentinel.lock.json');

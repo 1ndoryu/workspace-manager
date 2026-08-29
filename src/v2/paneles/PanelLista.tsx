@@ -12,6 +12,7 @@ export function PanelLista() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
+  const abrirMenuContextual = useWorkspaceStore((s) => s.abrirMenuContextual);
 
   const orden = useMemo(() => {
     if (!snapshot) return [];
@@ -34,6 +35,10 @@ export function PanelLista() {
               type="button"
               className={`listaFila${p.id === seleccionadoId ? ' listaFila--seleccionada' : ''}`}
               onClick={() => seleccionar(p.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                abrirMenuContextual({ x: e.clientX, y: e.clientY, id: p.id, clave: p.clave });
+              }}
               title={p.ruta}
             >
               <span className={`estadoMarcador estadoMarcador--${estado}`} aria-hidden="true" />
