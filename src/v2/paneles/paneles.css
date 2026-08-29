@@ -834,3 +834,79 @@
 .gateEditorTexto {
     border: none;
 }
+
+/* Lista de excepciones abierta en el contenido (ya no en el lateral): filas
+ * con la clave y el boton 'quitar' a la derecha, dentro de la caja del visor. */
+.excListaContenido {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: var(--v2-spaceXs);
+}
+
+.excListaContenido .excFila {
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+/* En el contenido la clave de una excepcion es una etiqueta (no boton): sin
+ * cursor de mano ni subrayado. */
+.excListaContenido .excFilaNombre {
+    cursor: default;
+}
+
+.excListaContenido .excFilaNombre:hover {
+    text-decoration: none;
+}
+
+/* Editor JSON legible (EditorJson.tsx): filas de clave + control, toggles,
+ * listas editables de reglas, objetos anidados. Monocromo coherente. */
+.ejObjeto { display: flex; flex-direction: column; gap: 3px; }
+.ejFila {
+  display: grid; grid-template-columns: minmax(110px, 32%) 1fr; gap: 8px;
+  align-items: center; padding: 3px 4px; border-radius: 3px;
+}
+.ejFila:hover { background: var(--v2-borde); }
+.ejClave {
+  font-size: var(--v2-font); color: var(--v2-invertido); text-align: right;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ejControl { display: flex; align-items: center; min-width: 0; }
+.ejVacio { font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .55; font-style: italic; }
+.ejError { font-size: var(--v2-font); color: var(--v2-peligro, #c0392b); padding: 4px; }
+.ejToggle {
+  font-family: inherit; font-size: var(--v2-font); letter-spacing: .04em;
+  padding: 2px 10px; border: 1px solid var(--v2-invertido); color: var(--v2-oscuro);
+  background: transparent; cursor: pointer; border-radius: 3px; line-height: 1.4;
+}
+.ejToggle:hover { background: var(--v2-borde); }
+.ejToggle--on { background: var(--v2-invertido); color: var(--v2-fondo); }
+.ejInput {
+  font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro);
+  background: transparent; border: 1px solid var(--v2-borde); padding: 2px 6px;
+  border-radius: 3px; width: 100%; min-width: 0; line-height: 1.4;
+}
+.ejInput:focus { outline: 1px solid var(--v2-invertido); }
+.ejInput--num { width: 90px; }
+.ejLista { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.ejListaItem { display: flex; align-items: center; gap: 6px; width: 100%; }
+.ejIndice {
+  font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .6;
+  font-style: italic; min-width: 60px; max-width: 60px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0;
+}
+.ejArrVacio { display: flex; align-items: center; gap: 8px; }
+.ejBoton {
+  font-family: inherit; font-size: var(--v2-font); letter-spacing: .05em;
+  padding: 2px 8px; border: 1px solid var(--v2-invertido); background: transparent;
+  color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; flex-shrink: 0;
+}
+.ejBoton:hover { background: var(--v2-borde); }
+.ejQuitar {
+  font-family: inherit; font-size: 13px; width: 20px; height: 20px; line-height: 1;
+  border: 1px solid transparent; background: transparent; color: var(--v2-oscuro);
+  cursor: pointer; border-radius: 3px; flex-shrink: 0;
+}
+.ejQuitar:hover { border-color: var(--v2-invertido); background: var(--v2-borde); }
+.ejAgregar { display: flex; align-items: center; gap: 6px; margin-top: 2px; }

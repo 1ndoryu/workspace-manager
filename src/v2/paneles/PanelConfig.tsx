@@ -1,17 +1,22 @@
-/* Panel central 'config': gestion de excepciones (proyectos ignorados) y
- * configuracion por proyecto (ignorar + reglas de sentinel/varsense).
- * [por que] El usuario pidio una pagina para gestionar las excepciones
- * guardadas (p. ej. 3D/01 no es un proyecto) y configuracion avanzada por
- * proyecto: ver su gate y controlar sus reglas editando el JSON real. */
+/* Panel central 'config': configuracion por proyecto (ignorar + reglas de
+ * sentinel/varsense) y gestion de excepciones (proyectos ignorados).
+ * [por que] El usuario pidio que las excepciones no ocupen espacio en el
+ * panel lateral: este es ahora un menu de opciones, y entre ellas esta
+ * 'excepciones', que se abre en el contenido. Cada proyecto tambien es una
+ * opcion que abre su configuracion en el contenido. */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import type { EstadoGate } from '../../shared/types.js';
 import { mensajeDeError, toastError, toastOk } from '../toast.js';
+import { EditorJson } from '../EditorJson.js';
 import './paneles.css';
 
 /* Archivos de gate editables (whitelist del server: same list). */
 const ARCHIVOS = ['sentinel.config.json', 'sentinel.lock.json', 'quality-tools.json', 'varsense.config.json'] as const;
+
+/* Vista del visor derecho: la lista de excepciones o la config de un proyecto. */
+type Vista = 'excepciones' | 'proyecto';
 
 interface GateRespuesta {
   clave: string;
@@ -37,22 +42,31 @@ export function PanelConfig() {
   const proyectoAConfigurar = useWorkspaceStore((s) => s.proyectoAConfigurar);
   const cambiarIgnorado = useWorkspaceStore((s) => s.cambiarIgnorado);
 
-  /* Proyecto abierto en el visor derecho (por clave). */
+  /* Vista actual y, si es 'proyecto', la clave del proyecto abierto. */
+  const [vista, setVista] = useState<Vista>('excepciones');
   const [claveVisor, setClaveVisor] = useState<string | null>(null);
   const [gate, setGate] = useState<GateRespuesta | null>(null);
   const [contenidos, setContenidos] = useState<Record<string, string>>({});
+  /* Valores editados por el EditorJson (parsed por archivo). */
+  const [editado, setEditado] = useState<Record<string, unknown>>({});
+  /* Errores de parseo si el JSON de un archivo no es valido. */
+  const [parseErrores, setParseErrores] = useState<Record<string, string>>({});
   const [cargandoGate, setCargandoGate] = useState(false);
   const [guardando, setGuardando] = useState<string | null>(null);
 
-  /* [por que] Al inicial y cada vez que cambie el snapshot (tras ignorar /
-   * re-escaneo), el visor apunta al proyecto que pidio el menu contextual. */
+  /* [por que] El menu contextual abre la pagina 'config' con un proyecto
+   * determinado: inicial/a cada cambio, si llega un proyecto, se muestra su
+   * configuracion (vista proyecto) en vez de las excepciones. */
   useEffect(() => {
-    if (proyectoAConfigurar) setClaveVisor(proyectoAConfigurar);
+    if (proyectoAConfigurar) {
+      setClaveVisor(proyectoAConfigurar);
+      setVista('proyecto');
+    }
   }, [proyectoAConfigurar]);
 
   /* Carga el gate del proyecto abierto cada vez que cambia la clave. */
   useEffect(() => {
-    if (!claveVisor) {
+    if (vista !== 'proyecto' || !claveVisor) {
       setGate(null);
       return;
     }
@@ -63,13 +77,31 @@ export function PanelConfig() {
       .then(({ data }) => {
         if (!viva) return;
         setGate(data);
-        /* Pre-carga el contenido de cada archivo existente en el editor. */
+        /* Pre-carga el contenido de cada archivo existente en el editor ya
+         * parseado como JSON (el EditorJson trabaja sobre el valor, no el texto). */
         const inicial: Record<string, string> = {};
         for (const a of ARCHIVOS) {
           const c = data.contenidos[a];
           if (typeof c === 'string') inicial[a] = c;
         }
         setContenidos(inicial);
+        setParseErrores({});
+        /* Parseo cada archivo valido a su valor JSON para el EditorJson. */
+        const pars: Record<string, unknown> = {};
+        const errs: Record<string, string> = {};
+        for (const a of ARCHIVOS) {
+          const c = data.contenidos[a];
+          if (typeof c !== 'string' || !c.trim()) continue;
+          try {
+            /* Cast controlado: JSON.parse devuelve cualquier valor; EditorJson
+         * espera un JsonValue, que sanitizamos recursivamente al renderizar. */
+        pars[a] = JSON.parse(c) as unknown;
+          } catch (e) {
+            errs[a] = e instanceof Error ? e.message : 'JSON inválido';
+          }
+        }
+        setEditado(pars);
+        setParseErrores(errs);
       })
       .catch((err) => {
         if (!viva) return;
@@ -82,12 +114,13 @@ export function PanelConfig() {
     return () => {
       viva = false;
     };
-  }, [claveVisor]);
+  }, [vista, claveVisor]);
 
   if (!snapshot) return null;
 
   const ignorados = snapshot.config.ignorados;
-  const proyectoVisor = snapshot.proyectos.find((p) => p.clave === claveVisor);
+  const proyectos = snapshot.proyectos;
+  const proyectoVisor = proyectos.find((p) => p.clave === claveVisor);
   const visorIgnorado = claveVisor !== null && ignorados.includes(claveVisor);
 
   async function alternarIgnorado(clave: string, ignorar: boolean) {
@@ -100,16 +133,18 @@ export function PanelConfig() {
   }
 
   /* Guarda el JSON editado de un archivo de gate del proyecto del visor. */
-  async function guardar(a: string, contenido: string) {
+  async function guardar(a: string) {
     if (!claveVisor) return;
     setGuardando(a);
     try {
+      /* Serializa el valor editado (indent 2) y lo envia; el server valida
+       * JSON de nuevo antes de escribir. */
+      const contenido = JSON.stringify(editado[a] ?? null, null, 2);
       await axios.post(
         `/api/proyecto/gate?clave=${encodeURIComponent(claveVisor)}`,
         { nombre: a, contenido },
       );
       toastOk(`${a} guardado ✓`);
-      /* Re-escanea para que el estado del gate refleje el guardado. */
       await cargar(true);
     } catch (err) {
       toastError(`no se pudo guardar: ${mensajeDeError(err)}`);
@@ -118,45 +153,43 @@ export function PanelConfig() {
     }
   }
 
+  /* Guarda la clave y pasa a la vista de un proyecto concreto. */
+  function abrirProyecto(clave: string) {
+    setClaveVisor(clave);
+    setVista('proyecto');
+  }
+
   return (
     <div className="panelDocs" aria-label="Configuración">
+      {/* Menu lateral de opciones: excepciones + proyectos a configurar. */}
       <div className="panelDocsLista">
         <section className="panelDocsSeccion">
-          <header className="panelDocsCabecera">excepciones ({ignorados.length})</header>
+          <header className="panelDocsCabecera">opciones</header>
           <div className="panelDocsEntradas">
-            {ignorados.length === 0 && <div className="docsVacio">no hay excepciones guardadas</div>}
-            {ignorados.map((clave) => (
-              <div key={clave} className="excFila">
-                <button
-                  type="button"
-                  className="excFilaNombre"
-                  onClick={() => setClaveVisor(clave)}
-                  title="configurar esta excepción"
-                >
-                  {clave}
-                </button>
-                <button
-                  type="button"
-                  className="excBoton"
-                  onClick={() => void alternarIgnorado(clave, false)}
-                  title="dejar de ignorar este proyecto"
-                >
-                  quitar
-                </button>
-              </div>
-            ))}
+            <button
+              type="button"
+              className={`docsFila${vista === 'excepciones' ? ' docsFila--activa' : ''}`}
+              onClick={() => {
+                setVista('excepciones');
+                setClaveVisor(null);
+              }}
+            >
+              <span className="docsFilaNombre">excepciones ({ignorados.length})</span>
+            </button>
           </div>
         </section>
         <section className="panelDocsSeccion">
           <header className="panelDocsCabecera">configurar proyecto</header>
           <div className="panelDocsEntradas">
-            {snapshot.proyectos.length === 0 && <div className="docsVacio">sin proyectos visibles</div>}
-            {snapshot.proyectos.map((p) => (
+            {proyectos.length === 0 && <div className="docsVacio">sin proyectos visibles</div>}
+            {proyectos.map((p) => (
               <button
                 key={p.clave}
                 type="button"
-                className={`docsFila${p.clave === claveVisor ? ' docsFila--activa' : ''}`}
-                onClick={() => setClaveVisor(p.clave)}
+                className={`docsFila${
+                  vista === 'proyecto' && p.clave === claveVisor ? ' docsFila--activa' : ''
+                }`}
+                onClick={() => abrirProyecto(p.clave)}
                 title={p.ruta}
               >
                 <span className="docsFilaNombre">{p.clave}</span>
@@ -165,16 +198,48 @@ export function PanelConfig() {
           </div>
         </section>
       </div>
+
       <div className="panelDocsContenido">
-        {!claveVisor && (
-          <div className="docsVacio">
-            elige un proyecto (menú contextual o lista) para configurarlo, o gestiona las excepciones
-          </div>
+        {/* Vista por defecto: elige una opcion. */}
+        {vista === 'excepciones' && (
+          <>
+            <header className="panelDocsVisorCabecera">
+              <span className="panelDocsVisorTitulo">excepciones ({ignorados.length})</span>
+            </header>
+            {ignorados.length === 0 ? (
+              <div className="docsVacio">
+                no hay excepciones guardadas. usa el menú contextual (clic derecho) sobre un proyecto
+                para ignorarlo
+              </div>
+            ) : (
+              <div className="excListaContenido">
+                {/* [por que] Cada excepcion es una fila tipo lista: quitar la
+                 * vuelve a ser un proyecto visible al instante. */}
+                {ignorados.map((clave) => (
+                  <div key={clave} className="excFila">
+                    <span className="excFilaNombre">{clave}</span>
+                    <button
+                      type="button"
+                      className="excBoton"
+                      onClick={() => void alternarIgnorado(clave, false)}
+                      title="dejar de ignorar este proyecto"
+                    >
+                      quitar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
-        {claveVisor && cargandoGate && <div className="docsVacio">cargando gate…</div>}
+        {vista === 'proyecto' && !claveVisor && (
+          <div className="docsVacio">elige un proyecto de la lista</div>
+        )}
 
-        {claveVisor && !cargandoGate && (
+        {vista === 'proyecto' && claveVisor && cargandoGate && <div className="docsVacio">cargando gate…</div>}
+
+        {vista === 'proyecto' && claveVisor && !cargandoGate && (
           <>
             <header className="docsVisorCabecera">
               <span className="docsVisorTitulo">{visorIgnorado ? `${claveVisor} (ignorado)` : claveVisor}</span>
@@ -187,9 +252,7 @@ export function PanelConfig() {
               </button>
             </header>
 
-            {proyectoVisor && (
-              <div className="configMeta">{proyectoVisor.ruta}</div>
-            )}
+            {proyectoVisor && <div className="configMeta">{proyectoVisor.ruta}</div>}
 
             {/* Estado del gate en badges. */}
             <div className="configBadges">
@@ -205,7 +268,28 @@ export function PanelConfig() {
             ) : (
               <div className="gateEditores">
                 {gate.archivos.map((a) => {
-                  const contenido = contenidos[a.nombre] ?? '';
+                  /* Si el archivo no es JSON valido, mostramos el error en vez
+                   * del editor (para no corromper el archivo sin querer). */
+                  if (parseErrores[a.nombre]) {
+                    return (
+                      <section key={a.nombre} className="gateEditor">
+                        <header className="gateEditorCabecera">
+                          <span className="gateEditorNombre">{a.nombre}</span>
+                        </header>
+                        <div className="ejError">JSON inválido: {parseErrores[a.nombre]}</div>
+                        <textarea
+                          className="panelDocsTexto gateEditorTexto"
+                          value={contenidos[a.nombre] ?? ''}
+                          onChange={(ev) =>
+                            setContenidos((c) => ({ ...c, [a.nombre]: ev.target.value }))
+                          }
+                          spellCheck={false}
+                          aria-label={`Contenido de ${a.nombre} (inválido)`}
+                        />
+                      </section>
+                    );
+                  }
+                  const valor = (editado[a.nombre] ?? null) as import('../EditorJson.js').JsonValue;
                   return (
                     <section key={a.nombre} className="gateEditor">
                       <header className="gateEditorCabecera">
@@ -213,20 +297,18 @@ export function PanelConfig() {
                         <button
                           type="button"
                           className="docsGuardar"
-                          onClick={() => void guardar(a.nombre, contenido)}
+                          onClick={() => void guardar(a.nombre)}
                           disabled={guardando === a.nombre}
                         >
                           {guardando === a.nombre ? 'guardando…' : 'guardar'}
                         </button>
                       </header>
-                      <textarea
-                        className="panelDocsTexto gateEditorTexto"
-                        value={contenido}
-                        onChange={(ev) =>
-                          setContenidos((c) => ({ ...c, [a.nombre]: ev.target.value }))
+                      <EditorJson
+                        key={`${claveVisor}:${a.nombre}`}
+                        value={valor}
+                        onChange={(nv) =>
+                          setEditado((e) => ({ ...e, [a.nombre]: nv }))
                         }
-                        spellCheck={false}
-                        aria-label={`Contenido de ${a.nombre}`}
                       />
                     </section>
                   );
