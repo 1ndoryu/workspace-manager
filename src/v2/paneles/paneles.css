@@ -305,3 +305,271 @@
     padding-left: var(--v2-spaceSm);
     border-left: 1px solid var(--v2-borde);
 }
+
+/* ============================================================
+ * Panel central: documentacion (skills globales + AGENTS.md).
+ * ============================================================ */
+.panelDocs {
+    height: 100%;
+    display: flex;
+    gap: var(--v2-spaceMd);
+}
+
+/* Lista izquierda: dos secciones (skills y AGENTS.md) apiladas. */
+.panelDocsLista {
+    width: 340px;
+    min-height: 0;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceMd);
+    overflow-y: auto;
+}
+
+.panelDocsSeccion {
+    border: 1px solid var(--v2-borde);
+}
+
+.panelDocsCabecera {
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+}
+
+.panelDocsEntradas {
+    display: flex;
+    flex-direction: column;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.docsFila {
+    display: flex;
+    align-items: baseline;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border: none;
+    border-bottom: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textSm);
+    text-align: left;
+    cursor: pointer;
+}
+
+.docsFila:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.docsFila--activa {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.docsFilaNombre {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.docsFilaMeta {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--v2-textXs);
+}
+
+/* Indicador de la fila AGENTS: cuadrado (vacio = crear, relleno = tiene). */
+.docsFilaEstado {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    align-self: center;
+    border: 1px solid currentColor;
+    background: currentColor;
+}
+
+.docsFilaEstado--vacío {
+    background: transparent;
+}
+
+/* Visor abierto a la derecha. */
+.panelDocsContenido {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--v2-borde);
+}
+
+.panelDocsVisorCabecera {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.panelDocsVisorTitulo {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--v2-textSm);
+}
+
+.panelDocsVisorMeta {
+    font-size: var(--v2-textXs);
+}
+
+.docsGuardar {
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    padding: 2px var(--v2-spaceSm);
+    cursor: pointer;
+}
+
+.docsGuardar:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.docsMensaje {
+    font-size: var(--v2-textXs);
+}
+
+.panelDocsTexto,
+.panelDocsPre {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    border: none;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    line-height: 1.6;
+    padding: var(--v2-spaceMd);
+    white-space: pre-wrap;
+    word-break: break-word;
+    resize: none;
+    outline: none;
+}
+
+.docsVacio {
+    padding: var(--v2-spaceMd);
+    font-size: var(--v2-textSm);
+}
+
+/* ============================================================
+ * Panel central: estados de los repositorios.
+ * ============================================================ */
+.panelRepos {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.panelReposCabecera {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+}
+
+.panelReposMeta {
+    flex: 1;
+    text-align: right;
+    font-size: var(--v2-textXs);
+}
+
+.panelReposContenido {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.reposFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border: none;
+    border-bottom: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    text-align: left;
+    cursor: pointer;
+}
+
+.reposFila:hover,
+.reposFila--seleccionada {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.reposFilaNombre {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--v2-textSm);
+}
+
+.reposFilaRama {
+    flex: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 110px;
+}
+
+.reposFilaPush {
+    flex: none;
+    white-space: nowrap;
+}
+
+.reposFilaDirty {
+    flex: none;
+    white-space: nowrap;
+}
+
+.reposFilaCommit {
+    flex: none;
+    white-space: nowrap;
+}
+
+.reposFilaRemoto {
+    flex: none;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: inherit;
+    text-decoration: underline;
+}
+
+.reposFilaRemoto--sin {
+    text-decoration: none;
+    opacity: 0.6;
+}

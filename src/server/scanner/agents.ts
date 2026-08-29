@@ -6,6 +6,46 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type { AgentesInfo, ResumenAgents, SkillGlobal } from '../../shared/types.js';
 
+/* [por que] Quita comillas envolventes (simples o dobles) que YAML puede
+ * colocar alrededor de un valor escalar de una linea. */
+function limpiarEscalar(resto: string): string {
+  const v = resto.trim();
+  if (v === '') return '';
+  const pri = v[0];
+  const ult = v[v.length - 1];
+  if ((pri === '"' && ult === '"') || (pri === "'" && ult === "'")) {
+    return v.slice(1, -1).trim();
+  }
+  return v;
+}
+
+/* [por que] El campo description puede ser una linea, un bloque "|" / ">"
+ * (con o sin indicador |+ |-, >+ >-), o un valor vacio. Segun el tipo se
+ * leen las lineas indentadas siguientes y se unen en un parrafo. */
+function parsearDescripcion(texto: string): string {
+  const lineas = texto.split(/\r?\n/);
+  for (let i = 0; i < lineas.length; i++) {
+    const m = lineas[i].match(/^description:\s*(.*)$/);
+    if (!m) continue;
+    const resto = m[1].trim();
+    /* Indicador de bloque: los contenidos van en lineas indentadas. */
+    if (/^[|>][-+]?$/.test(resto)) {
+      const parrafo: string[] = [];
+      for (let j = i + 1; j < lineas.length; j++) {
+        const linea = lineas[j];
+        if (!/^[ \t]/.test(linea)) break;
+        const contenido = linea.trim();
+        if (!contenido || /^[-*]\s/.test(contenido)) continue;
+        parrafo.push(contenido);
+      }
+      return parrafo.join(' ');
+    }
+    /* Valor compatto (una linea, opcionalmente entre comillas). */
+    return limpiarEscalar(resto);
+  }
+  return '';
+}
+
 const RE_REGLA = /<rule\b[^>]*\bname="([^"]+)"/g;
 
 /** Extrae reglas declaradas de un AGENTS.md. */
@@ -55,9 +95,7 @@ export function agentesGlobales(raiz: string, carpetaSkills: string): AgentesInf
       let descripcion = '';
       if (existsSync(skillMd)) {
         try {
-          const texto = readFileSync(skillMd, 'utf8');
-          const m = texto.match(/^description:\s*(.+)$/m);
-          if (m) descripcion = m[1].trim();
+          descripcion = parsearDescripcion(readFileSync(skillMd, 'utf8'));
         } catch {
           /* skill sin descripcion */
         }

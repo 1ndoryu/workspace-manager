@@ -2,7 +2,7 @@
  * y el build estatico del cliente. [por que] Node http nativo, sin framework:
  * rapido, cero deps, coherente con el stack ligero del proyecto. */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { obtenerSnapshot } from './cache.js';
 import { escanearWorkspace } from './scanner/workspace.js';
@@ -29,6 +29,39 @@ const MIME: Record<string, string> = {
 function json(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(body));
+}
+
+/* Lee el body JSON de un POST. [por que] Node http nativo no parsea bodies;
+ * el unico POST del API es /api/agentes, asi que el parseo es minimalista. */
+function leerBody(req: IncomingMessage): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    let datos = '';
+    req.on('data', (c) => {
+      datos += c;
+      if (datos.length > 1_000_000) {
+        req.destroy();
+        reject(new Error('Body demasiado grande'));
+      }
+    });
+    req.on('end', () => {
+      try {
+        resolve(datos.length > 0 ? JSON.parse(datos) : {});
+      } catch (err) {
+        reject(err);
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+/* Lee el contenido de un archivo; null si no existe o falla. */
+function leerArchivo(ruta: string): string | null {
+  try {
+    if (!existsSync(ruta)) return null;
+    return readFileSync(ruta, 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 /* Escaner con cache; el flag `forzar` re-escanea. */
@@ -90,6 +123,86 @@ export function crearServidor() {
           }
           const doctor = doctorSentinel(proyecto.ruta);
           json(res, 200, { id, doctor });
+          return;
+        }
+        if (ruta.startsWith('/api/skills/')) {
+          /* Contenido de una skill global. [por que] La ruta se resuelve
+           * desde el snapshot por nombre (nunca se acepta un path del
+           * cliente): evita traversal fuera de la carpeta de skills. */
+          const nombre = decodeURIComponent(ruta.slice('/api/skills/'.length));
+          const { snapshot } = snapshotArea(false);
+          const skill = snapshot.agentes.skills.find(s => s.nombre === nombre);
+          if (!skill) {
+            json(res, 404, { error: 'Skill no encontrada', nombre });
+            return;
+          }
+          const contenido = leerArchivo(skill.ruta);
+          if (contenido === null) {
+            json(res, 404, { error: 'SKILL.md no legible', nombre });
+            return;
+          }
+          json(res, 200, { nombre, ruta: skill.ruta, contenido });
+          return;
+        }
+        if (ruta === '/api/agentes') {
+          /* GET: contenido de AGENTS.md (proyecto por id o 'raiz'). */
+          if (req.method === 'GET') {
+            const id = url.searchParams.get('id') ?? '';
+            const { snapshot } = snapshotArea(false);
+            const proyecto = snapshot.proyectos.find(p => p.id === id);
+            const ruta =
+              id === 'raiz'
+                ? snapshot.agentes.global.ruta
+                : proyecto
+                  ? join(proyecto.ruta, 'AGENTS.md')
+                  : null;
+            if (!ruta) {
+              json(res, 404, { error: 'Sin AGENTS.md para el id', id });
+              return;
+            }
+            const contenido = leerArchivo(ruta);
+            if (contenido === null) {
+              json(res, 404, { error: 'AGENTS.md no encontrado', id });
+              return;
+            }
+            json(res, 200, { id, ruta, contenido });
+            return;
+          }
+          /* POST: crear/actualizar AGENTS.md de un proyecto o la raiz.
+           * [por que] El panel de documentacion gestiona agents.md; la ruta
+           * tambien se resuelve desde el snapshot por id, nunca del cliente. */
+          if (req.method === 'POST') {
+            const body = (await leerBody(req)) as { id?: unknown; contenido?: unknown };
+            const id = typeof body.id === 'string' ? body.id : '';
+            const contenido = typeof body.contenido === 'string' ? body.contenido : null;
+            if (contenido === null) {
+              json(res, 400, { error: 'Contenido invalido' });
+              return;
+            }
+            const { snapshot } = snapshotArea(false);
+            const proyecto = snapshot.proyectos.find(p => p.id === id);
+            const ruta =
+              id === 'raiz'
+                ? join(RAÍZ_AREA, 'AGENTS.md')
+                : proyecto
+                  ? join(proyecto.ruta, 'AGENTS.md')
+                  : null;
+            if (!ruta) {
+              json(res, 404, { error: 'Proyecto no encontrado', id });
+              return;
+            }
+            try {
+              writeFileSync(ruta, contenido, 'utf8');
+              /* Re-escaneo forzado: el AGENTS.md nuevo cambia el resumen
+               * (tieneAgentsMd/reglas) y posiblemente el estado git. */
+              snapshotArea(true);
+              json(res, 200, { ok: true, id, ruta });
+            } catch (err) {
+              json(res, 500, { error: 'No se pudo escribir', detalle: String(err) });
+            }
+            return;
+          }
+          json(res, 405, { error: 'Metodo no permitido' });
           return;
         }
         json(res, 404, { error: 'Ruta no encontrada', ruta });
