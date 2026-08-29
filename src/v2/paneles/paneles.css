@@ -385,7 +385,7 @@
 }
 
 .docsFilaNombre {
-    flex: 0 1 auto;
+    flex: 1;
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -393,7 +393,7 @@
 }
 
 .docsFilaMeta {
-    flex: 1;
+    flex: none;
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
