@@ -8,54 +8,72 @@ import type { Proyecto } from '../../shared/types.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import './paneles.css';
 
-type Categoria = 'sinGit' | 'sinPush' | 'gate';
+type Categoria = 'sinGit' | 'sinPush' | 'gate' | 'config';
 
+interface Entrada {
+  categoria: Categoria;
+  motivo: string;
+  /* Severidad real del problema. Solo la categoria 'config' distingue
+   * error/advertencia; el resto es null (no aplica). */
+  seriedad: 'error' | 'advertencia' | null;
+}
+
+/* Un proyecto con sus problemas. Cada problema (Entrada) es una linea
+ * individual: el CONTEO es por entrada, no por proyecto, porque un proyecto
+ * puede tener varios (p. ej. 5 opciones mal de config). Las categorias de
+ * badges se derivan de las entradas (unicas). */
 interface Problema {
   p: Proyecto;
-  categorias: Categoria[];
-  motivos: string[];
+  entradas: Entrada[];
 }
 
 /* Clasifica un proyecto; null si no tiene ningun problema.
  * [por que] Las carpetas (no git) solo cuentan como "sin git": no tienen
- * sentido las categorias de push/gate sobre ellas. */
+ * sentido las categorias de push/gate sobre ellas. Los problemas de la CONFIG
+ * del gate (sentinel/varsense) vienen del server (snapshot): opciones
+ * requeridas faltantes o valores con tipo incorrecto -> error; recomendadas
+ * faltantes -> advertencia; opcionales faltantes -> se silencian (no llegan). */
 function problemasDe(p: Proyecto): Problema | null {
-  const categorias: Categoria[] = [];
-  const motivos: string[] = [];
+  const entradas: Entrada[] = [];
 
   if (!p.esGit) {
-    categorias.push('sinGit');
-    motivos.push('no es repo git');
-    return { p, categorias, motivos };
+    entradas.push({ categoria: 'sinGit', motivo: 'no es repo git', seriedad: null });
+    return { p, entradas };
   }
 
   if (p.git) {
     if (!p.git.remoto) {
-      categorias.push('sinPush');
-      motivos.push('sin remoto configurado');
+      entradas.push({ categoria: 'sinPush', motivo: 'sin remoto configurado', seriedad: null });
     } else if (p.git.ahead > 0) {
-      categorias.push('sinPush');
-      motivos.push(`${p.git.ahead} commit(s) sin push`);
+      entradas.push({ categoria: 'sinPush', motivo: `${p.git.ahead} commit(s) sin push`, seriedad: null });
     }
   }
 
   const g = p.gate;
   if (!g?.declarado) {
-    categorias.push('gate');
-    motivos.push('sin sentinel/varsense declarado');
+    entradas.push({ categoria: 'gate', motivo: 'sin sentinel/varsense declarado', seriedad: null });
   } else {
     if (g.sentinel === 'lock') {
-      categorias.push('gate');
-      motivos.push('sentinel: solo lock, sin config');
+      entradas.push({ categoria: 'gate', motivo: 'sentinel: solo lock, sin config', seriedad: null });
     }
     if (!g.varsense) {
-      categorias.push('gate');
-      motivos.push('varsense ausente');
+      entradas.push({ categoria: 'gate', motivo: 'varsense ausente', seriedad: null });
     }
   }
 
-  if (categorias.length === 0) return null;
-  return { p, categorias, motivos };
+  /* Problemas de la config del gate (sentinel/varsense). */
+  for (const c of p.gateProblemas ?? []) {
+    entradas.push({ categoria: 'config', motivo: c.mensaje, seriedad: c.severidad });
+  }
+
+  if (entradas.length === 0) return null;
+  return { p, entradas };
+}
+
+/* Categorias unicas de un proyecto (para sus badges), en orden fijo. */
+function categoriasDe(pr: Problema): Categoria[] {
+  const orden: Categoria[] = ['sinGit', 'sinPush', 'gate', 'config'];
+  return orden.filter((c) => pr.entradas.some((e) => e.categoria === c));
 }
 
 const FILTROS: { clave: 'todos' | Categoria; etiqueta: string }[] = [
@@ -63,12 +81,14 @@ const FILTROS: { clave: 'todos' | Categoria; etiqueta: string }[] = [
   { clave: 'sinGit', etiqueta: 'sin git' },
   { clave: 'sinPush', etiqueta: 'sin push' },
   { clave: 'gate', etiqueta: 'sentinel/varsense' },
+  { clave: 'config', etiqueta: 'config' },
 ];
 
 const ETIQUETA_CATEGORIA: Record<Categoria, string> = {
   sinGit: 'sin git',
   sinPush: 'sin push',
   gate: 'sentinel',
+  config: 'config',
 };
 
 /* Ruta relativa de un proyecto respecto a la raiz del area, para abrir su
@@ -97,12 +117,16 @@ export function PanelConsola() {
 
   const visibles = useMemo(() => {
     if (filtro === 'todos') return problemas;
-    return problemas.filter((pr) => pr.categorias.includes(filtro));
+    return problemas.filter((pr) => pr.entradas.some((e) => e.categoria === filtro));
   }, [problemas, filtro]);
 
+  /* El conteo es por PROBLEMA individual (entradas), no por proyecto.
+   * [por que] Un proyecto puede agrupar varias lineas; contarlo como 1
+   * hacía que el total no coincidiera con las lineas visibles al abrir.
+   * 'todos' suma todas las entradas; cada filtro suma las de su categoria. */
   const contar = (clave: 'todos' | Categoria): number => {
-    if (clave === 'todos') return problemas.length;
-    return problemas.filter((pr) => pr.categorias.includes(clave)).length;
+    if (clave === 'todos') return problemas.reduce((n, pr) => n + pr.entradas.length, 0);
+    return problemas.reduce((n, pr) => n + pr.entradas.filter((e) => e.categoria === clave).length, 0);
   };
 
   if (!snapshot) return null;
@@ -110,7 +134,7 @@ export function PanelConsola() {
   return (
     <aside className="panelConsola" aria-label="Consola de problemas">
       <header className="panelConsolaCabecera">
-        <span className="panelConsolaTitulo">problemas ({problemas.length})</span>
+        <span className="panelConsolaTitulo">problemas ({contar('todos')})</span>
         {FILTROS.map((f) => (
           <button
             key={f.clave}
@@ -148,16 +172,22 @@ export function PanelConsola() {
                 title={pr.p.ruta}
               >
                 <span className="consolaFilaNombre">{pr.p.id}</span>
-                {pr.categorias.map((c) => (
-                  <span key={c} className="consolaFilaBadge">
+                {categoriasDe(pr).map((c) => (
+                  <span
+                    key={c}
+                    className={`consolaFilaBadge${c === 'config' ? ` consolaFilaBadge--${pr.entradas.some((e) => e.categoria === 'config' && e.seriedad === 'error') ? 'error' : 'warn'}` : ''}`}
+                  >
                     {ETIQUETA_CATEGORIA[c]}
                   </span>
                 ))}
               </button>
               <ul className="consolaMotivos">
-                {pr.motivos.map((m) => (
-                  <li key={m} className="consolaMotivo">
-                    {m}
+                {pr.entradas.map((e, i) => (
+                  <li
+                    key={`${e.motivo}-${i}`}
+                    className={`consolaMotivo${e.seriedad ? ` consolaMotivo--${e.seriedad === 'error' ? 'error' : 'warn'}` : ''}`}
+                  >
+                    {e.motivo}
                   </li>
                 ))}
               </ul>

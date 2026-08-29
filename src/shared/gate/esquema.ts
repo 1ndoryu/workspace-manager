@@ -1,14 +1,24 @@
-/* Esquema dirigido por datos para el editor de gate dirigido por esquema.
- * [por que] Los archivos de gate (sentinel.config.json, etc.) los construyen
- * los agentes y se equivocan: omiten opciones, escriben con typos o usan el
- * tipo incorrecto. El editor NO puede depender de las claves que existan en el
- * JSON; tiene que partir de un esquema canonico y diagnosticar cada opcion
- * contra el documento real. Aqui esta el modelo de ese esquema y la funcion
- * `diagnosticar` que compara esquema <-> JSON y emite el estado de cada fila. */
+/* Esquema dirigido por datos para el editor/consola de gate (SENTINEL/VARSENSE).
+ * [por que] Los archivos de gate los construyen los agentes y se equivocan:
+ * omiten opciones, escriben con typos o usan el tipo incorrecto. El editor NO
+ * puede depender de las claves que existan en el JSON; tiene que partir de un
+ * esquema canonico y diagnosticar cada opcion contra el documento real.
+ * Ahora este modelo vivia en src/v2/schemas; se movio aqui (src/shared/gate)
+ * para que el SERVER (escaneo -> snapshot -> consola) y el EDITOR compartan la
+ * misma fuente de verdad y no se desincronicen. */
+import { descripcionDeRuta, nombreDeRuta } from './etiquetas.js';
 
 export type ValorJson = boolean | number | string | null | ValorJson[] | { [k: string]: ValorJson };
 
 export type TipoValor = 'string' | 'number' | 'boolean' | 'stringArray' | 'enum';
+
+/* Necesidad de una opcion: define la severidad cuando FALTA.
+ *   requerida   -> falta  => ERROR
+ *   recomendada -> falta  => ADVERTENCIA
+ *   opcional    -> falta  => no reporta nada
+ * Un valor MAL TIPADO / enum invalido / clave desconocida es SIEMPRE error,
+ * aunque la opcion fuera opcional. */
+export type Necesidad = 'requerida' | 'recomendada' | 'opcional';
 
 /* Una hoja: una opcion concreta con un valor. */
 export interface OpcionValor {
@@ -18,6 +28,9 @@ export interface OpcionValor {
   /* Valor por defecto real del esquema; se inserta al "agregar". */
   default?: ValorJson;
   descripcion?: string;
+  /* La necesidad por defecto es 'opcional': solo las opciones etiquetadas
+   * como requeridas/recomendadas generan error/warning si faltan. */
+  necesidad?: Necesidad;
 }
 
 /* Un grupo (objeto) con opciones hijas. `permitirString` cubre los casos en
@@ -26,6 +39,7 @@ export interface OpcionValor {
 export interface NodoObjeto {
   objeto: Record<string, NodoEsquema>;
   permitirString?: boolean;
+  necesidad?: Necesidad;
 }
 
 export type NodoEsquema =
@@ -33,12 +47,20 @@ export type NodoEsquema =
   | NodoObjeto
   /* Record<string, T> sin catalogo de ids conocido: se enumeran SOLO las
    * claves presentes en el JSON (p.ej. guard.directCommands). */
-  | { mapa: NodoEsquema }
+  | { mapa: NodoEsquema; necesidad?: Necesidad }
   /* Record<string, T> con un catalogo de ids conocido: se enumeran las claves
    * presentes Y los ids del catalogo que faltan (p.ej. rules). */
-  | { mapaCatalogo: NodoEsquema; catalogo: string[] }
+  | { mapaCatalogo: NodoEsquema; catalogo: string[]; necesidad?: Necesidad }
   /* Array de objetos: cada item se expande por indice. */
-  | { listaDe: NodoEsquema };
+  | { listaDe: NodoEsquema; necesidad?: Necesidad };
+
+export function necesidadDe(n: NodoEsquema): Necesidad {
+  if ('tipo' in n) return n.necesidad ?? 'opcional';
+  if ('objeto' in n) return n.necesidad ?? 'opcional';
+  if ('mapa' in n) return n.necesidad ?? 'opcional';
+  if ('mapaCatalogo' in n) return n.necesidad ?? 'opcional';
+  return 'opcional';
+}
 
 /* ------------------------------------------------------------------ */
 /* Rutas y utilidades de escritura sobre el JSON (controlado).         */
@@ -47,9 +69,18 @@ export type NodoEsquema =
 /* Ruta a un valor dentro del JSON: secuencia de claves/indices. */
 export type Ruta = (string | number)[];
 
-/* Ruta como etiqueta (p.ej. "analyzers › sentinel › config › includePatterns"). */
+/* Ruta como etiqueta legible (p.ej. "Analizadores › Sentinel › Configuración ›
+ * Patrones incluidos"). [por que] El usuario pidio traducir las etiquetas
+ * tecnicas a nombres legibles; el catalogo vive en ./etiquetas.js y hace
+ * fallback al segmento tecnico si falta traduccion (nunca vacio). */
 export function rutaEtiqueta(ruta: Ruta): string {
-  return ruta.map((x) => String(x)).join(' › ') || '(configuración)';
+  return nombreDeRuta(ruta);
+}
+
+/* Descripcion corta de la ruta (la del segmento mas profundo que la tenga).
+ * undefined si ningun segmento tiene descripcion. */
+export function rutaDescripcion(ruta: Ruta): string | undefined {
+  return descripcionDeRuta(ruta);
 }
 
 /* Default sensato por tipo de hoja (para insertar una opcion que falta).
@@ -131,15 +162,23 @@ export function borrarRuta(val: ValorJson | undefined, ruta: Ruta): ValorJson {
 
 export type Fila =
   | { tipo: 'campo'; ruta: Ruta; estado: 'valido' | 'malTipo'; valor: ValorJson; opcion: OpcionValor }
-  | { tipo: 'faltante'; ruta: Ruta; default: ValorJson }
+  | { tipo: 'faltante'; ruta: Ruta; default: ValorJson; necesidad: Necesidad }
   | { tipo: 'desconocida'; ruta: Ruta; valor: ValorJson; sugerencia?: string };
+
+/* Profundidad hasta la que una opcion FALTANTE se clasifica como error/warning.
+ * [por que] El esquema de sentinel es recursivo (`config` se anida al mismo
+ * objeto); clasificar todos los faltantes profundos seria ruido. Solo las
+ * opciones de los primeros niveles (raiz del proyecto) reportan; lo profundo
+ * se trata como opcional. Un valor MAL TIPADO o clave desconocida es error
+ * siempre, sin importar la profundidad. */
+export const PROFUNDIDAD_CLASIFICAR = 3;
 
 function tipoOk(tipo: TipoValor, v: unknown): boolean {
   if (tipo === 'string') return typeof v === 'string';
   if (tipo === 'number') return typeof v === 'number';
   if (tipo === 'boolean') return typeof v === 'boolean';
   if (tipo === 'stringArray') return Array.isArray(v) && v.every((x) => typeof x === 'string');
-  if (tipo === 'enum') return typeof v === 'string' && (typeof (v as string) === 'string');
+  if (tipo === 'enum') return typeof v === 'string';
   return false;
 }
 
@@ -182,6 +221,14 @@ export function sugerir(clave: string, conocidas: Iterable<string>): string | un
   return undefined;
 }
 
+/* Severidad que reporta una fila en la consola (solo faltante segun necesidad;
+ * malTipo/desconocida siempre error). */
+export function severidadDe(fila: Fila): 'error' | 'advertencia' | null {
+  if (fila.tipo === 'campo') return fila.estado === 'malTipo' ? 'error' : null;
+  if (fila.tipo === 'desconocida') return 'error';
+  return fila.necesidad === 'requerida' ? 'error' : fila.necesidad === 'recomendada' ? 'advertencia' : null;
+}
+
 export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
   const filas: Fila[] = [];
 
@@ -193,9 +240,15 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
   const grupoInvalido = (): OpcionValor => ({ tipo: 'string', descripcion: 'tipo de grupo inválido' });
 
   function rec(n: NodoEsquema, v: unknown, ruta: Ruta): void {
+    /* Severidad del faltante: solo los niveles poco profundos reportan. */
+    const faltanteNecesidad = (nd: NodoEsquema): Necesidad => {
+      if (ruta.length + 1 > PROFUNDIDAD_CLASIFICAR) return 'opcional';
+      return necesidadDe(nd);
+    };
+
     if ('tipo' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: defaultValorDe(n) });
+        filas.push({ tipo: 'faltante', ruta, default: defaultValorDe(n), necesidad: faltanteNecesidad(n) });
         return;
       }
       if (n.tipo === 'enum') {
@@ -209,11 +262,10 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
     }
 
     if ('objeto' in n) {
-      if (v === undefined && !n.permitirString) {
-        filas.push({ tipo: 'faltante', ruta, default: defaultDe(n) });
+      if (v === undefined) {
+        filas.push({ tipo: 'faltante', ruta, default: defaultDe(n), necesidad: faltanteNecesidad(n) });
         return;
       }
-      if (v === undefined) { filas.push({ tipo: 'faltante', ruta, default: defaultDe(n) }); return; }
       /* config puede ser una string (ruta a un archivo de config). */
       if (!isObj(v)) {
         if (n.permitirString && typeof v === 'string') {
@@ -243,7 +295,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('mapaCatalogo' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: {} });
+        filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n) });
         return;
       }
       if (!isObj(v)) {
@@ -254,7 +306,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
       for (const k of Object.keys(v).sort()) rec(n.mapaCatalogo, v[k], [...ruta, k]);
       for (const id of (n.catalogo ?? [])) {
         if (!presentes.has(id)) {
-          filas.push({ tipo: 'faltante', ruta: [...ruta, id], default: {} });
+          filas.push({ tipo: 'faltante', ruta: [...ruta, id], default: {}, necesidad: faltanteNecesidad(n) });
         }
       }
       return;
@@ -262,7 +314,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('mapa' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: {} });
+        filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n) });
         return;
       }
       if (!isObj(v)) {
@@ -275,7 +327,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     /* listaDe */
     if (v === undefined) {
-      filas.push({ tipo: 'faltante', ruta, default: [] });
+      filas.push({ tipo: 'faltante', ruta, default: [], necesidad: faltanteNecesidad(n) });
       return;
     }
     if (Array.isArray(v)) {

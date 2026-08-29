@@ -11,19 +11,22 @@ import type { EstadoGate } from '../../shared/types.js';
 import { mensajeDeError, toastError, toastOk } from '../toast.js';
 import { EditorJson } from '../EditorJson.js';
 import { EditorEsquema } from '../EditorEsquema.js';
-import { ESQUEMA_SENTINEL } from '../schemas/sentinelConfig.js';
-import type { NodoEsquema } from '../schemas/types.js';
+import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
+import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
+import type { NodoEsquema } from '../../shared/gate/esquema.js';
 import './paneles.css';
 
 /* Archivos de gate editables (whitelist del server: same list). */
 const ARCHIVOS = ['sentinel.config.json', 'sentinel.lock.json', 'quality-tools.json', 'varsense.config.json'] as const;
 
 /* Que archivo se edita por ESQUEMA (dirigido por esquema) y cual cae al
- * EditorJson generico. [por que] Solo sentinel.config.json tiene un esquema
- * canonico confiable en src/v2/schemas; los demas (lock/varsense/quality-tools)
- * no tienen fuente canonica cierta en P0 y siguen con el editor generico. */
+ * EditorJson generico. [por que] sentinel.config.json usa su esquema canonico
+ * del runtime; varsense.config.json usa el esquema curado de los 3 configs
+ * reales del area (no hay binario de varsense). lock/quality-tools no tienen
+ * fuente canonica fiable y siguen con el editor generico. */
 const ESQUEMAS: Partial<Record<(typeof ARCHIVOS)[number], NodoEsquema>> = {
   'sentinel.config.json': ESQUEMA_SENTINEL(),
+  'varsense.config.json': ESQUEMA_VARSENSE(),
 };
 
 /* Vista del visor derecho: la lista de excepciones o la config de un proyecto. */

@@ -11,15 +11,17 @@
  * intactas las claves desconocidas no tocadas al guardar. Mantiene el diseno
  * plano aprobado (una fila por ruta, 11px, sin :hover). */
 import { useState } from 'react';
-import type { NodoEsquema, OpcionValor, ValorJson } from './schemas/types.js';
+import { AlertTriangle, Check, X } from 'lucide-react';
+import type { NodoEsquema, OpcionValor, ValorJson } from '../shared/gate/esquema.js';
 import {
   borrarRuta,
   diagnosticar,
+  rutaDescripcion,
   rutaEtiqueta,
   setRuta,
   type Fila,
   type Ruta,
-} from './schemas/types.js';
+} from '../shared/gate/esquema.js';
 import { toastInfo } from './toast.js';
 
 interface Props {
@@ -59,7 +61,9 @@ function Fila({
   if (fila.tipo === 'faltante') {
     return (
       <div className="ejEstado ejEstado--falte">
-        <span className="ejEtiqueta">{rutaEtiqueta(fila.ruta)}</span>
+        <span className="ejEtiqueta">
+          <EtiquetaDeRuta ruta={fila.ruta} />
+        </span>
         {readOnly ? null : (
           <button
             type="button"
@@ -78,8 +82,9 @@ function Fila({
     return (
       <div className="ejEstado ejEstado--desconocida">
         <span className="ejEtiqueta">
-          {rutaEtiqueta(fila.ruta)}
-          <span className="ejMarca">✗ desconocida</span>
+          <X size={12} className="ejMarca" aria-hidden />
+          <EtiquetaDeRuta ruta={fila.ruta} />
+          <span className="ejMarcaTexto">desconocida</span>
         </span>
         <span className="ejControl">
           <ValorCrudo valor={fila.valor} />
@@ -98,14 +103,37 @@ function Fila({
   return (
     <div className={`fjFila${fila.estado === 'malTipo' ? ' fjFila--mal' : ''}`}>
       <span className="fjEtiqueta">
-        {fila.estado === 'malTipo' ? <span className="ejMarca">⚠</span> : <span className="ejMarca">✓</span>}
-        <span className="ejRutaLabel">{rutaEtiqueta(fila.ruta)}</span>
+        {fila.estado === 'malTipo' ? (
+          <AlertTriangle size={12} className="ejMarca" aria-hidden />
+        ) : (
+          <Check size={12} className="ejMarca" aria-hidden />
+        )}
+        <EtiquetaDeRuta ruta={fila.ruta} />
       </span>
       <span className="fjControl">
         <Control value={fila.valor} opcion={fila.opcion} onChange={(v) => setEn(fila.ruta, v)} readOnly={readOnly} />
       </span>
     </div>
   );
+}
+
+/* Nombre legible + descripcion corta de una ruta tecnica. El nombre legible
+ * sale del catalogo (./shared/gate/etiquetas); la ruta tecnica original se
+ * conserva en el tooltip para no perder trazabilidad. [por que] El usuario
+ * pidio traducir las etiquetas tecnicas a nombres legibles con descripcion. */
+function EtiquetaDeRuta({ ruta }: { ruta: Ruta }) {
+  const descripcion = rutaDescripcion(ruta);
+  return (
+    <span className="ejRutaTexto" title={rutaEtiquetaTecnica(ruta)}>
+      <span className="ejRutaNombre">{rutaEtiqueta(ruta)}</span>
+      {descripcion ? <span className="ejRutaDesc">{descripcion}</span> : null}
+    </span>
+  );
+}
+
+/* Ruta tecnica original (segmentos separados por ' › '), para el tooltip. */
+function rutaEtiquetaTecnica(ruta: Ruta): string {
+  return ruta.map((x) => String(x)).join(' › ') || '(configuración)';
 }
 
 /* Control segun el tipo de opcion (sin JSON crudo). */

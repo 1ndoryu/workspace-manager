@@ -53,9 +53,22 @@ export interface Proyecto {
   tipo: TipoProyecto;
   git?: EstadoGit;
   gate?: EstadoGate;
+  /* Problemas de la config del gate (sentinel.config.json / varsense.config.json)
+   * detectados por esquema en el escaneo: los reporta la consola. [por que] La
+   * consola se alimenta del snapshot; diagnosticar aqui evita estado fragil del
+   * cliente y que el editor sea el unico que vea faltantes/typos/tipos mal. */
+  gateProblemas?: ProblemaGate[];
   roadmap?: ResumenRoadmap;
   agents?: ResumenAgents;
   padre?: string;
+}
+
+export interface ProblemaGate {
+  archivo: string;
+  /* Ruta de la opcion, p.ej. 'project › primaryBranch'. */
+  ruta: string;
+  severidad: 'error' | 'advertencia';
+  mensaje: string;
 }
 
 export interface ConfigWorkspace {

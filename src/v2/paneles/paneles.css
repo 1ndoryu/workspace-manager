@@ -268,6 +268,28 @@
     padding: 0 4px;
 }
 
+/* Badge de severidad de la categoria 'config' (monocromo, sin hover).
+ * error -> relleno de la tinta; advertencia -> borde hueco punteado. [por que]
+ * La UI es monocroma; la severidad se distingue por forma/relleno, no color. */
+.consolaFilaBadge--error {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.consolaFilaBadge--warn {
+    border-style: dashed;
+}
+
+.consolaMotivo--error {
+    /* [por que] Punto de erro en la excusa: pequena mancha que marca el
+     * problema mas grave sin depender del color. */
+    border-left: 2px solid var(--v2-texto);
+}
+
+.consolaMotivo--warn {
+    border-left-style: dashed;
+}
+
 .consolaMotivos {
     margin: 0;
     padding: 0 0 var(--v2-spaceXs) var(--v2-spaceLg);
@@ -827,23 +849,29 @@
 }
 .fjFila:last-child { border-bottom: none; }
 .fjEtiqueta {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
   font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  overflow: hidden; margin-bottom: 8px;
 }
-.fjControl { display: flex; align-items: center; min-width: 0; }
-.fjControl > .fjInput { width: 100%; }
+.fjControl { display: flex; align-items: center; min-width: 0; width: 100%; }
+/* [por que] El control de tags debe ocupar todo el ancho de la fila para
+ * que el texto no se corte: sin esto el span flex se encoge al contenido. */
+.fjControl > .fjTags { width: 100%; }
 .fjVacio { font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .55; font-style: italic; }
-/* Switch (booleano). */
+/* Switch (booleano). Monocromo: OFF = contorno negro con palo negro; ON =
+ * relleno negro con palo blanco. [por que] Antes el borde usaba
+ * --v2-invertido (blanco) y el palo --v2-oscuro (variable inexistente):
+ * el switch quedaba invisible sobre fondo blanco en ambos estados. */
 .fjSwitch {
   position: relative; width: 40px; height: 22px; flex-shrink: 0;
-  border: 1px solid var(--v2-invertido); border-radius: 11px;
+  border: 1px solid var(--v2-borde); border-radius: 11px;
   background: transparent; cursor: pointer; padding: 0;
 }
 .fjSwitchPalo {
   position: absolute; top: 3px; left: 3px; width: 14px; height: 14px;
-  border-radius: 50%; background: var(--v2-oscuro); transition: left .12s ease;
+  border-radius: 50%; background: var(--v2-borde); transition: left .12s ease;
 }
-.fjSwitch--on { background: var(--v2-invertido); }
+.fjSwitch--on { background: var(--v2-borde); }
 .fjSwitch--on .fjSwitchPalo { left: 21px; background: var(--v2-fondo); }
 .fjInput {
   font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro);
@@ -853,31 +881,35 @@
 .fjInput:focus { outline: 1px solid var(--v2-invertido); }
 .fjInput--num { width: 90px; }
 /* Tags editables para una lista de valores simples (una columna). */
-.fjTags { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; }
-.fjTagsLista { display: flex; flex-direction: column; gap: 4px; }
+.fjTags { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; min-width: 0; }
+.fjTagsLista { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* [por que] El tag ocupa el 100% del ancho disponible para que el texto no
+ * se corte: antes se encogia al contenido y el input se truncaba. */
 .fjTag {
-  display: flex; align-items: center; gap: 2px;
+  display: flex; align-items: center; gap: 2px; width: 100%; min-width: 0;
   border: 1px solid var(--v2-invertido); border-radius: 3px;
-  background: transparent;
+  background: transparent; box-sizing: border-box;
 }
 .fjTag .fjTagInput { flex: 1 1 auto; }
 .fjTagInput {
   font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro);
-  background: transparent; border: none; padding: 2px 4px; min-width: 80px; flex: 1 1 auto;
-  box-sizing: border-box;
+  background: transparent; border: none; padding: 2px 4px; min-width: 0; flex: 1 1 auto;
+  box-sizing: border-box; width: 100%;
 }
-.fjTagInput:focus { outline: none; background: var(--v2-borde); }
+/* [por que] El focus no debe pintar el fondo de negro (se ve como si el
+ * input estuviera lleno); solo se marca el contorno en negro. */
+.fjTagInput:focus { outline: 1px solid var(--v2-borde); background: transparent; }
 .fjTagQuitar {
   font-family: inherit; font-size: 13px; width: 18px; height: 18px; line-height: 1;
   border: none; background: transparent; color: var(--v2-oscuro); cursor: pointer;
   border-radius: 2px; flex-shrink: 0;
 }
 /* Fila para agregar valores. */
-.fjAgregar { display: flex; align-items: center; gap: 6px; }
+.fjAgregar { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
 .fjAgregar .fjInput--nuevo { flex: 0 1 220px; }
 .fjBoton {
   font-family: inherit; font-size: var(--v2-font); letter-spacing: .05em;
-  padding: 3px 10px; border: 1px solid var(--v2-invertido); background: transparent;
+  padding: 3px 10px; border: 1px solid var(--v2-borde); background: transparent;
   color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; flex-shrink: 0;
 }
 
@@ -885,13 +917,19 @@
 .ejEstado { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 7px 10px; border-bottom: 1px solid var(--v2-borde); }
 .ejEstado--falte { opacity: .72; }
 .ejEstado--falte .ejEtiqueta::after { content: ' · falta'; font-style: italic; }
-.ejEtiqueta { display: flex; align-items: center; gap: 5px; font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em; min-width: 0; }
+.ejEtiqueta { display: flex; align-items: flex-start; gap: 6px; font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em; min-width: 0; }
 .ejRutaLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ejMarca { font-size: 11px; opacity: .8; flex-shrink: 0; }
+/* Nombre legible + descripcion de una ruta (EditorEsquema). El nombre no se
+ * trunca en exceso; la descripcion va debajo en italica opaca (monocromo). */
+.ejRutaTexto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ejRutaNombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ejRutaDesc { font-style: italic; opacity: .6; font-size: 11px; line-height: 1.35; }
+.ejMarca { flex-shrink: 0; opacity: .85; display: inline-flex; }
+.ejMarcaTexto { font-style: italic; opacity: .6; font-size: 11px; flex-shrink: 0; }
 .ejControl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .ejValorTexto { font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .ejSugerencia { font-size: 11px; font-style: italic; opacity: .6; }
-.ejAgregar { font-family: inherit; font-size: 11px; letter-spacing: .05em; margin-top: 2px; padding: 3px 8px; width: max-content; border: 1px dashed var(--v2-invertido); background: transparent; color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; }
+.ejAgregar { font-family: inherit; font-size: 11px; letter-spacing: .05em; margin-top: 2px; padding: 3px 8px; width: max-content; border: 1px dashed var(--v2-borde); background: transparent; color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; }
 .ejQuitar { font-family: inherit; font-size: 11px; letter-spacing: .05em; padding: 2px 8px; border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; }
 .fjFila--mal .fjControl { border-left: 2px solid var(--v2-invertido); padding-left: 8px; }
 .fjSelect { font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro); background: var(--v2-fondo); border: 1px solid var(--v2-borde); padding: 3px 6px; border-radius: 3px; }
