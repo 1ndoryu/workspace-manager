@@ -390,10 +390,12 @@
     margin-bottom: var(--v2-spaceXs);
 }
 
-/* [por que] La primera cabecera no repite la linea superior: el panel ya
- * arranca en el borde, solo las cabeceras siguientes necesitan separador. */
+/* [por que] La primera cabecera no repite la linea superior ni el margen:
+ * el panel ya arranca en el borde, solo las cabeceras siguientes necesitan
+ * separador y aire superior. */
 .docsGrupoCabecera--primera {
     border-top: none;
+    margin-top: 0;
 }
 
 .docsGrupoTitulo {
