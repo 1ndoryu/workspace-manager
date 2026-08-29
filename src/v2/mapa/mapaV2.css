@@ -35,11 +35,6 @@
     font-weight: normal;
 }
 
-.mapaV2ZoomBoton:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
 /* Boton de mano (modo mover): mismo estilo monocromo que el zoom, con icono
  * SVG heredando currentColor. */
 .mapaV2ManoBoton {
@@ -53,11 +48,6 @@
     align-items: center;
     justify-content: center;
     padding: 0;
-}
-
-.mapaV2ManoBoton:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
 }
 
 /* Activo (modo mover): fondo invertido para indicar que el arrastre esta
@@ -148,13 +138,6 @@
 .mapaV2ParedDer,
 .mapaV2Etiqueta {
     pointer-events: none;
-}
-
-/* Hover: engrosar a 2px para indicar interaccion sin cambiar el relleno. */
-.mapaV2Tile:hover .mapaV2Piso,
-.mapaV2Tile:hover .mapaV2ParedIzq,
-.mapaV2Tile:hover .mapaV2ParedDer {
-    stroke-width: 2;
 }
 
 /* Seleccion: sin cambio visual en la caja. [por que] El usuario pidio que al
