@@ -1,12 +1,18 @@
-/* Formulario JSON generico que se ve como una pagina normal de ajustes
- * (settings). [por que] Las versiones previas (arbol de cajas, grupos
- * apilados) «funcionaban» pero se veian raras y desordenadas. Esta version
- * usa el patrón clasico de formulario: cada objeto es una seccion con
- * titulo visible, cada clave es una fila horizontal [ etiqueta | control ],
- * los booleanos son un switch y las listas de valores son tags en linea.
- * Las secciones vienen ABIERTAS por defecto para que el panel se llene de
- * contenido y no deje un hueco enorme (cada una es colapsable). Sigue
- * siendo generico: ninguna clave/regla esta hardcodeada. */
+/* Formulario JSON generico PLANO: aplane todo el valor en una lista de filas,
+ * una fila por opción, sin secciones anidadas. Cada etiqueta es la ruta (p.ej.
+ * `sentinel › config › portableBoundaries › dom › enabled`). [por que] El usuario
+ * pidio que las opciones NO esten anidadas y que cada una este separada; las
+ * versiones con secciones anidadas se veian raras y dejaban hueco. Sigue siendo
+ * generico: ninguna clave/regla esta hardcodeada.
+ *
+ * Mapa de tipos -> control:
+ *   boolean  -> switch
+ *   string   -> input de texto
+ *   number   -> input numerico
+ *   null     -> etiqueta "—"
+ *   string[] -> tags editables en una fila (su etiqueta es la ruta)
+ *   objeto / array de objetos -> cada hoja se aplane en su propia fila,
+ *                                con la ruta como etiqueta. */
 import { useState } from 'react';
 import { toastInfo } from './toast.js';
 
@@ -15,97 +21,90 @@ export type JsonValue = boolean | number | string | null | JsonValue[] | { [k: s
 interface Props {
   value: JsonValue;
   onChange: (v: JsonValue) => void;
-  etiqueta?: string;
-  /* profundidad: los objetos anidados (>=1) son colapsables. */
-  profundo?: number;
-  tituloRaiz?: string;
 }
 
-/* Seccion con titulo visible y colapso para los niveles internos. */
-function Seccion({
-  titulo,
-  conteo,
-  colapsable,
-  children,
-}: {
-  titulo: string;
-  conteo: number;
-  colapsable: boolean;
-  children: React.ReactNode;
-}) {
-  const [abierto, setAbierto] = useState(true);
+type Campo =
+  | { tipo: 'simple'; label: string; valor: JsonValue; onChange: (v: JsonValue) => void }
+  | { tipo: 'tags'; label: string; valores: string[]; onChange: (v: string[]) => void };
+
+export function EditorJson({ value, onChange }: Props) {
+  const filas = aplanar('', value, onChange);
+  if (filas.length === 0) {
+    return <div className="fjVacio">sin opciones</div>;
+  }
   return (
-    <div className="fjSec">
-      <button
-        type="button"
-        className={`fjSecCab${abierto ? ' fjSecCab--abierta' : ''}`}
-        onClick={() => colapsable && setAbierto((a) => !a)}
-        aria-expanded={abierto}
-      >
-        {colapsable && <span className="fjFlecha">{abierto ? '▾' : '▸'}</span>}
-        <span className="fjTitulo">{titulo}</span>
-        <span className="fjConteo">({conteo})</span>
-      </button>
-      {abierto && <div className="fjSecCuerpo">{children}</div>}
+    <div className="fjPlano">
+      {filas.map((c, i) => <Fila key={i} campo={c} />)}
     </div>
   );
 }
 
-export function EditorJson({ value, onChange, etiqueta, profundo = 0 }: Props) {
-  const esArr = Array.isArray(value);
-  const esObj = value !== null && typeof value === 'object' && !esArr;
+/* Aplana recursivamente value en una lista de filas (una por opción). */
+function aplanar(pref: string, val: JsonValue, set: (v: JsonValue) => void): Campo[] {
+  const filas: Campo[] = [];
+  const P = pref ? pref + ' › ' : '';
 
-  if (esArr) {
-    return (
-      <Seccion titulo={etiqueta ?? 'lista'} conteo={(value as unknown[]).length} colapsable={false}>
-        <EditorArray value={value} onChange={onChange} />
-      </Seccion>
-    );
+  /* Valor simple -> fila. */
+  if (val === null || typeof val !== 'object') {
+    filas.push({ tipo: 'simple', label: pref || '(valor)', valor: val, onChange: set });
+    return filas;
   }
 
-  if (esObj) {
-    const obj = value as { [k: string]: JsonValue };
-    const claves = Object.keys(obj).sort();
-    const titulo = etiqueta ?? 'configuración';
-    return (
-      <Seccion titulo={titulo} conteo={claves.length} colapsable={profundo >= 1}>
-        {claves.length === 0 && <div className="fjVacio">sin opciones</div>}
-        {claves.map((k) => {
-          const v = obj[k];
-          const interno = Array.isArray(v) || (v !== null && typeof v === 'object');
-          /* Valor simple -> fila horizontal [ etiqueta | control ]. */
-          if (!interno) {
-            return (
-              <div className="fjFila" key={k}>
-                <span className="fjEtiqueta">{k}</span>
-                <span className="fjControl">
-                  <ControlSimple
-                    value={v}
-                    onChange={(nv) => onChange({ ...obj, [k]: nv })}
-                  />
-                </span>
-              </div>
-            );
-          }
-          /* Valor anidado -> su propia seccion (colapsada a partir del 2do nivel). */
-          return (
-            <EditorJson
-              key={k}
-              value={v}
-              onChange={(nv) => onChange({ ...obj, [k]: nv })}
-              etiqueta={k}
-              profundo={profundo + 1}
-            />
-          );
-        })}
-      </Seccion>
-    );
+  /* Array: de primitivas -> fila de tags; de objetos -> aplane cada item. */
+  if (Array.isArray(val)) {
+    const todosPrimitivos = val.every((v) => v === null || typeof v !== 'object');
+    if (todosPrimitivos) {
+      filas.push({
+        tipo: 'tags',
+        label: pref || 'lista',
+        valores: (val as (string | number | boolean | null)[]).map(String),
+        onChange: (s) =>
+          set(s.map((t) => (t === 'true' ? true : t === 'false' ? false : t))),
+      });
+      return filas;
+    }
+    val.forEach((item, i) => {
+      const key = `${P}[${i + 1}]`;
+      filas.push(...aplanar(key, item, (nv) => set(val.map((x, j) => (j === i ? nv : x)))));
+    });
+    return filas;
   }
 
-  return <ControlSimple value={value} onChange={onChange} />;
+  /* Objeto: aplane cada clave con su ruta. */
+  const obj = val as { [k: string]: JsonValue };
+  Object.keys(obj)
+    .sort()
+    .forEach((k) => {
+      const key = P + k;
+      const v = obj[k];
+      filas.push(...aplanar(key, v, (nv) => set({ ...obj, [k]: nv })));
+    });
+  return filas;
 }
 
-/* Control para un valor simple, apilado dentro de .fjControl. */
+/* Renderiza una fila de opción: etiqueta (ruta) arriba, control debajo. */
+function Fila({ campo }: { campo: Campo }) {
+  if (campo.tipo === 'tags') {
+    return (
+      <div className="fjFila">
+        <span className="fjEtiqueta">{campo.label}</span>
+        <span className="fjControl">
+          <TagLista valores={campo.valores} onCambiar={campo.onChange} />
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="fjFila">
+      <span className="fjEtiqueta">{campo.label}</span>
+      <span className="fjControl">
+        <ControlSimple value={campo.valor} onChange={campo.onChange} />
+      </span>
+    </div>
+  );
+}
+
+/* Control para un valor simple. */
 function ControlSimple({ value, onChange }: { value: JsonValue; onChange: (v: JsonValue) => void }) {
   if (value === null) return <span className="fjVacio">—</span>;
   if (typeof value === 'boolean') {
@@ -117,34 +116,21 @@ function ControlSimple({ value, onChange }: { value: JsonValue; onChange: (v: Js
   }
   if (typeof value === 'number') {
     return (
-      <input type="number" className="fjInput fjInput--num" value={String(value)}
-        onChange={(e) => { const n = Number(e.target.value); onChange(Number.isNaN(n) ? value : n); }} />
+      <input
+        type="number"
+        className="fjInput fjInput--num"
+        value={String(value)}
+        onChange={(e) => {
+          const n = Number(e.target.value);
+          onChange(Number.isNaN(n) ? value : n);
+        }}
+      />
     );
   }
   return <input type="text" className="fjInput" value={value as string} onChange={(e) => onChange(e.target.value)} />;
 }
 
-/* Array: si es de primitivas, tags en linea; si es de objetos, items. */
-function EditorArray({ value, onChange }: { value: JsonValue[]; onChange: (v: JsonValue) => void }) {
-  const todosPrimitivos = value.every((v) => v === null || typeof v !== 'object');
-  if (todosPrimitivos) {
-    return (
-      <TagLista
-        valores={(value as (string | number | boolean | null)[]).map((x) => String(x))}
-        onCambiar={(vals) =>
-          onChange(
-            vals.map((t) => (t === 'true' ? true : t === 'false' ? false : t)),
-          )
-        }
-      />
-    );
-  }
-  return (
-    <ListaObjetos items={value} onChange={onChange} />
-  );
-}
-
-/* Tags en linea editables para listas de valores simples. */
+/* Tags editables para una lista de valores simples (una fila). */
 function TagLista({ valores, onCambiar }: { valores: string[]; onCambiar: (v: string[]) => void }) {
   const [nuevo, setNuevo] = useState('');
   function agregar() {
@@ -153,63 +139,31 @@ function TagLista({ valores, onCambiar }: { valores: string[]; onCambiar: (v: st
     onCambiar([...valores, txt]);
     setNuevo('');
   }
-  if (valores.length === 0) {
-    return (
-      <div className="fjAgregar">
-        <input className="fjInput fjInput--nuevo" value={nuevo} onChange={(e) => setNuevo(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && agregar()} placeholder="agregar valor…" />
-        <button type="button" className="fjBoton" onClick={agregar}>agregar</button>
-      </div>
-    );
-  }
   return (
     <div className="fjTags">
+      {valores.length === 0 && <div className="fjVacio">vacío</div>}
       <div className="fjTagsLista">
         {valores.map((t, i) => (
           <span className="fjTag" key={`${t}-${i}`}>
-            <input className="fjTagInput" value={t} onChange={(e) => onCambiar([...valores.slice(0, i), e.target.value, ...valores.slice(i + 1)])} aria-label={`valor ${i + 1}`} />
+            <input
+              className="fjTagInput"
+              value={t}
+              onChange={(e) => onCambiar([...valores.slice(0, i), e.target.value, ...valores.slice(i + 1)])}
+              aria-label={`valor ${i + 1}`}
+            />
             <button type="button" className="fjTagQuitar" onClick={() => onCambiar(valores.filter((_, j) => j !== i))} title="quitar" aria-label="quitar">×</button>
           </span>
         ))}
       </div>
       <div className="fjAgregar">
-        <input className="fjInput fjInput--nuevo" value={nuevo} onChange={(e) => setNuevo(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && agregar()} placeholder="agregar valor…" />
+        <input
+          className="fjInput fjInput--nuevo"
+          value={nuevo}
+          onChange={(e) => setNuevo(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && agregar()}
+          placeholder="agregar valor…"
+        />
         <button type="button" className="fjBoton" onClick={agregar}>agregar</button>
-      </div>
-    </div>
-  );
-}
-
-/* Lista de objetos: cada item editable con indice. */
-function ListaObjetos({ items, onChange }: { items: JsonValue[]; onChange: (v: JsonValue[]) => void }) {
-  function itemNuevo(): JsonValue {
-    if (items.length === 0) return {};
-    const primero = items[0];
-    if (primero !== null && typeof primero === 'object' && !Array.isArray(primero)) {
-      const patron = { ...(primero as { [k: string]: JsonValue }) };
-      for (const k of Object.keys(patron)) {
-        const v = patron[k];
-        if (typeof v === 'string') patron[k] = '';
-        else if (typeof v === 'boolean') patron[k] = false;
-        else if (Array.isArray(v)) patron[k] = [];
-      }
-      return patron;
-    }
-    return {};
-  }
-  return (
-    <div className="fjLista">
-      {items.length === 0 && <div className="fjVacio">vacío</div>}
-      {items.map((item, i) => (
-        <div className="fjItem" key={i}>
-          <div className="fjItemCab">
-            <span className="fjItemIndex">item #{i + 1}</span>
-            <button type="button" className="fjTagQuitar" onClick={() => onChange(items.filter((_, j) => j !== i))} title="quitar item" aria-label="quitar item">×</button>
-          </div>
-          <EditorJson value={item} onChange={(nv) => onChange([...items.slice(0, i), nv, ...items.slice(i + 1)])} profundo={1} />
-        </div>
-      ))}
-      <div className="fjAgregar">
-        <button type="button" className="fjBoton" onClick={() => onChange([...items, itemNuevo()])}>agregar item</button>
       </div>
     </div>
   );

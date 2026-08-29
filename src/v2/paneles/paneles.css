@@ -62,11 +62,6 @@
     cursor: pointer;
 }
 
-.panelCajaCerrar:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
 /* Filas de detalle: label encima de valor, separadas por linea. */
 .panelDetalleLista {
     margin: 0;
@@ -130,11 +125,6 @@
     font-size: var(--v2-textSm);
     text-align: left;
     cursor: pointer;
-}
-
-.listaFila:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
 }
 
 /* Fila seleccionada: fondo invertido (patron monocromo de estado activo). */
@@ -218,11 +208,6 @@
     cursor: pointer;
 }
 
-.panelConsolaFiltro:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
 .panelConsolaFiltro--activo {
     background: var(--v2-texto);
     color: var(--v2-invertido);
@@ -262,11 +247,6 @@
     font-size: var(--v2-textXs);
     text-align: left;
     cursor: pointer;
-}
-
-.consolaFila:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
 }
 
 .consolaFila--seleccionada {
@@ -361,11 +341,6 @@
     font-size: var(--v2-textSm);
     text-align: left;
     cursor: pointer;
-}
-
-.docsFila:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
 }
 
 .docsFila--activa {
@@ -482,11 +457,6 @@
     cursor: pointer;
 }
 
-.docsGuardar:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
 .docsMensaje {
     font-size: var(--v2-textXs);
 }
@@ -566,7 +536,6 @@
     cursor: pointer;
 }
 
-.reposFila:hover,
 .reposFila--seleccionada {
     background: var(--v2-texto);
     color: var(--v2-invertido);
@@ -655,11 +624,6 @@
     cursor: pointer;
 }
 
-.navegadorRutaChip:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
 .navegadorRutaChip--activo {
     background: var(--v2-texto);
     color: var(--v2-invertido);
@@ -676,11 +640,6 @@
     cursor: pointer;
 }
 
-.navegadorSubir:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
 .navegadorFila {
     display: flex;
     align-items: baseline;
@@ -695,7 +654,6 @@
     cursor: pointer;
 }
 
-.navegadorFila:hover,
 .navegadorFila--activa {
     background: var(--v2-texto);
     color: var(--v2-invertido);
@@ -737,10 +695,6 @@
     padding: 2px 0;
 }
 
-.excFilaNombre:hover {
-    text-decoration: underline;
-}
-
 .excBoton {
     flex: none;
     background: none;
@@ -751,11 +705,6 @@
     color: var(--v2-texto);
     padding: 3px 8px;
     cursor: pointer;
-}
-
-.excBoton:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
 }
 
 .docsVisorCabecera {
@@ -856,51 +805,32 @@
     cursor: default;
 }
 
-.excListaContenido .excFilaNombre:hover {
-    text-decoration: none;
+/* Formulario JSON (EditorJson.tsx): opciones PLANAS, cada una separada.
+ * Se aplana todo el JSON en una lista de filas: una opción por fila, con su
+ * ruta como etiqueta (p.ej. `sentinel › config › portableBoundaries › dom ›
+ * enabled`), el control debajo (switch, input o tags). Sin secciones ni
+ * objetos anidados. [por que] El usuario pidio que las opciones NO esten
+ * anidadas y que cada una este separada; las versiones con secciones se
+ * veian raras o dejaban hueco. Generico (ninguna clave hardcodeada). */
+.fjPlano {
+  display: flex; flex-direction: column; min-width: 0;
+  /* Fuente más chica que la base (13px) y padding para que las opciones
+   * respiren. [por que] El editor de reglas es denso: se baja la fuente a
+   * 11px y se separan las filas para que no se vea abarrotado. */
+  font-size: 11px;
+  padding: 2px 0 10px;
 }
-
-/* Formulario JSON (EditorJson.tsx): interfaz de ajustes normal.
- * Cada objeto es una SECCION con titulo visible + conteo. Cada clave es una
- * FILA horizontal [ etiqueta | control ]. Los booleanos son un SWITCH.
- * Las listas de valores son TAGS en linea. Las secciones internas vienen
- * COLAPSADAS para no abrumar. Generico (ninguna clave hardcodeada).
- * [por que] Las versiones previas (arbol de cajas, grupos anidados, columnas
- * que colapsaban) se veian raras/rotas; esto es el patron clasico de
- * formulario. */
-.fjSec { display: block; min-width: 0; }
-.fjSecCab {
-  display: flex; align-items: baseline; gap: 8px;
-  width: 100%; text-align: left; font-family: inherit;
-  background: transparent; border: none; cursor: pointer;
-  border-bottom: 1px solid var(--v2-borde);
-  padding: 6px 0; margin: 4px 0;
-}
-.fjSecCab:hover .fjTitulo { color: var(--v2-invertido); }
-.fjFlecha { color: var(--v2-oscuro); opacity: .6; width: 14px; flex-shrink: 0; }
-.fjTitulo {
-  font-size: calc(var(--v2-font) + 1px); font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--v2-oscuro);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.fjConteo { color: var(--v2-oscuro); opacity: .5; font-size: var(--v2-font); flex-shrink: 0; }
-.fjSecCuerpo {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 2px 0 6px 14px;
-}
-/* Fila de ajuste normal: etiqueta a la izquierda, control a la derecha. */
 .fjFila {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  min-width: 0; padding: 3px 0;
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--v2-borde);
 }
+.fjFila:last-child { border-bottom: none; }
 .fjEtiqueta {
-  font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .85;
+  font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.fjControl {
-  display: flex; align-items: center; justify-content: flex-end;
-  flex: 0 0 auto; width: 55%; min-width: 0;
-}
+.fjControl { display: flex; align-items: center; min-width: 0; }
 .fjControl > .fjInput { width: 100%; }
 .fjVacio { font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .55; font-style: italic; }
 /* Switch (booleano). */
@@ -922,8 +852,8 @@
 }
 .fjInput:focus { outline: 1px solid var(--v2-invertido); }
 .fjInput--num { width: 90px; }
-/* Tags editables para listas de valores simples. */
-.fjTags { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+/* Tags editables para una lista de valores simples (una fila). */
+.fjTags { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; }
 .fjTagsLista { display: flex; flex-wrap: wrap; gap: 4px; }
 .fjTag {
   display: inline-flex; align-items: center; gap: 2px;
@@ -941,8 +871,7 @@
   border: none; background: transparent; color: var(--v2-oscuro); cursor: pointer;
   border-radius: 2px; flex-shrink: 0;
 }
-.fjTagQuitar:hover { background: var(--v2-invertido); color: var(--v2-fondo); }
-/* Fila para agregar valores / items. */
+/* Fila para agregar valores. */
 .fjAgregar { display: flex; align-items: center; gap: 6px; }
 .fjAgregar .fjInput--nuevo { flex: 0 1 220px; }
 .fjBoton {
@@ -950,13 +879,3 @@
   padding: 3px 10px; border: 1px solid var(--v2-invertido); background: transparent;
   color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; flex-shrink: 0;
 }
-.fjBoton:hover { background: var(--v2-borde); }
-/* Lista de objetos: cada item su seccion con indice. */
-.fjLista { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.fjItem { display: block; }
-.fjItemCab {
-  display: flex; align-items: center; justify-content: space-between; gap: 6px;
-  border-bottom: 1px dashed var(--v2-borde);
-  padding: 2px 0; margin-bottom: 2px;
-}
-.fjItemIndex { font-style: italic; opacity: .7; font-size: var(--v2-font); letter-spacing: .02em; }

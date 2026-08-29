@@ -75,11 +75,6 @@ html {
     cursor: pointer;
 }
 
-.v2NavBoton:hover {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
 .v2NavBoton--activo {
     background: var(--v2-texto);
     color: var(--v2-invertido);
@@ -193,10 +188,6 @@ html {
 .v2App ::-webkit-scrollbar-thumb {
     background: var(--v2-texto);
     border: none;
-}
-
-.v2App ::-webkit-scrollbar-thumb:hover {
-    background: var(--v2-texto);
 }
 
 .v2App * {

@@ -26,8 +26,3 @@
   padding: 5px 10px;
   cursor: pointer;
 }
-
-.menuContextualItem:hover {
-  background: var(--v2-texto, #000);
-  color: var(--v2-fondo, #fff);
-}
