@@ -212,3 +212,40 @@ html {
     font-size: var(--v2-textMd);
     border: 1px solid var(--v2-borde);
 }
+
+/* Toasts: avisos flotantes temporales en la esquina inferior derecha, por
+ * encima de todo. [por que] Los errores no aparecen crudos en el contenido
+ * sino como toast; estetica monocroma como el resto. El marcador distingue
+ * ok (✓) de error (✕) e info (i), todo en blanco/negro. */
+.toasts {
+    position: fixed;
+    right: var(--v2-spaceLg);
+    bottom: var(--v2-spaceLg);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--v2-spaceSm);
+    z-index: 50;
+    max-width: min(360px, calc(100vw - 2 * var(--v2-spaceLg)));
+}
+.toast {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--v2-spaceSm);
+    max-width: 360px;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    border-left-width: 3px;
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    font-size: var(--v2-textSm);
+    cursor: pointer;
+    text-align: left;
+}
+.toastMarcador {
+    flex: none;
+    line-height: 1em;
+}
+.toastTexto {
+    word-break: break-word;
+}

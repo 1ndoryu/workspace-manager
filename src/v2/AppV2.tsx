@@ -16,6 +16,7 @@ import { PanelLista } from './paneles/PanelLista.js';
 import { PanelNavegador } from './paneles/PanelNavegador.js';
 import { PanelRepos } from './paneles/PanelRepos.js';
 import { Resizer } from './Resizer.js';
+import { Toaster } from './Toaster.js';
 import './styles/v2.css';
 
 interface LayoutGuardado {
@@ -161,6 +162,9 @@ export function AppV2() {
           </>
         )}
       </main>
+      {/* [por que] Toaster fuera del main para que no se vea afectado por
+       * el scroll ni el padding del contenido; flota por encima de todo. */}
+      <Toaster />
     </div>
   );
 }
