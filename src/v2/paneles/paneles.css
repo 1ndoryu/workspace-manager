@@ -355,7 +355,6 @@
     gap: var(--v2-spaceSm);
     padding: var(--v2-spaceXs) var(--v2-spaceMd);
     border: none;
-    border-bottom: 1px solid var(--v2-borde);
     background: var(--v2-fondo);
     color: var(--v2-texto);
     font-family: inherit;
