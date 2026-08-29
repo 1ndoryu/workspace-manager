@@ -24,6 +24,53 @@ function seleccionGuardada(): string | null {
 /* Leida una sola vez por carga de pagina para inicializar la seleccion. */
 const seleccionInicial = seleccionGuardada();
 
+/* Panel central y visibilidad de paneles (nav), persistidos igual que el
+ * layout y la seleccion: sobreviven a recargas. [por que] El usuario pidio
+ * un nav para cambiar el panel central (mapa/docs/repos) y controlar que
+ * paneles laterales/consola estan visibles. */
+export type PanelCentral = 'mapa' | 'docs' | 'repos';
+
+export interface VisibilidadPaneles {
+  detalle: boolean;
+  lista: boolean;
+  consola: boolean;
+}
+
+const CLAVE_UI = 'workspaceManager:ui';
+const UI_DEFECTO = {
+  panelCentral: 'mapa' as PanelCentral,
+  visibles: { detalle: true, lista: true, consola: true } as VisibilidadPaneles,
+};
+
+function uiGuardada(): { panelCentral: PanelCentral; visibles: VisibilidadPaneles } {
+  try {
+    const raw = localStorage.getItem(CLAVE_UI);
+    if (!raw) return UI_DEFECTO;
+    const d = JSON.parse(raw) as { panelCentral?: unknown; visibles?: Partial<VisibilidadPaneles> };
+    const panelCentral: PanelCentral =
+      d.panelCentral === 'docs' || d.panelCentral === 'repos' ? d.panelCentral : 'mapa';
+    const visibles: VisibilidadPaneles = { ...UI_DEFECTO.visibles, ...(d.visibles ?? {}) };
+    for (const k of ['detalle', 'lista', 'consola'] as const) {
+      visibles[k] = typeof visibles[k] === 'boolean' ? visibles[k] : true;
+    }
+    return { panelCentral, visibles };
+  } catch (err) {
+    console.warn('[workspace] no se pudo leer la UI guardada:', err);
+    return UI_DEFECTO;
+  }
+}
+
+/* Leida una sola vez por carga de pagina. */
+const uiInicial = uiGuardada();
+
+function guardarUi(panelCentral: PanelCentral, visibles: VisibilidadPaneles): void {
+  try {
+    localStorage.setItem(CLAVE_UI, JSON.stringify({ panelCentral, visibles }));
+  } catch (err) {
+    console.warn('[workspace] no se pudo guardar la UI:', err);
+  }
+}
+
 interface EstadoWorkspace {
   snapshot: SnapshotWorkspace | null;
   cargando: boolean;
@@ -33,10 +80,14 @@ interface EstadoWorkspace {
   vista: 'mapa' | 'lista' | 'agents';
   filtro: 'todos' | 'repos' | 'dirty' | 'conGate';
   buscar: string;
+  panelCentral: PanelCentral;
+  visibles: VisibilidadPaneles;
   cargar: (forzar?: boolean) => Promise<void>;
   seleccionar: (id: string | null) => void;
   setFiltro: (f: EstadoWorkspace['filtro']) => void;
   setBuscar: (b: string) => void;
+  setPanelCentral: (p: PanelCentral) => void;
+  setPanelVisible: (clave: keyof VisibilidadPaneles, valor: boolean) => void;
 }
 
 export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
@@ -48,6 +99,8 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   vista: 'mapa',
   filtro: 'todos',
   buscar: '',
+  panelCentral: uiInicial.panelCentral,
+  visibles: uiInicial.visibles,
 
   cargar: async (forzar = false) => {
     set({ cargando: true, error: null });
@@ -83,6 +136,15 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   },
   setFiltro: (filtro) => set({ filtro }),
   setBuscar: (buscar) => set({ buscar }),
+  setPanelCentral: (panelCentral) => {
+    guardarUi(panelCentral, get().visibles);
+    set({ panelCentral });
+  },
+  setPanelVisible: (clave, valor) => {
+    const visibles = { ...get().visibles, [clave]: valor };
+    guardarUi(get().panelCentral, visibles);
+    set({ visibles });
+  },
 }));
 
 /* Selectores derivados: lista filtrada por estado + busqueda. */

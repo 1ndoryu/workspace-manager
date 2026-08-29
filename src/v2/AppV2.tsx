@@ -1,15 +1,19 @@
 /* Shell v2 del workspace-manager.
  * [por que] Front v2 en monocromo estricto (blanco/negro, sin radios, sin
- * sombras, sin bold). Layout: detalle (izquierda, aparece al seleccionar),
- * mapa (centro) y lista (derecha), con divisores arrastrables para cambiar
- * el ancho, y una consola de problemas abajo (alto tambien arrastrable).
- * Anchos/alto se persisten en localStorage igual que zoom/pan y seleccion. */
+ * sombras, sin bold). Nav superior: menu para cambiar el panel central
+ * (mapa / documentacion / repos) y botones de visibilidad de los paneles
+ * laterales y la consola. Detalle (izquierda), central, lista (derecha) y
+ * consola (abajo) con divisores arrastrables; anchos/alto y la UI del nav
+ * se persisten en localStorage. */
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useWorkspaceStore } from '../hooks/useWorkspace.js';
 import { MapaV2 } from './mapa/MapaV2.js';
+import { NavBar } from './NavBar.js';
 import { PanelConsola } from './paneles/PanelConsola.js';
 import { PanelDetalle } from './paneles/PanelDetalle.js';
+import { PanelDocs } from './paneles/PanelDocs.js';
 import { PanelLista } from './paneles/PanelLista.js';
+import { PanelRepos } from './paneles/PanelRepos.js';
 import { Resizer } from './Resizer.js';
 import './styles/v2.css';
 
@@ -55,6 +59,8 @@ export function AppV2() {
   const cargando = useWorkspaceStore((s) => s.cargando);
   const error = useWorkspaceStore((s) => s.error);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
+  const panelCentral = useWorkspaceStore((s) => s.panelCentral);
+  const visibles = useWorkspaceStore((s) => s.visibles);
 
   const [anchoDetalle, setAnchoDetalle] = useState(layoutInicial.anchoDetalle);
   const [anchoLista, setAnchoLista] = useState(layoutInicial.anchoLista);
@@ -76,7 +82,13 @@ export function AppV2() {
     }
   }, [anchoDetalle, anchoLista, altoConsola]);
 
-  const conDetalle = seleccionadoId !== null && snapshot !== null;
+  const conDetalle = seleccionadoId !== null && snapshot !== null && visibles.detalle;
+
+  const panelCentralRender = {
+    mapa: <MapaV2 />,
+    docs: <PanelDocs />,
+    repos: <PanelRepos />,
+  }[panelCentral];
 
   return (
     <div
@@ -90,14 +102,18 @@ export function AppV2() {
       }
     >
       <main className="v2Contenido">
+        {/* [por que] Nav dentro del contenido (con el padding del marco) para
+         * que quede alineado con los demas paneles y sea un panel con caja,
+         * no una barra pegada al borde superior. */}
+        <NavBar />
         {error && <div className="v2Error">{error}</div>}
         {!snapshot && cargando && <div className="v2Cargando">Cargando workspace…</div>}
         {!snapshot && !cargando && !error && <div className="v2Cargando">Sin datos. Reintenta.</div>}
         {snapshot && (
           <>
             <div className="v2Columnas">
-              {conDetalle && <PanelDetalle />}
-              {conDetalle && (
+              {visibles.detalle && seleccionadoId !== null && <PanelDetalle />}
+              {visibles.detalle && seleccionadoId !== null && (
                 <Resizer
                   orientacion="vertical"
                   ariaLabel="Ajustar ancho del panel de detalle"
@@ -106,26 +122,28 @@ export function AppV2() {
                   }
                 />
               )}
-              <div className="v2MapaMarco">
-                <MapaV2 />
-              </div>
+              <div className="v2CentralMarco">{panelCentralRender}</div>
+              {visibles.lista && (
+                <Resizer
+                  orientacion="vertical"
+                  ariaLabel="Ajustar ancho del panel de lista"
+                  onArrastrar={(dx) =>
+                    setAnchoLista((a) => Math.min(MAX_ANCHO, Math.max(MIN_ANCHO, a - dx)))
+                  }
+                />
+              )}
+              {visibles.lista && <PanelLista />}
+            </div>
+            {visibles.consola && (
               <Resizer
-                orientacion="vertical"
-                ariaLabel="Ajustar ancho del panel de lista"
-                onArrastrar={(dx) =>
-                  setAnchoLista((a) => Math.min(MAX_ANCHO, Math.max(MIN_ANCHO, a - dx)))
+                orientacion="horizontal"
+                ariaLabel="Ajustar alto de la consola"
+                onArrastrar={(_dx, dy) =>
+                  setAltoConsola((a) => Math.min(MAX_ALTO, Math.max(MIN_ALTO, a - dy)))
                 }
               />
-              <PanelLista />
-            </div>
-            <Resizer
-              orientacion="horizontal"
-              ariaLabel="Ajustar alto de la consola"
-              onArrastrar={(_dx, dy) =>
-                setAltoConsola((a) => Math.min(MAX_ALTO, Math.max(MIN_ALTO, a - dy)))
-              }
-            />
-            <PanelConsola />
+            )}
+            {visibles.consola && <PanelConsola />}
           </>
         )}
       </main>
