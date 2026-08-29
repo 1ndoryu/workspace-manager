@@ -149,15 +149,23 @@ export function PanelDocs() {
     }
   }
 
+  /* Guarda el documento abierto: AGENTS.md por /api/agentes, SKILL.md por
+   * /api/skills/<nombre>. [por que] El usuario pidio poder escribir y
+   * modificar TODOS los documentos de documentacion (skills y agents.md),
+   * no solo leerlos. */
   async function guardar() {
-    if (!seleccion || seleccion.tipo !== 'agents' || contenido === null) return;
+    if (!seleccion || contenido === null) return;
     setGuardando(true);
     setMensaje(null);
     try {
-      await axios.post('/api/agentes', { id: seleccion.id, contenido });
+      if (seleccion.tipo === 'skill') {
+        await axios.post(`/api/skills/${encodeURIComponent(seleccion.id)}`, { contenido });
+      } else {
+        await axios.post('/api/agentes', { id: seleccion.id, contenido });
+      }
       setMensaje('guardado ✓');
-      /* Re-escanea para que la deteccion (tieneAgentsMd/reglas/git) refleje
-       * el archivo recien escrito. */
+      /* Re-escanea para que la deteccion (skills, tieneAgentsMd/reglas)
+       * refleje el archivo recien escrito. */
       void cargar(true);
     } catch (err) {
       setMensaje(`error al guardar: ${err instanceof Error ? err.message : 'error'}`);
@@ -177,9 +185,11 @@ export function PanelDocs() {
           </header>
           <div className="panelDocsEntradas">
             {grupos.length === 0 && <div className="docsVacio">no se detectaron documentos</div>}
-            {grupos.map((grupo) => (
+            {grupos.map((grupo, i) => (
               <div key={grupo.titulo} className="docsGrupo">
-                <div className="docsGrupoCabecera">
+                <div
+                  className={`docsGrupoCabecera${i === 0 ? ' docsGrupoCabecera--primera' : ''}`}
+                >
                   <span className="docsGrupoTitulo">{grupo.titulo}</span>
                   <span className="docsGrupoUbicacion">{grupo.ubicacion}</span>
                 </div>
@@ -230,31 +240,29 @@ export function PanelDocs() {
           <>
             <header className="panelDocsVisorCabecera">
               <span className="panelDocsVisorTitulo">{seleccion.nombre}</span>
-              {seleccion.tipo === 'agents' ? (
-                <button
-                  type="button"
-                  className="docsGuardar"
-                  onClick={() => void guardar()}
-                  disabled={guardando}
-                >
-                  {guardando ? 'guardando…' : seleccion.tiene ? 'guardar' : 'crear'}
-                </button>
-              ) : (
-                <span className="panelDocsVisorMeta">solo lectura</span>
-              )}
+              <button
+                type="button"
+                className="docsGuardar"
+                onClick={() => void guardar()}
+                disabled={guardando}
+              >
+                {guardando
+                  ? 'guardando…'
+                  : seleccion.tipo === 'agents'
+                    ? seleccion.tiene
+                      ? 'guardar'
+                      : 'crear'
+                    : 'guardar'}
+              </button>
               {mensaje && <span className="docsMensaje">{mensaje}</span>}
             </header>
-            {seleccion.tipo === 'agents' ? (
-              <textarea
-                className="panelDocsTexto"
-                value={contenido}
-                onChange={(ev) => setContenido(ev.target.value)}
-                spellCheck={false}
-                aria-label={`Contenido de AGENTS.md de ${seleccion.nombre}`}
-              />
-            ) : (
-              <pre className="panelDocsPre">{contenido}</pre>
-            )}
+            <textarea
+              className="panelDocsTexto"
+              value={contenido}
+              onChange={(ev) => setContenido(ev.target.value)}
+              spellCheck={false}
+              aria-label={`Contenido de ${seleccion.nombre}`}
+            />
           </>
         )}
       </div>

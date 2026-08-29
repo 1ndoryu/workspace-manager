@@ -126,9 +126,9 @@ export function crearServidor() {
           return;
         }
         if (ruta.startsWith('/api/skills/')) {
-          /* Contenido de una skill global. [por que] La ruta se resuelve
-           * desde el snapshot por nombre (nunca se acepta un path del
-           * cliente): evita traversal fuera de la carpeta de skills. */
+          /* Contenido y escritura de una skill global. [por que] La ruta se
+           * resuelve desde el snapshot por nombre (nunca se acepta un path
+           * del cliente): evita traversal fuera de la carpeta de skills. */
           const nombre = decodeURIComponent(ruta.slice('/api/skills/'.length));
           const { snapshot } = snapshotArea(false);
           const skill = snapshot.agentes.skills.find(s => s.nombre === nombre);
@@ -136,12 +136,35 @@ export function crearServidor() {
             json(res, 404, { error: 'Skill no encontrada', nombre });
             return;
           }
-          const contenido = leerArchivo(skill.ruta);
-          if (contenido === null) {
-            json(res, 404, { error: 'SKILL.md no legible', nombre });
+          if (req.method === 'GET') {
+            const contenido = leerArchivo(skill.ruta);
+            if (contenido === null) {
+              json(res, 404, { error: 'SKILL.md no legible', nombre });
+              return;
+            }
+            json(res, 200, { nombre, ruta: skill.ruta, contenido });
             return;
           }
-          json(res, 200, { nombre, ruta: skill.ruta, contenido });
+          /* POST: sobrescribir el SKILL.md, mismo transporte que /api/agentes. */
+          if (req.method === 'POST') {
+            const body = (await leerBody(req)) as { contenido?: unknown };
+            const contenido = typeof body.contenido === 'string' ? body.contenido : null;
+            if (contenido === null) {
+              json(res, 400, { error: 'Contenido invalido' });
+              return;
+            }
+            try {
+              writeFileSync(skill.ruta, contenido, 'utf8');
+              /* La descripcion de la skill sale del frontmatter; re-escanea
+               * para que el resumen refleje los cambios. */
+              snapshotArea(true);
+              json(res, 200, { ok: true, nombre, ruta: skill.ruta });
+            } catch (err) {
+              json(res, 500, { error: 'No se pudo escribir', detalle: String(err) });
+            }
+            return;
+          }
+          json(res, 405, { error: 'Metodo no permitido' });
           return;
         }
         if (ruta === '/api/agentes') {
