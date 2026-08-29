@@ -10,10 +10,21 @@ import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import type { EstadoGate } from '../../shared/types.js';
 import { mensajeDeError, toastError, toastOk } from '../toast.js';
 import { EditorJson } from '../EditorJson.js';
+import { EditorEsquema } from '../EditorEsquema.js';
+import { ESQUEMA_SENTINEL } from '../schemas/sentinelConfig.js';
+import type { NodoEsquema } from '../schemas/types.js';
 import './paneles.css';
 
 /* Archivos de gate editables (whitelist del server: same list). */
 const ARCHIVOS = ['sentinel.config.json', 'sentinel.lock.json', 'quality-tools.json', 'varsense.config.json'] as const;
+
+/* Que archivo se edita por ESQUEMA (dirigido por esquema) y cual cae al
+ * EditorJson generico. [por que] Solo sentinel.config.json tiene un esquema
+ * canonico confiable en src/v2/schemas; los demas (lock/varsense/quality-tools)
+ * no tienen fuente canonica cierta en P0 y siguen con el editor generico. */
+const ESQUEMAS: Partial<Record<(typeof ARCHIVOS)[number], NodoEsquema>> = {
+  'sentinel.config.json': ESQUEMA_SENTINEL(),
+};
 
 /* Vista del visor derecho: la lista de excepciones o la config de un proyecto. */
 type Vista = 'excepciones' | 'proyecto';
@@ -289,6 +300,7 @@ export function PanelConfig() {
                       </section>
                     );
                   }
+                  const esquema = ESQUEMAS[a.nombre];
                   const valor = (editado[a.nombre] ?? null) as import('../EditorJson.js').JsonValue;
                   return (
                     <section key={a.nombre} className="gateEditor">
@@ -303,13 +315,20 @@ export function PanelConfig() {
                           {guardando === a.nombre ? 'guardando…' : 'guardar'}
                         </button>
                       </header>
-                      <EditorJson
-                        key={`${claveVisor}:${a.nombre}`}
-                        value={valor}
-                        onChange={(nv) =>
-                          setEditado((e) => ({ ...e, [a.nombre]: nv }))
-                        }
-                      />
+                      {esquema ? (
+                        <EditorEsquema
+                          key={`${claveVisor}:${a.nombre}`}
+                          esquema={esquema}
+                          value={valor}
+                          onChange={(nv) => setEditado((e) => ({ ...e, [a.nombre]: nv }))}
+                        />
+                      ) : (
+                        <EditorJson
+                          key={`${claveVisor}:${a.nombre}`}
+                          value={valor}
+                          onChange={(nv) => setEditado((e) => ({ ...e, [a.nombre]: nv }))}
+                        />
+                      )}
                     </section>
                   );
                 })}
