@@ -11,6 +11,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import type { Proyecto, SkillGlobal } from '../../shared/types.js';
+import { mensajeDeError, toastError, toastOk } from '../toast.js';
 import './paneles.css';
 
 type DocSeleccionado =
@@ -70,7 +71,6 @@ export function PanelDocs() {
   const [contenido, setContenido] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  const [mensaje, setMensaje] = useState<string | null>(null);
 
   if (!snapshot) return null;
 
@@ -110,7 +110,6 @@ export function PanelDocs() {
 
   async function abrirSkill(skill: SkillGlobal) {
     setSeleccion({ tipo: 'skill', id: skill.nombre, nombre: skill.nombre, descripcion: skill.descripcion });
-    setMensaje(null);
     setCargando(true);
     setContenido(null);
     try {
@@ -120,7 +119,7 @@ export function PanelDocs() {
       setContenido(data.contenido);
     } catch (err) {
       setContenido(null);
-      setMensaje(`no se pudo leer la skill: ${err instanceof Error ? err.message : 'error'}`);
+      toastError(`no se pudo leer la skill: ${mensajeDeError(err)}`);
     } finally {
       setCargando(false);
     }
@@ -128,7 +127,6 @@ export function PanelDocs() {
 
   async function abrirAgents(doc: DocAgentes) {
     setSeleccion({ tipo: 'agents', id: doc.id, nombre: doc.nombre, tiene: doc.tiene });
-    setMensaje(null);
     setCargando(true);
     setContenido(null);
     try {
@@ -143,7 +141,7 @@ export function PanelDocs() {
       }
     } catch (err) {
       setContenido(null);
-      setMensaje(`no se pudo leer el AGENTS.md: ${err instanceof Error ? err.message : 'error'}`);
+      toastError(`no se pudo leer el AGENTS.md: ${mensajeDeError(err)}`);
     } finally {
       setCargando(false);
     }
@@ -156,19 +154,18 @@ export function PanelDocs() {
   async function guardar() {
     if (!seleccion || contenido === null) return;
     setGuardando(true);
-    setMensaje(null);
     try {
       if (seleccion.tipo === 'skill') {
         await axios.post(`/api/skills/${encodeURIComponent(seleccion.id)}`, { contenido });
       } else {
         await axios.post('/api/agentes', { id: seleccion.id, contenido });
       }
-      setMensaje('guardado ✓');
+      toastOk('guardado ✓');
       /* Re-escanea para que la deteccion (skills, tieneAgentsMd/reglas)
        * refleje el archivo recien escrito. */
       void cargar(true);
     } catch (err) {
-      setMensaje(`error al guardar: ${err instanceof Error ? err.message : 'error'}`);
+      toastError(`no se pudo guardar: ${mensajeDeError(err)}`);
     } finally {
       setGuardando(false);
     }
@@ -233,8 +230,8 @@ export function PanelDocs() {
       <div className="panelDocsContenido">
         {!seleccion && <div className="docsVacio">elige un documento para verlo/crearlo</div>}
         {seleccion && cargando && <div className="docsVacio">cargando…</div>}
-        {seleccion && !cargando && contenido === null && mensaje && (
-          <div className="docsVacio">{mensaje}</div>
+        {seleccion && !cargando && contenido === null && (
+          <div className="docsVacio">no se pudo cargar el documento</div>
         )}
         {seleccion && !cargando && contenido !== null && (
           <>
@@ -254,7 +251,6 @@ export function PanelDocs() {
                       : 'crear'
                     : 'guardar'}
               </button>
-              {mensaje && <span className="docsMensaje">{mensaje}</span>}
             </header>
             <textarea
               className="panelDocsTexto"

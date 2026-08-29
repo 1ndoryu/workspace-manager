@@ -184,9 +184,15 @@ export function crearServidor() {
             }
             try {
               writeFileSync(skill.ruta, contenido, 'utf8');
-              /* La descripcion de la skill sale del frontmatter; re-escanea
-               * para que el resumen refleje los cambios. */
-              snapshotArea(true);
+              /* [por que] La escritura ya tuvo exito; el re-escaneo es
+               * best-effort y NO debe convertir el guardado en un 500 si
+               * falla (p. ej. un repo con un git lock). Se reporta solo en
+               * el log del servidor. */
+              try {
+                snapshotArea(true);
+              } catch (err) {
+                console.warn('[skills] re-escaneo tras guardar fallo:', err);
+              }
               json(res, 200, { ok: true, nombre, ruta: skill.ruta });
             } catch (err) {
               json(res, 500, { error: 'No se pudo escribir', detalle: String(err) });
@@ -245,9 +251,14 @@ export function crearServidor() {
             }
             try {
               writeFileSync(ruta, contenido, 'utf8');
-              /* Re-escaneo forzado: el AGENTS.md nuevo cambia el resumen
-               * (tieneAgentsMd/reglas) y posiblemente el estado git. */
-              snapshotArea(true);
+              /* [por que] Re-escaneo best-effort y separado de la escritura:
+               * si falla, la escritura igual es exitosa y se responde 200;
+               * solo se loguea, sin convertir el guardado en un error. */
+              try {
+                snapshotArea(true);
+              } catch (err) {
+                console.warn('[agentes] re-escaneo tras guardar fallo:', err);
+              }
               json(res, 200, { ok: true, id, ruta });
             } catch (err) {
               json(res, 500, { error: 'No se pudo escribir', detalle: String(err) });
