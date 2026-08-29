@@ -13,12 +13,18 @@ body {
     overflow: hidden;
 }
 
+/* [por que] Base 13px (antes 16, luego 14): el usuario pidio la fuente 2px
+ * menor y luego 1px mas. Todas las variables de texto v2 son rem, asi que la
+ * escala completa baja proporcional (~9.4/11.1/13/15px). */
+html {
+    font-size: 13px;
+}
+
 .v2App {
     background: var(--v2-fondo);
     color: var(--v2-texto);
     font-family: var(--v2-font);
     line-height: 1.5;
-    font-weight: normal;
     height: 100vh;
     height: 100dvh;
     margin: 0;
@@ -27,15 +33,19 @@ body {
     overflow: hidden;
 }
 
+/* [por que] Grosor fino 300 en todo: Departure Mono solo trae peso 400, asi
+ * que 300 es el peso sintetico mas fino que el navegador puede producir
+ * (Firefox sintetiza thinner; Chrome queda en 400 al no tener una cara mas
+ * fina). Monocromo, sin bold. */
 .v2App * {
-    font-weight: normal !important;
+    font-weight: 300 !important;
     border-radius: 0 !important;
 }
 
 .v2App button,
 .v2App input {
     font-family: inherit;
-    font-weight: normal;
+    font-weight: 300;
 }
 
 /* Marco del mapa: cuadro con borde de 1px que ocupa TODO el espacio restante
@@ -48,13 +58,90 @@ body {
     flex-direction: column;
 }
 
-.v2MapaMarco {
+/* Layout de 3 columnas: detalle (izquierda, aparece al seleccionar), mapa
+ * (centro) y lista de proyectos (derecha). Flex con divisores arrastrables
+ * entre paneles: el ancho del detalle y de la lista vienen de variables
+ * inline (--ancho-detalle / --ancho-lista) que AppV2 persiste en
+ * localStorage; el mapa ocupa TODO el espacio restante. */
+.v2Columnas {
     flex: 1;
     min-height: 0;
+    display: flex;
+    gap: 0;
+    align-items: stretch;
+}
+
+/* Anchos por variable (persistidos). [por que] Con el detalle cerrado, el
+ * panel no se renderiza y el mapa se expande solo: flex colapsa la columna
+ * ausente sin dejar hueco. */
+.panelDetalle {
+    flex: 0 0 auto;
+    width: var(--ancho-detalle, 300px);
+}
+
+.v2MapaMarco {
+    flex: 1;
+    min-width: 0;
     border: 1px solid var(--v2-borde);
-    padding: var(--v2-spaceLg);
+    /* [por que] Sin padding interior: el SVG del mapa ocupa todo el marco. */
+    padding: 0;
     display: flex;
     flex-direction: column;
+}
+
+.panelLista {
+    flex: 0 0 auto;
+    width: var(--ancho-lista, 260px);
+}
+
+/* Divisores arrastrables INVISIBLES entre paneles: zona de agarre de 12px
+ * sin linea visible (el usuario pidio que desaparezca). El unico indicio es
+ * el cursor col/row-resize al pasar por encima; el drag lo gestiona
+ * Resizer.tsx con eventos de puntero. */
+.v2Resizer {
+    flex: none;
+    background: transparent;
+    touch-action: none;
+}
+
+.v2Resizer--vertical {
+    width: 12px;
+    cursor: col-resize;
+}
+
+.v2Resizer--horizontal {
+    height: 12px;
+    cursor: row-resize;
+    /* [por que] Sin margen extra: el hueco de 12px de la zona queda igual
+     * que los huecos entre los 3 paneles superiores (antes eran 16+12=28px).
+     * La separacion inferior de la consola sigue siendo el marco de la
+     * pagina (24px), simetrico con el superior. */
+}
+
+/* Scrollbars finos, negros y sin fondo: coherentes con el diseño monocromo.
+ * [por que] El usuario pidio scrolls mas finos y en negro puro. Webkit
+ * (Chromium) usa ::-webkit-scrollbar; Firefox usa scrollbar-width/color. */
+.v2App ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+.v2App ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.v2App ::-webkit-scrollbar-thumb {
+    background: var(--v2-texto);
+    border: none;
+}
+
+.v2App ::-webkit-scrollbar-thumb:hover {
+    background: var(--v2-texto);
+}
+
+.v2App * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--v2-texto) transparent;
 }
 
 /* Estados de carga y error monocromos. */

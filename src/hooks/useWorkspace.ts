@@ -5,6 +5,25 @@ import { create } from 'zustand';
 import axios from 'axios';
 import type { Proyecto, SnapshotWorkspace } from '../shared/types.js';
 
+/* Persistencia de la seleccion entre recargas, igual que zoom/pan del mapa.
+ * [por que] El usuario pidio que el panel/caja seleccionada perdure al
+ * recargar. Se guarda el id en localStorage; si no hay nada o falla el
+ * almacenamiento, se parte sin seleccion. */
+const CLAVE_SELECCION = 'workspaceManager:seleccion';
+
+function seleccionGuardada(): string | null {
+  try {
+    const raw = localStorage.getItem(CLAVE_SELECCION);
+    return raw || null;
+  } catch (err) {
+    console.warn('[workspace] no se pudo leer la seleccion guardada:', err);
+    return null;
+  }
+}
+
+/* Leida una sola vez por carga de pagina para inicializar la seleccion. */
+const seleccionInicial = seleccionGuardada();
+
 interface EstadoWorkspace {
   snapshot: SnapshotWorkspace | null;
   cargando: boolean;
@@ -25,7 +44,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   cargando: false,
   error: null,
   desdeCache: false,
-  proyectoSeleccionado: null,
+  proyectoSeleccionado: seleccionInicial,
   vista: 'mapa',
   filtro: 'todos',
   buscar: '',
@@ -49,7 +68,19 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
     }
   },
 
-  seleccionar: (id) => set({ proyectoSeleccionado: id }),
+  seleccionar: (id) => {
+    /* Persiste la seleccion en cada cambio para que sobreviva a recargas. */
+    try {
+      if (id === null) {
+        localStorage.removeItem(CLAVE_SELECCION);
+      } else {
+        localStorage.setItem(CLAVE_SELECCION, id);
+      }
+    } catch (err) {
+      console.warn('[workspace] no se pudo guardar la seleccion:', err);
+    }
+    set({ proyectoSeleccionado: id });
+  },
   setFiltro: (filtro) => set({ filtro }),
   setBuscar: (buscar) => set({ buscar }),
 }));

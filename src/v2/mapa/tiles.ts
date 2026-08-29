@@ -16,8 +16,10 @@ export const TILE = {
   /* Tamano de la celda = tamano de la base de la caja. Relacion 2:1 = iso. */
   ancho: 36,
   alto: 18,
-  /* Altura del techo sobre la base (hacia arriba en pantalla). */
-  altoPared: 22,
+  /* Altura del techo sobre la base (hacia arriba en pantalla).
+   * [por que] Mitad de la altura original (22) a peticion del usuario: cajas
+   * mas bajas, menos tapadas entre filas. */
+  altoPared: 11,
 };
 
 /** Centro de la celda (col, fila) en pantalla.

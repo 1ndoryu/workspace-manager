@@ -1,0 +1,307 @@
+/* Estilos de los paneles v2 (detalle y lista): misma estetica de caja del
+ * mapa (wireframe monocromo), sin radios, sin sombras, sin bold. */
+.panelCaja {
+    width: 300px;
+    min-height: 0;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+    overflow-y: auto;
+}
+
+/* Cabecera del detalle: cubo iso (la misma caja del mapa), nombre y boton de
+ * cierre. */
+.panelCajaCabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    flex: none;
+}
+
+.panelCajaCubo {
+    width: 34px;
+    height: 28px;
+    flex: none;
+}
+
+.panelCajaCubo polygon {
+    fill: var(--v2-fondo);
+    stroke: var(--v2-borde);
+    stroke-width: 1;
+}
+
+.panelCajaTitulo {
+    flex: 1;
+    min-width: 0;
+}
+
+.panelCajaNombre {
+    font-size: var(--v2-textMd);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.panelCajaSubtitulo {
+    font-size: var(--v2-textXs);
+}
+
+.panelCajaCerrar {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    font-size: var(--v2-textMd);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.panelCajaCerrar:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+/* Filas de detalle: label encima de valor, separadas por linea. */
+.panelDetalleLista {
+    margin: 0;
+    padding: var(--v2-spaceMd);
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceSm);
+    font-size: var(--v2-textSm);
+}
+
+.panelDetalleFila {
+    padding-bottom: var(--v2-spaceXs);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.panelDetalleFila dt {
+    font-size: var(--v2-textXs);
+}
+
+.panelDetalleFila dd {
+    margin: 0;
+    word-break: break-word;
+}
+
+/* Panel derecho: lista de proyectos. */
+.panelLista {
+    width: 260px;
+    min-height: 0;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+}
+
+.panelListaCabecera {
+    padding: var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+    flex: none;
+}
+
+.panelListaContenido {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.listaFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border: none;
+    border-bottom: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textSm);
+    text-align: left;
+    cursor: pointer;
+}
+
+.listaFila:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+/* Fila seleccionada: fondo invertido (patron monocromo de estado activo). */
+.listaFila--seleccionada {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.listaFilaNombre {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.listaFilaRama {
+    font-size: var(--v2-textXs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90px;
+}
+
+/* Marcador de estado en la fila: cuadrito que reproduce los patrones del
+ * mapa (vacio=repo, relleno=dirty, doble borde=gate, punteado=carpeta).
+ * currentColor lo adapta al estado hover/seleccionado (invertido). */
+.estadoMarcador {
+    width: 10px;
+    height: 10px;
+    flex: none;
+    border: 1px solid currentColor;
+}
+
+.estadoMarcador--dirty {
+    background: currentColor;
+}
+
+.estadoMarcador--gate {
+    outline: 1px solid currentColor;
+    outline-offset: 2px;
+}
+
+.estadoMarcador--carpeta {
+    border-style: dashed;
+}
+
+/* Consola de problemas (panel inferior): misma estetica de caja, con
+ * cabecera de filtros y lista de filas. El alto viene de la variable
+ * --alto-consola (persistida) y el contenido hace scroll fino. */
+.panelConsola {
+    flex: none;
+    height: var(--alto-consola, 200px);
+    display: flex;
+    flex-direction: column;
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+}
+
+.panelConsolaCabecera {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.panelConsolaTitulo {
+    flex: 1;
+    font-size: var(--v2-textSm);
+}
+
+.panelConsolaFiltro {
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    padding: 2px var(--v2-spaceSm);
+    cursor: pointer;
+}
+
+.panelConsolaFiltro:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.panelConsolaFiltro--activo {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.panelConsolaContenido {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.consolaVacio {
+    padding: var(--v2-spaceMd);
+    font-size: var(--v2-textSm);
+}
+
+/* Grupo de problemas por proyecto: cabecera (nombre + badges) con los
+ * motivos debajo, indentados con un borde izquierdo que anida visualmente
+ * cada problema bajo su proyecto. */
+.consolaGrupo {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.consolaFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border: none;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    text-align: left;
+    cursor: pointer;
+}
+
+.consolaFila:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.consolaFila--seleccionada {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.consolaFilaNombre {
+    flex: none;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.consolaFilaBadge {
+    flex: none;
+    border: 1px solid currentColor;
+    padding: 0 4px;
+}
+
+.consolaMotivos {
+    margin: 0;
+    padding: 0 0 var(--v2-spaceXs) var(--v2-spaceLg);
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--v2-textXs);
+}
+
+.consolaMotivo {
+    /* [por que] Borde izquierdo + indentado: el arbol de anidado marca que
+     * cada linea pertenece a la cabecera del grupo (su proyecto). */
+    margin-left: var(--v2-spaceSm);
+    padding-left: var(--v2-spaceSm);
+    border-left: 1px solid var(--v2-borde);
+}

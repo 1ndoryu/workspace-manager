@@ -12,8 +12,8 @@
     position: relative;
 }
 
-/* Controles de zoom en la esquina superior derecha del mapa. */
-.mapaV2Zoom {
+/* Controles del mapa (esquina superior derecha): mano (modo mover) + zoom. */
+.mapaV2Controles {
     position: absolute;
     top: var(--v2-spaceMd);
     right: var(--v2-spaceMd);
@@ -40,6 +40,39 @@
     color: var(--v2-invertido);
 }
 
+/* Boton de mano (modo mover): mismo estilo monocromo que el zoom, con icono
+ * SVG heredando currentColor. */
+.mapaV2ManoBoton {
+    width: 32px;
+    height: 32px;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.mapaV2ManoBoton:hover {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+/* Activo (modo mover): fondo invertido para indicar que el arrastre esta
+ * habilitado y las cajas ya no responden al click. */
+.mapaV2ManoBoton--activo {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.mapaV2ManoIcono {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
 /* El SVG escala con viewBox para caber siempre en el espacio disponible:
  * asi la pagina principal nunca hace scroll. */
 .mapaV2Svg {
@@ -51,11 +84,38 @@
     background: var(--v2-fondo);
 }
 
+/* Modo mover (mano activada): cursor de arrastre sobre todo el mapa (incluidas
+ * las cajas, que dejan de ser clicables) y sin seleccion de texto ni scroll
+ * tactil mientras se arrastra. */
+.mapaV2Svg--arrastre {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.mapaV2Svg--arrastre .mapaV2Tile {
+    cursor: grab;
+}
+
+.mapaV2Svg--arrastrando {
+    cursor: grabbing;
+}
+
 /* Caja wireframe con relleno blanco: todas identicas, trazo solido de 1px.
  * vector-effect: non-scaling-stroke mantiene el trazo en 1px real aunque el
  * SVG escale con viewBox (si no, el stroke se engrosa al escalar). */
 .mapaV2Tile {
     cursor: pointer;
+    outline: none;
+}
+
+/* [por que] Sin anillo de foco naranja del navegador al hacer click: la
+ * seleccion se representa con bordes mas gruesos en la caja, no con un
+ * cuadro externo. */
+.mapaV2Tile:focus,
+.mapaV2Tile:focus-visible {
+    outline: none;
 }
 
 /* Cuadricula iso de separacion entre celdas: trazo mas fino y mas tenue que
@@ -97,6 +157,9 @@
     stroke-width: 2;
 }
 
+/* Seleccion: sin cambio visual en la caja. [por que] El usuario pidio que al
+ * seleccionar NO aparezca un "cuadro" sobre la caja; la seleccion se muestra
+ * en el panel lateral de detalle y en la fila resaltada de la lista. */
 .mapaV2Etiqueta {
     font-family: var(--v2-font);
     font-size: var(--v2-textXs);
@@ -105,17 +168,19 @@
     pointer-events: none;
 }
 
-/* Tooltip monocromo: caja negra con borde y texto blanco. */
+/* Tooltip monocromo: caja negra con borde y texto blanco. La posicion se
+ * pone inline desde el componente (sigue al cursor) para no tapar los
+ * paneles laterales. */
 .mapaV2Tooltip {
     position: fixed;
-    top: 16px;
-    right: 16px;
     background: var(--v2-texto);
     color: var(--v2-invertido);
     border: 1px solid var(--v2-borde);
     padding: var(--v2-spaceMd);
     font-size: var(--v2-textSm);
     min-width: 220px;
+    max-width: 320px;
+    pointer-events: none;
 }
 
 .mapaV2TooltipTitulo {
