@@ -248,7 +248,17 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
   /* fallback cuando el JSON tiene un valor donde el esquema espera un grupo. */
   const grupoInvalido = (): OpcionValor => ({ tipo: 'string', descripcion: 'tipo de grupo inválido' });
 
-  function rec(n: NodoEsquema, v: unknown, ruta: Ruta): void {
+  /* Objetos (Record de hijos) que ya estan siendo recorridos en la pila actual.
+   * [por que] El esquema de sentinel es auto-referente (`config` apunta al mismo
+   * `contenido` de la raiz). Sin esta guarda, cada nivel recursivo vuelve a
+   * enumerar TODO el esquema como "falta" (`Configuracion > Analizadores`,
+   * `> Gate`, `> Reglas`...), duplicando las opciones de la raiz. Al detectar la
+   * re-entrada por identidad se activa el modo `eco`: se siguen validando los
+   * valores PRESENTES (malTipo, claves desconocidas -> errores reales), pero se
+   * suprimen las filas "falta" duplicadas, que solo son ecos de la recursion. */
+  const pilaObjetos = new Set<Record<string, NodoEsquema>>();
+
+  function rec(n: NodoEsquema, v: unknown, ruta: Ruta, echo: boolean): void {
     /* Severidad del faltante: solo los niveles poco profundos reportan. */
     const faltanteNecesidad = (nd: NodoEsquema): Necesidad => {
       if (ruta.length + 1 > PROFUNDIDAD_CLASIFICAR) return 'opcional';
@@ -257,7 +267,8 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('tipo' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: defaultValorDe(n), necesidad: faltanteNecesidad(n), nodo: n });
+        /* En modo eco la opcion ya se ofrecio en su lugar canonico (raiz). */
+        if (!echo) filas.push({ tipo: 'faltante', ruta, default: defaultValorDe(n), necesidad: faltanteNecesidad(n), nodo: n });
         return;
       }
       if (n.tipo === 'enum') {
@@ -272,7 +283,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('objeto' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: defaultDe(n), necesidad: faltanteNecesidad(n), nodo: n });
+        if (!echo) filas.push({ tipo: 'faltante', ruta, default: defaultDe(n), necesidad: faltanteNecesidad(n), nodo: n });
         return;
       }
       /* config puede ser una string (ruta a un archivo de config). */
@@ -285,11 +296,15 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
         filas.push({ tipo: 'campo', ruta, estado: 'malTipo', valor: v as ValorJson, opcion: grupoInvalido() });
         return;
       }
+      /* Re-entrada al mismo Record de hijos (recursion): el subarbol es un eco. */
+      const eco = echo || pilaObjetos.has(n.objeto);
+      pilaObjetos.add(n.objeto);
       for (const k of Object.keys(n.objeto).sort()) {
         const existe = Object.prototype.hasOwnProperty.call(v, k);
-        rec(n.objeto[k], existe ? v[k] : undefined, [...ruta, k]);
+        rec(n.objeto[k], existe ? v[k] : undefined, [...ruta, k], eco);
       }
-      /* Claves presentes que el esquema no conoce. */
+      pilaObjetos.delete(n.objeto);
+      /* Claves presentes que el esquema no conoce (error real, incluso en eco). */
       const conocidas = new Set(Object.keys(n.objeto));
       for (const k of Object.keys(v).filter((k) => !conocidas.has(k)).sort()) {
         filas.push({
@@ -304,7 +319,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('mapaCatalogo' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n), nodo: n });
+        if (!echo) filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n), nodo: n });
         return;
       }
       if (!isObj(v)) {
@@ -312,10 +327,10 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
         return;
       }
       const presentes = new Set(Object.keys(v));
-      for (const k of Object.keys(v).sort()) rec(n.mapaCatalogo, v[k], [...ruta, k]);
+      for (const k of Object.keys(v).sort()) rec(n.mapaCatalogo, v[k], [...ruta, k], echo);
       for (const id of (n.catalogo ?? [])) {
         if (!presentes.has(id)) {
-          filas.push({ tipo: 'faltante', ruta: [...ruta, id], default: {}, necesidad: faltanteNecesidad(n), nodo: n.mapaCatalogo });
+          if (!echo) filas.push({ tipo: 'faltante', ruta: [...ruta, id], default: {}, necesidad: faltanteNecesidad(n), nodo: n.mapaCatalogo });
         }
       }
       return;
@@ -323,29 +338,29 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('mapa' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n), nodo: n });
+        if (!echo) filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n), nodo: n });
         return;
       }
       if (!isObj(v)) {
         filas.push({ tipo: 'campo', ruta, estado: 'malTipo', valor: v as ValorJson, opcion: grupoInvalido() });
         return;
       }
-      for (const k of Object.keys(v).sort()) rec(n.mapa, v[k], [...ruta, k]);
+      for (const k of Object.keys(v).sort()) rec(n.mapa, v[k], [...ruta, k], echo);
       return;
     }
 
     /* listaDe */
     if (v === undefined) {
-      filas.push({ tipo: 'faltante', ruta, default: [], necesidad: faltanteNecesidad(n), nodo: n });
+      if (!echo) filas.push({ tipo: 'faltante', ruta, default: [], necesidad: faltanteNecesidad(n), nodo: n });
       return;
     }
     if (Array.isArray(v)) {
-      v.forEach((it, i) => rec(n.listaDe, it, [...ruta, i]));
+      v.forEach((it, i) => rec(n.listaDe, it, [...ruta, i], echo));
       return;
     }
     filas.push({ tipo: 'campo', ruta, estado: 'malTipo', valor: v as ValorJson, opcion: grupoInvalido() });
   }
 
-  rec(esquema, json, []);
+  rec(esquema, json, [], false);
   return filas;
 }
