@@ -24,6 +24,7 @@ import {
   type Ruta,
 } from '../shared/gate/esquema.js';
 import { infoSegmento } from '../shared/gate/etiquetas.js';
+import { CATEGORIAS_REGLAS, REGLAS, reglasPorCategoria } from '../shared/gate/reglas.js';
 import { toastInfo } from './toast.js';
 
 interface Props {
@@ -199,16 +200,16 @@ function FilaFaltante({
   );
 }
 
-/* Seccion dedicada del catalogo de reglas (p.ej. `rules` de sentinel): TODAS
- * las reglas del catalogo, cada una con switch (habilitada) y select de
- * severidad. Si una regla no tiene valor definido en el JSON, muestra el
- * DEFAULT del esquema (obtenido del nodo, no hardcodeado) y queda marcada
- * como "por defecto"; al tocarla se inserta. Las reglas presentes que no
- * estan en el catalogo (las escribio el agente) tambien se muestran, marcadas
- * como desconocidas, para no perderlas. [por que] El usuario pidio que las
- * reglas aparezcan todas, en una seccion aparte, para activarlas/desactivarlas
- * de un vistazo; el listado plano anterior (`Reglas > id > Habilitada`) era
- * confuso y ocultaba las que faltaban. */
+/* Seccion del catalogo de reglas (p.ej. `rules` de sentinel): TODAS las reglas
+ * reales del runtime, organizadas en tabs por categoria (react, glory, php...).
+ * Cada regla tiene switch (habilitada) y select de severidad; si no esta en el
+ * JSON se muestra el default REAL del esquema (obtenido del nodo, no
+ * hardcodeado) marcada como "por defecto", y al tocarla se inserta. Las reglas
+ * presentes que no estan en el catalogo (las escribio el agente) tambien se
+ * muestran, marcadas como desconocidas. [por que] El usuario pidio ver TODAS
+ * las reglas (el runtime expone 105, no 14) y a la vez ordenarlas en tabs para
+ * que sean navegables sin un listado interminable; la agrupacion sale del campo
+ * `categoria` de cada regla (ReglasPorCategoria), no de una lista fija en la UI. */
 function SeccionReglas({
   clave,
   item,
@@ -224,8 +225,6 @@ function SeccionReglas({
   setEn: (r: Ruta, v: ValorJson) => void;
   readOnly?: boolean;
 }) {
-  /* Claves que el esquema define para cada regla (habilitada/severidad). */
-  const clavesEsquema = new Set('objeto' in item ? Object.keys(item.objeto) : []);
   /* Defaults REALES del esquema por regla (no hardcodeados). */
   const nodoHab = 'objeto' in item ? item.objeto['habilitada'] : undefined;
   const nodoSev = 'objeto' in item ? item.objeto['severidad'] : undefined;
@@ -240,34 +239,69 @@ function SeccionReglas({
     valor !== null && typeof valor === 'object' && !Array.isArray(valor)
       ? (valor as Record<string, ValorJson>)
       : {};
-  const desconocidas = Object.keys(reglas).filter((id) => !ids.includes(id));
-  const todas = [...ids, ...desconocidas.sort()];
-  const enConfig = ids.filter((id) => Object.prototype.hasOwnProperty.call(reglas, id)).length;
-  const activas = todas.filter((id) => {
+  const conoce = new Set(ids);
+  const desconocidas = Object.keys(reglas).filter((id) => !conoce.has(id)).sort();
+
+  /* Agrupa por categoria usando el catalogo real del runtime (REGLAS). Las
+   * desconocidas (ids que escribio el agente y no estan en el catalogo) van en
+   * su propio grupo al final, para no perderlas. */
+  const porCategoria = reglasPorCategoria();
+  const categorias = CATEGORIAS_REGLAS.filter((c) => (porCategoria.get(c) ?? []).some((r) => conoce.has(r.id)));
+  const [activa, setActiva] = useState<string>(categorias[0] ?? '');
+
+  const enCatalogo = ids.filter((id) => Object.prototype.hasOwnProperty.call(reglas, id)).length;
+  const activas = [...ids, ...desconocidas].filter((id) => {
     const v = reglas[id];
     const obj = v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, ValorJson>) : undefined;
     return obj ? obj['habilitada'] !== false : defaultHabilitada;
   }).length;
+
+  const idsDeCategoria = (cat: string): string[] =>
+    (porCategoria.get(cat) ?? []).filter((r) => conoce.has(r.id)).map((r) => r.id);
 
   return (
     <section className="ejReglas">
       <header className="ejReglasCabecera">
         <span className="ejReglasTitulo">{infoSegmento(clave).nombre}</span>
         <span className="ejReglasMeta">
-          {enConfig} de {ids.length} en config · {activas} activas
+          {enCatalogo} de {ids.length} en config · {activas} activas
         </span>
       </header>
+      <div className="ejTabs" role="tablist">
+        {categorias.map((c) => (
+          <button
+            key={c}
+            type="button"
+            role="tab"
+            aria-selected={activa === c}
+            className={`ejTab${activa === c ? ' ejTab--activo' : ''}`}
+            onClick={() => setActiva(c)}
+          >
+            {categoriaNombre(c)} · {idsDeCategoria(c).length}
+          </button>
+        ))}
+        {desconocidas.length > 0 && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activa === '__desconocidas'}
+            className={`ejTab${activa === '__desconocidas' ? ' ejTab--activo' : ''}`}
+            onClick={() => setActiva('__desconocidas')}
+          >
+            Desconocidas · {desconocidas.length}
+          </button>
+        )}
+      </div>
       <div className="ejReglasLista">
-        {todas.map((id) => {
+        {(activa === '__desconocidas' ? desconocidas : idsDeCategoria(activa)).map((id) => {
           const v = reglas[id];
           const obj = v !== null && typeof v === 'object' && !Array.isArray(v)
             ? (v as Record<string, ValorJson>)
             : undefined;
           const ausente = obj === undefined;
-          const desconocida = !ids.includes(id);
+          const desconocida = !conoce.has(id);
           const habilitada = obj ? obj['habilitada'] !== false : defaultHabilitada;
           const severidad = obj && typeof obj['severidad'] === 'string' ? obj['severidad'] : defaultSeveridad;
-          const extras = obj ? Object.keys(obj).filter((k) => !clavesEsquema.has(k)) : [];
 
           const toggle = () => {
             if (readOnly) return;
@@ -302,11 +336,10 @@ function SeccionReglas({
                 )}
               </span>
               <span className="ejReglaInfo">
-                <EtiquetaDeRuta ruta={[clave, id]} texto={infoSegmento(id).nombre} />
+                <EtiquetaDeRuta ruta={[clave, id]} texto={nombreRegla(id)} />
                 <span className="ejReglaNotas">
                   {ausente && <span className="ejReglaPorDefecto">por defecto</span>}
                   {desconocida && <span className="ejMarcaTexto">desconocida</span>}
-                  {extras.length > 0 && <span className="ejReglaPorDefecto">+{extras.length} clave(s) extra</span>}
                 </span>
               </span>
               <span className="ejReglaSev">
@@ -333,6 +366,31 @@ function SeccionReglas({
       </div>
     </section>
   );
+}
+
+/* Nombre legible de una regla desde el catalogo real del runtime
+ * (REGLAS). [por que] El nombre de `etiquetas.ts` solo cubria las 14 reglas
+ * viejas; las 105 nuevas usan el `nombre` del runtime 0.7.4. Fallback al id. */
+function nombreRegla(id: string): string {
+  const r = REGLAS.find((x) => x.id === id);
+  return r ? r.nombre : infoSegmento(id).nombre;
+}
+
+/* Nombre legible de una categoria (traduccion corta). [por que] Los ids de
+ * categoria son tecnicos (react-patrones, glory-schema...); se traducen para la
+ * UI. Fallback al id tecnico si no hay. */
+function categoriaNombre(c: string): string {
+  const mapa: Record<string, string> = {
+    'react-patrones': 'React',
+    'glory-schema': 'Glory',
+    'estructura-nomenclatura': 'Estructura',
+    'wordpress-php': 'WordPress/PHP',
+    'patrones-prohibidos': 'Prohibidos',
+    'rust-patrones': 'Rust',
+    'limites-archivo': 'Límites',
+    'seguridad-sql': 'SQL',
+  };
+  return mapa[c] ?? c;
 }
 
 /* Formatea un valor por defecto real para mostrarlo inline en la fila.
