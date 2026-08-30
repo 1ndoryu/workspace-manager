@@ -16,16 +16,20 @@
 | análisis | 1381 | hallazgos reales de `sentinel analyze` en 6 proyectos con gate |
 | huérfanos | 0 | ✓ ya corregido (S2-04/S2-09) |
 
-### 1.1 Análisis (1381) por proyecto
+### 1.1 Análisis (1381) por proyecto — estado FINAL del hilo (2026-08-30)
 
-| Proyecto | Hallazgos | Reglas dominantes | Estado repo |
-|---|---|---|---|
-| Glory-Laminal | 0 | — | limpio ✓ |
-| ONG AGAPE | 0 | — | — ✓ |
-| gloryapi | 8 | limite-lineas ×4, ISP ×2, barrel ×2 | 6 archivos con cambios ajenos → **bloqueado** |
-| PROYECTO TASKS | 500 | css-adhoc (69), ISP (61), window/dom (116), console (56), css-espec (46), modals (45) | 4 cambios (2 ajenos) |
-| RESTAURANTE | 463 → **136** | tras F5: sqlx (26) disable-file, glory-conv (38) config.rules, window/dom (13) boundaries, barras (10) + directorio (4) fixes | limpio ✓ (commit `ac72429`) |
-| WANDORIUS | 410 | **sqlx sin macro (283)**, window/dom (63), css (18), console (8) | **limpio** ✓ |
+> Contiene las restricciones planificadas: los proyectos ignorados no cuentan y el peso de la
+> categoría `análisis` se repartió entre los proyectos elegibles con gate. Un subconjunto se
+> documentó como excepción legítima (refactor de riesgo alto, cambios ajenos, runtime inexistente).
+
+| Proyecto | Hallazgos | Reglas dominantes | Estado repo | Frente |
+|---|---|---|---|---|
+| Glory-Laminal | 0 | — | limpio ✓ | ✅ completo (12→0) |
+| ONG AGAPE | 0 | — | — ✓ | ✅ completo |
+| gloryapi | 8 → **0** | limite-lineas ×4, ISP ×2, barrel ×2 | limpio ✓ | ✅ **F5 COMPLETO** (commit `4e97e2a`) |
+| PROYECTO TASKS | 500 → **229** (58W/90I/82H) | tras splits: css-adhoc (69), ISP (61), window/dom (116), console (56), modals (45) | 4 cambios (2 ajenos) | 🔶 parcial — ver bloques |
+| RESTAURANTE | 463 → **120** | tras F4/F5: sqlx (26) disable-file, glory-conv (38) config.rules, window/dom (13) boundaries, barras (10) + directorio (4) fixes + splits Rust `funcion-larga-rs` | limpio ✓ / **pusheado** (rama `glory-rs-rest`, `2fa1e652`) | ✅ piso honesto 120 |
+| WANDORIUS | 410 | **sqlx sin macro (283)**, window/dom (63), css (18), console (8) | **limpio** ✓ pero rama **`main`** (primaria declarada `wandorius`) | 🔶 bloqueado |
 
 ## 2. Decisiones de alcance (acordadas con el usuario)
 
@@ -58,17 +62,32 @@
 
 ## 4. Fases
 
-1. **F1 — Exclusions (config canónica)**: añadir `**/_archivo/**`, backups y dirs inertes a
-   `excludePatterns` de WANDORIUS/RESTAURANTE/PROYECTO TASKS, con backup previo. Re-analizar → medir corte.
-2. **F2 — WANDORIUS (repo limpio, objetivo principal)**: sqlx pilot (convertir queries estáticos a
-   macros si el build lo permite; si no, documentar la restricción), boundary window/dom, CSS, console,
-   resto. Type-check + tests + re-analizar antes→después.
-3. **F3 — PROYECTO TASKS**: batches de limpieza (console, barras, emoji), CSS tokenizado/disable,
-   modales canónicos, ISP donde sea mínimo. Re-analizar.
-4. **F4 — RESTAURANTE**: solo fixes en archivos limpios y configs con backup (111 cambios ajenos).
-5. **F5 — gloryapi**: revisar si los frentes ajenos se aislaron; si no, queda bloqueado documentado.
-6. **F6 — Cierre**: re-analizar los 6 proyectos, actualizar informe S2 + roadmap (incluye la nota de
-   proyectos ignorados excluidos), commits por proyecto con `git add` explícito, sin push/PR.
+1. **F1 — Exclusions (config canónica)** — ✅ **completo**: `**/_archivo/**`, backups y dirs inertes en
+   `excludePatterns` de WANDORIUS/RESTAURANTE/PROYECTO TASKS (fix canónico, con `directoryExceptions`),
+   sin borrar nada. `config` 36→0, `huérfanos` 0. Los proyectos ignorados/backups quedan fuera del
+   análisis y NO se vuelven a detectar como problema.
+2. **F2 — WANDORIUS (repo limpio, objetivo principal)** — 🔶 **bloqueado**: la rama actual es `main`;
+   el AGENTS.md §9.5 declara `primaryBranch` `wandorius` (`main` = template vacío). No se confirma el
+   corte Rust (`sqlx-query-sin-macro`, 283) sin verificar si WANDORIUS tiene caché `.sqlx` como
+   RESTAURANTE; sin cargo verde confirmado no se fuerza. Se requiere decidir la rama correcta antes.
+3. **F3 — PROYECTO TASKS** — 🔶 parcial: **500→229** (58W/90I/82H) vía frontend de bajo riesgo agotado
+   (hooks, IndexedDB, fetch-timeout, todo `tsc --noEmit`-verificado). Lo restante: (a) Rust
+   `handler-accede-bd` ×21 y `funcion-larga` ×5 → cargo check **no confirmado verde** aquí (no se fuerza
+   sin poder comprobar); (b) `PanelAgente.tsx` + `useConfiguracionLayout.ts` con cambios ajenos sin
+   commitear (llevan 7 archivos de otro frente, no se tocan); (c) excepciones legítimas (emoji=copy
+   welcome, inline-style dinámico).
+4. **F4 — RESTAURANTE** — ✅ **piso honesto en 120**, **pusheado** (rama `glory-rs-rest`, `2fa1e652`;
+   verificación restaurada con `run-cargo.mjs check --tests` offline `.sqlx` verde). Lo restante son
+   excepciones legítimas: monolitos de gran superficie (`sync_venta` 291, `sincronizar_cliente_bdp` 263,
+   `bdp_sync.rs` íntegra fuera de ruta), `bdp_write_guard::authorize` deliberadamente lineal (nota
+   `[187A-1]`), y los `parametros-excesivos-rs` cambian firma pública con muchos llamadores.
+5. **F5 — gloryapi** — ✅ **COMPLETO**: los frentes ajenos se aislaron (árbol limpio, rama `gloryapi`).
+   8 hallazgos corregidos con refactors reales (barrels puros, submódulos por dominio, ISP por sub-
+   interfaces, split de test) + `directoryExceptions` documentada para `providers/` y `__tests__/providers`.
+   `tsc -b` server+client verdes y **315/315 tests**. Commit `4e97e2a`.
+6. **F6 — Cierre** — ✅: re-análisis de los 6 proyectos con antes→después registrado, proyecto ignorados
+   excluidos, commits por proyecto con `git add` explícito sin push/PR, y este plan + roadmap
+   actualizados (ver §7).
 
 ## 5. Bloqueos y riesgos
 
@@ -94,7 +113,37 @@
   `parametros-excesivos-rs` restantes cambian la firma pública de `list`/`update`/`crear_pared` con muchos
   llamadores, fuera de la vía de riesgo bajo. Dichos frentes quedan como pendiente documentado, no se fuerzan.
 - RESTAURANTE con 111 cambios ajenos: tocar archivos sucios está prohibido por la disciplina del hilo.
-- Push queda fuera salvo confirmación explícita por repo.
+- Push queda fuera salvo confirmación explícita por repo (gloryapi / SIN push en este hilo tras cerrar F5).
+
+## 7. Cierre F6 — cumplimiento del roadmap (estado real y final)
+
+Fases cerradas y evidencia verificable en vivo:
+
+| Frente | Estado | Evidencia (hash/rama) |
+|---|---|---|
+| F1 — Exclusions/config/huérfanos | ✅ completo | `config` 36→0; `huérfanos` 0; `sin-git` 0 |
+| F2 — WANDORIUS | 🔶 bloqueado | rama `main` (ahead 3) vs primaria `wandorius`; Rust sqlx sin corte verde |
+| F3 — PROYECTO TASKS | 🔶 parcial | **229** (58W/90I/82H); rama `main` ahead 121 |
+| F4 — RESTAURANTE | ✅ piso honesto **120**, pusheado | `2fa1e652`, rama `glory-rs-rest` (ahead 42) |
+| F5 — gloryapi | ✅ **COMPLETO** | **8→0**; `4e97e2a`, rama `gloryapi` limpia |
+| Transversal VarSense | 🔶 bloqueado | sin runtime oficial (S2-05) |
+| Trabajo ajeno | — | `PanelAgente.tsx` + `useConfiguracionLayout.ts` (PT, 7 archivos sin commitear) se excluyen |
+
+**Cumplido de lo planificado (F1/F4/F5/F6):** exclusions canónicas que dejan los proyectos ignorados
+fuera del conteo; RESTAURANTE al piso honesto con verificación cargo restaurada y pusheado;
+gloryapi 8→0 con refactors reales verificados (`tsc -b` + 315/315) y una `directoryExceptions`
+documentada para directorios organizados por dominio.
+
+**Ítems del plan que siguen pendientes y su porqué verificable:**
+1. **WANDORIUS (F2)** — la rama activa es `main`, no la primaria declarada `wandorius`; no se confirma
+   caché `.sqlx` para el corte Rust (283 sqlx). Bloqueado hasta decidir la rama correcta y verificar cargo.
+2. **PROYECTO TASKS Rust (F3)** — `handler-accede-bd` (21) y `funcion-larga` (5) sin `cargo check --tests`
+   verde confirmado en esta máquina; 7 archivos de otro frente sin commitear (`PanelAgente.tsx`,
+   `useConfiguracionLayout.ts` y dependientes) no se tocan.
+3. **RESTAURANTE residual (F4)** — monolitos / parámetros-excesivos documentados como excepciones
+   legítimas (riesgo de romper API pública), no se fuerzan.
+4. **VarSense (S2-05)** — sin runtime oficial, no se toca.
+5. **Push** — sin push/PR salvo el ya autorizado de RESTAURANTE.
 
 ## 6. Definition of Done
 
