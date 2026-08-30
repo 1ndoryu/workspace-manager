@@ -24,7 +24,7 @@ import {
   type Ruta,
 } from '../shared/gate/esquema.js';
 import { infoSegmento } from '../shared/gate/etiquetas.js';
-import { CATEGORIAS_REGLAS, REGLAS, reglasPorCategoria } from '../shared/gate/reglas.js';
+import { REGLAS as REGLAS_ESTATICAS, type ReglaCatalogo } from '../shared/gate/reglas.js';
 import { toastInfo } from './toast.js';
 
 interface Props {
@@ -32,9 +32,14 @@ interface Props {
   value: ValorJson | undefined;
   onChange: (v: ValorJson) => void;
   readOnly?: boolean;
+  /* Catalogo de reglas para SeccionReglas. [por que] R1 gate-dinamico: si el
+   * consumidor lo inyecta (vivo desde /api/gate/reglas), se usan las reglas
+   * reales del runtime; si no, cae al estatico embebido. El editor nunca
+   * importa el snapshot congelado directamente. */
+  reglas?: ReglaCatalogo[];
 }
 
-export function EditorEsquema({ esquema, value, onChange, readOnly }: Props) {
+export function EditorEsquema({ esquema, value, onChange, readOnly, reglas }: Props) {
   const filas = diagnosticar(esquema, value);
   /* Catalogo de reglas del esquema (nodo mapaCatalogo de la raiz, p.ej. `rules`
    * en sentinel). Si existe, las filas de esa clave NO se renderizan como filas
@@ -57,14 +62,14 @@ export function EditorEsquema({ esquema, value, onChange, readOnly }: Props) {
   return (
     <div className="fjPlano">
       {catalogo && (
-        <SeccionReglas
-          clave={catalogo.clave}
-          item={catalogo.item}
-          ids={catalogo.ids}
-          valor={valorCatalogo}
-          setEn={setEn}
-          readOnly={readOnly}
-        />
+      <SeccionReglas
+        clave={catalogo.clave}
+        item={catalogo.item}
+        reglas={reglas ?? REGLAS_ESTATICAS}
+        valor={valorCatalogo}
+        setEn={setEn}
+        readOnly={readOnly}
+      />
       )}
       {filasPlanas.map((f, i) => (
         <Fila key={i} fila={f} setEn={setEn} quitar={readOnly ? undefined : (r) => onChange(borrarRuta(value, r))} readOnly={readOnly} />
@@ -213,14 +218,16 @@ function FilaFaltante({
 function SeccionReglas({
   clave,
   item,
-  ids,
+  reglas,
   valor,
   setEn,
   readOnly,
 }: {
   clave: string;
   item: NodoEsquema;
-  ids: string[];
+  /* Catalogo inyectado (vivo del runtime o estatico). Fuente unica de
+   * verdad para los ids, categorias, defaults de severidad/habilitada. */
+  reglas: ReglaCatalogo[];
   valor: ValorJson | undefined;
   setEn: (r: Ruta, v: ValorJson) => void;
   readOnly?: boolean;
@@ -235,26 +242,36 @@ function SeccionReglas({
   const valoresSev =
     nodoSev && 'tipo' in nodoSev && nodoSev.tipo === 'enum' ? (nodoSev.valores ?? []) : [];
 
-  const reglas =
+  const presente =
     valor !== null && typeof valor === 'object' && !Array.isArray(valor)
       ? (valor as Record<string, ValorJson>)
       : {};
+  const ids = reglas.map((r) => r.id);
   const conoce = new Set(ids);
-  const desconocidas = Object.keys(reglas).filter((id) => !conoce.has(id)).sort();
+  const desconocidas = Object.keys(presente).filter((id) => !conoce.has(id)).sort();
 
-  /* Agrupa por categoria usando el catalogo real del runtime (REGLAS). Las
+  /* Agrupa por categoria desde el catalogo inyectado (data viva). Las
    * desconocidas (ids que escribio el agente y no estan en el catalogo) van en
    * su propio grupo al final, para no perderlas. */
-  const porCategoria = reglasPorCategoria();
-  const categorias = CATEGORIAS_REGLAS.filter((c) => (porCategoria.get(c) ?? []).some((r) => conoce.has(r.id)));
+  const porCategoria = new Map<string, ReglaCatalogo[]>();
+  for (const r of reglas) {
+    const arr = porCategoria.get(r.categoria) ?? [];
+    arr.push(r);
+    porCategoria.set(r.categoria, arr);
+  }
+  /* Preserva el orden natural del catalogo (primera aparicion), estable y
+   * predecible. [por que] Reordenar por tamano o alfabetico cambiaria el orden
+   * que el usuario ya conoce; el catalogo trae su orden. */
+  const categorias: string[] = [];
+  for (const r of reglas) if (!categorias.includes(r.categoria)) categorias.push(r.categoria);
   const [activa, setActiva] = useState<string>(categorias[0] ?? '');
 
-  const enCatalogo = ids.filter((id) => Object.prototype.hasOwnProperty.call(reglas, id)).length;
+  const enCatalogo = ids.filter((id) => Object.prototype.hasOwnProperty.call(presente, id)).length;
   const activas = [...ids, ...desconocidas].filter((id) => {
-    const v = reglas[id];
+    const v = presente[id];
     const obj = v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, ValorJson>) : undefined;
     /* Reglas ausentes: heredan su default real por-regla (2 nacen apagadas). */
-    const habCat = REGLAS.find((x) => x.id === id)?.habilitada;
+    const habCat = reglas.find((x) => x.id === id)?.habilitada;
     return obj ? obj['habilitada'] !== false : (habCat ?? defaultHabilitada);
   }).length;
 
@@ -296,7 +313,7 @@ function SeccionReglas({
       </div>
       <div className="ejReglasLista">
         {(activa === '__desconocidas' ? desconocidas : idsDeCategoria(activa)).map((id) => {
-          const v = reglas[id];
+          const v = presente[id];
           const obj = v !== null && typeof v === 'object' && !Array.isArray(v)
             ? (v as Record<string, ValorJson>)
             : undefined;
@@ -307,7 +324,7 @@ function SeccionReglas({
            * desactivadas por defecto (nomenclatura-css-ingles, default-export),
            * y cada una tiene su severidad propia. Solo las desconocidas caen al
            * default global del esquema. */
-          const rCat = REGLAS.find((x) => x.id === id);
+          const rCat = reglas.find((x) => x.id === id);
           const habilitada = obj ? obj['habilitada'] !== false : (rCat?.habilitada ?? defaultHabilitada);
           const severidad =
             obj && typeof obj['severidad'] === 'string'
@@ -347,7 +364,7 @@ function SeccionReglas({
                 )}
               </span>
               <span className="ejReglaInfo">
-                <EtiquetaDeRuta ruta={[clave, id]} texto={nombreRegla(id)} />
+                <EtiquetaDeRuta ruta={[clave, id]} texto={nombreRegla(id, reglas)} />
                 <span className="ejReglaNotas">
                   {ausente && <span className="ejReglaPorDefecto">por defecto</span>}
                   {desconocida && <span className="ejMarcaTexto">desconocida</span>}
@@ -379,11 +396,11 @@ function SeccionReglas({
   );
 }
 
-/* Nombre legible de una regla desde el catalogo real del runtime
- * (REGLAS). [por que] El nombre de `etiquetas.ts` solo cubria las 14 reglas
- * viejas; las 105 nuevas usan el `nombre` del runtime 0.7.4. Fallback al id. */
-function nombreRegla(id: string): string {
-  const r = REGLAS.find((x) => x.id === id);
+/* Nombre legible de una regla desde el catalogo (vivo o estatico). [por que]
+ * El nombre de `etiquetas.ts` solo cubria las 14 reglas viejas; las 105 nuevas
+ * usan el `nombre` del runtime 0.7.4. Fallback al id. */
+function nombreRegla(id: string, reglas: ReglaCatalogo[]): string {
+  const r = reglas.find((x) => x.id === id);
   return r ? r.nombre : infoSegmento(id).nombre;
 }
 

@@ -4,6 +4,8 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import type { Proyecto, SnapshotWorkspace } from '../shared/types.js';
+import type { ReglaCatalogo } from '../shared/gate/reglas.js';
+import { REGLAS as REGLAS_ESTATICAS } from '../shared/gate/reglas.js';
 
 /* Persistencia de la seleccion entre recargas, igual que zoom/pan del mapa.
  * [por que] El usuario pidio que el panel/caja seleccionada perdure al
@@ -101,7 +103,13 @@ interface EstadoWorkspace {
   menuContextual: MenuContextual | null;
   /* Proyecto que configura la pagina 'config' (se abre desde el menu). */
   proyectoAConfigurar: string | null;
+  /* Catalogo de reglas del gate desde /api/gate/reglas (vivo) con fallback
+   * al estatico embebido si el server no lo entrega. [por que] El plan
+   * gate-dinamico R1: el cliente es 'tonto', pide el catalogo una vez y lo
+   * cachea en el store; el server resuelve el runtime sentinel. */
+  reglasCatalogo: { version: string; fuente: 'runtime' | 'estatica'; reglas: ReglaCatalogo[] };
   cargar: (forzar?: boolean) => Promise<void>;
+  cargarReglas: () => Promise<void>;
   seleccionar: (id: string | null) => void;
   setFiltro: (f: EstadoWorkspace['filtro']) => void;
   setBuscar: (b: string) => void;
@@ -130,6 +138,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   navegadorRuta: null,
   menuContextual: null,
   proyectoAConfigurar: null,
+  reglasCatalogo: { version: '—', fuente: 'estatica', reglas: REGLAS_ESTATICAS },
 
   cargar: async (forzar = false) => {
     set({ cargando: true, error: null });
@@ -147,6 +156,24 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
         cargando: false,
         error: err instanceof Error ? err.message : 'Error al cargar el workspace',
       });
+    }
+  },
+
+  /* [por que] Solo se pide una vez por sesion: el catalogo esta cacheado por
+   * version+mtime en el server, asi que repetir el GET no cuesta. Si falla,
+   * queda el estatico embebido (ya inicializado) y se avisa por consola. */
+  cargarReglas: async () => {
+    try {
+      const { data } = await axios.get<{
+        version: string;
+        fuente: 'runtime' | 'estatica';
+        reglas: ReglaCatalogo[];
+      }>('/api/gate/reglas');
+      if (Array.isArray(data.reglas)) {
+        set({ reglasCatalogo: { version: data.version, fuente: data.fuente, reglas: data.reglas } });
+      }
+    } catch (err) {
+      console.warn('[workspace] catalogo de reglas vive no disponible, uso estatico:', err);
     }
   },
 
