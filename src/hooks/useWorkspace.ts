@@ -347,7 +347,10 @@ function rearmarAuto(): void {
       return;
     }
     if (st.analizando) return;
-    st.escanearTodo();
+    /* [por que] El timer no debe propagar una rechazo del POST (p. ej. server
+     * caido) como rejection no manejada cada intervalo; la proxima pasada lo
+     * reintenta. El flag analizando se limpia en el finally de escanearTodo. */
+    void st.escanearTodo().catch(() => {});
   }, min * 60_000);
 }
 

@@ -286,11 +286,11 @@ export function crearServidor() {
               json(res, 400, { error: 'El proyecto no usa sentinel (no se puede analizar)', clave });
               return;
             }
-            json(res, 200, analizarProyecto(proyecto, forzar));
+            json(res, 200, await analizarProyecto(proyecto, forzar));
             return;
           }
           /* Todo el workspace: barrido serial de los elegibles. */
-          const analisis = analizarTodo(snapshot.proyectos);
+          const analisis = await analizarTodo(snapshot.proyectos);
           json(res, 200, {
             escaneadoEn: new Date().toISOString(),
             proyectos: analisis,
