@@ -11,6 +11,7 @@
     "type-check": "tsc --noEmit",
     "server": "tsx watch src/server/index.ts",
     "diagnostico": "tsx scripts/diagnostico-escaner.ts",
+    "sync:gate": "tsx scripts/sync-gate-schema.mjs",
     "check": "npm run type-check"
   },
   "dependencies": {
