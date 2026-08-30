@@ -6,7 +6,7 @@
  * Ahora este modelo vivia en src/v2/schemas; se movio aqui (src/shared/gate)
  * para que el SERVER (escaneo -> snapshot -> consola) y el EDITOR compartan la
  * misma fuente de verdad y no se desincronicen. */
-import { descripcionDeRuta, nombreDeRuta } from './etiquetas.js';
+import { descripcionDeRuta, detalleDeRuta, nombreDeRuta } from './etiquetas.js';
 
 export type ValorJson = boolean | number | string | null | ValorJson[] | { [k: string]: ValorJson };
 
@@ -81,6 +81,13 @@ export function rutaEtiqueta(ruta: Ruta): string {
  * undefined si ningun segmento tiene descripcion. */
 export function rutaDescripcion(ruta: Ruta): string | undefined {
   return descripcionDeRuta(ruta);
+}
+
+/* Detalle explicativo de la ruta (para el tooltip del editor): el `detalle`
+ * del segmento mas profundo que lo tenga, o su descripcion corta si no hay
+ * detalle. undefined si ningun segmento tiene texto. */
+export function rutaDetalle(ruta: Ruta): string | undefined {
+  return detalleDeRuta(ruta);
 }
 
 /* Default sensato por tipo de hoja (para insertar una opcion que falta).
@@ -162,7 +169,9 @@ export function borrarRuta(val: ValorJson | undefined, ruta: Ruta): ValorJson {
 
 export type Fila =
   | { tipo: 'campo'; ruta: Ruta; estado: 'valido' | 'malTipo'; valor: ValorJson; opcion: OpcionValor }
-  | { tipo: 'faltante'; ruta: Ruta; default: ValorJson; necesidad: Necesidad }
+  /* Enriquecida con `nodo` para que el UI muestre el default real de una
+   * opcion que falta (fantasma inline) sin hardcodear claves. */
+  | { tipo: 'faltante'; ruta: Ruta; default: ValorJson; necesidad: Necesidad; nodo: NodoEsquema }
   | { tipo: 'desconocida'; ruta: Ruta; valor: ValorJson; sugerencia?: string };
 
 /* Profundidad hasta la que una opcion FALTANTE se clasifica como error/warning.
@@ -248,7 +257,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('tipo' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: defaultValorDe(n), necesidad: faltanteNecesidad(n) });
+        filas.push({ tipo: 'faltante', ruta, default: defaultValorDe(n), necesidad: faltanteNecesidad(n), nodo: n });
         return;
       }
       if (n.tipo === 'enum') {
@@ -263,7 +272,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('objeto' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: defaultDe(n), necesidad: faltanteNecesidad(n) });
+        filas.push({ tipo: 'faltante', ruta, default: defaultDe(n), necesidad: faltanteNecesidad(n), nodo: n });
         return;
       }
       /* config puede ser una string (ruta a un archivo de config). */
@@ -295,7 +304,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('mapaCatalogo' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n) });
+        filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n), nodo: n });
         return;
       }
       if (!isObj(v)) {
@@ -306,7 +315,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
       for (const k of Object.keys(v).sort()) rec(n.mapaCatalogo, v[k], [...ruta, k]);
       for (const id of (n.catalogo ?? [])) {
         if (!presentes.has(id)) {
-          filas.push({ tipo: 'faltante', ruta: [...ruta, id], default: {}, necesidad: faltanteNecesidad(n) });
+          filas.push({ tipo: 'faltante', ruta: [...ruta, id], default: {}, necesidad: faltanteNecesidad(n), nodo: n.mapaCatalogo });
         }
       }
       return;
@@ -314,7 +323,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('mapa' in n) {
       if (v === undefined) {
-        filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n) });
+        filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n), nodo: n });
         return;
       }
       if (!isObj(v)) {
@@ -327,7 +336,7 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     /* listaDe */
     if (v === undefined) {
-      filas.push({ tipo: 'faltante', ruta, default: [], necesidad: faltanteNecesidad(n) });
+      filas.push({ tipo: 'faltante', ruta, default: [], necesidad: faltanteNecesidad(n), nodo: n });
       return;
     }
     if (Array.isArray(v)) {
