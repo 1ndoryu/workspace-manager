@@ -7,7 +7,7 @@
  * `necesidad` (requerida/recomendada/opcional) marca la severidad en la consola
  * cuando una opcion FALTA: requerida->error, recomendada->advertencia,
  * opcional->silencio. Vive en shared/gate para que server y editor coincidan. */
-import type { NodoEsquema, NodoObjeto, Necesidad, OpcionValor } from './esquema.js';
+import type { Alternativas, NodoEsquema, NodoObjeto, Necesidad, OpcionValor } from './esquema.js';
 import { CATALOGO_REGLAS } from './reglas.js';
 
 const strArr = (d?: string, necesidad?: Necesidad): NodoEsquema => ({ tipo: 'stringArray', descripcion: d, necesidad });
@@ -29,7 +29,14 @@ let _esquema: NodoEsquema | null = null;
 export function ESQUEMA_SENTINEL(): NodoEsquema {
   if (_esquema) return _esquema;
 
-  /* Nodo de config: recursivo y `| string`. */
+/* Ubicacion alternativa valida: el runtime acepta los patterns/rules/runtime
+ * tambien dentro de `analyzers.<nombre>.config` (Glory-Laminal y otros los
+ * ponen ahi). `'*'` comodina el nombre del analizador. [por que] Sin esto el
+ * diagnostico marcaria "falta" una opcion que el proyecto ya tiene en su
+ * config de analizador (falso positivo en la consola). */
+const EN_CONFIG_ANALIZADOR: Alternativas = [['analyzers', '*', 'config']];
+
+/* Nodo de config: recursivo y `| string`. */
   const config: NodoObjeto = { objeto: {}, permitirString: true };
 
   const contenido: Record<string, NodoEsquema> = {
@@ -40,10 +47,10 @@ export function ESQUEMA_SENTINEL(): NodoEsquema {
     /* Patterns: el runtime los acepta en raiz O dentro de analyzers…config
      * (Glory-Laminal los pone anidados); por eso solo 'recomendada': faltar en
      * la raiz no es un error si estan en el sub-config. */
-    includePatterns: strArr('archivos que el analizador considera', 'recomendada'),
-    excludePatterns: strArr('archivos excluidos del análisis', 'recomendada'),
-    directoryExceptions: strArr('directorios exentos', 'recomendada'),
-    rules: { mapaCatalogo: REGLA, catalogo: CATALOGO_REGLAS, necesidad: 'recomendada' },
+    includePatterns: { ...strArr('archivos que el analizador considera', 'recomendada'), alternativas: EN_CONFIG_ANALIZADOR },
+    excludePatterns: { ...strArr('archivos excluidos del análisis', 'recomendada'), alternativas: EN_CONFIG_ANALIZADOR },
+    directoryExceptions: { ...strArr('directorios exentos', 'recomendada'), alternativas: EN_CONFIG_ANALIZADOR },
+    rules: { mapaCatalogo: REGLA, catalogo: CATALOGO_REGLAS, necesidad: 'recomendada', alternativas: EN_CONFIG_ANALIZADOR },
     portableBoundaries: {
       objeto: {
         dom: strArr(undefined, 'opcional'),
@@ -52,6 +59,7 @@ export function ESQUEMA_SENTINEL(): NodoEsquema {
         loggerModules: strArr(undefined, 'opcional'),
       },
       necesidad: 'recomendada',
+      alternativas: EN_CONFIG_ANALIZADOR,
     },
     gate: {
       objeto: {
@@ -67,6 +75,7 @@ export function ESQUEMA_SENTINEL(): NodoEsquema {
         lockFile: text('', 'recomendada', 'nombre del lock file'),
       },
       necesidad: 'recomendada',
+      alternativas: EN_CONFIG_ANALIZADOR,
     },
     /* analyzers es un MAPA de analizadores (sentinel, varsense, php, sql...).
      * [por que] Si se modela como objeto cerrado con solo 'sentinel', analizadores

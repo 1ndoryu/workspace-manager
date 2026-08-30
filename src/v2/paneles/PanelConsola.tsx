@@ -8,7 +8,7 @@ import type { AnalisisSentinel, Proyecto } from '../../shared/types.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import './paneles.css';
 
-type Categoria = 'sinGit' | 'sinPush' | 'gate' | 'config' | 'sentinel';
+type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano';
 
 /* Severidad real del hallazgo de sentinel (analyze); solo la categoria
  * 'sentinel' la usa. El badge del proyecto y de la linea deriva de aqui. */
@@ -56,6 +56,23 @@ function problemasDe(p: Proyecto): Problema | null {
   }
 
   if (p.git) {
+    /* Cambios sin commitear: un problema visible por proyecto (dirty). */
+    if (p.git.dirty) {
+      const c = p.git.cambios;
+      entradas.push({
+        categoria: 'sinCommit',
+        motivo: c.staged > 0 || c.unstaged > 0 || c.untracked > 0
+          ? `cambios sin commitear (${c.staged} staged, ${c.unstaged} unstaged, ${c.untracked} untracked)`
+          : 'cambios sin commitear',
+        seriedad: null,
+      });
+    }
+    /* Arboles huerfanos: worktrees registrados pero sin directorio/gitdir.
+     * [por que] El plan pide detectarlos como problema SIN borrar nada; la
+     * limpieza es aparte y con autorizacion. */
+    for (const wt of p.git.worktreesOrfanos) {
+      entradas.push({ categoria: 'huerfano', motivo: `worktree huerfano: ${wt}`, seriedad: null });
+    }
     if (!p.git.remoto) {
       entradas.push({ categoria: 'sinPush', motivo: 'sin remoto configurado', seriedad: null });
     } else if (p.git.ahead > 0) {
@@ -102,25 +119,29 @@ function problemasSentinelDe(p: Proyecto, a: AnalisisSentinel | undefined): Prob
 
 /* Categorias unicas de un proyecto (para sus badges), en orden fijo. */
 function categoriasDe(pr: Problema): Categoria[] {
-  const orden: Categoria[] = ['sinGit', 'sinPush', 'gate', 'config', 'sentinel'];
+  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'huerfano'];
   return orden.filter((c) => pr.entradas.some((e) => e.categoria === c));
 }
 
 const FILTROS: { clave: 'todos' | Categoria; etiqueta: string }[] = [
   { clave: 'todos', etiqueta: 'todos' },
   { clave: 'sinGit', etiqueta: 'sin git' },
+  { clave: 'sinCommit', etiqueta: 'sin commit' },
   { clave: 'sinPush', etiqueta: 'sin push' },
   { clave: 'gate', etiqueta: 'sentinel/varsense' },
   { clave: 'config', etiqueta: 'config' },
   { clave: 'sentinel', etiqueta: 'análisis' },
+  { clave: 'huerfano', etiqueta: 'huérfanos' },
 ];
 
 const ETIQUETA_CATEGORIA: Record<Categoria, string> = {
   sinGit: 'sin git',
+  sinCommit: 'sin commit',
   sinPush: 'sin push',
   gate: 'sentinel',
   config: 'config',
   sentinel: 'análisis',
+  huerfano: 'huérfano',
 };
 
 /* Ruta relativa de un proyecto respecto a la raiz del area, para abrir su
