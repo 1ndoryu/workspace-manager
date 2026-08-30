@@ -1,6 +1,6 @@
 # Plan: saneamiento de AGENTS.md y auditoría integral del workspace
 
-> Estado: S2 en ejecución controlada · Fecha: 2026-08-30
+> Estado: S2 avanzada; S2-13 (consolidación de AGENTS.md) completada · Fecha: 2026-08-30
 > Regla de seguridad: toda operación peligrosa empieza con backup verificable; ningún backup se considera problema del proyecto.
 
 ## 1. Objetivo
@@ -51,6 +51,10 @@ En ejecución controlada. Registro en `data/inventarios/s2-plan-reparaciones-202
 - **S2-05:** VarSense solo mediante CLI/API/fuente canónica verificable; si no existe, estado `no disponible`.
 - **S2-06/S2-07:** reparaciones de problemas/configuración por proyecto, preservando claves desconocidas y con backup previo.
 - **S2-08:** revisión SOLID, límites, caché, single-flight, timeouts y tests.
+- **S2-09:** detección de cambios sin commitear (staged/unstaged/untracked) y worktrees huérfanos; consola con categorías `sin commit` y `huérfanos`. Completada.
+- **S2-10:** falsos positivos de config corregidos en el diagnóstico (alternativas declarativas `analyzers.*.config`); de 36 a 10 problemas. Completada.
+- **S2-11:** 10 problemas de config reales corregidos (opciones añadidas con default canónico, backup por hash); `config` a 0. Completada. Hallazgos de `analyze` clasificados: 35 refactors de arquitectura pendientes por proyecto.
+- **S2-13:** consolidación de AGENTS.md. Completada: instrucciones específicas de los 8 proyectos consolidadas en la sección §9 del `AGENTS.md` raíz; los `AGENTS.md` secundarios se eliminaron con `git rm` por repo, tras backup S0 verificado (58/58 hashes + copia `disk-v2` de WANDORIUS por su cambio local previo).
 
 ## 5. Seguridad de mutaciones
 
