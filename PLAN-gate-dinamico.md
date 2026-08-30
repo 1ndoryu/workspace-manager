@@ -125,6 +125,18 @@ Esto cumple "todo dinámico" dentro de lo que el runtime permite: **reglas 100% 
 | **E2** | `sync-gate-schema.mjs` generador + detección de desalineación | Script compara `.d.ts` 0.7.4 vs curación → 0 difs; cambiar versión → reporte claro |
 | **E3** | Proveedor varsense "curación pura" + doc de cómo añadir un proveedor nuevo | README/AGENTS.md corto: "para añadir herramienta: implementar ProveedorGate y registrarla" |
 
+**E2 implementado** — `pnpm sync:gate` (script `.mjs`, corre con `tsx`). Parsea la
+interfaz `SentinelConfigFile` del `config.d.ts` instalado y la compara por forma
+contra `ESQUEMA_SENTINEL()`, reportando `FALTA`/`SOBRA`/`CAMBIO` con severidad.
+Opciones: `--json` (salida estructurada) y `--dts <archivo>` (comparar contra un
+`.d.ts` distinto, útil en CI/tests; ignora la versión instalada). Exit codes:
+`0` alineado · `1` desalineación crítica (faltan campos del runtime o cambió la
+forma) · `2` solo la versión del runtime difiere de `VERSION_CURACION_SENTINEL`.
+**Solo reporta**: no modifica la curación ni ningún `*.json`; el `--aplicar` que
+proponía la línea §4 queda como trabajo futuro a una fuente determinista. Usa la
+misma constante `VERSION_CURACION_SENTINEL` exportada de `proveedor.ts` (una
+fuente de verdad).
+
 ## 8. Alcance / no alcance (para que no se desborde)
 
 - **Sí:** reglas vivas, server como dueño del esquema/reglas, registro de proveedores, generador de sincronización, detección de desalineación, fallback.

@@ -122,8 +122,9 @@ function localizarOut(): { ruta: string; mtime: number } | null {
 
 /* Version de referencia de la curacion actual del esquema sentinel. Al subir
  * el runtime y desalinearse, `sync-gate-schema` (E2) lo actualiza; por ahora
- * es la version contra la que se escribio sentinel.ts. */
-const VERSION_CURACION_SENTINEL = '0.7.4';
+ * es la version contra la que se escribio sentinel.ts. Exportada para que el
+ * script de sync (E2) compare contra la MISMA fuente de verdad. */
+export const VERSION_CURACION_SENTINEL = '0.7.4';
 
 /* Catalogo de reglas del gate: vive en el runtime si esta disponible, con
  * cache por version+mtime. Devuelve tambien la version y la fuente para que
