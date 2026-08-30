@@ -917,19 +917,64 @@
 .ejEstado { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 7px 10px; border-bottom: 1px solid var(--v2-borde); }
 .ejEstado--falte { opacity: .72; }
 .ejEstado--falte .ejEtiqueta::after { content: ' · falta'; font-style: italic; }
+/* Valor por defecto en la columna de valor, como si ya estuviera puesto.
+ * [por que] El usuario pidio que aparezca como valor ya puesto (no en el
+ * titulo) y que quite el mini-form. Sin transparencia extra: la fila faltante
+ * ya hereda la opacidad propia de .ejEstado--falte. Se distingue del valor
+ * real por el borde punteado y la marca ＋ (al hacer clic se inserta). */
+.ejDefaultGhost {
+  font-family: inherit; font-size: 12px; color: var(--v2-oscuro);
+  background: transparent; border: 1px dashed var(--v2-borde); border-radius: 3px;
+  padding: 3px 8px; cursor: pointer; width: 100%; max-width: 100%;
+  text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ejDefaultGhost .ejAgregarMini { margin-left: 8px; font-size: 12px; opacity: .7; }
 .ejEtiqueta { display: flex; align-items: flex-start; gap: 6px; font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em; min-width: 0; }
 .ejRutaLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Nombre legible + descripcion de una ruta (EditorEsquema). El nombre no se
  * trunca en exceso; la descripcion va debajo en italica opaca (monocromo). */
 .ejRutaTexto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ejRutaNombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ejRutaDesc { font-style: italic; opacity: .6; font-size: 11px; line-height: 1.35; }
+/* Tooltip monocromo del editor por esquema (EditorEsquema): caja negra sobre
+ * fondo blanco, sin sombra ni redondeo. Muestra el nombre legible, la ruta
+ * tecnica original y el detalle explicativo. [por que] El usuario pidio un
+ * tooltip al pasar el cursor con una descripcion breve, clara y detallada de
+ * cada configuracion; el title nativo no daba formato ni espacio. */
+.ejTooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 340px;
+  min-width: 200px;
+  background: #000;
+  color: #fff;
+  border: 1px solid var(--v2-invertido);
+  padding: 9px 11px;
+  /* [por que] El tooltip se pinta por portal en document.body, fuera del
+   * arbol .v2App, asi que NO hereda la fuente del shell; hay que declararla
+   * aqui o cae a la fuente por defecto del navegador. */
+  font-family: var(--v2-font);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: left;
+  pointer-events: none;
+}
+.ejTooltipDetalle {
+  display: block;
+  opacity: .9;
+}
 .ejMarca { flex-shrink: 0; opacity: .85; display: inline-flex; }
 .ejMarcaTexto { font-style: italic; opacity: .6; font-size: 11px; flex-shrink: 0; }
 .ejControl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .ejValorTexto { font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .ejSugerencia { font-size: 11px; font-style: italic; opacity: .6; }
 .ejAgregar { font-family: inherit; font-size: 11px; letter-spacing: .05em; margin-top: 2px; padding: 3px 8px; width: max-content; border: 1px dashed var(--v2-borde); background: transparent; color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; }
+/* Mini-form del default de una opcion faltante (ver/editar antes de agregar).
+ * Monocromo y alineado al diseno plano; cada sub-valor es una fila con su
+ * etiqueta corta y el mismo Control de las opciones presentes. */
+.ejDefault { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 2px; padding: 6px 8px; border: 1px solid var(--v2-borde); border-radius: 3px; }
+.ejDefaultFila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ejDefaultFila--rec { opacity: .6; font-style: italic; }
+.ejDefaultEtiqueta { font-size: 11px; color: var(--v2-oscuro); opacity: .75; letter-spacing: .01em; min-width: 120px; }
 .ejQuitar { font-family: inherit; font-size: 11px; letter-spacing: .05em; padding: 2px 8px; border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; }
 .fjFila--mal .fjControl { border-left: 2px solid var(--v2-invertido); padding-left: 8px; }
 .fjSelect { font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro); background: var(--v2-fondo); border: 1px solid var(--v2-borde); padding: 3px 6px; border-radius: 3px; }
