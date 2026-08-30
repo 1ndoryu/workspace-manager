@@ -7,8 +7,8 @@
 
 ## Siguiente bloque ejecutable
 
-**308A-2 — Saneamiento seguro de AGENTS.md y auditoría integral.** S0/S1 completadas; S2 avanzada: S2-01 a S2-04, S2-09 (categorías `sin commit` y `huérfanos`), S2-10/S2-11 (config de 36 a 0 problemas) y **S2-13 (consolidación de AGENTS.md completada)**: instrucciones de los 8 proyectos consolidadas en la sección §9 del `AGENTS.md` raíz; los `AGENTS.md` secundarios se eliminaron con `git rm` por repo tras backup S0 verificado (58/58 + `disk-v2` de WANDORIUS). S2-12 parcialmente completada: Glory-Laminal 12→0 (ISP en store, boundary window en tooltip, disable-file justificado en `widgets.css` por ser receta canónica) y gloryapi 23→18 (5 hallazgos React corregidos: inline-style, 2 selects, hook de estado, hook de panel). Pendientes: S2-05 (VarSense sin runtime oficial) y los 18 hallazgos estructurales de gloryapi (limite-lineas/directorio-abarrotado/ISP/barrel; requieren refactor no mínimo o archivos con cambios ajenos).
-Detalle en `PLAN-saneamiento-agents-y-analisis.md` y registro en `data/inventarios/s2-plan-reparaciones-20260830-012405.md`.
+**308A-2 — Saneamiento seguro de AGENTS.md y auditoría integral.** S0/S1 completadas; S2 avanzada: S2-01 a S2-04, S2-09 (categorías `sin commit` y `huérfanos`), S2-10/S2-11 (config de 36 a 0 problemas) y **S2-13 (consolidación de AGENTS.md completada)**: instrucciones de los 8 proyectos consolidadas en la sección §9 del `AGENTS.md` raíz; los `AGENTS.md` secundarios se eliminaron con `git rm` por repo tras backup S0 verificado (58/58 + `disk-v2` de WANDORIUS). **Frente de 1408 corregido (hilo 308A-2/1408):** RESTAURANTE llegó a su piso honesto **120** (`2fa1e652`, pusheado a `glory-rs-rest`), y gloryapi cerró por completo **8→0** (`4e97e2a`, `tsc -b` + 315/315 tests) — F5 completo en `PLAN-corregir-1408.md`. Pendientes: S2-05 (VarSense sin runtime oficial), gloryapi ya sin hallazgos, WANDORIUS bloqueado en rama `main` (primaria `wandorius`) y PROYECTO TASKS en 229 (Rust sin cargo verde confirmado + 7 archivos ajenos sin commitear).
+Detalle en `PLAN-saneamiento-agents-y-analisis.md`, `PLAN-corregir-1408.md` y registro en `data/inventarios/s2-plan-reparaciones-20260830-012405.md`.
 
 ## Bloqueos y decisiones
 
@@ -20,7 +20,7 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md` y registro en `data/inventari
 ## Tareas pendientes (orden de dependencia)
 
 1. `308A-2 / S2-05` — resolver VarSense por fuente oficial o documentar limitación (bloqueada sin runtime).
-2. `308A-2 / S2-12` — refactors de código: Glory-Laminal 12→0 (commit eebe026); gloryapi 23→8 (10 corregidos en archivos limpios: 6 limite-lineas vía submódulos, 3 directorio-abarrotado vía `directoryExceptions`, 1 ISP; 315/315 tests OK). Quedan 8 hallazgos en 6 archivos con cambios ajenos sin commitear (bloqueados hasta aislar).
+2. `308A-2 / S2-12` — refactors de código: Glory-Laminal 12→0 (eebe026); **gloryapi COMPLETO 8→0** (F5, `4e97e2a`, 315/315 tests OK); RESTAURANTE piso honesto **120** pusheado; PROYECTO TASKS **229** (Rust sin cargo verde + 7 archivos ajenos sin commitear); WANDORIUS bloqueado en `main` (primaria `wandorius`). Los pendientes restantes tienen porqué verifiable en `PLAN-corregir-1408.md` §7.
 3. `308A-2 / S2-08` — revisión SOLID, eficiencia y regresiones de la detección nueva.
 4. `308A-1` — gate Sentinel/VarSense en cinco proyectos; ver `PLAN-agregar-gate-proyectos.md`.
 
