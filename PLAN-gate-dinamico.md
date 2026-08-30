@@ -95,6 +95,13 @@ Como el runtime no expone schema en runtime, escalamos la **curation** con contr
 
 4. **Varsense**: sin runtime, su proveedor es 100% curación + `versionReferencia: '—'`. Cuando aparezca un binario/schema real, solo se implementa su método `reglas()`/reesquema: el editor no cambia.
 
+### Cómo añadir un proveedor nuevo (guía E3 — una fuente de verdad por versión, sin tocar el editor)
+
+1. **Definir el esquema curado** en `src/shared/gate/<tool>.ts`: exportar una factory `ESQUEMA_<TOOL>(): NodoEsquema` que construya los nodos tipados (`tipo`, `objeto`, `mapa`, `mapaCatalogo`, `listaDe`). Si la herramienta tiene un schema/runtime declarativo del que derivarlo, cuidarlo por versión y añadir una entrada al generador `sync-gate-schema`; si no, es curación pura (como `varsense`).
+2. **Registrar el proveedor** en `src/server/gate/proveedor.ts` mediante `registrarProveedor({ ... })`, implementando `esquema()`, `reglas()`, `versionReferencia()`, `runtimeInstalado()` y `fuente()`. Para una tool sin runtime: `reglas: () => []`, `runtimeInstalado: () => null`, `fuente: () => 'estatica'` (curación pura). Ampliar el tipo `TipoGate` en `proveedores.ts` con el nuevo valor.
+3. **Servir por la API** — ya automático: `esquemaGate(tool)` resuelve el proveedor y `GET /api/gate/dinamico?tool=<tool>` devuelve `{ metadatos, esquema (serializado), totalReglas }`. El editor no cambia: descubre realidades desde `diagnosticar`, despacha por forma del nodo.
+4. **Verificar**: `pnpm type-check`, `GET /api/gate/dinamico?tool=<tool>` responde con `fuente` correcta, y el consumidor (`PanelConfig`) lo pinta igual que sentinel/varsense; ningún `*.json` real se modifica. Si la tool gana runtime luego, solo se reimplementan `reglas()`/`runtimeInstalado()` (como sentinel): ninguna otra capa cambia.
+
 ## 5. "Dinámico todo" sin romper SOLID ni el alcance sin tocar
 
 Movimiento clave para escalar esta capa: **la resolución del esquema pasa al server y el cliente consume JSON por API.**
@@ -123,7 +130,14 @@ Esto cumple "todo dinámico" dentro de lo que el runtime permite: **reglas 100% 
 | **R2** | Cache por versión/mtime + fallback estático + observación en consola si falla | Matar runtime → editor cae a estático sin romper; console muestra "fuente estática" |
 | **E1** | `proveedores.ts` + API `/gate/dinamico` + `PanelConfig` consume esquema por fetch | type-check; preview: config de Glory-Laminal y varsense de RESTAURANTE idénticos a hoy pero servidos por API |
 | **E2** | `sync-gate-schema.mjs` generador + detección de desalineación | Script compara `.d.ts` 0.7.4 vs curación → 0 difs; cambiar versión → reporte claro |
-| **E3** | Proveedor varsense "curación pura" + doc de cómo añadir un proveedor nuevo | README/AGENTS.md corto: "para añadir herramienta: implementar ProveedorGate y registrarla" |
+| **E3** | Proveedor varsense "curación pura" + doc de cómo añadir un proveedor nuevo | ~~README/AGENTS.md corto~~ → guía E3 en §4 (pasos: esquema curado → registrar → servir por API); varsense ya registrado desde E1 |
+
+**E3 implementado** — `varsense` quedó registrado como proveedor de "curación
+pura" (sin runtime: `reglas: () => []`, `runtimeInstalado: () => null`,
+`fuente: 'estatica'`) y ya lo sirve `GET /api/gate/dinamico?tool=varsense` con
+fallback al embebido; se añadió la guía de cómo añadir un proveedor nuevo en §4.
+El frente dinámico del plan (R1, R2, E1, E2, E3) queda cerrado: sentinel reglas
+vivas + esquema servido por API + generador de sync; varsense curación pura.
 
 **E2 implementado** — `pnpm sync:gate` (script `.mjs`, corre con `tsx`). Parsea la
 interfaz `SentinelConfigFile` del `config.d.ts` instalado y la compara por forma
