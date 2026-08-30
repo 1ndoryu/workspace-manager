@@ -30,8 +30,10 @@ const ARCHIVO_A_TOOL: Partial<Record<(typeof ARCHIVOS)[number], TipoGate>> = {
   'varsense.config.json': 'varsense',
 };
 
-/* Vista del visor derecho: la lista de excepciones o la config de un proyecto. */
-type Vista = 'excepciones' | 'proyecto';
+/* Vista del visor derecho: excepciones, escaneo de sentinel o la config de
+ * un proyecto. [por que] El usario pidio que el escaneo tenga su propia
+ * opcion de menu y no viva embebido dentro de las excepciones. */
+type Vista = 'excepciones' | 'scan' | 'proyecto';
 
 interface GateRespuesta {
   clave: string;
@@ -287,6 +289,16 @@ export function PanelConfig() {
             >
               <span className="docsFilaNombre">excepciones ({ignorados.length})</span>
             </button>
+            <button
+              type="button"
+              className={`docsFila${vista === 'scan' ? ' docsFila--activa' : ''}`}
+              onClick={() => {
+                setVista('scan');
+                setClaveVisor(null);
+              }}
+            >
+              <span className="docsFilaNombre">escaneo sentinel</span>
+            </button>
           </div>
         </section>
         <section className="panelDocsSeccion">
@@ -318,14 +330,42 @@ export function PanelConfig() {
               <span className="panelDocsVisorTitulo">excepciones ({ignorados.length})</span>
             </header>
 
-            {/* Escaneo real de sentinel por proyecto (plan A2): config del
-             * auto-escaneo + boton 'Escanea todo'. [por que] Opt-in, apagado
-             * por defecto y el disparador vive en el cliente (timer aparte,
-             * A4): con la app cerrada no hay spawns. */}
+            {ignorados.length === 0 ? (
+              <div className="docsVacio">
+                no hay excepciones guardadas. usa el menú contextual (clic derecho) sobre un proyecto
+                para ignorarlo
+              </div>
+            ) : (
+              <div className="excListaContenido">
+                {/* [por que] Cada excepcion es una fila tipo lista: quitar la
+                 * vuelve a ser un proyecto visible al instante. */}
+                {ignorados.map((clave) => (
+                  <div key={clave} className="excFila">
+                    <span className="excFilaNombre">{clave}</span>
+                    <button
+                      type="button"
+                      className="excBoton"
+                      onClick={() => void alternarIgnorado(clave, false)}
+                      title="dejar de ignorar este proyecto"
+                    >
+                      quitar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Vista 'scan': config del auto-escaneo + boton 'Escanea todo'.
+         * [por que] El usuario pidio que el escaneo tenga su propia opcion
+         * de menu y no viva dentro de las excepciones. */}
+        {vista === 'scan' && (
+          <>
+            <header className="panelDocsVisorCabecera">
+              <span className="panelDocsVisorTitulo">escaneo de sentinel</span>
+            </header>
             <section className="scanCfg" aria-label="Escaneo de sentinel">
-              <header className="scanCfgCabecera">
-                <span className="scanCfgTitulo">escaneo de sentinel</span>
-              </header>
               <div className="scanCfgFila">
                 <label className="scanCfgEtiqueta" htmlFor="scan-auto">
                   análisis automático
@@ -383,31 +423,6 @@ export function PanelConfig() {
               )}
               {scanAviso && <div className="scanCfgAviso">{scanAviso}</div>}
             </section>
-
-            {ignorados.length === 0 ? (
-              <div className="docsVacio">
-                no hay excepciones guardadas. usa el menú contextual (clic derecho) sobre un proyecto
-                para ignorarlo
-              </div>
-            ) : (
-              <div className="excListaContenido">
-                {/* [por que] Cada excepcion es una fila tipo lista: quitar la
-                 * vuelve a ser un proyecto visible al instante. */}
-                {ignorados.map((clave) => (
-                  <div key={clave} className="excFila">
-                    <span className="excFilaNombre">{clave}</span>
-                    <button
-                      type="button"
-                      className="excBoton"
-                      onClick={() => void alternarIgnorado(clave, false)}
-                      title="dejar de ignorar este proyecto"
-                    >
-                      quitar
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </>
         )}
 

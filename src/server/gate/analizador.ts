@@ -256,3 +256,10 @@ export async function analizarTodo(
 export function leerAnalisis(clave: string): AnalisisSentinel | null {
   return cache.get(clave)?.dato ?? null;
 }
+
+/* Sirve TODA la cache persistida (para rehidratar el store del cliente al
+ * recargar la pagina, sin volver a analizar). El cliente la pide una vez al
+ * arrancar; si un proyecto aun no se analizo, simplemente no aparece. */
+export function leerTodas(): AnalisisSentinel[] {
+  return [...cache.values()].map((e) => e.dato);
+}

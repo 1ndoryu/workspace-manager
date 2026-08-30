@@ -9,8 +9,8 @@ import { escanearWorkspace, claveDe, resumenDe } from './scanner/workspace.js';
 import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
 import { cambiarIgnorado, guardarConfigScan, leerConfigArea } from './configArea.js';
 import { esquemaGate, reglasGate } from './gate/proveedor.js';
-import { analizarProyecto, analizarTodo, esElegible, leerAnalisis } from './gate/analizador.js';
-import type { ConfigScan, SnapshotWorkspace } from '../shared/types.js';
+import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from './gate/analizador.js';
+import type { AnalisisSentinel, ConfigScan, SnapshotWorkspace } from '../shared/types.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || 'C:/Users/Owner/.agents/skills';
@@ -297,13 +297,24 @@ export function crearServidor() {
           });
           return;
         }
-        /* Cache de un analisis (para counts en la consola sin volcar hallazgos). */
+        /* Cache de analisis. GET sin ?clave devuelve TODA la cache persistida
+         * para que el cliente rehidrate el store al recargar (sin volver a
+         * analizar); con ?clave solo el de un proyecto. [por que] Sin esto, al
+         * recargar la pagina se perdia toda la info de analisis aunque el
+         * servidor la tuviera cacheada en disco. */
         if (ruta === '/api/gate/analisis') {
           if (req.method !== 'GET') {
             json(res, 405, { error: 'Metodo no permitido' });
             return;
           }
           const clave = url.searchParams.get('clave') ?? '';
+          if (clave === '') {
+            const analisis = leerTodas();
+            const porClave: Record<string, AnalisisSentinel> = {};
+            for (const a of analisis) porClave[a.clave] = a;
+            json(res, 200, { total: analisis.length, analisis: porClave });
+            return;
+          }
           json(res, 200, { clave, analisis: leerAnalisis(clave) });
           return;
         }

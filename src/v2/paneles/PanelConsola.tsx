@@ -148,10 +148,9 @@ export function PanelConsola() {
     return snapshot.proyectos.map(problemasDe).filter((x): x is Problema => x !== null);
   }, [snapshot]);
 
-  /* Hallazgos de sentinel por proyecto (solo de los ya analizados). Los
-   * proyectos de 'sentinel' se listan en su propio filtro; su conteo NO entra
-   * en 'todos' (decision del usuario: hint/information no es un problema de
-   * config y mezclarlo es ruido). */
+  /* Hallazgos de sentinel por proyecto (solo de los ya analizados). Viven en
+   * su propio filtro 'análisis', y su conteo SI entra en el total 'todos'
+   * (decision del usuario: la cabecera debe sumar lo que detecta el análisis). */
   const problemasSentinel = useMemo(() => {
     if (!snapshot) return [];
     return snapshot.proyectos
@@ -159,22 +158,37 @@ export function PanelConsola() {
       .filter((x): x is Problema => x !== null);
   }, [snapshot, analisis]);
 
+  /* 'todos' fusiona los problemas regulares con los hallazgos de sentinel
+   * AGRUPADOS por proyecto (un proyecto con ambos tipos sale una sola vez con
+   * sus entradas combinadas y sus badges). */
+  const problemasTodo = useMemo(() => {
+    const porProyecto = new Map<string, Problema>();
+    const poner = (pr: Problema) => {
+      const ex = porProyecto.get(pr.p.ruta);
+      if (ex) ex.entradas.push(...pr.entradas);
+      else porProyecto.set(pr.p.ruta, pr);
+    };
+    problemas.forEach(poner);
+    problemasSentinel.forEach(poner);
+    return [...porProyecto.values()];
+  }, [problemas, problemasSentinel]);
+
   const visibles = useMemo(() => {
     if (filtro === 'sentinel') return problemasSentinel;
-    if (filtro === 'todos') return problemas;
+    if (filtro === 'todos') return problemasTodo;
     return problemas.filter((pr) => pr.entradas.some((e) => e.categoria === filtro));
-  }, [problemas, problemasSentinel, filtro]);
+  }, [problemas, problemasSentinel, problemasTodo, filtro]);
 
   /* El conteo es por PROBLEMA individual (entradas), no por proyecto.
    * [por que] Un proyecto puede agrupar varias lineas; contarlo como 1
    * hacía que el total no coincidiera con las lineas visibles al abrir.
-   * 'todos' suma las entradas NO-sentinel; 'sentinel' suma sus hallazgos
-   * aparte (nunca se mezclan). Cada filtro conserva su conteo. */
+   * 'todos' suma las entradas regulares + los hallazgos de sentinel;
+   * 'sentinel' suma solo sus hallazgos (su propio filtro). */
   const contar = (clave: 'todos' | Categoria): number => {
     if (clave === 'sentinel') {
       return problemasSentinel.reduce((n, pr) => n + pr.entradas.length, 0);
     }
-    if (clave === 'todos') return problemas.reduce((n, pr) => n + pr.entradas.length, 0);
+    if (clave === 'todos') return problemasTodo.reduce((n, pr) => n + pr.entradas.length, 0);
     return problemas.reduce((n, pr) => n + pr.entradas.filter((e) => e.categoria === clave).length, 0);
   };
 

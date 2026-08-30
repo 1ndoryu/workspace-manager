@@ -130,6 +130,9 @@ interface EstadoWorkspace {
   cargar: (forzar?: boolean) => Promise<void>;
   cargarReglas: () => Promise<void>;
   cargarEsquema: (tool: TipoGate) => Promise<NodoEsquema | undefined>;
+  /* Rehidrata el estado de analisis desde la cache persistida del server al
+   * arrancar, para que al recargar no se pierda la info ya analizada. */
+  cargarAnalisis: () => Promise<void>;
   seleccionar: (id: string | null) => void;
   setFiltro: (f: EstadoWorkspace['filtro']) => void;
   setBuscar: (b: string) => void;
@@ -282,6 +285,24 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
     } catch (err) {
       const detalle = (err as { response?: { data?: { detalle?: string } } })?.response?.data?.detalle;
       throw new Error(detalle ?? 'no se pudo guardar la config');
+    }
+  },
+
+  /* Rehidrata el estado de analisis desde la cache del server (get de toda la
+   * cache persistida). [por que] El analisis solo se guarda en el store durante
+   * la sesion; sin esto, al recargar la pagina se perdia toda la info aunque el
+   * server siguiera cacheandola en disco. Best-effort: si falla, no rompe el
+   * arranque. */
+  cargarAnalisis: async () => {
+    try {
+      const { data } = await axios.get<{ total: number; analisis: Record<string, AnalisisSentinel> }>(
+        '/api/gate/analisis',
+      );
+      if (data && typeof data.analisis === 'object') {
+        set((s) => ({ analisis: { ...s.analisis, ...data.analisis } }));
+      }
+    } catch (err) {
+      console.warn('[workspace] no se pudo rehidratar el analisis guardado:', err);
     }
   },
 
