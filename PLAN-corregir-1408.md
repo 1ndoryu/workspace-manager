@@ -74,14 +74,25 @@
 
 - `sqlx::query!` requiere `DATABASE_URL` en compile-time y feature `macros` de sqlx; si el build del
   proyecto no lo soporta, la conversión masiva rompe el build → se documenta como restricción real.
-- **F4-Rust (baja presencial, confirmado 2026-08-30):** el crate de RESTAURANTE **no compila** en este
-  entorno ni siquiera en árbol limpio: `cargo check --tests` falla por schema drift preexistente en
-  `src/repositories/venta.rs:419` (`sqlx::query!` pide la columna `haddock_synced_at`, ausente en la
-  BD local 127.0.0.1:5432 glory_db). Por eso NINGÚN refactor Rust (`funcion-larga-rs`, `parametros-excesivos-rs`)
-  puede verificarse con cargo aquí: es un bloqueo de build preexistente ajeno a cualquier extracción.
-  Se intentó un split bajo-riesgo (extraer la auditoría en `bdp_pago.rs::insertar_local` a un helper
-  privado), se revirtió al constatarse que no hay forma de `cargo check`; el frente queda bloqueado
-  hasta subsanar el drift del schema (fuera del alcance de este plan).
+- **F4-Rust (resuelto 2026-08-30):** el supuesto bloqueo de schema drift era en realidad **disco lleno**
+  (`C:` al 100%, 29 MB libres), no un problema de esquema. La migración `20260406100000_haddock_venta_tracking.up.sql`
+  **sí** define `haddock_synced_at` (el query es correcto), y la ruta de build oficial usa la caché
+  offline `.sqlx` (`SQLX_OFFLINE=true`). Tras limpiar `/c/tmp` (29M → 12G libres) y bajar el límite de
+  cuota a 7 GB, `node scripts/run-cargo.mjs check --tests` con `SQLX_OFFLINE=true` **compila en verde
+  (exit 0)** en árbol limpio. La verificación Rust quedó restaurada: los refactors `funcion-larga-rs`,
+  `parametros-excesivos-rs`, `handler-accede-bd-rs` etc. son de nuevo verificables con cargo.
+- **F4-Rust (avance 2026-08-30):** con la verificación restaurada, RESTAURANTE bajó **123 → 120** vía
+  splits limpios de `funcion-larga-rs`, uno a la vez, cada uno verificado con `run-cargo.mjs check --tests`
+  (offline `.sqlx`) y commiteado por lote: `bdp_pago::insertar_local` → helper `auditar_pago_local`
+  (`ca5a0546`), `bdp_explorer::explorar_bdp_completo` → helper `explorar_categoria` (`6e196609`),
+  `bdp_backup::restaurar_glory` → `restaurar_mapeos`+`restaurar_clientes` (`2fa1e652`).
+- **Piso honesto alcanzado en 120:** los `funcion-larga-rs` restantes son monolitos de 130–291 líneas en
+  `bdp_sync.rs` (fuera de ruta por disciplina) o bien funciones de sync/handler de gran superficie
+  (`sincronizar_cliente_bdp` 263, `sync_venta` 291, `poll_pending` 172) cuyo split arriesga el contrato;
+  `bdp_write_guard::authorize` (141) es una transacción deliberadamente lineal documentada (`#[allow(clippy::too_many_lines)]`
+  + nota `[187A-1]`: lock→ambigüedad→consumo→auditoría→kill switch indivisibles). Los 11
+  `parametros-excesivos-rs` restantes cambian la firma pública de `list`/`update`/`crear_pared` con muchos
+  llamadores, fuera de la vía de riesgo bajo. Dichos frentes quedan como pendiente documentado, no se fuerzan.
 - RESTAURANTE con 111 cambios ajenos: tocar archivos sucios está prohibido por la disciplina del hilo.
 - Push queda fuera salvo confirmación explícita por repo.
 
