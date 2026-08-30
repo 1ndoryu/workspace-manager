@@ -59,6 +59,7 @@ const layoutInicial = layoutGuardado();
 
 export function AppV2() {
   const cargar = useWorkspaceStore((s) => s.cargar);
+  const cargarAnalisis = useWorkspaceStore((s) => s.cargarAnalisis);
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const cargando = useWorkspaceStore((s) => s.cargando);
   const error = useWorkspaceStore((s) => s.error);
@@ -72,7 +73,10 @@ export function AppV2() {
 
   useEffect(() => {
     void cargar();
-  }, [cargar]);
+    /* Rehidrata la info de analisis guardada del server (no se pierde al
+     * recargar). Se lanza en paralelo a cargar(). */
+    void cargarAnalisis();
+  }, [cargar, cargarAnalisis]);
 
   /* Persiste el layout en cada cambio para sobrevivir a recargas. */
   useEffect(() => {
