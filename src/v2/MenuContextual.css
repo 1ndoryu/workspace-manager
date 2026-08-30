@@ -6,7 +6,10 @@
   z-index: 1000;
   min-width: 150px;
   background: var(--v2-fondo, #fff);
-  border: var(--v2-borde, 1px solid #000);
+  /* [por que] --v2-borde es solo el COLOR (#000); el shorthand necesita
+   * espesor+tipo. Antes `border: var(--v2-borde, ...)` se resolvía a
+   * `border: #000` (inválido) y el borde se descartaba. */
+  border: 1px solid var(--v2-borde, #000);
   padding: 4px;
   display: flex;
   flex-direction: column;
@@ -25,11 +28,4 @@
   text-align: left;
   padding: 5px 10px;
   cursor: pointer;
-  border-bottom: 1px solid var(--v2-borde, #000);
-}
-
-/* El ultimo item no repite el divisor inferior, para no duplicar borde con
- * el del menu. */
-.menuContextualItem:last-child {
-  border-bottom: none;
 }
