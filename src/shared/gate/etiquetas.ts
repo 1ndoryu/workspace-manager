@@ -11,6 +11,9 @@
 export interface InfoSegmento {
   nombre: string;
   descripcion?: string;
+  /* Explicacion detallada para el tooltip del editor: breve, clara y
+   * suficiente para entender de que trata la opcion sin mirar la doc. */
+  detalle?: string;
 }
 
 /* Traduccion por segmento tecnico de ruta. La clave es el segmento EXACTO
@@ -18,74 +21,306 @@ export interface InfoSegmento {
  * se muestra tal cual (fallback). */
 const CATALOGO: Record<string, InfoSegmento> = {
   /* ---- Raiz de sentinel.config.json ---- */
-  schemaVersion: { nombre: 'Versión del esquema', descripcion: 'Versión del formato del archivo de configuración.' },
-  mode: { nombre: 'Modo de operación', descripcion: 'Cómo aplica Sentinel las reglas (advisory = solo advierte).' },
-  project: { nombre: 'Proyecto', descripcion: 'Identidad del repositorio (rama primaria, etc.).' },
-  primaryBranch: { nombre: 'Rama primaria', descripcion: 'Rama principal del repositorio (normalmente main o master).' },
-  includePatterns: { nombre: 'Patrones incluidos', descripcion: 'Archivos que el analizador considera en el análisis.' },
-  excludePatterns: { nombre: 'Patrones excluidos', descripcion: 'Archivos excluidos del análisis.' },
-  directoryExceptions: { nombre: 'Excepciones de directorios', descripcion: 'Carpetas que el analizador ignora por completo.' },
-  rules: { nombre: 'Reglas', descripcion: 'Reglas activas del analizador y su severidad.' },
-  portableBoundaries: { nombre: 'Límites portables', descripcion: 'Fronteras que el analizador debe respetar entre módulos.' },
-  dom: { nombre: 'DOM', descripcion: 'Funciones o variables del DOM permitidas.' },
-  window: { nombre: 'Window', descripcion: 'Accesos globales a window permitidos.' },
-  services: { nombre: 'Servicios', descripcion: 'Servicios o módulos de servicio permitidos.' },
-  loggerModules: { nombre: 'Módulos de log', descripcion: 'Módulos de logging permitidos.' },
-  gate: { nombre: 'Gate', descripcion: 'Configuración del comando de cierre (gate).' },
-  command: { nombre: 'Comando', descripcion: 'Comandos permitidos al ejecutar el gate.' },
-  taskIdRequired: { nombre: 'ID de tarea obligatorio', descripcion: 'Exige un ID de tarea para cerrar el gate.' },
-  guard: { nombre: 'Guard', descripcion: 'Comandos directos protegidos por el guard.' },
-  directCommands: { nombre: 'Comandos directos', descripcion: 'Comandos que se ejecutan directamente sin intermediarios.' },
-  runtime: { nombre: 'Runtime', descripcion: 'Versiones y archivos del runtime de Sentinel.' },
-  minimumVersion: { nombre: 'Versión mínima', descripcion: 'Versión mínima de Sentinel requerida.' },
-  protocolVersion: { nombre: 'Versión del protocolo', descripcion: 'Versión del protocolo del lock file.' },
-  lockFile: { nombre: 'Archivo de lock', descripcion: 'Nombre del archivo de lock generado por Sentinel.' },
-  analyzers: { nombre: 'Analizadores', descripcion: 'Analizadores activos y su configuración.' },
-  sentinel: { nombre: 'Sentinel', descripcion: 'Configuración del analizador Sentinel.' },
-  enabled: { nombre: 'Habilitado', descripcion: 'Activa o desactiva esta opción.' },
-  config: { nombre: 'Configuración', descripcion: 'Configuración del analizador (se anida al esquema).' },
-  profile: { nombre: 'Perfil', descripcion: 'Perfil de análisis activo.' },
+  schemaVersion: {
+    nombre: 'Versión del esquema',
+    descripcion: 'Versión del formato del archivo de configuración.',
+    detalle: 'Indica la versión del formato de sentinel.config.json que entiende este runtime de Sentinel. No la cambies a mano: debe coincidir con la versión que espera la instalada.',
+  },
+  mode: {
+    nombre: 'Modo de operación',
+    descripcion: 'Cómo aplica Sentinel las reglas (advisory = solo advierte).',
+    detalle: 'Define cómo aplica Sentinel las reglas. El valor habitual es advisory, que solo informa y advierte sin bloquear; otros modos pueden exigir cumplimiento estricto antes de cerrar.',
+  },
+  project: {
+    nombre: 'Proyecto',
+    descripcion: 'Identidad del repositorio (rama primaria, etc.).',
+    detalle: 'Identifica el repositorio que vigila Sentinel. Aquí se declara la rama primaria sobre la que se integra el trabajo y contra la que se validan las ramas de tarea.',
+  },
+  primaryBranch: {
+    nombre: 'Rama primaria',
+    descripcion: 'Rama principal del repositorio (normalmente main o master).',
+    detalle: 'Rama principal del repositorio, normalmente main o master. Sentinel la usa como destino de integración y como referencia para validar claims y ramas de tarea.',
+  },
+  includePatterns: {
+    nombre: 'Patrones incluidos',
+    descripcion: 'Archivos que el analizador considera en el análisis.',
+    detalle: 'Lista de patrones glob de archivos que el analizador SÍ considera. Si está vacía, se asume que analiza todo el proyecto. Útil para limitar el análisis a ciertas carpetas o extensiones.',
+  },
+  excludePatterns: {
+    nombre: 'Patrones excluidos',
+    descripcion: 'Archivos excluidos del análisis.',
+    detalle: 'Lista de patrones glob de archivos que el analizador se salta por completo. Se usa para build, código generado, dependencias o plantillas que no deben evaluarse.',
+  },
+  directoryExceptions: {
+    nombre: 'Excepciones de directorios',
+    descripcion: 'Carpetas que el analizador ignora por completo.',
+    detalle: 'Carpetas que el analizador ignora por completo y no recorre, p. ej. node_modules, dist o .git. Útil cuando un directorio tiene código que no debe evaluarse.',
+  },
+  rules: {
+    nombre: 'Reglas',
+    descripcion: 'Reglas activas del analizador y su severidad.',
+    detalle: 'Reglas activas del analizador. Cada regla puede activarse o desactivarse con habilitada y ajustar su severidad (error, warning, information, hint).',
+  },
+  portableBoundaries: {
+    nombre: 'Límites portables',
+    descripcion: 'Fronteras que el analizador debe respetar entre módulos.',
+    detalle: 'Fronteras entre capas o módulos portables que el analizador debe respetar. Aquí declaras qué símbolos globales (DOM, window, servicios, logs) están permitidos en cada frontera.',
+  },
+  dom: {
+    nombre: 'DOM',
+    descripcion: 'Funciones o variables del DOM permitidas.',
+    detalle: 'Funciones o variables del DOM que se permiten cruzar la frontera portable sin marcarlas como violación.',
+  },
+  window: {
+    nombre: 'Window',
+    descripcion: 'Accesos globales a window permitidos.',
+    detalle: 'Accesos globales a window que están permitidos en el código, p. ej. window.location o window.fetch.',
+  },
+  services: {
+    nombre: 'Servicios',
+    descripcion: 'Servicios o módulos de servicio permitidos.',
+    detalle: 'Módulos de servicio que pueden cruzarse en la frontera portable y no se consideran violación.',
+  },
+  loggerModules: {
+    nombre: 'Módulos de log',
+    descripcion: 'Módulos de logging permitidos.',
+    detalle: 'Módulos de logging permitidos a través de la frontera portable, para que el código pueda registrar sin violar los límites.',
+  },
+  gate: {
+    nombre: 'Gate',
+    descripcion: 'Configuración del comando de cierre (gate).',
+    detalle: 'Configura el comando de cierre (gate): qué comandos puede ejecutar al cerrar una tarea y si exige un ID de tarea para hacerlo.',
+  },
+  command: {
+    nombre: 'Comando',
+    descripcion: 'Comandos permitidos al ejecutar el gate.',
+    detalle: 'Comandos que el gate permite ejecutar al cerrar una tarea. Solo estos comandos pasan el control de cierre.',
+  },
+  taskIdRequired: {
+    nombre: 'ID de tarea obligatorio',
+    descripcion: 'Exige un ID de tarea para cerrar el gate.',
+    detalle: 'Si está activado, el gate exige un ID de tarea para cerrar. Evita cerrar trabajo sin trazabilidad y asegura que cada cierre corresponde a una tarea registrada.',
+  },
+  guard: {
+    nombre: 'Guard',
+    descripcion: 'Comandos directos protegidos por el guard.',
+    detalle: 'Protege comandos directos: define qué comandos pueden ejecutarse sin pasar por el flujo normal de coordinación. Es una lista de excepciones controladas.',
+  },
+  directCommands: {
+    nombre: 'Comandos directos',
+    descripcion: 'Comandos que se ejecutan directamente sin intermediarios.',
+    detalle: 'Mapa de comandos que se ejecutan directamente, sin intermediarios. Cada entrada define un comando directo permitido y su configuración.',
+  },
+  runtime: {
+    nombre: 'Runtime',
+    descripcion: 'Versiones y archivos del runtime de Sentinel.',
+    detalle: 'Declara la versión mínima de Sentinel, la versión del protocolo del lock y el nombre del lock file. Sirve para validar que la instalación coincide con lo que espera el proyecto.',
+  },
+  minimumVersion: {
+    nombre: 'Versión mínima',
+    descripcion: 'Versión mínima de Sentinel requerida.',
+    detalle: 'Versión mínima de Sentinel requerida para operar. Si la versión instalada es menor, el gate avisa o falla según la configuración.',
+  },
+  protocolVersion: {
+    nombre: 'Versión del protocolo',
+    descripcion: 'Versión del protocolo del lock file.',
+    detalle: 'Versión del protocolo del lock file (sentinel.lock.json). Define la compatibilidad del formato de lock entre versiones de Sentinel.',
+  },
+  lockFile: {
+    nombre: 'Archivo de lock',
+    descripcion: 'Nombre del archivo de lock generado por Sentinel.',
+    detalle: 'Nombre del archivo de lock que genera Sentinel al coordinar tareas. Se usa para guardar el estado de coordinación y evitar conflictos.',
+  },
+  analyzers: {
+    nombre: 'Analizadores',
+    descripcion: 'Analizadores activos y su configuración.',
+    detalle: 'Lista de analizadores activos (sentinel, varsense, php, sql…) y su configuración. Cada analizador tiene enabled (activo), profile (perfil) y config (ajustes).',
+  },
+  sentinel: {
+    nombre: 'Sentinel',
+    descripcion: 'Configuración del analizador Sentinel.',
+    detalle: 'Configuración del analizador Sentinel dentro de analyzers. Aquí se activa, se elige el perfil y se anidan los ajustes de análisis.',
+  },
+  enabled: {
+    nombre: 'Habilitado',
+    descripcion: 'Activa o desactiva esta opción.',
+    detalle: 'Activa o desactiva esta opción. Desactivada no se evalúa ni se reporta.',
+  },
+  config: {
+    nombre: 'Configuración',
+    descripcion: 'Configuración del analizador (se anida al esquema).',
+    detalle: 'Configuración específica del analizador. Puede ser un objeto anidado con las mismas opciones del esquema o una ruta a otro archivo de configuración.',
+  },
+  profile: {
+    nombre: 'Perfil',
+    descripcion: 'Perfil de análisis activo.',
+    detalle: 'Perfil de análisis que usa este analizador. Si está vacío, se usa la configuración por defecto del proyecto.',
+  },
 
   /* ---- Raiz de varsense.config.json ---- */
-  variableFiles: { nombre: 'Archivos de variables', descripcion: 'Archivos que definen variables de entorno.' },
-  scanAllFiles: { nombre: 'Escanear todos los archivos', descripcion: 'Analiza todos los archivos, no solo los de variables.' },
-  hardcodedDetection: { nombre: 'Detección de valores fijos', descripcion: 'Detecta secretos o valores hardcodeados.' },
-  allowedValues: { nombre: 'Valores permitidos', descripcion: 'Valores que no se marcan como sospechosos.' },
-  properties: { nombre: 'Propiedades', descripcion: 'Propiedades o claves a analizar.' },
-  inlineDetection: { nombre: 'Detección en línea', descripcion: 'Detecta valores en el código, no solo en variables.' },
-  tokenDetection: { nombre: 'Detección de tokens', descripcion: 'Detecta tokens duplicados o sin usar.' },
-  duplicate: { nombre: 'Duplicados', descripcion: 'Detecta tokens duplicados.' },
-  unused: { nombre: 'Sin uso', descripcion: 'Detecta tokens definidos pero sin usar.' },
-  bannedProperties: { nombre: 'Propiedades prohibidas', descripcion: 'Propiedades que no se permiten en el código.' },
-  orphanClassDetection: { nombre: 'Detección de clases huérfanas', descripcion: 'Detecta clases CSS sin usar.' },
-  minClassLength: { nombre: 'Longitud mínima de clase', descripcion: 'Tamaño mínimo para considerar una clase sospechosa.' },
-  excludeClassPatterns: { nombre: 'Patrones de clase excluidos', descripcion: 'Clases que no se analizan.' },
+  variableFiles: {
+    nombre: 'Archivos de variables',
+    descripcion: 'Archivos que definen variables de entorno.',
+    detalle: 'Archivos que definen variables de entorno, p. ej. .env, .env.local o .env.production. VarSense los lee para conocer los tokens y variables del proyecto.',
+  },
+  scanAllFiles: {
+    nombre: 'Escanear todos los archivos',
+    descripcion: 'Analiza todos los archivos, no solo los de variables.',
+    detalle: 'Si está activado, analiza todos los archivos del proyecto, no solo los de variables. Útil para detectar valores hardcodeados en cualquier parte del código.',
+  },
+  hardcodedDetection: {
+    nombre: 'Detección de valores fijos',
+    descripcion: 'Detecta secretos o valores hardcodeados.',
+    detalle: 'Detecta valores fijos sospechosos (secretos, claves API, tokens) escritos directamente en el código en lugar de usar variables de entorno.',
+  },
+  allowedValues: {
+    nombre: 'Valores permitidos',
+    descripcion: 'Valores que no se marcan como sospechosos.',
+    detalle: 'Lista de valores que NO se marcan como sospechosos aunque parezcan secretos, p. ej. placeholders de ejemplo como your-api-key o test.',
+  },
+  properties: {
+    nombre: 'Propiedades',
+    descripcion: 'Propiedades o claves a analizar.',
+    detalle: 'Propiedades o claves a vigilar. Cada entrada define si la propiedad está habilitada o no para la detección.',
+  },
+  inlineDetection: {
+    nombre: 'Detección en línea',
+    descripcion: 'Detecta valores en el código, no solo en variables.',
+    detalle: 'Detecta valores sospechosos directamente en el código fuente, no solo en archivos de variables. Complementa a hardcodedDetection.',
+  },
+  tokenDetection: {
+    nombre: 'Detección de tokens',
+    descripcion: 'Detecta tokens duplicados o sin usar.',
+    detalle: 'Detecta problemas con tokens del proyecto: duplicados (misma clave en varios sitios) o sin uso (definidos pero nunca referenciados).',
+  },
+  duplicate: {
+    nombre: 'Duplicados',
+    descripcion: 'Detecta tokens duplicados.',
+    detalle: 'Detecta tokens o variables definidos más de una vez con el mismo nombre. Ayuda a evitar ambigüedad entre archivos de variables.',
+  },
+  unused: {
+    nombre: 'Sin uso',
+    descripcion: 'Detecta tokens definidos pero sin usar.',
+    detalle: 'Detecta tokens o variables definidos pero nunca usados en el código. Ayuda a mantener las variables de entorno limpias.',
+  },
+  bannedProperties: {
+    nombre: 'Propiedades prohibidas',
+    descripcion: 'Propiedades que no se permiten en el código.',
+    detalle: 'Propiedades o claves que están prohibidas en el código. Si aparece alguna, se reporta con la severidad configurada.',
+  },
+  orphanClassDetection: {
+    nombre: 'Detección de clases huérfanas',
+    descripcion: 'Detecta clases CSS sin usar.',
+    detalle: 'Detecta clases CSS definidas pero nunca usadas en el código. Ayuda a detectar estilos muertos que ensucian la hoja de estilos.',
+  },
+  minClassLength: {
+    nombre: 'Longitud mínima de clase',
+    descripcion: 'Tamaño mínimo para considerar una clase sospechosa.',
+    detalle: 'Longitud mínima del nombre de una clase para considerarla huérfana. Los nombres muy cortos (p. ej. .a) se ignoran para evitar falsos positivos.',
+  },
+  excludeClassPatterns: {
+    nombre: 'Patrones de clase excluidos',
+    descripcion: 'Clases que no se analizan.',
+    detalle: 'Patrones de clases CSS que nunca se analizan como huérfanas, p. ej. clases de librerías o utilitarias que se usan dinámicamente.',
+  },
 
   /* ---- Claves comunes ---- */
-  severity: { nombre: 'Severidad', descripcion: 'Nivel de severidad del hallazgo (error, warning, etc.).' },
-  mapa: { nombre: 'Mapa', descripcion: 'Pares clave-valor.' },
+  severity: {
+    nombre: 'Severidad',
+    descripcion: 'Nivel de severidad del hallazgo (error, warning, etc.).',
+    detalle: 'Nivel de severidad con el que se reporta un hallazgo: error (bloquea), warning (avisa), information (informa) o hint (sugerencia).',
+  },
+  mapa: {
+    nombre: 'Mapa',
+    descripcion: 'Pares clave-valor.',
+    detalle: 'Colección de pares clave-valor. Cada clave del mapa se trata como una entrada independiente.',
+  },
 
   /* ---- Claves de config de una regla (REGLA en sentinel.ts) ---- */
-  habilitada: { nombre: 'Habilitada', descripcion: 'Activa o desactiva esta regla.' },
-  severidad: { nombre: 'Severidad', descripcion: 'Severidad con la que se reporta la regla.' },
+  habilitada: {
+    nombre: 'Habilitada',
+    descripcion: 'Activa o desactiva esta regla.',
+    detalle: 'Activa o desactiva esta regla. Desactivada no se evalúa y no genera hallazgos.',
+  },
+  severidad: {
+    nombre: 'Severidad',
+    descripcion: 'Severidad con la que se reporta la regla.',
+    detalle: 'Severidad con la que se reporta la regla: error (bloquea el gate), warning, information o hint.',
+  },
 
   /* ---- Reglas estaticas conocidas (CATALOGO_REGLAS en reglas.ts).
    * Las reglas dinamicas de cada proyecto (no en el catalogo) caen al
    * fallback tecnico, que es el comportamiento correcto (nunca vacio). ---- */
-  'at-generico-php': { nombre: '@ genérico en PHP', descripcion: 'Detecta el supresor de errores @ en código PHP.' },
-  'barras-decorativas': { nombre: 'Barras decorativas', descripcion: 'Detecta bloques de comentario solo decorativos.' },
-  'catch-vacio': { nombre: 'Catch vacío', descripcion: 'Detecta bloques catch que se tragan el error.' },
-  'css-adhoc-button-style': { nombre: 'Estilo CSS ad-hoc en botones', descripcion: 'Detecta estilos de botón definidos a mano en lugar de usar el sistema de diseño.' },
-  'emoji-en-codigo': { nombre: 'Emoji en código', descripcion: 'Detecta emojis en el código fuente.' },
-  'eval-prohibido': { nombre: 'Eval prohibido', descripcion: 'Detecta el uso de eval o equivalentes inseguros.' },
-  'git-add-all': { nombre: 'Git add all', descripcion: 'Detecta git add . o git add -A.' },
-  'hardcoded-secret': { nombre: 'Secreto hardcodeado', descripcion: 'Detecta secretos o credenciales en el código.' },
-  'inline-style-prohibido': { nombre: 'Estilo inline prohibido', descripcion: 'Detecta estilos CSS inline en el HTML.' },
-  'innerhtml-variable': { nombre: 'InnerHTML con variable', descripcion: 'Detecta asignaciones de innerHTML con contenido dinámico.' },
-  'php-supresor-at': { nombre: 'Supresor @ en PHP', descripcion: 'Detecta el operador de supresión de errores @ en PHP.' },
-  'sqlx-query-as-sin-macro': { nombre: 'SQLx query_as sin macro', descripcion: 'Detecta query_as sin la macro verificada en compile-time.' },
-  'sqlx-query-sin-macro': { nombre: 'SQLx query sin macro', descripcion: 'Detecta query sin la macro verificada en compile-time.' },
-  'todo-pendiente': { nombre: 'TODO pendiente', descripcion: 'Detecta comentarios TODO/FIXME sin resolver.' },
+  'at-generico-php': {
+    nombre: '@ genérico en PHP',
+    descripcion: 'Detecta el supresor de errores @ en código PHP.',
+    detalle: 'Detecta el uso del supresor de errores @ en PHP. Oculta errores reales y dificulta el diagnóstico; es mejor manejarlos explícitamente.',
+  },
+  'barras-decorativas': {
+    nombre: 'Barras decorativas',
+    descripcion: 'Detecta bloques de comentario solo decorativos.',
+    detalle: 'Detecta bloques de comentario puramente decorativos (líneas de barras o adornos). Añaden ruido sin aportar información; se prefieren comentarios con contenido.',
+  },
+  'catch-vacio': {
+    nombre: 'Catch vacío',
+    descripcion: 'Detecta bloques catch que se tragan el error.',
+    detalle: 'Detecta bloques catch que capturan una excepción y no hacen nada, tragándose el error en silencio. Mejor registrar el error o propagarlo.',
+  },
+  'css-adhoc-button-style': {
+    nombre: 'Estilo CSS ad-hoc en botones',
+    descripcion: 'Detecta estilos de botón definidos a mano en lugar de usar el sistema de diseño.',
+    detalle: 'Detecta estilos de botón definidos a mano en lugar de usar el sistema de diseño del proyecto. Mantiene la interfaz consistente y reutilizable.',
+  },
+  'emoji-en-codigo': {
+    nombre: 'Emoji en código',
+    descripcion: 'Detecta emojis en el código fuente.',
+    detalle: 'Detecta emojis en el código fuente. Suelen colarse en mensajes o textos de interfaz y pueden romper codificaciones o estilos.',
+  },
+  'eval-prohibido': {
+    nombre: 'Eval prohibido',
+    descripcion: 'Detecta el uso de eval o equivalentes inseguros.',
+    detalle: 'Detecta el uso de eval o equivalentes inseguros. Ejecutar código desde cadenas es un riesgo de seguridad y dificulta el análisis estático.',
+  },
+  'git-add-all': {
+    nombre: 'Git add all',
+    descripcion: 'Detecta git add . o git add -A.',
+    detalle: 'Detecta git add . o git add -A. Añadir todo sin revisar puede incluir basura, artefactos o secretos en el commit; se prefiere añadir por archivo.',
+  },
+  'hardcoded-secret': {
+    nombre: 'Secreto hardcodeado',
+    descripcion: 'Detecta secretos o credenciales en el código.',
+    detalle: 'Detecta secretos o credenciales escritos literalmente en el código (API keys, contraseñas, tokens). Deben ir en variables de entorno, nunca en el código.',
+  },
+  'inline-style-prohibido': {
+    nombre: 'Estilo inline prohibido',
+    descripcion: 'Detecta estilos CSS inline en el HTML.',
+    detalle: 'Detecta estilos CSS inline en HTML o JSX. Dificultan mantener el diseño centralizado; se prefiere usar clases y hojas de estilos.',
+  },
+  'innerhtml-variable': {
+    nombre: 'InnerHTML con variable',
+    descripcion: 'Detecta asignaciones de innerHTML con contenido dinámico.',
+    detalle: 'Detecta asignaciones de innerHTML con contenido dinámico. Es un riesgo de inyección XSS si el contenido no está sanitizado.',
+  },
+  'php-supresor-at': {
+    nombre: 'Supresor @ en PHP',
+    descripcion: 'Detecta el operador de supresión de errores @ en PHP.',
+    detalle: 'Detecta el operador @ de supresión de errores en PHP. Oculta errores y dificulta el diagnóstico; se prefiere manejar los errores explícitamente.',
+  },
+  'sqlx-query-as-sin-macro': {
+    nombre: 'SQLx query_as sin macro',
+    descripcion: 'Detecta query_as sin la macro verificada en compile-time.',
+    detalle: 'Detecta query_as de SQLx sin la macro verificada en tiempo de compilación. Sin la macro pierdes la validación de tipos y columnas de la consulta.',
+  },
+  'sqlx-query-sin-macro': {
+    nombre: 'SQLx query sin macro',
+    descripcion: 'Detecta query sin la macro verificada en compile-time.',
+    detalle: 'Detecta query de SQLx sin la macro verificada en tiempo de compilación. La macro valida la consulta y sus tipos antes de ejecutarla.',
+  },
+  'todo-pendiente': {
+    nombre: 'TODO pendiente',
+    descripcion: 'Detecta comentarios TODO/FIXME sin resolver.',
+    detalle: 'Detecta comentarios TODO, FIXME u otros marcadores de trabajo pendiente sin resolver. Ayuda a no acumular deuda invisible en el código.',
+  },
 };
 
 /* Devuelve la traduccion de un segmento tecnico, o el propio segmento si no
@@ -107,6 +342,19 @@ export function descripcionDeRuta(ruta: (string | number)[]): string | undefined
   for (let i = ruta.length - 1; i >= 0; i--) {
     const d = infoSegmento(String(ruta[i])).descripcion;
     if (d) return d;
+  }
+  return undefined;
+}
+
+/* Devuelve el DETALLE de una ruta (para el tooltip del editor): el `detalle`
+ * del segmento mas profundo que lo tenga; si no tiene detalle, su
+ * `descripcion`. Si ninguno, undefined. [por que] El tooltip debe explicar
+ * cada opcion con texto breve, claro y suficiente, no solo con la linea corta. */
+export function detalleDeRuta(ruta: (string | number)[]): string | undefined {
+  for (let i = ruta.length - 1; i >= 0; i--) {
+    const s = infoSegmento(String(ruta[i]));
+    if (s.detalle) return s.detalle;
+    if (s.descripcion) return s.descripcion;
   }
   return undefined;
 }
