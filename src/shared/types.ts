@@ -12,6 +12,14 @@ export interface EstadoGit {
   ahead: number;
   behind: number;
   submodulos: string[];
+  /* Cambios locales contados por tipo: staged (indice), unstaged (arbol de
+   * trabajo) y untracked. [por que] El plan pide que 'cambios sin commitear'
+   * sea un problema visible en la consola y distinga staged/unstaged/untracked. */
+  cambios: { staged: number; unstaged: number; untracked: number };
+  /* Worktrees registrados por git cuyo directorio o metadata gitdir ya no
+   * existe (prunables). [por que] Detectar arboles huerfanos sin borrar nada:
+   * el escaner solo reporta; la limpieza requiere autorizacion explicita. */
+  worktreesOrfanos: string[];
   ultimoCommit: {
     hash: string;
     fecha: string;

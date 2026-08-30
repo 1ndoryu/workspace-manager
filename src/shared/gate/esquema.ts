@@ -20,6 +20,14 @@ export type TipoValor = 'string' | 'number' | 'boolean' | 'stringArray' | 'enum'
  * aunque la opcion fuera opcional. */
 export type Necesidad = 'requerida' | 'recomendada' | 'opcional';
 
+/* Rutas alternativas donde el runtime acepta la opcion si no esta en su
+ * posicion canonica. `'*'` comodina CUALQUIER clave de objeto (p.ej. el
+ * nombre del analizador en `analyzers.*.config`). [por que] El esquema de
+ * sentinel acepta patterns en la raiz O dentro de `analyzers…config`;
+ * declararlo aqui evita que el diagnostico marque "falta" una opcion que
+ * el proyecto ya tiene en su ubicacion alternativa valida (falso positivo). */
+export type Alternativas = string[][];
+
 /* Una hoja: una opcion concreta con un valor. */
 export interface OpcionValor {
   tipo: TipoValor;
@@ -31,6 +39,8 @@ export interface OpcionValor {
   /* La necesidad por defecto es 'opcional': solo las opciones etiquetadas
    * como requeridas/recomendadas generan error/warning si faltan. */
   necesidad?: Necesidad;
+  /* Ubicaciones alternativas validas (ver Alternativas). */
+  alternativas?: Alternativas;
 }
 
 /* Un grupo (objeto) con opciones hijas. `permitirString` cubre los casos en
@@ -40,6 +50,7 @@ export interface NodoObjeto {
   objeto: Record<string, NodoEsquema>;
   permitirString?: boolean;
   necesidad?: Necesidad;
+  alternativas?: Alternativas;
 }
 
 export type NodoEsquema =
@@ -47,12 +58,12 @@ export type NodoEsquema =
   | NodoObjeto
   /* Record<string, T> sin catalogo de ids conocido: se enumeran SOLO las
    * claves presentes en el JSON (p.ej. guard.directCommands). */
-  | { mapa: NodoEsquema; necesidad?: Necesidad }
+  | { mapa: NodoEsquema; necesidad?: Necesidad; alternativas?: Alternativas }
   /* Record<string, T> con un catalogo de ids conocido: se enumeran las claves
    * presentes Y los ids del catalogo que faltan (p.ej. rules). */
-  | { mapaCatalogo: NodoEsquema; catalogo: string[]; necesidad?: Necesidad }
+  | { mapaCatalogo: NodoEsquema; catalogo: string[]; necesidad?: Necesidad; alternativas?: Alternativas }
   /* Array de objetos: cada item se expande por indice. */
-  | { listaDe: NodoEsquema; necesidad?: Necesidad };
+  | { listaDe: NodoEsquema; necesidad?: Necesidad; alternativas?: Alternativas };
 
 export function necesidadDe(n: NodoEsquema): Necesidad {
   if ('tipo' in n) return n.necesidad ?? 'opcional';
@@ -174,6 +185,32 @@ export type Fila =
   | { tipo: 'faltante'; ruta: Ruta; default: ValorJson; necesidad: Necesidad; nodo: NodoEsquema }
   | { tipo: 'desconocida'; ruta: Ruta; valor: ValorJson; sugerencia?: string };
 
+/* Busca si `clave` existe en alguna ubicacion alternativa declarada por la
+ * opcion (`n.alternativas`). `'*'` en la ruta comodina cualquier clave de
+ * objeto (p.ej. el nombre del analizador en `analyzers.*.config`).
+ * [por que] Sentinel acepta los patterns en la raiz O dentro de
+ * `analyzers…config`; si el proyecto los tiene en la alternativa valida, la
+ * opcion NO falta: suprimir el falso "falta" de la consola/editor. */
+export function existeAlternativa(json: unknown, alternativas: Alternativas | undefined, clave: string): boolean {
+  if (!alternativas || alternativas.length === 0 || clave === '') return false;
+  for (const alt of alternativas) {
+    if (buscarEnRuta(json, [...alt, clave], 0)) return true;
+  }
+  return false;
+}
+
+function buscarEnRuta(v: unknown, ruta: (string | number)[], i: number): boolean {
+  if (i >= ruta.length) return true;
+  const seg = ruta[i];
+  if (seg === '*') {
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
+    return (Object.values(v) as unknown[]).some((x) => buscarEnRuta(x, ruta, i + 1));
+  }
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
+  if (!(seg in v)) return false;
+  return buscarEnRuta((v as Record<string, unknown>)[seg], ruta, i + 1);
+}
+
 /* Profundidad hasta la que una opcion FALTANTE se clasifica como error/warning.
  * [por que] El esquema de sentinel es recursivo (`config` se anida al mismo
  * objeto); clasificar todos los faltantes profundos seria ruido. Solo las
@@ -267,8 +304,12 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('tipo' in n) {
       if (v === undefined) {
-        /* En modo eco la opcion ya se ofrecio en su lugar canonico (raiz). */
-        if (!echo) filas.push({ tipo: 'faltante', ruta, default: defaultValorDe(n), necesidad: faltanteNecesidad(n), nodo: n });
+        /* En modo eco la opcion ya se ofrecio en su lugar canonico (raiz); y si
+         * existe en una ubicacion alternativa valida (p.ej. dentro de
+         * analyzers…config), tampoco falta. */
+        if (!echo && !existeAlternativa(json, n.alternativas, String(ruta[ruta.length - 1] ?? ''))) {
+          filas.push({ tipo: 'faltante', ruta, default: defaultValorDe(n), necesidad: faltanteNecesidad(n), nodo: n });
+        }
         return;
       }
       if (n.tipo === 'enum') {
@@ -283,7 +324,9 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('objeto' in n) {
       if (v === undefined) {
-        if (!echo) filas.push({ tipo: 'faltante', ruta, default: defaultDe(n), necesidad: faltanteNecesidad(n), nodo: n });
+        if (!echo && !existeAlternativa(json, n.alternativas, String(ruta[ruta.length - 1] ?? ''))) {
+          filas.push({ tipo: 'faltante', ruta, default: defaultDe(n), necesidad: faltanteNecesidad(n), nodo: n });
+        }
         return;
       }
       /* config puede ser una string (ruta a un archivo de config). */
@@ -319,7 +362,9 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('mapaCatalogo' in n) {
       if (v === undefined) {
-        if (!echo) filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n), nodo: n });
+        if (!echo && !existeAlternativa(json, n.alternativas, String(ruta[ruta.length - 1] ?? ''))) {
+          filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n), nodo: n });
+        }
         return;
       }
       if (!isObj(v)) {
@@ -338,7 +383,9 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     if ('mapa' in n) {
       if (v === undefined) {
-        if (!echo) filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n), nodo: n });
+        if (!echo && !existeAlternativa(json, n.alternativas, String(ruta[ruta.length - 1] ?? ''))) {
+          filas.push({ tipo: 'faltante', ruta, default: {}, necesidad: faltanteNecesidad(n), nodo: n });
+        }
         return;
       }
       if (!isObj(v)) {
@@ -351,7 +398,9 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
 
     /* listaDe */
     if (v === undefined) {
-      if (!echo) filas.push({ tipo: 'faltante', ruta, default: [], necesidad: faltanteNecesidad(n), nodo: n });
+      if (!echo && !existeAlternativa(json, n.alternativas, String(ruta[ruta.length - 1] ?? ''))) {
+        filas.push({ tipo: 'faltante', ruta, default: [], necesidad: faltanteNecesidad(n), nodo: n });
+      }
       return;
     }
     if (Array.isArray(v)) {

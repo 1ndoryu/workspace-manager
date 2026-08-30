@@ -3,7 +3,7 @@
  * el mismo enfoque ligero del resto del proyecto. */
 import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, normalize } from 'node:path';
 import type { EstadoGit } from '../../shared/types.js';
 
 export interface InfoGit {
@@ -102,6 +102,7 @@ export function estadoGit(ruta: string): EstadoGit | null {
   const remoto = git(ruta, ['remote', 'get-url', 'origin']);
   const status = git(ruta, ['status', '--porcelain']) ?? '';
   const dirty = status.length > 0;
+  const cambios = contarCambios(status);
 
   /* ahead/behind contra el upstream de la rama actual */
   let ahead = 0;
@@ -130,9 +131,76 @@ export function estadoGit(ruta: string): EstadoGit | null {
     dirty,
     ahead,
     behind,
+    cambios,
+    worktreesOrfanos: worktreesOrfanos(ruta),
     submodulos,
     ultimoCommit: commit,
   };
+}
+
+/* Cuenta cambios locales por tipo desde `git status --porcelain`.
+ * [por que] Formato `XY ruta`: X = indice (staged), Y = arbol de trabajo
+ * (unstaged); '??' = untracked; 'R' renombra 'viejo -> nuevo' (cuenta 1). */
+function contarCambios(status: string): EstadoGit['cambios'] {
+  let staged = 0;
+  let unstaged = 0;
+  let untracked = 0;
+  for (const linea of status.split('\n')) {
+    if (!linea) continue;
+    if (linea.startsWith('??')) {
+      untracked++;
+      continue;
+    }
+    const x = linea[0];
+    const y = linea[1] ?? ' ';
+    if (x !== ' ') staged++;
+    if (y !== ' ') unstaged++;
+  }
+  return { staged, unstaged, untracked };
+}
+
+/* Worktrees registrados cuyo directorio ya no existe o cuya metadata gitdir
+ * apunta a una ubicacion inexistente (git los marcaria 'prunable').
+ * [por que] `git worktree prune` no es necesario para detectar: se lee la
+ * lista porcelana y se valida la existencia real; el escaner SOLO reporta. */
+function worktreesOrfanos(ruta: string): string[] {
+  const salida = git(ruta, ['worktree', 'list', '--porcelain']);
+  if (!salida) return [];
+  const raizNorm = normalize(ruta).toLowerCase();
+  const orfanos: string[] = [];
+  for (const bloque of salida.split('\n\n')) {
+    const m = bloque.match(/^worktree (.+)$/m);
+    if (!m) continue;
+    const wt = m[1].trim();
+    /* La raiz del repo es el worktree principal: siempre existe. [por que]
+     * git devuelve rutas con '/' mientras ruta puede llegar con '\'; se
+     * normalizan ambas antes de comparar (Windows es case-insensitive). */
+    if (normalize(wt).toLowerCase() === raizNorm) continue;
+    if (!existsSync(wt)) {
+      orfanos.push(wt);
+      continue;
+    }
+    /* Si .git es un directorio, es un repo normal listado como worktree
+     * principal (caso worktree secundario viendo al principal): NO es huerfano. */
+    try {
+      const stat = lstatSync(join(wt, '.git'));
+      if (stat.isDirectory()) continue;
+    } catch {
+      /* sin .git -> huerfano */
+      orfanos.push(wt);
+      continue;
+    }
+    /* .git es archivo (worktree): huerfano si su gitdir apunta a algo inexistente. */
+    try {
+      const gitfile = readFileSync(join(wt, '.git'), 'utf8');
+      const d = gitfile.match(/gitdir:\s*(.+)/);
+      if (d && !existsSync(d[1].trim())) orfanos.push(wt);
+    } catch {
+      /* sin gitdir legible -> no es worktree valido */
+      orfanos.push(wt);
+    }
+  }
+  return orfanos;
 }
 
 function leerSubmodulos(ruta: string): string[] {
