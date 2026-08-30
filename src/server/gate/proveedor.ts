@@ -13,6 +13,12 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ReglaCatalogo, SeveridadRegla } from '../../shared/gate/reglas.js';
 import { REGLAS as REGLAS_ESTATICAS } from '../../shared/gate/reglas.js';
+import type { NodoEsquema } from '../../shared/gate/esquema.js';
+import type { MetadatosGate, TipoGate } from '../../shared/gate/proveedores.js';
+import { proveedorDe, registrarProveedor } from '../../shared/gate/proveedores.js';
+import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
+import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
+import { serializarEsquema } from '../../shared/gate/serial.js';
 
 /* Raíz de las versiones instaladas de GlorySentinel (AppData local). */
 export const RAIZ_VERSIONS = join(
@@ -114,10 +120,19 @@ function localizarOut(): { ruta: string; mtime: number } | null {
   }
 }
 
+/* Version de referencia de la curacion actual del esquema sentinel. Al subir
+ * el runtime y desalinearse, `sync-gate-schema` (E2) lo actualiza; por ahora
+ * es la version contra la que se escribio sentinel.ts. */
+const VERSION_CURACION_SENTINEL = '0.7.4';
+
 /* Catalogo de reglas del gate: vive en el runtime si esta disponible, con
  * cache por version+mtime. Devuelve tambien la version y la fuente para que
  * la UI pueda mostrar "reglas del runtime 0.7.4" vs "estaticas". */
-export function reglasGate(): { version: string; fuente: 'runtime' | 'estatica'; reglas: ReglaCatalogo[] } {
+export function reglasGate(): {
+  version: string;
+  fuente: 'runtime' | 'estatica';
+  reglas: ReglaCatalogo[];
+} {
   const out = localizarOut();
   if (!out) {
     if (!cache || cache.fuente !== 'estatica') {
@@ -159,4 +174,47 @@ export function reglasGate(): { version: string; fuente: 'runtime' | 'estatica';
     };
   }
   return { version: cache.version, fuente: cache.fuente, reglas: cache.catalogo };
+}
+
+/* Proveedores concretos del gate, registrados server-side (el cliente solo
+ * consulta por API). [por que] `ProveedorGate` es la unica puerta del editor:
+ * sentinel resuelve esquema curado + reglas vivas del runtime; varsense todavia
+ * no tiene runtime instalado (así su proveedor es eschema curado, reglas vacias
+ * y fuente estatica). Anadir tool = registrar aqui; el editor no cambia (E1). */
+registrarProveedor({
+  tipo: 'sentinel',
+  esquema: (): NodoEsquema => ESQUEMA_SENTINEL(),
+  reglas: (): ReglaCatalogo[] => reglasGate().reglas,
+  versionReferencia: (): string => VERSION_CURACION_SENTINEL,
+  runtimeInstalado: (): string | null => versionRuntime(),
+  fuente: (): 'runtime' | 'estatica' => reglasGate().fuente,
+});
+registrarProveedor({
+  tipo: 'varsense',
+  esquema: (): NodoEsquema => ESQUEMA_VARSENSE(),
+  reglas: (): ReglaCatalogo[] => [],
+  versionReferencia: (): string => '—',
+  runtimeInstalado: (): string | null => null,
+  fuente: (): 'estatica' => 'estatica',
+});
+
+/* Esquema + reglas + metadata de una herramienta, como la sirve la API
+ * `/gate/dinamico`. Devuelve el esquema SERIALIZADO (con ciclos resueltos a
+ * refs) y nunca toca el JSON real de ningun proyecto. */
+export function esquemaGate(
+  tool: TipoGate,
+): { metadatos: MetadatosGate; esquemaText: string; totalReglas: number } | null {
+  const prov = proveedorDe(tool);
+  if (!prov) return null;
+  const reglas = prov.reglas();
+  return {
+    metadatos: {
+      tipo: prov.tipo,
+      versionReferencia: prov.versionReferencia(),
+      runtimeInstalado: prov.runtimeInstalado(),
+      fuente: prov.fuente(),
+    },
+    esquemaText: serializarEsquema(prov.esquema()),
+    totalReglas: reglas.length,
+  };
 }
