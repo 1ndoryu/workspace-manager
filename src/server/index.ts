@@ -8,7 +8,7 @@ import { obtenerSnapshot, actualizarSnapshot } from './cache.js';
 import { escanearWorkspace, claveDe, resumenDe } from './scanner/workspace.js';
 import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
 import { cambiarIgnorado, leerConfigArea } from './configArea.js';
-import { reglasGate } from './gate/proveedor.js';
+import { esquemaGate, reglasGate } from './gate/proveedor.js';
 import type { SnapshotWorkspace } from '../shared/types.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
@@ -229,6 +229,36 @@ export function crearServidor() {
           }
           const { version, fuente, reglas } = reglasGate();
           json(res, 200, { version, fuente, total: reglas.length, reglas });
+          return;
+        }
+        /* Esquema del gate DINAMICO (E1 gate-dinamico): sirve el esquema de
+         * config de una herramienta (sentinel/varsense) + sus reglas + metadata
+         * de version, resueltos por el server. El cliente es 'tonto': deja de
+         * importar ESQUEMA_* estaticos en el bundle y pide todo aca. El esquema
+         * va SERIALIZADO (ciclos resueltos a refs); el cliente lo rehidrata.
+         * Nunca toca el JSON real de ningun proyecto. */
+        if (ruta === '/api/gate/dinamico') {
+          if (req.method !== 'GET') {
+            json(res, 405, { error: 'Metodo no permitido' });
+            return;
+          }
+          const tool = (url.searchParams.get('tool') ?? '') as 'sentinel' | 'varsense';
+          if (tool !== 'sentinel' && tool !== 'varsense') {
+            json(res, 400, { error: 'tool invalido (sentinel|varsense)' });
+            return;
+          }
+          const r = esquemaGate(tool);
+          if (!r) {
+            json(res, 404, { error: `proveedor ${tool} no registrado` });
+            return;
+          }
+          json(res, 200, {
+            tool,
+            metadatos: r.metadatos,
+            esquema: JSON.parse(r.esquemaText) as unknown,
+            reglas: r.metadatos.tipo === 'sentinel' ? reglasGate().reglas : [],
+            totalReglas: r.totalReglas,
+          });
           return;
         }
         /* Config del area: alternar un proyecto entre ignorar / dejar de

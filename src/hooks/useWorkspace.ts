@@ -6,6 +6,11 @@ import axios from 'axios';
 import type { Proyecto, SnapshotWorkspace } from '../shared/types.js';
 import type { ReglaCatalogo } from '../shared/gate/reglas.js';
 import { REGLAS as REGLAS_ESTATICAS } from '../shared/gate/reglas.js';
+import type { NodoEsquema } from '../shared/gate/esquema.js';
+import type { TipoGate } from '../shared/gate/proveedores.js';
+import { ESQUEMA_SENTINEL } from '../shared/gate/sentinel.js';
+import { ESQUEMA_VARSENSE } from '../shared/gate/varsense.js';
+import { deserializarEsquema } from '../shared/gate/serial.js';
 
 /* Persistencia de la seleccion entre recargas, igual que zoom/pan del mapa.
  * [por que] El usuario pidio que el panel/caja seleccionada perdure al
@@ -108,8 +113,13 @@ interface EstadoWorkspace {
    * gate-dinamico R1: el cliente es 'tonto', pide el catalogo una vez y lo
    * cachea en el store; el server resuelve el runtime sentinel. */
   reglasCatalogo: { version: string; fuente: 'runtime' | 'estatica'; reglas: ReglaCatalogo[] };
+  /* Esquemas de config por herramienta (sentinel/varsense), servidos por la
+   * API /gate/dinamico (E1 gate-dinamico). El cliente deja de importar los
+   * ESQUEMA_* estaticos en el bundle; el server resuelve y aqui se cachea. */
+  esquemas: Partial<Record<TipoGate, NodoEsquema>>;
   cargar: (forzar?: boolean) => Promise<void>;
   cargarReglas: () => Promise<void>;
+  cargarEsquema: (tool: TipoGate) => Promise<NodoEsquema | undefined>;
   seleccionar: (id: string | null) => void;
   setFiltro: (f: EstadoWorkspace['filtro']) => void;
   setBuscar: (b: string) => void;
@@ -139,7 +149,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   menuContextual: null,
   proyectoAConfigurar: null,
   reglasCatalogo: { version: '—', fuente: 'estatica', reglas: REGLAS_ESTATICAS },
-
+  esquemas: {},
   cargar: async (forzar = false) => {
     set({ cargando: true, error: null });
     try {
@@ -175,6 +185,33 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
     } catch (err) {
       console.warn('[workspace] catalogo de reglas vive no disponible, uso estatico:', err);
     }
+  },
+
+  /* [por que] Devuelve el esquema de config de una herramienta servido por la
+   * API /gate/dinamico (el server resuelve el proveedor y sirve el esquema
+   * SERIALIZADO con ciclos resueltos a refs); se rehidrata y cachea en el
+   * store. Si ya esta, no repite. Si el fetch falla, cae al esquema estatico
+   * embebido del bundle (fallback tolerante a fallos del plan E1). */
+  cargarEsquema: async (tool) => {
+    const ya = get().esquemas[tool];
+    if (ya) return ya;
+    const estatico = (t: TipoGate): NodoEsquema | undefined =>
+      t === 'sentinel' ? ESQUEMA_SENTINEL() : t === 'varsense' ? ESQUEMA_VARSENSE() : undefined;
+    try {
+      const { data } = await axios.get<{ esquema: unknown }>(
+        `/api/gate/dinamico?tool=${encodeURIComponent(tool)}`,
+      );
+      if (data && typeof data.esquema === 'object' && data.esquema !== null) {
+        const nodo = deserializarEsquema(JSON.stringify(data.esquema));
+        set((s) => ({ esquemas: { ...s.esquemas, [tool]: nodo } }));
+        return nodo;
+      }
+    } catch (err) {
+      console.warn(`[workspace] esquema ${tool} vive no disponible, uso estatico:`, err);
+    }
+    const fb = estatico(tool);
+    if (fb) set((s) => ({ esquemas: { ...s.esquemas, [tool]: fb } }));
+    return fb;
   },
 
   seleccionar: (id) => {

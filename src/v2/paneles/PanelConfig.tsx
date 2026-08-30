@@ -11,22 +11,23 @@ import type { EstadoGate } from '../../shared/types.js';
 import { mensajeDeError, toastError, toastOk } from '../toast.js';
 import { EditorJson } from '../EditorJson.js';
 import { EditorEsquema } from '../EditorEsquema.js';
-import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
-import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
 import type { NodoEsquema } from '../../shared/gate/esquema.js';
+import type { TipoGate } from '../../shared/gate/proveedores.js';
 import './paneles.css';
 
 /* Archivos de gate editables (whitelist del server: same list). */
 const ARCHIVOS = ['sentinel.config.json', 'sentinel.lock.json', 'quality-tools.json', 'varsense.config.json'] as const;
 
 /* Que archivo se edita por ESQUEMA (dirigido por esquema) y cual cae al
- * EditorJson generico. [por que] sentinel.config.json usa su esquema canonico
- * del runtime; varsense.config.json usa el esquema curado de los 3 configs
- * reales del area (no hay binario de varsense). lock/quality-tools no tienen
- * fuente canonica fiable y siguen con el editor generico. */
-const ESQUEMAS: Partial<Record<(typeof ARCHIVOS)[number], NodoEsquema>> = {
-  'sentinel.config.json': ESQUEMA_SENTINEL(),
-  'varsense.config.json': ESQUEMA_VARSENSE(),
+ * EditorJson generico. Mapea el archivo a su HERRAMIENTA del gate; el esquema
+ * se carga por la API /gate/dinamico (el server lo resuelve) y el cliente es
+ * 'tonto'. [por que] E1 gate-dinamico: el bundle deja de importar los ESQUEMA_*
+ * estaticos; sentinel.config.json usa el esquema del server (curado contra su
+ * runtime) y varsense.config.json el curado de los configs reales. lock y
+ * quality-tools no tienen fuente canonica fiable -> EditorJson generico. */
+const ARCHIVO_A_TOOL: Partial<Record<(typeof ARCHIVOS)[number], TipoGate>> = {
+  'sentinel.config.json': 'sentinel',
+  'varsense.config.json': 'varsense',
 };
 
 /* Vista del visor derecho: la lista de excepciones o la config de un proyecto. */
@@ -61,6 +62,11 @@ export function PanelConfig() {
    * snapshot congelado del bundle. */
   const reglasCatalogo = useWorkspaceStore((s) => s.reglasCatalogo);
   const cargarReglas = useWorkspaceStore((s) => s.cargarReglas);
+  const cargarEsquema = useWorkspaceStore((s) => s.cargarEsquema);
+
+  /* Esquemas por herramienta ya rehidratados desde la API (cache local a la
+   * vista; el store cachea a nivel global). */
+  const [esquemas, setEsquemas] = useState<Partial<Record<TipoGate, NodoEsquema>>>({});
 
   /* Al montar el panel, se asegura de que el catalogo de reglas este cargado
    * (fetch una vez; si ya esta, no repite). */
@@ -141,6 +147,25 @@ export function PanelConfig() {
       viva = false;
     };
   }, [vista, claveVisor]);
+
+  /* Carga por API el esquema de las herramientas cuyo archivo declara el
+   * proyecto abierto. [por que] El esquema se sirve serializado por
+   * /gate/dinamico y se rehidrata; el store lo cachea para no repetir el fetch
+   * por cada proyecto. (E1 gate-dinamico: el bundle deja de importar ESQUEMA_*.) */
+  useEffect(() => {
+    if (vista !== 'proyecto' || !gate) return;
+    let viva = true;
+    for (const a of gate.archivos) {
+      const tool = ARCHIVO_A_TOOL[a.nombre];
+      if (!tool || esquemas[tool]) continue;
+      void cargarEsquema(tool).then((nodo) => {
+        if (viva && nodo) setEsquemas((e) => ({ ...e, [tool]: nodo }));
+      });
+    }
+    return () => {
+      viva = false;
+    };
+  }, [vista, gate, esquemas, cargarEsquema]);
 
   if (!snapshot) return null;
 
@@ -315,7 +340,8 @@ export function PanelConfig() {
                       </section>
                     );
                   }
-                  const esquema = ESQUEMAS[a.nombre];
+                  const tool = ARCHIVO_A_TOOL[a.nombre];
+                  const esquema = tool ? esquemas[tool] : undefined;
                   const valor = (editado[a.nombre] ?? null) as import('../EditorJson.js').JsonValue;
                   return (
                     <section key={a.nombre} className="gateEditor">
