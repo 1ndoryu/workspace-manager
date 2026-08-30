@@ -253,7 +253,9 @@ function SeccionReglas({
   const activas = [...ids, ...desconocidas].filter((id) => {
     const v = reglas[id];
     const obj = v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, ValorJson>) : undefined;
-    return obj ? obj['habilitada'] !== false : defaultHabilitada;
+    /* Reglas ausentes: heredan su default real por-regla (2 nacen apagadas). */
+    const habCat = REGLAS.find((x) => x.id === id)?.habilitada;
+    return obj ? obj['habilitada'] !== false : (habCat ?? defaultHabilitada);
   }).length;
 
   const idsDeCategoria = (cat: string): string[] =>
@@ -300,8 +302,17 @@ function SeccionReglas({
             : undefined;
           const ausente = obj === undefined;
           const desconocida = !conoce.has(id);
-          const habilitada = obj ? obj['habilitada'] !== false : defaultHabilitada;
-          const severidad = obj && typeof obj['severidad'] === 'string' ? obj['severidad'] : defaultSeveridad;
+          /* Default real por regla del catalogo (habilitada/severidad). [por
+           * que] No todas las reglas nacen activas: 2 de las 105 vienen
+           * desactivadas por defecto (nomenclatura-css-ingles, default-export),
+           * y cada una tiene su severidad propia. Solo las desconocidas caen al
+           * default global del esquema. */
+          const rCat = REGLAS.find((x) => x.id === id);
+          const habilitada = obj ? obj['habilitada'] !== false : (rCat?.habilitada ?? defaultHabilitada);
+          const severidad =
+            obj && typeof obj['severidad'] === 'string'
+              ? obj['severidad']
+              : (rCat?.severidad ?? defaultSeveridad);
 
           const toggle = () => {
             if (readOnly) return;
