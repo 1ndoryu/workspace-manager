@@ -20,7 +20,7 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md` y registro en `data/inventari
 ## Tareas pendientes (orden de dependencia)
 
 1. `308A-2 / S2-05` — resolver VarSense por fuente oficial o documentar limitación (bloqueada sin runtime).
-2. `308A-2 / S2-12` — resto de refactors de código de gloryapi (18 estructurales: limite-lineas ×8, directorio-abarrotado ×3, large-interface-isp ×2, mixed-barrel-logic ×2, más 3 bloqueados por cambios ajenos) por proyecto, con type-check y tests propios.
+2. `308A-2 / S2-12` — refactors de código: Glory-Laminal 12→0 (commit eebe026); gloryapi 23→8 (10 corregidos en archivos limpios: 6 limite-lineas vía submódulos, 3 directorio-abarrotado vía `directoryExceptions`, 1 ISP; 315/315 tests OK). Quedan 8 hallazgos en 6 archivos con cambios ajenos sin commitear (bloqueados hasta aislar).
 3. `308A-2 / S2-08` — revisión SOLID, eficiencia y regresiones de la detección nueva.
 4. `308A-1` — gate Sentinel/VarSense en cinco proyectos; ver `PLAN-agregar-gate-proyectos.md`.
 
