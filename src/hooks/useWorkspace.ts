@@ -3,7 +3,7 @@
  * Selectores especificos (no el store completo) en los componentes. */
 import { create } from 'zustand';
 import axios from 'axios';
-import type { Proyecto, SnapshotWorkspace } from '../shared/types.js';
+import type { AnalisisSentinel, ConfigScan, ConfigWorkspace, Proyecto, SnapshotWorkspace } from '../shared/types.js';
 import type { ReglaCatalogo } from '../shared/gate/reglas.js';
 import { REGLAS as REGLAS_ESTATICAS } from '../shared/gate/reglas.js';
 import type { NodoEsquema } from '../shared/gate/esquema.js';
@@ -117,6 +117,13 @@ interface EstadoWorkspace {
    * API /gate/dinamico (E1 gate-dinamico). El cliente deja de importar los
    * ESQUEMA_* estaticos en el bundle; el server resuelve y aqui se cachea. */
   esquemas: Partial<Record<TipoGate, NodoEsquema>>;
+  /* Analisis real de sentinel por proyecto (plan analisis-sentinel-consola):
+   * el server es el dueno de la ejecucion y aqui solo se cachean resultados
+   * para que la consola cuente/agrupe sin volver a preguntar. */
+  analisis: Record<string, AnalisisSentinel>;
+  escanearUno: (clave: string, forzar?: boolean) => Promise<AnalisisSentinel>;
+  escanearTodo: () => Promise<void>;
+  configurarScan: (scan: ConfigScan) => Promise<void>;
   cargar: (forzar?: boolean) => Promise<void>;
   cargarReglas: () => Promise<void>;
   cargarEsquema: (tool: TipoGate) => Promise<NodoEsquema | undefined>;
@@ -150,6 +157,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   proyectoAConfigurar: null,
   reglasCatalogo: { version: '—', fuente: 'estatica', reglas: REGLAS_ESTATICAS },
   esquemas: {},
+  analisis: {},
   cargar: async (forzar = false) => {
     set({ cargando: true, error: null });
     try {
@@ -271,6 +279,32 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
       const detalle = (err as { response?: { data?: { detalle?: string } } })?.response?.data?.detalle;
       throw new Error(detalle ?? 'no se pudo guardar la config');
     }
+  },
+
+  /* Analiza UN proyecto (boton 'Escanea ahora' del detalle/config) y cachea el
+   * resultado en el store para que la consola lo agrupe sin volver al server. */
+  escanearUno: async (clave, forzar = false) => {
+    const { data } = await axios.post<AnalisisSentinel>('/api/gate/analizar', { clave, forzar });
+    set((s) => ({ analisis: { ...s.analisis, [clave]: data } }));
+    return data;
+  },
+
+  /* Barrido serial del workspace (auto-timer y boton 'Escanea todo'). */
+  escanearTodo: async () => {
+    const { data } = await axios.post<{ escaneadoEn: string; proyectos: AnalisisSentinel[] }>(
+      '/api/gate/analizar-todo',
+    );
+    const analisis: Record<string, AnalisisSentinel> = {};
+    for (const a of data.proyectos) analisis[a.clave] = a;
+    set((s) => ({ analisis: { ...s.analisis, ...analisis } }));
+  },
+
+  /* Persiste automatico+intervalo (switch/input del PanelConfig). */
+  configurarScan: async (scan) => {
+    const { data } = await axios.post<{ ok: boolean; config: ConfigWorkspace }>('/api/config/scan', scan);
+    set((s) => ({
+      snapshot: s.snapshot ? { ...s.snapshot, config: data.config } : s.snapshot,
+    }));
   },
 }));
 

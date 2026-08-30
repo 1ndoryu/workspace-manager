@@ -7,9 +7,10 @@ import { basename, extname, join, normalize, relative, sep } from 'node:path';
 import { obtenerSnapshot, actualizarSnapshot } from './cache.js';
 import { escanearWorkspace, claveDe, resumenDe } from './scanner/workspace.js';
 import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
-import { cambiarIgnorado, leerConfigArea } from './configArea.js';
+import { cambiarIgnorado, guardarConfigScan, leerConfigArea } from './configArea.js';
 import { esquemaGate, reglasGate } from './gate/proveedor.js';
-import type { SnapshotWorkspace } from '../shared/types.js';
+import { analizarProyecto, analizarTodo, esElegible, leerAnalisis } from './gate/analizador.js';
+import type { ConfigScan, SnapshotWorkspace } from '../shared/types.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || 'C:/Users/Owner/.agents/skills';
@@ -261,6 +262,51 @@ export function crearServidor() {
           });
           return;
         }
+        /* Analisis real de sentinel por proyecto (plan analisis-sentinel-consola
+         * A0/A1). [por que] El cliente es 'tonto' y este modulo es el dueno de
+         * la ejecucion: nunca corre dentro del escaneo raiz (~2.6 s). La cache
+         * por frescura (branch+HEAD+version) evita revert spawns sin cambios. */
+        if (ruta === '/api/gate/analizar' || ruta === '/api/gate/analizar-todo') {
+          if (req.method !== 'POST') {
+            json(res, 405, { error: 'Metodo no permitido' });
+            return;
+          }
+          const { snapshot } = snapshotArea(false);
+          /* Un proyecto: body { clave, forzar? }. Solo si es elegible (sentinel). */
+          if (ruta === '/api/gate/analizar') {
+            const body = (await leerBody(req)) as { clave?: unknown; forzar?: unknown };
+            const clave = typeof body.clave === 'string' ? body.clave : '';
+            const forzar = body.forzar === true;
+            const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
+            if (!proyecto) {
+              json(res, 404, { error: 'Proyecto no encontrado', clave });
+              return;
+            }
+            if (!esElegible(proyecto)) {
+              json(res, 400, { error: 'El proyecto no usa sentinel (no se puede analizar)', clave });
+              return;
+            }
+            json(res, 200, analizarProyecto(proyecto, forzar));
+            return;
+          }
+          /* Todo el workspace: barrido serial de los elegibles. */
+          const analisis = analizarTodo(snapshot.proyectos);
+          json(res, 200, {
+            escaneadoEn: new Date().toISOString(),
+            proyectos: analisis,
+          });
+          return;
+        }
+        /* Cache de un analisis (para counts en la consola sin volcar hallazgos). */
+        if (ruta === '/api/gate/analisis') {
+          if (req.method !== 'GET') {
+            json(res, 405, { error: 'Metodo no permitido' });
+            return;
+          }
+          const clave = url.searchParams.get('clave') ?? '';
+          json(res, 200, { clave, analisis: leerAnalisis(clave) });
+          return;
+        }
         /* Config del area: alternar un proyecto entre ignorar / dejar de
          * ignorar. La clave es la ruta relativa (no el nombre). */
         if (ruta === '/api/config') {
@@ -302,6 +348,31 @@ export function crearServidor() {
           } catch (err) {
             json(res, 500, { error: 'No se pudo guardar la config', detalle: String(err) });
           }
+          return;
+        }
+        /* Config de escaneo automatico (plan A2): switch + intervalo. Se
+         * persiste en la config del area (data/workspace.config.json). */
+        if (ruta === '/api/config/scan') {
+          if (req.method !== 'POST') {
+            json(res, 405, { error: 'Metodo no permitido' });
+            return;
+          }
+          const body = (await leerBody(req)) as Partial<ConfigScan>;
+          const actual = leerConfigArea(RAÍZ_AREA).scan ?? { automatico: false, intervaloMin: 30 };
+          const scan: ConfigScan = {
+            automatico:
+              typeof body.automatico === 'boolean' ? body.automatico : actual.automatico,
+            intervaloMin:
+              typeof body.intervaloMin === 'number' && body.intervaloMin > 0
+                ? Math.min(Math.round(body.intervaloMin), 1440)
+                : actual.intervaloMin,
+          };
+          const config = guardarConfigScan(RAÍZ_AREA, scan);
+          /* Aplica la config nueva al snapshot cacheado sin re-escandear. */
+          const base = snapshotArea(false);
+          const mutado: SnapshotWorkspace = { ...base.snapshot, config };
+          actualizarSnapshot(mutado);
+          json(res, 200, { ok: true, config });
           return;
         }
         if (ruta.startsWith('/api/skills/')) {

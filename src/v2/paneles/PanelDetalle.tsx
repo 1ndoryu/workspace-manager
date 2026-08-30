@@ -2,7 +2,8 @@
  * [por que] El usuario pidio que al seleccionar una caja NO aparezca un
  * \"cuadro\" sobre ella, sino un panel lateral con la misma estetica de caja
  * del mapa (monocromo, wireframe). La seleccion es estado global del store. */
-import type { Proyecto } from '../../shared/types.js';
+import { useState } from 'react';
+import type { AnalisisSentinel, Proyecto } from '../../shared/types.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import { estadoProyecto } from '../estado.js';
 import { verticesParedDer, verticesParedIzq, verticesTecho } from '../mapa/tiles.js';
@@ -68,16 +69,35 @@ function filasProyecto(p: Proyecto): { k: string; v: string }[] {
   return filas;
 }
 
+/* Resumen corto de un analisis para la fila del detalle. */
+function resumenAnalisis(a: AnalisisSentinel | undefined): string | null {
+  if (!a) return null;
+  if (a.estado === 'error') return `análisis falló${a.error ? `: ${a.error}` : ''}`;
+  if (a.estado === 'ok') return 'sentinel sin hallazgos';
+  const { error, warning, information, hint } = a.resumen;
+  const partes: string[] = [];
+  if (error) partes.push(`${error} error${error === 1 ? '' : 'es'}`);
+  if (warning) partes.push(`${warning} warning${warning === 1 ? '' : 's'}`);
+  if (information) partes.push(`${information} info`);
+  if (hint) partes.push(`${hint} hint${hint === 1 ? '' : 's'}`);
+  return `sentinel: ${partes.join(' · ') || 'sin detalle'}`;
+}
+
 export function PanelDetalle() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
+  const escanearUno = useWorkspaceStore((s) => s.escanearUno);
+  const analisis = useWorkspaceStore((s) => s.analisis);
+  const [escanneando, setEscaneando] = useState(false);
 
   if (!snapshot || !seleccionadoId) return null;
   const proyecto = snapshot.proyectos.find((p) => p.id === seleccionadoId);
   if (!proyecto) return null;
 
   const estado = estadoProyecto(proyecto);
+  const analisisProy = analisis[proyecto.clave];
+  const resumen = resumenAnalisis(analisisProy);
 
   return (
     <aside className="panelCaja panelDetalle" aria-label={`Detalle de ${proyecto.id}`}>
@@ -111,6 +131,30 @@ export function PanelDetalle() {
           </div>
         ))}
       </dl>
+
+      {/* Analisis real de sentinel (plan A2): solo si el proyecto usa sentinel.
+       * El boton dispara escanearUno(clave); el server rehusa lo fresco por
+       * branch+HEAD+version sin re-spawn. */}
+      {proyecto.gate?.puerta === 'sentinel' && (
+        <div className="panelDetalleScan" aria-label="Análisis de sentinel">
+          <button
+            type="button"
+            className="excBoton"
+            disabled={escanneando}
+            onClick={() => {
+              setEscaneando(true);
+              void escanearUno(proyecto.clave).finally(() => setEscaneando(false));
+            }}
+          >
+            {escanneando ? 'analizando…' : 'escaneá ahora'}
+          </button>
+          {resumen && (
+            <div className="panelDetalleScanMeta" title={analisisProy?.analizadoEn}>
+              {resumen}
+            </div>
+          )}
+        </div>
+      )}
     </aside>
   );
 }

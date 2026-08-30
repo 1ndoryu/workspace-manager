@@ -71,11 +71,54 @@ export interface ProblemaGate {
   mensaje: string;
 }
 
+/* Seccion 'scan' de la config del area: analisis real de sentinel por
+ * proyecto, a demanda (boton) o automatico cada cierto intervalo. [por que] El
+ * plan analisis-sentinel-consola A2: el auto-escaneo es opt-in y apagado por
+ * defecto (con la app cerrada no hay timer -> cero recursos); el intervalo
+ * minimo lo valida el server por frescura, no se re-analiza sin cambios. */
+export interface ConfigScan {
+  automatico: boolean;
+  intervaloMin: number;
+  /* Si se pide, filtra a la severidad < warning al pedir (opcional). */
+  pedirSoloProblemas?: boolean;
+}
+
 export interface ConfigWorkspace {
   version: number;
   /* Claves (rutas relativas al area) de proyectos ignorados: no aparecen en
    * el snapshot, se listan en la pagina de excepciones. */
   ignorados: string[];
+  /* Analisis automatico de sentinel por proyecto (ausente => apagado). */
+  scan?: ConfigScan;
+}
+
+/* Hallazgo real que sentinel analyze detecta (desnormalizado y plano para que
+ * la consola no conozca el formato del runtime: aísla cambios de sentinel). */
+export interface HallazgoSentinel {
+  ruleId: string;
+  mensaje: string;
+  severidad: 'error' | 'warning' | 'information' | 'hint';
+  /* Ruta relativa al workspace si resolvible, si no la absoluta. */
+  archivo: string;
+  linea: number | null;
+  sugerencia?: string;
+}
+
+export type SeveridadSentinel = 'error' | 'warning' | 'information' | 'hint';
+export type NombreSeveridad = Record<SeveridadSentinel, number>;
+
+/* Resultado del analisis real de sentinel sobre un proyecto. Nunca anida el
+ * formato de sentinel (entries[]): va desnormalizado y acotado. */
+export interface AnalisisSentinel {
+  clave: string;
+  version: string;
+  fuente: 'runtime' | 'estatico' | null;
+  estado: 'ok' | 'conHallazgos' | 'error';
+  analizadoEn: string;
+  resumen: NombreSeveridad;
+  hallazgos: HallazgoSentinel[];
+  /* Detalle del error si estado === 'error'. */
+  error?: string;
 }
 
 export interface SkillGlobal {

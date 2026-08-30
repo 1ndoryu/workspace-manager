@@ -63,6 +63,10 @@ export function PanelConfig() {
   const reglasCatalogo = useWorkspaceStore((s) => s.reglasCatalogo);
   const cargarReglas = useWorkspaceStore((s) => s.cargarReglas);
   const cargarEsquema = useWorkspaceStore((s) => s.cargarEsquema);
+  /* Analisis real de sentinel: config scan + boton 'Escanea todo'. */
+  const configurarScan = useWorkspaceStore((s) => s.configurarScan);
+  const escanearTodo = useWorkspaceStore((s) => s.escanearTodo);
+  const analisis = useWorkspaceStore((s) => s.analisis);
 
   /* Esquemas por herramienta ya rehidratados desde la API (cache local a la
    * vista; el store cachea a nivel global). */
@@ -85,6 +89,11 @@ export function PanelConfig() {
   const [parseErrores, setParseErrores] = useState<Record<string, string>>({});
   const [cargandoGate, setCargandoGate] = useState(false);
   const [guardando, setGuardando] = useState<string | null>(null);
+  /* Config de escaneo (switch + intervalo) editable en este panel. */
+  const [auto, setAuto] = useState<boolean>(snapshot?.config?.scan?.automatico ?? false);
+  const [intervalo, setIntervalo] = useState<number>(snapshot?.config?.scan?.intervaloMin ?? 30);
+  const [escaneando, setEscaneando] = useState(false);
+  const [scanAviso, setScanAviso] = useState<string | null>(null);
 
   /* [por que] El menu contextual abre la pagina 'config' con un proyecto
    * determinado: inicial/a cada cambio, si llega un proyecto, se muestra su
@@ -148,6 +157,16 @@ export function PanelConfig() {
     };
   }, [vista, claveVisor]);
 
+  /* Mantiene los controles de escaneo al dia con la config persistida (p. ej.
+   * tras configurarScan o al llegar un snapshot recargado). [por que] El input
+   * de intervalo es controlado; sin esto, quedaria stale con el valor del store. */
+  useEffect(() => {
+    const sc = snapshot?.config?.scan;
+    if (!sc) return;
+    setAuto(sc.automatico);
+    setIntervalo(sc.intervaloMin);
+  }, [snapshot?.config?.scan, snapshot?.config?.scan?.automatico, snapshot?.config?.scan?.intervaloMin]);
+
   /* Carga por API el esquema de las herramientas cuyo archivo declara el
    * proyecto abierto. [por que] El esquema se sirve serializado por
    * /gate/dinamico y se rehidrata; el store lo cachea para no repetir el fetch
@@ -210,6 +229,47 @@ export function PanelConfig() {
     setVista('proyecto');
   }
 
+  /* [por que] Persiste la config scan cuando se cambia automatico o intervalo
+   * (el server valida intervalo minimo por frescura). Se llama desde los
+   * controles, no en cada teclado de intervalo. */
+  function guardarScan(autoNuevo: boolean, intervaloNuevo: number) {
+    void configurarScan({ automatico: autoNuevo, intervaloMin: intervaloNuevo })
+      .then(() => setScanAviso('preferencias de escaneo guardadas ✓'))
+      .catch((err: unknown) => toastError(`no se pudo guardar el escaneo: ${mensajeDeError(err)}`));
+  }
+
+  /* Boton 'Escanea todo': recorre el workspace con la cola serial del server. */
+  async function escanearAhora() {
+    setEscaneando(true);
+    setScanAviso(null);
+    try {
+      await escanearTodo();
+      setScanAviso('análisis completado ✓');
+    } catch (err) {
+      setScanAviso(null);
+      toastError(`no se pudo analizar: ${mensajeDeError(err)}`);
+    } finally {
+      setEscaneando(false);
+    }
+  }
+
+  /* Total de hallazgos por severidad de los proyectos analizados (para la
+   * cabecera del escaneo en el panel). */
+  function totalesEscaneo(): { error: number; warning: number } {
+    let error = 0;
+    let warning = 0;
+    for (const a of Object.values(analisis)) {
+      error += a.resumen.error;
+      warning += a.resumen.warning + a.resumen.information + a.resumen.hint;
+    }
+    return { error, warning };
+  }
+  const totales = totalesEscaneo();
+  const ultimaActualizacion = Object.values(analisis).reduce<number>((mx, a) => {
+    const t = new Date(a.analizadoEn).getTime();
+    return Number.isNaN(t) ? mx : Math.max(mx, t);
+  }, 0);
+
   return (
     <div className="panelDocs" aria-label="Configuración">
       {/* Menu lateral de opciones: excepciones + proyectos a configurar. */}
@@ -257,6 +317,73 @@ export function PanelConfig() {
             <header className="panelDocsVisorCabecera">
               <span className="panelDocsVisorTitulo">excepciones ({ignorados.length})</span>
             </header>
+
+            {/* Escaneo real de sentinel por proyecto (plan A2): config del
+             * auto-escaneo + boton 'Escanea todo'. [por que] Opt-in, apagado
+             * por defecto y el disparador vive en el cliente (timer aparte,
+             * A4): con la app cerrada no hay spawns. */}
+            <section className="scanCfg" aria-label="Escaneo de sentinel">
+              <header className="scanCfgCabecera">
+                <span className="scanCfgTitulo">escaneo de sentinel</span>
+              </header>
+              <div className="scanCfgFila">
+                <label className="scanCfgEtiqueta" htmlFor="scan-auto">
+                  análisis automático
+                </label>
+                <input
+                  id="scan-auto"
+                  type="checkbox"
+                  className="scanCfgCheck"
+                  checked={auto}
+                  onChange={(ev) => {
+                    const v = ev.target.checked;
+                    setAuto(v);
+                    guardarScan(v, intervalo);
+                  }}
+                />
+                <span className="scanCfgIntervalo">cada</span>
+                <input
+                  type="number"
+                  className="scanCfgNum"
+                  min={1}
+                  max={1440}
+                  value={intervalo}
+                  disabled={!auto}
+                  onChange={(ev) => setIntervalo(Number(ev.target.value) || 30)}
+                  onBlur={() => guardarScan(auto, intervalo)}
+                />
+                <span className="scanCfgIntervalo">min</span>
+              </div>
+              <div className="scanCfgAcciones">
+                <button
+                  type="button"
+                  className="excBoton"
+                  onClick={() => void escanearAhora()}
+                  disabled={escaneando}
+                >
+                  {escaneando ? 'analizando…' : 'escaneá ahora'}
+                </button>
+                <span
+                  className="scanCfgMeta"
+                  title={Object.entries(analisis)
+                    .map(([k, a]) => `${k}: ${a.estado}`)
+                    .join('\n')}
+                >
+                  {Object.keys(analisis).length} proyectos analizados
+                </span>
+              </div>
+              {(totales.error > 0 || totales.warning > 0) && (
+                <div className="scanCfgResumen">
+                  <span className="scanCfgBadge scanCfgBadge--error">{totales.error} error{totales.error === 1 ? '' : 'es'}</span>
+                  <span className="scanCfgBadge scanCfgBadge--warn">{totales.warning} aviso{totales.warning === 1 ? '' : 's'}</span>
+                  {ultimaActualizacion > 0 && (
+                    <span className="scanCfgMeta">última: {new Date(ultimaActualizacion).toLocaleTimeString()}</span>
+                  )}
+                </div>
+              )}
+              {scanAviso && <div className="scanCfgAviso">{scanAviso}</div>}
+            </section>
+
             {ignorados.length === 0 ? (
               <div className="docsVacio">
                 no hay excepciones guardadas. usa el menú contextual (clic derecho) sobre un proyecto
