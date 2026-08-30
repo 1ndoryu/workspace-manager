@@ -10,13 +10,14 @@
  * El componente sigue siendo controlado sobre el valor real del JSON, y deja
  * intactas las claves desconocidas no tocadas al guardar. Mantiene el diseno
  * plano aprobado (una fila por ruta, 11px, sin :hover). */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Check, X } from 'lucide-react';
 import type { NodoEsquema, OpcionValor, ValorJson } from '../shared/gate/esquema.js';
 import {
   borrarRuta,
   diagnosticar,
-  rutaDescripcion,
+  rutaDetalle,
   rutaEtiqueta,
   setRuta,
   type Fila,
@@ -60,21 +61,7 @@ function Fila({
 }) {
   if (fila.tipo === 'faltante') {
     return (
-      <div className="ejEstado ejEstado--falte">
-        <span className="ejEtiqueta">
-          <EtiquetaDeRuta ruta={fila.ruta} />
-        </span>
-        {readOnly ? null : (
-          <button
-            type="button"
-            className="ejAgregar"
-            onClick={() => setEn(fila.ruta, fila.default)}
-            title="agregar esta opción con su valor por defecto"
-          >
-            + agregar
-          </button>
-        )}
-      </div>
+      <FilaFaltante fila={fila} setEn={setEn} readOnly={readOnly} />
     );
   }
 
@@ -117,23 +104,122 @@ function Fila({
   );
 }
 
-/* Nombre legible + descripcion corta de una ruta tecnica. El nombre legible
- * sale del catalogo (./shared/gate/etiquetas); la ruta tecnica original se
- * conserva en el tooltip para no perder trazabilidad. [por que] El usuario
- * pidio traducir las etiquetas tecnicas a nombres legibles con descripcion. */
-function EtiquetaDeRuta({ ruta }: { ruta: Ruta }) {
-  const descripcion = rutaDescripcion(ruta);
+/* Fila de una opcion FALTANTE: muestra, cuando el esquema define un default
+ * real, ese valor directamente en la fila; y un boton "+ agregar" que lo
+ * inserta via setRuta (controlado). [por que] El usuario pidio que se vean los
+ * valores por defecto definidos, pero sin mini-form (lo encontraba confuso);
+ * si la opcion NO define un default real (listas de strings, grupos, mapas),
+ * no se muestra ningun valor y solo queda el boton de agregar. */
+function FilaFaltante({
+  fila,
+  setEn,
+  readOnly,
+}: {
+  fila: Extract<Fila, { tipo: 'faltante' }>;
+  setEn: (r: Ruta, v: ValorJson) => void;
+  readOnly?: boolean;
+}) {
+  /* Default REAL: solo hojas cuyo esquema fija `default` explicitamente. Un
+   * grupo/mapa/sin default no muestra valor fantasma (solo queda + agregar). */
+  const defaultReal =
+    fila.nodo !== null && typeof fila.nodo === 'object' && 'tipo' in fila.nodo
+      ? (fila.nodo as OpcionValor).default
+      : undefined;
+
+  /* [por que] El usuario pidio que el valor por defecto se vea como si ya
+   * estuviera puesto en su columna de valor, transparente/fantasma (no como
+   * texto en el titulo ni en un mini-form). Al hacer click sobre el valor
+   * fantasma se inserta (setRuta) y pasa a ser el valor real editable. */
   return (
-    <span className="ejRutaTexto" title={rutaEtiquetaTecnica(ruta)}>
-      <span className="ejRutaNombre">{rutaEtiqueta(ruta)}</span>
-      {descripcion ? <span className="ejRutaDesc">{descripcion}</span> : null}
-    </span>
+    <div className="ejEstado ejEstado--falte">
+      <span className="ejEtiqueta">
+        <EtiquetaDeRuta ruta={fila.ruta} />
+      </span>
+      <span className="ejControl">
+        {defaultReal !== undefined && !readOnly ? (
+          <button
+            type="button"
+            className="ejDefaultGhost"
+            onClick={() => setEn(fila.ruta, fila.default)}
+            title="haz clic para usar este valor por defecto"
+          >
+            {formatDefault(defaultReal)}
+            <span className="ejAgregarMini">＋</span>
+          </button>
+        ) : readOnly ? null : (
+          <button
+            type="button"
+            className="ejAgregar"
+            onClick={() => setEn(fila.ruta, fila.default)}
+            title="agregar esta opción con su valor por defecto"
+          >
+            + agregar
+          </button>
+        )}
+      </span>
+    </div>
   );
 }
 
-/* Ruta tecnica original (segmentos separados por ' › '), para el tooltip. */
-function rutaEtiquetaTecnica(ruta: Ruta): string {
-  return ruta.map((x) => String(x)).join(' › ') || '(configuración)';
+/* Formatea un valor por defecto real para mostrarlo inline en la fila.
+ * [por que] El usuario pidio que se vea el valor por defecto directamente,
+ * legible (no JSON crudo): booleanos como si/no, listas como contenedoras
+ * separadas por comas, objetos como su resumen. */
+function formatDefault(v: ValorJson): string {
+  if (typeof v === 'boolean') return v ? 'sí' : 'no';
+  if (Array.isArray(v)) {
+    return v.length === 0 ? '[]' : v.map((x) => String(x)).join(', ');
+  }
+  if (v !== null && typeof v === 'object') {
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return '{…}';
+    }
+  }
+  return String(v);
+}
+
+/* Nombre legible de la ruta tecnica de la opcion, con TOOLTIP personalizado
+ * monocromo que muestra SOLO la descripcion detallada de la opcion al pasar el
+ * cursor. [por que] El usuario pidio que el tooltip muestre unicamente la
+ * descripcion detallada: repetir el nombre o la ruta tecnica es redundante
+ * porque la ruta ya se lee en la propia etiqueta. Se usa
+ * un portal al body para que el tooltip no se recorte por el overflow de los
+ * paneles con scroll. */
+function EtiquetaDeRuta({ ruta }: { ruta: Ruta }) {
+  const detalle = rutaDetalle(ruta);
+  const ref = useRef<HTMLSpanElement>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+
+  function mostrar(e: React.MouseEvent) {
+    const r = ref.current?.getBoundingClientRect();
+    if (!r) return;
+    const ANCHO = 340;
+    let x = r.left;
+    if (x + ANCHO > window.innerWidth - 8) x = Math.max(8, window.innerWidth - ANCHO - 8);
+    const y = Math.min(r.bottom + 6, Math.max(8, window.innerHeight - 180));
+    setPos({ x, y });
+  }
+
+  return (
+    <span
+      ref={ref}
+      className="ejRutaTexto"
+      onMouseEnter={mostrar}
+      onMouseLeave={() => setPos(null)}
+    >
+      <span className="ejRutaNombre">{rutaEtiqueta(ruta)}</span>
+      {pos &&
+        detalle &&
+        createPortal(
+          <div className="ejTooltip" style={{ left: pos.x, top: pos.y }} role="tooltip">
+            <span className="ejTooltipDetalle">{detalle}</span>
+          </div>,
+          document.body,
+        )}
+    </span>
+  );
 }
 
 /* Control segun el tipo de opcion (sin JSON crudo). */
