@@ -989,10 +989,18 @@
 .ejReglasCabecera { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .ejReglasTitulo { font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em; }
 .ejReglasMeta { font-size: 11px; font-style: italic; opacity: .55; }
-.ejReglasLista { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* Tabs por categoria de regla (sin :hover, regla global del editor). */
+.ejTabs { display: flex; flex-wrap: wrap; gap: 3px; }
+.ejTab {
+  font-family: inherit; font-size: 11px; color: var(--v2-oscuro);
+  background: transparent; border: 1px solid var(--v2-borde); border-radius: 3px;
+  padding: 3px 8px; cursor: default;
+}
+.ejTab--activo { background: var(--v2-texto); color: var(--v2-invertido); border-color: var(--v2-texto); }
+.ejReglasLista { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ejRegla {
-  display: flex; align-items: center; gap: 10px; min-width: 0;
-  padding: 5px 8px; border: 1px solid var(--v2-borde); border-radius: 3px;
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 3px 7px; border: 1px solid var(--v2-borde); border-radius: 3px;
 }
 /* Regla sin valor definido en el JSON: borde punteado y opacidad, mostrando
  * el default del esquema. Al tocar su switch/select se inserta. */
