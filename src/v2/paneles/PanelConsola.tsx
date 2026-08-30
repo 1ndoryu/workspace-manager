@@ -176,7 +176,13 @@ export function PanelConsola() {
   const visibles = useMemo(() => {
     if (filtro === 'sentinel') return problemasSentinel;
     if (filtro === 'todos') return problemasTodo;
-    return problemas.filter((pr) => pr.entradas.some((e) => e.categoria === filtro));
+    /* Cada filtro renderiza SOLO sus entradas: al filtrar por una categoria
+     * no deben verse las lineas de otras categorias del mismo proyecto.
+     * [por que] antes devolviamos el grupo completo y se colaban lineas de
+     * config/sin-push/analisis al filtrar por sentinel-varsense o la inversa. */
+    return problemas
+      .map((pr) => ({ p: pr.p, entradas: pr.entradas.filter((e) => e.categoria === filtro) }))
+      .filter((pr) => pr.entradas.length > 0);
   }, [problemas, problemasSentinel, problemasTodo, filtro]);
 
   /* El conteo es por PROBLEMA individual (entradas), no por proyecto.
