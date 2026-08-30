@@ -4,11 +4,22 @@
  * desactualizado. La clasificacion se deriva del snapshot, sin llamada extra
  * al server. */
 import { useMemo, useState } from 'react';
-import type { Proyecto } from '../../shared/types.js';
+import type { AnalisisSentinel, Proyecto } from '../../shared/types.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import './paneles.css';
 
-type Categoria = 'sinGit' | 'sinPush' | 'gate' | 'config';
+type Categoria = 'sinGit' | 'sinPush' | 'gate' | 'config' | 'sentinel';
+
+/* Severidad real del hallazgo de sentinel (analyze); solo la categoria
+ * 'sentinel' la usa. El badge del proyecto y de la linea deriva de aqui. */
+type SeveridadSentinel = 'error' | 'warning' | 'information' | 'hint';
+
+const SEV_ETIQUETA: Record<SeveridadSentinel, string> = {
+  error: 'error',
+  warning: 'warning',
+  information: 'info',
+  hint: 'hint',
+};
 
 interface Entrada {
   categoria: Categoria;
@@ -16,6 +27,9 @@ interface Entrada {
   /* Severidad real del problema. Solo la categoria 'config' distingue
    * error/advertencia; el resto es null (no aplica). */
   seriedad: 'error' | 'advertencia' | null;
+  /* Severidad del hallazgo de sentinel (analyze), p. ej. error/warning/information/
+   * hint. Null salvo en la categoria 'sentinel'. */
+  sentinelSeveridad?: SeveridadSentinel;
 }
 
 /* Un proyecto con sus problemas. Cada problema (Entrada) es una linea
@@ -70,9 +84,25 @@ function problemasDe(p: Proyecto): Problema | null {
   return { p, entradas };
 }
 
+/* Hallazgos de sentinel de un proyecto (si ya se analizo y hay algo). Cada
+ * hallazgo es una entrada propia en la categoria 'sentinel'. [por que] La
+ * consola se entera del analisis por el store (resultado de escanearUno/Todo);
+ * NO mezcla estos hallazgos con 'todos' (decision del usuario: el total de la
+ * cabecera no suma analyze; cada filtro conserva su conteo). */
+function problemasSentinelDe(p: Proyecto, a: AnalisisSentinel | undefined): Problema | null {
+  if (!a || a.estado !== 'conHallazgos' || a.hallazgos.length === 0) return null;
+  const entradas: Entrada[] = a.hallazgos.map((h) => ({
+    categoria: 'sentinel',
+    motivo: `${h.archivo || p.id}${h.linea != null ? `:${h.linea}` : ''} — ${h.ruleId} — ${h.mensaje}`,
+    seriedad: h.severidad === 'error' ? 'error' : 'advertencia',
+    sentinelSeveridad: h.severidad,
+  }));
+  return { p, entradas };
+}
+
 /* Categorias unicas de un proyecto (para sus badges), en orden fijo. */
 function categoriasDe(pr: Problema): Categoria[] {
-  const orden: Categoria[] = ['sinGit', 'sinPush', 'gate', 'config'];
+  const orden: Categoria[] = ['sinGit', 'sinPush', 'gate', 'config', 'sentinel'];
   return orden.filter((c) => pr.entradas.some((e) => e.categoria === c));
 }
 
@@ -82,6 +112,7 @@ const FILTROS: { clave: 'todos' | Categoria; etiqueta: string }[] = [
   { clave: 'sinPush', etiqueta: 'sin push' },
   { clave: 'gate', etiqueta: 'sentinel/varsense' },
   { clave: 'config', etiqueta: 'config' },
+  { clave: 'sentinel', etiqueta: 'análisis' },
 ];
 
 const ETIQUETA_CATEGORIA: Record<Categoria, string> = {
@@ -89,6 +120,7 @@ const ETIQUETA_CATEGORIA: Record<Categoria, string> = {
   sinPush: 'sin push',
   gate: 'sentinel',
   config: 'config',
+  sentinel: 'análisis',
 };
 
 /* Ruta relativa de un proyecto respecto a la raiz del area, para abrir su
@@ -104,6 +136,7 @@ function rutaRelativa(raiz: string | undefined, rutaAbs: string): string {
 
 export function PanelConsola() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
+  const analisis = useWorkspaceStore((s) => s.analisis);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const irAArchivos = useWorkspaceStore((s) => s.irAArchivos);
@@ -115,19 +148,40 @@ export function PanelConsola() {
     return snapshot.proyectos.map(problemasDe).filter((x): x is Problema => x !== null);
   }, [snapshot]);
 
+  /* Hallazgos de sentinel por proyecto (solo de los ya analizados). Los
+   * proyectos de 'sentinel' se listan en su propio filtro; su conteo NO entra
+   * en 'todos' (decision del usuario: hint/information no es un problema de
+   * config y mezclarlo es ruido). */
+  const problemasSentinel = useMemo(() => {
+    if (!snapshot) return [];
+    return snapshot.proyectos
+      .map((p) => problemasSentinelDe(p, analisis[p.clave]))
+      .filter((x): x is Problema => x !== null);
+  }, [snapshot, analisis]);
+
   const visibles = useMemo(() => {
+    if (filtro === 'sentinel') return problemasSentinel;
     if (filtro === 'todos') return problemas;
     return problemas.filter((pr) => pr.entradas.some((e) => e.categoria === filtro));
-  }, [problemas, filtro]);
+  }, [problemas, problemasSentinel, filtro]);
 
   /* El conteo es por PROBLEMA individual (entradas), no por proyecto.
    * [por que] Un proyecto puede agrupar varias lineas; contarlo como 1
    * hacía que el total no coincidiera con las lineas visibles al abrir.
-   * 'todos' suma todas las entradas; cada filtro suma las de su categoria. */
+   * 'todos' suma las entradas NO-sentinel; 'sentinel' suma sus hallazgos
+   * aparte (nunca se mezclan). Cada filtro conserva su conteo. */
   const contar = (clave: 'todos' | Categoria): number => {
+    if (clave === 'sentinel') {
+      return problemasSentinel.reduce((n, pr) => n + pr.entradas.length, 0);
+    }
     if (clave === 'todos') return problemas.reduce((n, pr) => n + pr.entradas.length, 0);
     return problemas.reduce((n, pr) => n + pr.entradas.filter((e) => e.categoria === clave).length, 0);
   };
+
+  /* Severidad que pinta el badge del proyecto en la categoria 'sentinel':
+   * error si algun hallazgo es error; si no, advertencia (warning/info/hint). */
+  const severidadProyectoSentinel = (pr: Problema): 'error' | 'warn' =>
+    pr.entradas.some((e) => e.sentinelSeveridad === 'error') ? 'error' : 'warn';
 
   if (!snapshot) return null;
 
@@ -172,14 +226,23 @@ export function PanelConsola() {
                 title={pr.p.ruta}
               >
                 <span className="consolaFilaNombre">{pr.p.id}</span>
-                {categoriasDe(pr).map((c) => (
-                  <span
-                    key={c}
-                    className={`consolaFilaBadge${c === 'config' ? ` consolaFilaBadge--${pr.entradas.some((e) => e.categoria === 'config' && e.seriedad === 'error') ? 'error' : 'warn'}` : ''}`}
-                  >
-                    {ETIQUETA_CATEGORIA[c]}
-                  </span>
-                ))}
+                {categoriasDe(pr).map((c) => {
+                  let severidadBadge = '';
+                  if (c === 'config') {
+                    severidadBadge = pr.entradas.some(
+                      (e) => e.categoria === 'config' && e.seriedad === 'error',
+                    )
+                      ? '--error'
+                      : '--warn';
+                  } else if (c === 'sentinel') {
+                    severidadBadge = `--${severidadProyectoSentinel(pr)}`;
+                  }
+                  return (
+                    <span key={c} className={`consolaFilaBadge${severidadBadge}`}>
+                      {ETIQUETA_CATEGORIA[c]}
+                    </span>
+                  );
+                })}
               </button>
               <ul className="consolaMotivos">
                 {pr.entradas.map((e, i) => (
@@ -187,6 +250,11 @@ export function PanelConsola() {
                     key={`${e.motivo}-${i}`}
                     className={`consolaMotivo${e.seriedad ? ` consolaMotivo--${e.seriedad === 'error' ? 'error' : 'warn'}` : ''}`}
                   >
+                    {e.sentinelSeveridad ? (
+                      <span className={`consolaSeveridad consolaSeveridad--${e.sentinelSeveridad}`}>
+                        {SEV_ETIQUETA[e.sentinelSeveridad]}
+                      </span>
+                    ) : null}
                     {e.motivo}
                   </li>
                 ))}

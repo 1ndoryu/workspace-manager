@@ -308,6 +308,33 @@
     border-left: 1px solid var(--v2-borde);
 }
 
+/* Badge de severidad de CATEGORIA 'sentinel' (hallazgo de analyze), en linea
+ * con el motivo. Monocromo igual que el resto: error = relleno solido,
+ * warning = borde discontinuo, info/hint = tamano/forma menor. [por que] El
+ * usuario pidio una UI sin color; la gravedad se distingue por forma. */
+.consolaSeveridad {
+    flex: none;
+    margin-right: var(--v2-spaceSm);
+    padding: 0 4px;
+    border: 1px solid currentColor;
+    font-size: 0.85em;
+}
+
+.consolaSeveridad--error {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.consolaSeveridad--warning {
+    border-style: dashed;
+}
+
+.consolaSeveridad--information,
+.consolaSeveridad--hint {
+    border-style: dotted;
+    opacity: 0.7;
+}
+
 /* ============================================================
  * Panel central: documentacion (skills globales + AGENTS.md).
  * [v2.2] Una sola lista lateral con etiqueta de tipo por entrada;

@@ -121,6 +121,9 @@ interface EstadoWorkspace {
    * el server es el dueno de la ejecucion y aqui solo se cachean resultados
    * para que la consola cuente/agrupe sin volver a preguntar. */
   analisis: Record<string, AnalisisSentinel>;
+  /* Indica si hay un barrido de analisis en curso (para el auto-timer: nunca
+   * lanza un segundo barrido si ya hay uno — single-flight). */
+  analizando: boolean;
   escanearUno: (clave: string, forzar?: boolean) => Promise<AnalisisSentinel>;
   escanearTodo: () => Promise<void>;
   configurarScan: (scan: ConfigScan) => Promise<void>;
@@ -158,6 +161,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   reglasCatalogo: { version: '—', fuente: 'estatica', reglas: REGLAS_ESTATICAS },
   esquemas: {},
   analisis: {},
+  analizando: false,
   cargar: async (forzar = false) => {
     set({ cargando: true, error: null });
     try {
@@ -291,12 +295,20 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
 
   /* Barrido serial del workspace (auto-timer y boton 'Escanea todo'). */
   escanearTodo: async () => {
-    const { data } = await axios.post<{ escaneadoEn: string; proyectos: AnalisisSentinel[] }>(
-      '/api/gate/analizar-todo',
-    );
-    const analisis: Record<string, AnalisisSentinel> = {};
-    for (const a of data.proyectos) analisis[a.clave] = a;
-    set((s) => ({ analisis: { ...s.analisis, ...analisis } }));
+    /* [por que] el flag analizando evita barridos encolados (single-flight);
+     * el server igual no hace spawn si nada cambio (cache por HEAD/version). */
+    if (get().analizando) return;
+    set({ analizando: true });
+    try {
+      const { data } = await axios.post<{ escaneadoEn: string; proyectos: AnalisisSentinel[] }>(
+        '/api/gate/analizar-todo',
+      );
+      const analisis: Record<string, AnalisisSentinel> = {};
+      for (const a of data.proyectos) analisis[a.clave] = a;
+      set((s) => ({ analisis: { ...s.analisis, ...analisis } }));
+    } finally {
+      set({ analizando: false });
+    }
   },
 
   /* Persiste automatico+intervalo (switch/input del PanelConfig). */
@@ -307,6 +319,43 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
     }));
   },
 }));
+
+/* Auto-escaneo periodico (plan A4). [por que] El timer vive en el CLIENTE, asi
+ * con la app cerrada hay cero recursos (no hay ningun demonio server). Respeta
+ * scan.automatico e intervaloMin; no relanza si ya hay un barrido en curso
+ * (single-flight) y se detiene solo (detenerAuto) si la config cambia a apagado
+ * o si la sesion carga una config sin automatico. */
+let temporizadorAuto: ReturnType<typeof setInterval> | null = null;
+
+function detenerAuto(): void {
+  if (temporizadorAuto !== null) {
+    clearInterval(temporizadorAuto);
+    temporizadorAuto = null;
+  }
+}
+
+/* Rearma el timer acorde a la config actual; si esta apagado, lo detiene. */
+function rearmarAuto(): void {
+  detenerAuto();
+  const scan = useWorkspaceStore.getState().snapshot?.config?.scan;
+  if (!scan?.automatico) return;
+  const min = Math.max(1, scan.intervaloMin ?? 30);
+  temporizadorAuto = setInterval(() => {
+    const st = useWorkspaceStore.getState();
+    if (!st.snapshot?.config?.scan?.automatico) {
+      detenerAuto();
+      return;
+    }
+    if (st.analizando) return;
+    st.escanearTodo();
+  }, min * 60_000);
+}
+
+/* Rearma cada vez que cambia la config de scan (inicial al cargar y al
+ * guardar el switch/intervalo desde PanelConfig). */
+useWorkspaceStore.subscribe((s, prev) => {
+  if (s.snapshot?.config?.scan !== prev.snapshot?.config?.scan) rearmarAuto();
+});
 
 /* Selectores derivados: lista filtrada por estado + busqueda. */
 export function proyectosFiltrados(state: EstadoWorkspace): Proyecto[] {
