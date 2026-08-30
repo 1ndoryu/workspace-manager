@@ -74,6 +74,14 @@
 
 - `sqlx::query!` requiere `DATABASE_URL` en compile-time y feature `macros` de sqlx; si el build del
   proyecto no lo soporta, la conversión masiva rompe el build → se documenta como restricción real.
+- **F4-Rust (baja presencial, confirmado 2026-08-30):** el crate de RESTAURANTE **no compila** en este
+  entorno ni siquiera en árbol limpio: `cargo check --tests` falla por schema drift preexistente en
+  `src/repositories/venta.rs:419` (`sqlx::query!` pide la columna `haddock_synced_at`, ausente en la
+  BD local 127.0.0.1:5432 glory_db). Por eso NINGÚN refactor Rust (`funcion-larga-rs`, `parametros-excesivos-rs`)
+  puede verificarse con cargo aquí: es un bloqueo de build preexistente ajeno a cualquier extracción.
+  Se intentó un split bajo-riesgo (extraer la auditoría en `bdp_pago.rs::insertar_local` a un helper
+  privado), se revirtió al constatarse que no hay forma de `cargo check`; el frente queda bloqueado
+  hasta subsanar el drift del schema (fuera del alcance de este plan).
 - RESTAURANTE con 111 cambios ajenos: tocar archivos sucios está prohibido por la disciplina del hilo.
 - Push queda fuera salvo confirmación explícita por repo.
 
