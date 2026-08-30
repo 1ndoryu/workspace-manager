@@ -8,6 +8,7 @@ import { obtenerSnapshot, actualizarSnapshot } from './cache.js';
 import { escanearWorkspace, claveDe, resumenDe } from './scanner/workspace.js';
 import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
 import { cambiarIgnorado, leerConfigArea } from './configArea.js';
+import { reglasGate } from './gate/proveedor.js';
 import type { SnapshotWorkspace } from '../shared/types.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
@@ -215,6 +216,19 @@ export function crearServidor() {
           }
           const doctor = doctorSentinel(proyecto.ruta);
           json(res, 200, { id, doctor });
+          return;
+        }
+        /* Catalogo de reglas VIVO del gate desde el runtime sentinel.
+         * [por que] El cliente es 'tonto': no importa el snapshot de reglas
+         * en el bundle, el server resuelve el runtime instalado y sirve las
+         * reglas reales (con fallback al catalogo estatico embebido). */
+        if (ruta === '/api/gate/reglas') {
+          if (req.method !== 'GET') {
+            json(res, 405, { error: 'Metodo no permitido' });
+            return;
+          }
+          const { version, fuente, reglas } = reglasGate();
+          json(res, 200, { version, fuente, total: reglas.length, reglas });
           return;
         }
         /* Config del area: alternar un proyecto entre ignorar / dejar de

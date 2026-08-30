@@ -55,6 +55,18 @@ export function PanelConfig() {
   const cargar = useWorkspaceStore((s) => s.cargar);
   const proyectoAConfigurar = useWorkspaceStore((s) => s.proyectoAConfigurar);
   const cambiarIgnorado = useWorkspaceStore((s) => s.cambiarIgnorado);
+  /* Catalogo de reglas vivo del gate (el server lo resuelve del runtime);
+   * el store lo pide una vez y cae al estatico si falla. [por que] R1
+   * gate-dinamico: el editor debe usar las reglas reales del runtime, no el
+   * snapshot congelado del bundle. */
+  const reglasCatalogo = useWorkspaceStore((s) => s.reglasCatalogo);
+  const cargarReglas = useWorkspaceStore((s) => s.cargarReglas);
+
+  /* Al montar el panel, se asegura de que el catalogo de reglas este cargado
+   * (fetch una vez; si ya esta, no repite). */
+  useEffect(() => {
+    void cargarReglas();
+  }, [cargarReglas]);
 
   /* Vista actual y, si es 'proyecto', la clave del proyecto abierto. */
   const [vista, setVista] = useState<Vista>('excepciones');
@@ -323,6 +335,7 @@ export function PanelConfig() {
                           key={`${claveVisor}:${a.nombre}`}
                           esquema={esquema}
                           value={valor}
+                          reglas={reglasCatalogo.reglas}
                           onChange={(nv) => setEditado((e) => ({ ...e, [a.nombre]: nv }))}
                         />
                       ) : (
