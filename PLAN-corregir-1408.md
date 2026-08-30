@@ -24,7 +24,7 @@
 | ONG AGAPE | 0 | — | — ✓ |
 | gloryapi | 8 | limite-lineas ×4, ISP ×2, barrel ×2 | 6 archivos con cambios ajenos → **bloqueado** |
 | PROYECTO TASKS | 500 | css-adhoc (69), ISP (61), window/dom (116), console (56), css-espec (46), modals (45) | 4 cambios (2 ajenos) |
-| RESTAURANTE | 463 | **sqlx sin macro (262)**, limite-lineas (40), html-nativo (26), inline-style (18), largo-rs (15) | 111 cambios ajenos |
+| RESTAURANTE | 463 → **136** | tras F5: sqlx (26) disable-file, glory-conv (38) config.rules, window/dom (13) boundaries, barras (10) + directorio (4) fixes | limpio ✓ (commit `ac72429`) |
 | WANDORIUS | 410 | **sqlx sin macro (283)**, window/dom (63), css (18), console (8) | **limpio** ✓ |
 
 ## 2. Decisiones de alcance (acordadas con el usuario)
