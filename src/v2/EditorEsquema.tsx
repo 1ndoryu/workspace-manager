@@ -23,6 +23,7 @@ import {
   type Fila,
   type Ruta,
 } from '../shared/gate/esquema.js';
+import { infoSegmento } from '../shared/gate/etiquetas.js';
 import { toastInfo } from './toast.js';
 
 interface Props {
@@ -34,18 +35,55 @@ interface Props {
 
 export function EditorEsquema({ esquema, value, onChange, readOnly }: Props) {
   const filas = diagnosticar(esquema, value);
-  if (filas.length === 0) {
+  /* Catalogo de reglas del esquema (nodo mapaCatalogo de la raiz, p.ej. `rules`
+   * en sentinel). Si existe, las filas de esa clave NO se renderizan como filas
+   * planas: van a la seccion dedicada SeccionReglas. [por que] El usuario pidio
+   * que las reglas se vean en una seccion aparte con todas las reglas del
+   * catalogo, activables/desactivables, en lugar de filas sueltas
+   * `Reglas > id > Habilitada`. Generico: se descubre del esquema, sin claves
+   * hardcodeadas. */
+  const catalogo = buscarCatalogo(esquema);
+  const filasPlanas = catalogo ? filas.filter((f) => f.ruta[0] !== catalogo.clave) : filas;
+  if (filas.length === 0 && !catalogo) {
     return <div className="fjVacio">sin opciones</div>;
   }
   const setEn = (ruta: Ruta, nuevo: ValorJson) => onChange(setRuta(value, ruta, nuevo));
+  const valorCatalogo =
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, ValorJson>)[catalogo?.clave ?? '']
+      : undefined;
 
   return (
     <div className="fjPlano">
-      {filas.map((f, i) => (
+      {catalogo && (
+        <SeccionReglas
+          clave={catalogo.clave}
+          item={catalogo.item}
+          ids={catalogo.ids}
+          valor={valorCatalogo}
+          setEn={setEn}
+          readOnly={readOnly}
+        />
+      )}
+      {filasPlanas.map((f, i) => (
         <Fila key={i} fila={f} setEn={setEn} quitar={readOnly ? undefined : (r) => onChange(borrarRuta(value, r))} readOnly={readOnly} />
       ))}
     </div>
   );
+}
+
+/* Descubre el nodo catalogo (mapaCatalogo con ids) de la raiz del esquema.
+ * [por que] La seccion de reglas no debe depender de la clave exacta
+ * (`rules`): cualquier esquema con un mapa+catalogo en la raiz obtiene la
+ * seccion dedicada sin tocar el componente. */
+function buscarCatalogo(esquema: NodoEsquema): { clave: string; item: NodoEsquema; ids: string[] } | null {
+  if (!('objeto' in esquema)) return null;
+  for (const [clave, n] of Object.entries(esquema.objeto)) {
+    if ('mapaCatalogo' in n && Array.isArray(n.catalogo) && n.catalogo.length > 0) {
+      return { clave, item: n.mapaCatalogo, ids: n.catalogo };
+    }
+  }
+  return null;
 }
 
 function Fila({
@@ -161,6 +199,142 @@ function FilaFaltante({
   );
 }
 
+/* Seccion dedicada del catalogo de reglas (p.ej. `rules` de sentinel): TODAS
+ * las reglas del catalogo, cada una con switch (habilitada) y select de
+ * severidad. Si una regla no tiene valor definido en el JSON, muestra el
+ * DEFAULT del esquema (obtenido del nodo, no hardcodeado) y queda marcada
+ * como "por defecto"; al tocarla se inserta. Las reglas presentes que no
+ * estan en el catalogo (las escribio el agente) tambien se muestran, marcadas
+ * como desconocidas, para no perderlas. [por que] El usuario pidio que las
+ * reglas aparezcan todas, en una seccion aparte, para activarlas/desactivarlas
+ * de un vistazo; el listado plano anterior (`Reglas > id > Habilitada`) era
+ * confuso y ocultaba las que faltaban. */
+function SeccionReglas({
+  clave,
+  item,
+  ids,
+  valor,
+  setEn,
+  readOnly,
+}: {
+  clave: string;
+  item: NodoEsquema;
+  ids: string[];
+  valor: ValorJson | undefined;
+  setEn: (r: Ruta, v: ValorJson) => void;
+  readOnly?: boolean;
+}) {
+  /* Claves que el esquema define para cada regla (habilitada/severidad). */
+  const clavesEsquema = new Set('objeto' in item ? Object.keys(item.objeto) : []);
+  /* Defaults REALES del esquema por regla (no hardcodeados). */
+  const nodoHab = 'objeto' in item ? item.objeto['habilitada'] : undefined;
+  const nodoSev = 'objeto' in item ? item.objeto['severidad'] : undefined;
+  const defaultHabilitada = nodoHab && 'tipo' in nodoHab ? nodoHab.default !== false : true;
+  const defaultSeveridad = nodoSev && 'tipo' in nodoSev && typeof nodoSev.default === 'string'
+    ? nodoSev.default
+    : 'error';
+  const valoresSev =
+    nodoSev && 'tipo' in nodoSev && nodoSev.tipo === 'enum' ? (nodoSev.valores ?? []) : [];
+
+  const reglas =
+    valor !== null && typeof valor === 'object' && !Array.isArray(valor)
+      ? (valor as Record<string, ValorJson>)
+      : {};
+  const desconocidas = Object.keys(reglas).filter((id) => !ids.includes(id));
+  const todas = [...ids, ...desconocidas.sort()];
+  const enConfig = ids.filter((id) => Object.prototype.hasOwnProperty.call(reglas, id)).length;
+  const activas = todas.filter((id) => {
+    const v = reglas[id];
+    const obj = v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, ValorJson>) : undefined;
+    return obj ? obj['habilitada'] !== false : defaultHabilitada;
+  }).length;
+
+  return (
+    <section className="ejReglas">
+      <header className="ejReglasCabecera">
+        <span className="ejReglasTitulo">{infoSegmento(clave).nombre}</span>
+        <span className="ejReglasMeta">
+          {enConfig} de {ids.length} en config · {activas} activas
+        </span>
+      </header>
+      <div className="ejReglasLista">
+        {todas.map((id) => {
+          const v = reglas[id];
+          const obj = v !== null && typeof v === 'object' && !Array.isArray(v)
+            ? (v as Record<string, ValorJson>)
+            : undefined;
+          const ausente = obj === undefined;
+          const desconocida = !ids.includes(id);
+          const habilitada = obj ? obj['habilitada'] !== false : defaultHabilitada;
+          const severidad = obj && typeof obj['severidad'] === 'string' ? obj['severidad'] : defaultSeveridad;
+          const extras = obj ? Object.keys(obj).filter((k) => !clavesEsquema.has(k)) : [];
+
+          const toggle = () => {
+            if (readOnly) return;
+            const nuevo = !habilitada;
+            if (ausente) setEn([clave, id], { habilitada: nuevo, severidad });
+            else setEn([clave, id, 'habilitada'], nuevo);
+          };
+          const cambiarSeveridad = (s: string) => {
+            if (readOnly) return;
+            if (ausente) setEn([clave, id], { habilitada, severidad: s });
+            else setEn([clave, id, 'severidad'], s);
+          };
+
+          return (
+            <div
+              key={id}
+              className={`ejRegla${ausente ? ' ejRegla--ausente' : ''}${desconocida ? ' ejRegla--desconocida' : ''}${!habilitada ? ' ejRegla--off' : ''}`}
+            >
+              <span className="ejReglaSwitch">
+                {readOnly ? (
+                  <span className="ejValorTexto">{habilitada ? 'sí' : 'no'}</span>
+                ) : (
+                  <button
+                    type="button"
+                    className={`fjSwitch${habilitada ? ' fjSwitch--on' : ''}`}
+                    onClick={toggle}
+                    aria-pressed={habilitada}
+                    title={habilitada ? 'desactivar regla' : 'activar regla'}
+                  >
+                    <span className="fjSwitchPalo" />
+                  </button>
+                )}
+              </span>
+              <span className="ejReglaInfo">
+                <EtiquetaDeRuta ruta={[clave, id]} texto={infoSegmento(id).nombre} />
+                <span className="ejReglaNotas">
+                  {ausente && <span className="ejReglaPorDefecto">por defecto</span>}
+                  {desconocida && <span className="ejMarcaTexto">desconocida</span>}
+                  {extras.length > 0 && <span className="ejReglaPorDefecto">+{extras.length} clave(s) extra</span>}
+                </span>
+              </span>
+              <span className="ejReglaSev">
+                {readOnly ? (
+                  <span className="ejValorTexto">{severidad}</span>
+                ) : (
+                  <select
+                    className="fjSelect"
+                    value={severidad}
+                    onChange={(e) => cambiarSeveridad(e.target.value)}
+                    title="severidad de la regla"
+                  >
+                    {[...new Set([...valoresSev, severidad])].map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 /* Formatea un valor por defecto real para mostrarlo inline en la fila.
  * [por que] El usuario pidio que se vea el valor por defecto directamente,
  * legible (no JSON crudo): booleanos como si/no, listas como contenedoras
@@ -187,7 +361,7 @@ function formatDefault(v: ValorJson): string {
  * porque la ruta ya se lee en la propia etiqueta. Se usa
  * un portal al body para que el tooltip no se recorte por el overflow de los
  * paneles con scroll. */
-function EtiquetaDeRuta({ ruta }: { ruta: Ruta }) {
+function EtiquetaDeRuta({ ruta, texto }: { ruta: Ruta; texto?: string }) {
   const detalle = rutaDetalle(ruta);
   const ref = useRef<HTMLSpanElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -209,7 +383,7 @@ function EtiquetaDeRuta({ ruta }: { ruta: Ruta }) {
       onMouseEnter={mostrar}
       onMouseLeave={() => setPos(null)}
     >
-      <span className="ejRutaNombre">{rutaEtiqueta(ruta)}</span>
+      <span className="ejRutaNombre">{texto ?? rutaEtiqueta(ruta)}</span>
       {pos &&
         detalle &&
         createPortal(

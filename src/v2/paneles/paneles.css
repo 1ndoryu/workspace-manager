@@ -976,6 +976,37 @@
 .ejDefaultFila--rec { opacity: .6; font-style: italic; }
 .ejDefaultEtiqueta { font-size: 11px; color: var(--v2-oscuro); opacity: .75; letter-spacing: .01em; min-width: 120px; }
 .ejQuitar { font-family: inherit; font-size: 11px; letter-spacing: .05em; padding: 2px 8px; border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; }
+/* ---- Seccion de reglas (EditorEsquema): todas las reglas del catalogo,
+ * cada una con switch (habilitada) y select de severidad. [por que] El
+ * usuario pidio que las reglas aparezcan en una sesion aparte, todas
+ * visibles, para activarlas/desactivarlas de un vistazo; si una regla no
+ * tiene valor definido se muestra el default del esquema marcada como
+ * "por defecto". Monocromo, sin :hover (regla global del editor). */
+.ejReglas {
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  padding: 7px 10px 10px; border-bottom: 1px solid var(--v2-borde);
+}
+.ejReglasCabecera { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ejReglasTitulo { font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em; }
+.ejReglasMeta { font-size: 11px; font-style: italic; opacity: .55; }
+.ejReglasLista { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ejRegla {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  padding: 5px 8px; border: 1px solid var(--v2-borde); border-radius: 3px;
+}
+/* Regla sin valor definido en el JSON: borde punteado y opacidad, mostrando
+ * el default del esquema. Al tocar su switch/select se inserta. */
+.ejRegla--ausente { border-style: dashed; opacity: .72; }
+/* Regla presente pero fuera del catalogo (la escribio el agente): se resalta
+ * el borde en negro para no perderla de vista. */
+.ejRegla--desconocida { border-color: var(--v2-invertido); }
+.ejRegla--off .ejRutaNombre { opacity: .5; }
+.ejReglaSwitch { flex-shrink: 0; display: inline-flex; align-items: center; }
+.ejReglaInfo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ejReglaNotas { display: flex; gap: 6px; flex-wrap: wrap; }
+.ejReglaPorDefecto { font-size: 11px; font-style: italic; opacity: .5; }
+.ejReglaSev { flex-shrink: 0; display: inline-flex; align-items: center; }
+.ejReglaSev .fjSelect { max-width: 120px; }
 .fjFila--mal .fjControl { border-left: 2px solid var(--v2-invertido); padding-left: 8px; }
 .fjSelect { font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro); background: var(--v2-fondo); border: 1px solid var(--v2-borde); padding: 3px 6px; border-radius: 3px; }
 .fjTag--ro { padding: 2px 6px; }
