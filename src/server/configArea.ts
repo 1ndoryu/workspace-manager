@@ -4,11 +4,33 @@
  * de la propia area (la app ya escribe la cache ahi), fuera de git. */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { ConfigWorkspace } from '../shared/types.js';
+import type { ConfigScan, ConfigWorkspace } from '../shared/types.js';
 
 /* Una sola fuente: data/workspace.config.json en la raiz del area. */
 export const NOMBRE_CONFIG = 'workspace.config.json';
-export const CONFIG_DEFECTO: ConfigWorkspace = { version: 1, ignorados: [] };
+/* [por que] v2: agrega la seccion 'scan' (analisis automatico de sentinel,
+ * opt-in y apagado por defecto). Una config v1 (ignorados a secas) sigue
+ * valid siendo leida, se normaliza al default de scan. */
+export const CONFIG_DEFECTO: ConfigWorkspace = {
+  version: 2,
+  ignorados: [],
+  scan: { automatico: false, intervaloMin: 30 },
+};
+
+/* Normaliza el valor scan desde un JSON arbitrario (ausente => apagado). */
+function normalizarScan(d: Partial<ConfigWorkspace>): ConfigScan | undefined {
+  const s = d.scan;
+  if (!s || typeof s !== 'object') return { automatico: false, intervaloMin: 30 };
+  return {
+    automatico: typeof s.automatico === 'boolean' ? s.automatico : false,
+    intervaloMin:
+      typeof s.intervaloMin === 'number' && s.intervaloMin > 0
+        ? Math.min(Math.round(s.intervaloMin), 1440)
+        : 30,
+    pedirSoloProblemas:
+      typeof s.pedirSoloProblemas === 'boolean' ? s.pedirSoloProblemas : undefined,
+  };
+}
 
 export function rutaConfig(raiz: string): string {
   return join(raiz, 'data', NOMBRE_CONFIG);
@@ -26,6 +48,7 @@ export function leerConfigArea(raiz: string): ConfigWorkspace {
       version: typeof d.version === 'number' ? d.version : CONFIG_DEFECTO.version,
       /* Normaliza: solo strings no vacios, unicos, sin duplicados. */
       ignorados: [...new Set(d.ignorados.filter((x) => typeof x === 'string' && x.length > 0))],
+      scan: normalizarScan(d),
     };
   } catch {
     return CONFIG_DEFECTO;
@@ -38,6 +61,19 @@ export function guardarConfigArea(raiz: string, config: ConfigWorkspace): void {
   const ruta = rutaConfig(raiz);
   mkdirSync(dirname(ruta), { recursive: true });
   writeFileSync(ruta, JSON.stringify(config, null, 2), 'utf8');
+}
+
+/* Actualiza la seccion 'scan' (automatico + intervalo) y persiste.
+ * [por que] Lo llama el endpoint /api/config/scan desde el PanelConfig; la
+ * config se lee del disco y se re-guarda con el scan nuevo, sin perder el
+ * resto (ignorados). Devuelve la config completa para que el cliente pueda
+ * aplicar directo al snapshot. */
+export function guardarConfigScan(raiz: string, scan: ConfigWorkspace['scan']): ConfigWorkspace {
+  const config = leerConfigArea(raiz);
+  config.scan = scan ?? { automatico: false, intervaloMin: 30 };
+  config.version = 2;
+  guardarConfigArea(raiz, config);
+  return config;
 }
 
 /* Alterna la clave de un proyecto en la lista de ignorados y persiste. */
