@@ -7,7 +7,7 @@
 
 ## Siguiente bloque ejecutable
 
-**308A-2 — Saneamiento seguro de AGENTS.md y auditoría integral.** S0 y S1 completadas; S2 avanzada: S2-01 (auditoría Sentinel 0.7.4), S2-02/S2-03 (estado Git completo con backups), S2-04 (worktree prunable limpiado con `git worktree prune`, rama conservada), S2-09 (detección de cambios sin commitear y worktrees huérfanos implementada en consola: categorías `sin commit` y `huérfanos`) y S2-10 (falsos positivos de config corregidos en el diagnóstico con alternativas del esquema; de 36 a 10 problemas reales). Pendientes: S2-05 (VarSense sin runtime oficial) y consolidación de AGENTS.md (requiere autorización semántica). Ningún JSON/AGENTS.md de proyecto modificado.
+**308A-2 — Saneamiento seguro de AGENTS.md y auditoría integral.** S0/S1 completadas; S2 avanzada: S2-01 (auditoría Sentinel 0.7.4), S2-02/S2-03 (estado Git con backups), S2-04 (worktree prunable limpiado, rama conservada), S2-09 (categorías `sin commit` y `huérfanos` en consola) y **S2-11 (config corregida: de 36 a 0 problemas de config)**: 10 opciones ausentes añadidas con default canónico y backup por hash en Glory-Laminal, ONG AGAPE y PROYECTO TASKS. Los 35 hallazgos de `analyze` (Glory-Laminal 12, gloryapi 23) quedaron clasificados como refactors de arquitectura sin corrección canónica mínima, documentados como pendientes por proyecto. Pendientes: S2-05 (VarSense sin runtime oficial), refactors de código por proyecto y consolidación de AGENTS.md.
 Detalle en `PLAN-saneamiento-agents-y-analisis.md` y registro en `data/inventarios/s2-plan-reparaciones-20260830-012405.md`.
 
 ## Bloqueos y decisiones
@@ -20,9 +20,10 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md` y registro en `data/inventari
 ## Tareas pendientes (orden de dependencia)
 
 1. `308A-2 / S2-05` — resolver VarSense por fuente oficial o documentar limitación (bloqueada sin runtime).
-2. `308A-2 / S2-06/S2-07` — reparaciones de config restantes (10 problemas reales documentados) y consolidación de AGENTS.md con autorización.
+2. `308A-2 / S2-12` — refactors de código de Glory-Laminal (12) y gloryapi (23) por proyecto, con type-check y tests propios (no automatizados desde el manager).
 3. `308A-2 / S2-08` — revisión SOLID, eficiencia y regresiones de la detección nueva.
-4. `308A-1` — gate Sentinel/VarSense en cinco proyectos; ver `PLAN-agregar-gate-proyectos.md`.
+4. `308A-2 / S2-13` — consolidación de AGENTS.md con autorización.
+5. `308A-1` — gate Sentinel/VarSense en cinco proyectos; ver `PLAN-agregar-gate-proyectos.md`.
 
 ## Planes activos
 
