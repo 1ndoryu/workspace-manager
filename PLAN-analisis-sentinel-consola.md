@@ -193,6 +193,16 @@ Endpoints en `index.ts`:
 | **A4** | Auto-escaneo periódico (timer cliente + frescura server) | con `scan.automatico=true` e `intervaloMin=1`, la consola se actualiza sola en ~1 min **solo con la app abierta**; cierra la app → no hay spawns (`netstat`/log sin actividad) |
 | **R** | Revisión SOLID/escalabilidad/rendimiento (sección 10) | documentar limitaciones reales |
 
+> **Revisión R (2026-08-30):** un barrido `analizar-todo` corría cada lote con
+> `execFileSync`, BLOQUEANDO el event loop y dejando sin responder snapshot,
+> config y doctor durante segundos. Se migró a ejecución **asíncrona** en `execFile`
+> (`correrSentinel`) con cola serial por `await` en `analizarTodo`, y single-flight
+> real por **promesa compartida** (`enVuelo: Map<clave, Promise>`); el `analizar`
+> y `analizar-todo` del servidor ahora hacen `await`. Verificado: el event loop
+> responde durante un spawn forzado de Glory-Laminal (11 warning + 1 hint en 519 ms).
+> La caché sigue siendo por `clave` (acotada por nº de proyectos, cada uno con su
+> hallazgos tope de 500); `persistir()` escribe best-effort y no tumbar el análisis.
+
 ## 10. Revisión integrada (principios)
 
 - **Single Responsibility**: `analizador.ts` = runner+caché+frescura; el

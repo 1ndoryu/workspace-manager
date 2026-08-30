@@ -5,11 +5,14 @@
  *    cambio real), nunca dentro del escaneo raiz (~2.6 s) que vive aparte;
  *  - cachea por frescura = branch + HEAD + version de sentinel: si el repo no
  *    cambio y sentinel no cambio, se sirve cacheado sin volver a spawn;
- *  - es eligibilidad por puerta ('sentinel'), salta carpetas/cargo;
- *  - usa execFileSync sin shell (mismo patron que doctorSentinel), con timeout
- *    y salida acotada; ante fallo marca 'error' y NUNCA rompe el snapshot.
+ *  - es elegibilidad por puerta ('sentinel'), salta carpetas/cargo;
+ *  - es ejecucion ASINCRONA en cola serial: los spawns ceden el event loop
+ *    para no congelar toda la API durante un analizar-todo (un barrido con
+ *    execFileSync bloqueaba snapshot/config/doctor durante segundos);
+ *  - ante fallo marca 'error' y NUNCA rompe el snapshot.
  * El cliente es 'tonto': pide y muestra; este modulo es el dueno de la ejecucion. */
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import type {
@@ -105,6 +108,9 @@ function cliRuntime(): string | null {
   return existsSync(cli) ? cli : null;
 }
 
+/* [por que] Ejecutar N repos en serie no satura CPU; el detalle esta en las
+ * funciones de corrida que ceden el event loop (async) y en la cola serial. */
+
 /* Normaliza una severidad arbitraria del JSON a las 4 conocidas. */
 function sev(s: unknown): SeveridadSentinel {
   const t = String(s ?? 'warning').toLowerCase();
@@ -172,19 +178,21 @@ interface ResultadoSpawn {
   dato: ReporteJson;
 }
 
-/* Ejecuta el analisis real (sincrono, bloqueante a proposito: ejecutar N repos
- * en serie no satura CPU). [por que] el JSON va SOLO en stdout; el stderr trae
- * logs INFO del analizador que no deben romper el parseo. */
-function correrSentinel(ruta: string): ResultadoSpawn | null {
+/* Ejecuta el analisis real (asincrono, cede el event loop para no congelar la
+ * API). [por que] el JSON va SOLO en stdout; el stderr trae logs INFO del
+ * analizador que no deben romper el parseo. Ante fallo devuelve null (el
+ * llamador marca 'error', nunca rompe el snapshot). */
+const execFileAsync = promisify(execFile);
+async function correrSentinel(ruta: string): Promise<ResultadoSpawn | null> {
   const cli = cliRuntime();
   if (!cli) return null;
   try {
-    const out = execFileSync(
+    const { stdout } = await execFileAsync(
       process.execPath,
       [cli, 'analyze', '--workspace', ruta, '--format', 'json'],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60000, windowsHide: true },
+      { encoding: 'utf8', windowsHide: true, timeout: 60000 },
     );
-    const dato = JSON.parse(out) as ReporteJson;
+    const dato = JSON.parse(stdout) as ReporteJson;
     if (!dato || typeof dato !== 'object') return null;
     return { version: versionRuntime() ?? '?', dato };
   } catch {
@@ -192,20 +200,20 @@ function correrSentinel(ruta: string): ResultadoSpawn | null {
   }
 }
 
-/* Analiza UN proyecto y devuelve su AnalisisSentinel, con cache por frescura:
- * si esta fresco lo sirve sin spawn. [por que] el vuelo (enVuelo) evita
- * re-analizar el mismo repo dos veces dentro del mismo barrido; la cola serial
- * se cumple sola al usar execFileSync (bloquea el event loop). */
-const enVuelo = new Set<string>();
-export function analizarProyecto(p: Proyecto, forzar = false): AnalisisSentinel {
+/* Analiza UN proyecto, con cache por frescura (sin spawn si esta fresco) y
+ * single-flight por promesa compartida: si el mismo proyecto ya se esta
+ * analizando, quien lo pide espera el MISMO vuelo (nunca dos spawns a la vez
+ * del mismo repo). El check+set es atomico (sin await en el medio). */
+const enVuelo = new Map<string, Promise<AnalisisSentinel>>();
+export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisSentinel> {
   const clave = p.clave;
   const fresco = frescoDe(p);
   const mem = cache.get(clave);
-  if (!forzar && mem && mem.fresco === fresco) return mem.dato;
-  if (enVuelo.has(clave) && mem) return mem.dato;
-  enVuelo.add(clave);
-  try {
-    const res = correrSentinel(p.ruta);
+  if (!forzar && mem && mem.fresco === fresco) return Promise.resolve(mem.dato);
+  const yaEnVuelo = enVuelo.get(clave);
+  if (yaEnVuelo) return yaEnVuelo;
+  const vuelo = (async (): Promise<AnalisisSentinel> => {
+    const res = await correrSentinel(p.ruta);
     let dato: AnalisisSentinel;
     if (!res) {
       dato = {
@@ -224,15 +232,24 @@ export function analizarProyecto(p: Proyecto, forzar = false): AnalisisSentinel 
     cache.set(clave, { fresco, dato });
     persistir();
     return dato;
-  } finally {
-    enVuelo.delete(clave);
-  }
+  })();
+  enVuelo.set(clave, vuelo);
+  void vuelo.finally(() => enVuelo.delete(clave));
+  return vuelo;
 }
 
-/* Barrido serial del workspace: analiza solo los elegibles y devuelve los
- * resultados (rehusa lo fresco; execFileSync hace la cola serial). */
-export function analizarTodo(proyectos: Proyecto[], forzar = false): AnalisisSentinel[] {
-  return proyectos.filter(esElegible).map((p) => analizarProyecto(p, forzar));
+/* Barrido serial del workspace: analiza solo los elegibles UNO POR UNO
+ * (await), cediendo el event loop entre proyectos para no congelar la API
+ * mientras corre. Rehusa lo fresco (cache) y los vuelos en curso. */
+export async function analizarTodo(
+  proyectos: Proyecto[],
+  forzar = false,
+): Promise<AnalisisSentinel[]> {
+  const detalles: AnalisisSentinel[] = [];
+  for (const p of proyectos.filter(esElegible)) {
+    detalles.push(await analizarProyecto(p, forzar));
+  }
+  return detalles;
 }
 
 /* Sirve la cache de un proyecto (para counts sin volcar hallazgos). */
