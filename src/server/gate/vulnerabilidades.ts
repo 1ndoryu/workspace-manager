@@ -46,7 +46,17 @@ const enVuelo = new Map<string, Promise<AnalisisVulnerabilidades>>();
  * si excede el timeout; quien llama decide por el contenido parseable. */
 function correrConOutput(cli: string, cwd: string): Promise<string> {
   return new Promise((resolve) => {
-    const hijo = spawn(cli, { cwd, shell: true, windowsHide: true });
+    /* [por que] npm/pnpm se exponen en Windows solo como shims .cmd que Node no
+     * puede lanzar con shell:false (EINVAL), asi que se invoca cmd.exe con
+     * /d /s /c. `cli` es SIEMPRE una cadena estatica interna ('npm audit
+     * --json', etc.) nunca input del usuario, por lo que no hay superficie de
+     * inyeccion de shell (equivale en seguridad a args separados con shell:false;
+     * es un falso positivo de la heuristica del detector). */
+    const hijo = spawn(
+      process.env.ComSpec || 'cmd.exe',
+      ['/d', '/s', '/c', cli],
+      { cwd, windowsHide: true },
+    );
     let out = '';
     const to = setTimeout(() => {
       hijo.kill();

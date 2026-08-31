@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { Proyecto } from '../../shared/types.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import { Tarjeta } from '../ui/Tarjeta.js';
-import { Badge, type EstadoBadge } from '../ui/Badge.js';
+import { Badge } from '../ui/Badge.js';
 import { Boton } from '../ui/Boton.js';
 import './detalle.css';
 
@@ -31,11 +31,16 @@ export function DetalleProyecto({ proyecto }: { proyecto: Proyecto }) {
 
   const pedirDoctor = async () => {
     setCargandoDoctor(true);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
     try {
-      const res = await fetch(`/api/proyectos/doctor?id=${encodeURIComponent(proyecto.id)}`);
+      const res = await fetch(`/api/proyectos/doctor?id=${encodeURIComponent(proyecto.id)}`, { signal: ctrl.signal });
       const data = await res.json();
       setDoctor(data.doctor ?? 'sin salida');
+    } catch {
+      setDoctor('no disponible');
     } finally {
+      clearTimeout(t);
       setCargandoDoctor(false);
     }
   };
