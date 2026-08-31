@@ -19,6 +19,12 @@ export function PanelRepos() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
+  /* [por que] El snapshot se sirve cacheado (desdeCache) y solo se re-escanea
+   * pidiendo forzar=1; sin boton, el panel quedaba desactualizado tras un
+   * cambio en disco (p. ej. rama/remote) hasta recargar la pagina. */
+  const cargar = useWorkspaceStore((s) => s.cargar);
+  const cargando = useWorkspaceStore((s) => s.cargando);
+  const desdeCache = useWorkspaceStore((s) => s.desdeCache);
 
   const repos = useMemo(() => {
     if (!snapshot) return [];
@@ -38,7 +44,17 @@ export function PanelRepos() {
         repositorios ({repos.length})
         <span className="panelReposMeta">
           {conRemoto} con remoto · {conPush} con push pendiente
+          {desdeCache ? ' · desde caché' : ''}
         </span>
+        <button
+          type="button"
+          className="reposRecargar"
+          onClick={() => cargar(true)}
+          disabled={cargando}
+          title="Re-escanea los repositorios (ignora la caché)"
+        >
+          {cargando ? '…' : '⟳ recargar'}
+        </button>
       </header>
       <div className="panelReposContenido">
         {repos.length === 0 && <div className="docsVacio">no hay repositorios</div>}

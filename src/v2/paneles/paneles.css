@@ -580,6 +580,26 @@
     font-size: var(--v2-textXs);
 }
 
+.reposRecargar {
+    flex: none;
+    background: none;
+    border: 1px solid var(--v2-borde);
+    border-radius: 0;
+    font: inherit;
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    padding: 3px 8px;
+    cursor: pointer;
+}
+.reposRecargar:hover:not(:disabled) {
+    background: var(--v2-invertido);
+    color: var(--v2-fondo);
+}
+.reposRecargar:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
 .panelReposContenido {
     flex: 1;
     min-height: 0;
