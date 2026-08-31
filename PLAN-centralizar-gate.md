@@ -250,12 +250,26 @@ Nuevo campo en `ConfigWorkspace` (v3): `sinGate: string[]` (claves de proyecto e
   Verificado end-to-end: toggle eximir/quitar devuelve 200 y persiste; escaneo real fuerza
   `puerta:none` para `glory-sentinel` mientras los 6 consumidores con gate (Glory-Laminal,
   gloryapi, ONG AGAPE, PROYECTO TASKS, RESTAURANTE, WANDORIUS) siguen `declarado:true`.
-- **Bloqueado F2–F4** — Migrar los 6 consumidores al `sourcePathEnv` compartido y regenerar
-  locks queda **pendiente/bloqueado**: VarSense no tiene runtime oficial utilizable en el área
-  (S2-05); migrar los 6 repos y regenerar locks de varsense sin poder verificarlos sería forzar
-  sin evidencia. Sentinel sí podría migrarse (643353d probado), pero el plan migra ambas
-  herramientas juntas; se registra la causa real en vez de forzar.
+- **S2-05 RESUELTO / provisionado (2026-08-30)** — El supuesto «VarSense sin runtime oficial
+  verificable» era **stale**: `RESTAURANTE/tools/varsense` ya tenía runtime reproducible
+  (v2.2.1, `dist/cli/index.js`, `npm run compile` exit 0). Provisioné al completo el checkout
+  compartido: en `area-trabajo/.quality-tools/sentinel` (detached `643353d` v0.7.5) ejecuté
+  `npm install` + `npm run compile` y `node out/cli/index.js --version` responde `0.7.5`; en
+  `area-trabajo/.quality-tools/varsense` (detached `88f281f` v2.2.1) `npm install` + `npm run
+  compile` y `node dist/cli/index.js --version` responde `2.2.1`. Locks restaurados, árboles
+  detached/limpios, `.quality-tools` sigue en `IGNORADAS`.
+- **Bloqueado F2–F4 — causa real corregida (2026-08-30)** — La migración a `sourcePathEnv` es
+  viable y ya probada: migré gloryapi (piloto) a `sourcePathEnv: GLORY_SENTINEL_SOURCE_PATH`
+  apuntando al checkout compartido y, **con la env definida**, `doctor` + `task:check
+  GLORY-BASELINE` pasan (PASS, 0 errores); el runtime global 0.7.4 y el 0.7.5 soportan
+  `sourcePathEnv` (regex `^GLORY_[A-Z0-9_]+$` → `process.env`). **Pero sin la env el doctor
+  queda BLOQUEADO (7 problemas)**: el server del workspace-manager hoy NO deriva las `GLORY_*`
+  (solo lee `WS_AREA_ROOT`/`WS_PORT`). Por tanto F2–F4 requieren como **paso previo** que
+  `src/server` derive `GLORY_SENTINEL_SOURCE_PATH`/`GLORY_VARSENSE_SOURCE_PATH` desde
+  `RAÍZ_AREA/.quality-tools/{sentinel,varsense}` al invocar sentinel/varsense de cada
+  consumidor. El piloto gloryapi se revirtió al `sourcePath` previo (sin romper su gate;
+  árbol limpio) hasta implementar esa derivación.
 - **Pendiente F5/F7** — `quality:sync` (script de bloque que valida el commit común) y la
-  verificación final en el panel quedan para la pasada siguiente, una vez decidida la política
-  de varsense. NOTA: `sentinel.lock.json` (gloryapi) usa `sourcePath` previo a `sourcePathEnv`;
+  verificación final en el panel quedan para la pasada siguiente, una vez derivadas las env en
+  el server. NOTA: `sentinel.lock.json` (gloryapi) usa `sourcePath` previo a `sourcePathEnv`;
   revisar al implementar F5.
