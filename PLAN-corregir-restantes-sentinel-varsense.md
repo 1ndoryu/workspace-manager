@@ -592,6 +592,62 @@ reducción del bloque está reflejada 1:1 en el agregado vivo y **todos los
 errores visibles quedan documentados** (23: 18+1+2+2). Sin commit, sin tocar
 código ni ajenos.
 
+## I — Estrategia por familia del agregado (2026-08-31): qué es arreglable de verdad
+
+Tras el desglose del agregado vivo y de los analizadores, los ~1974 son tres
+familias distintas, y solo una es "arreglar ahora". Conclusiones con evidencia:
+
+### I-1 — errores varsense (seguros, hechos)
+- ONG AGAPE: `--colorRojoOscuro` sin definir → **añadí el token** en
+  `frontend-v2/src/styles/variables.css` (la degradación
+  `var(--colorRojoOscuro, var(--colorRojo))` ya era correcta; ahora es real).
+  Re-corrido varsense: **2 errores → 0** (0e/155w/1i/4h), `tsc --noEmit` exit 0.
+  No tocados: solo la línea del token + el logger de la fase previa; repo
+  limpio de diffs ajenos antes de committear.
+
+### I-2 — `claseHuerfana` (616 en total): FALSO POSITIVO del scanner, NO borrar
+- El índice de consumo (`classIndexBuilder`) extrae tokens con regex de
+  `className`/`class`, pero **no ve construcción dinámica**: ternarios,
+  variables indirectas (p. ej. `claseV2` → `claseV2Central`), `classN2={\`${base}--${estado}\`}`
+  y array-joins. `addClassTokens` quita la interpolación y solo conserva
+  literales de string de dentro de `\${...}`.
+- Verificación repo-wide (workspace-manager): **casi todas las "huérfanas" de
+  `src/v2/**` SÍ se usan** por construcción dinámica (grep directo + análisis
+  de template literals). Borrarlas rompería estilos. La corrección es del
+  analizador (detectar bases de clase por variable/expresión), no del proyecto.
+- Decision: **no se borran clases** (evitarían el conteo pero romperían UI).
+  Se documenta como limitación del analyzer; NOTA aparte para subir al repo de
+  varsense (candidato upstream).
+
+### I-3 — runtime del manager (PT 500→23, WANDORIUS): ya alineado, es varsense real
+- Todos los proyectos fijan **el mismo commit** que el runtime compartido
+  (sentinel 643353d / v0.7.5-1, varsense 88f281f / v2.2.1); la alineación de
+  herramienta ya es correcta.
+- PT: el agregado = sentinel 19w+4h (**== el 23 de E/F, alineado**) + ~1651w
+  de **varsense real** (claseHuerfana/valorHardcoded, config correcta) que E/F
+  nunca corrió. No es deuda, es una familia nueva de hallazgos reales.
+- El servidor muestra `version: 0.7.4` porque analiza con el runtime global
+  instalado en `%LOCALAPPDATA%`; actualizarlo a 0.7.5 es decisión del manager
+  (instalación global), fuera del alcance de proyecto. No bloquea nada.
+
+### I-4 — familias no-tractables (deuda de arquitectura, ya documentadas)
+- `funcion-larga`/`parametros-excesivos`/`limite-lineas` de monolitos
+  (`deploy_service.rs` 2135, `mcp/tools` 872, `google_drive` 694, store/runtime
+  de PT) — un split sin seam sería arbitrario.
+- Tokens: gloryapi (puente Tailwind v4; "duplicados/unused" = aliasing
+  semántico), RESTAURANTE (172), GUI de coolify-manager-rs (25
+  `css-elemento-html-directo`, button ad hoc → requiere componente `Button`
+  canónico = refactor de design system).
+- `paneles.css`/`MapaV2.tsx` (workspace-manager) — preservados.
+
+### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
+- Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
+  gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`.
+- **No commiteado deliberadamente: `freebuff/`** (diff grande no reconocido de
+  mi trabajo del bloque; `bun` no está disponible para verificar que no rompe;
+  puede ser trabajo del usuario en curso). PROYECTO TASKS no se toca (el
+  usuario trabaja ahí).
+
 ## Verificación y cierre (por repo)
 1. Editar por módulo, validar al cerrar el bloque (una sola ronda).
 2. Re-análisis real `sentinel analyze` por proyecto → registrar conteo nuevo.
