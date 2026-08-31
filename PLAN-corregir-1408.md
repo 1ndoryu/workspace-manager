@@ -27,7 +27,7 @@
 | Glory-Laminal | 0 | — | limpio ✓ | ✅ completo (12→0) |
 | ONG AGAPE | 0 | — | — ✓ | ✅ completo |
 | gloryapi | 8 → **0** | limite-lineas ×4, ISP ×2, barrel ×2 | limpio ✓ | ✅ **F5 COMPLETO** (commit `4e97e2a`) |
-| PROYECTO TASKS | 500 → **229** (58W/90I/82H) | tras splits: css-adhoc (69), ISP (61), window/dom (116), console (56), modals (45) | 4 cambios (2 ajenos) | 🔶 parcial — ver bloques |
+| PROYECTO TASKS | 500 → **109** (desglose actual: console 86, emoji 9, inline-style 5, limite-lineas 4, parametros-excesivos-rs 4, funcion-larga-rs 1) | **ISP COMPLETO (74→0)**; batch fronts pequeños COMPLETO (objeto-mutable 3→0, fallo-sin-feedback 3→0, usestate-excesivo 2→0, singleton-mutable-state→0, import-muerto→0, limite-lineas frontend 12→4 solo monolitos `store.ts`/`runtime.rs`/`agente.rs`/`ai.rs`), p. ej. `2da2b77` `a1b6435` `d84c153` `3a0eb78` `3b4895c` `90d3bd7` | árbol limpio | 🔶 parcial ISO — pendientes de calidad tolerante: console/emoji/inline-style (copy/dinámico) + monolitos documentados |
 | RESTAURANTE | 463 → **120** | tras F4/F5: sqlx (26) disable-file, glory-conv (38) config.rules, window/dom (13) boundaries, barras (10) + directorio (4) fixes + splits Rust `funcion-larga-rs` | limpio ✓ / **pusheado** (rama `glory-rs-rest`, `2fa1e652`) | ✅ piso honesto 120 |
 | WANDORIUS | 410 | **sqlx sin macro (283)**, window/dom (63), css (18), console (8) | **limpio** ✓ pero rama **`main`** (primaria declarada `wandorius`) | 🔶 bloqueado |
 
@@ -53,7 +53,7 @@
 | `window-reference-outside-platform`, `dom-access-outside-platform` | boundary de plataforma (`src/platform/`), helpers o disable justificado en archivos de hook de Capacitor (window inherente) | 179 |
 | `console-production` | eliminar logs en producción o disable justificado por archivo | 66 |
 | `sqlx-query-sin-macro`, `sqlx-query-as-sin-macro` | conversión a `query!`/`query_as!` cuando el SQL es estático y el build lo permite; si no hay DB en compile-time o el query es dinámico, disable/severidad con justificación documentada | **545** |
-| `large-interface-isp` | dividir interfaz conservando intersección como API | 72 |
+| `large-interface-isp` | dividir interfaz conservando intersección como API | **72 → 0** en PT (composición con `extends`; lotes verificados + commits) |
 | `html-nativo-en-vez-de-componente` | usar componentes del sistema de diseño | 47 |
 | modales (semántica/título/estructura/acciones) | usar modal canónico del proyecto | 51 |
 | `limite-lineas` | dividir en submódulos conservando re-export | 58 |
@@ -70,12 +70,17 @@
    el AGENTS.md §9.5 declara `primaryBranch` `wandorius` (`main` = template vacío). No se confirma el
    corte Rust (`sqlx-query-sin-macro`, 283) sin verificar si WANDORIUS tiene caché `.sqlx` como
    RESTAURANTE; sin cargo verde confirmado no se fuerza. Se requiere decidir la rama correcta antes.
-3. **F3 — PROYECTO TASKS** — 🔶 parcial: **500→229** (58W/90I/82H) vía frontend de bajo riesgo agotado
-   (hooks, IndexedDB, fetch-timeout, todo `tsc --noEmit`-verificado). Lo restante: (a) Rust
-   `handler-accede-bd` ×21 y `funcion-larga` ×5 → cargo check **no confirmado verde** aquí (no se fuerza
-   sin poder comprobar); (b) `PanelAgente.tsx` + `useConfiguracionLayout.ts` con cambios ajenos sin
-   commitear (llevan 7 archivos de otro frente, no se tocan); (c) excepciones legítimas (emoji=copy
-   welcome, inline-style dinámico).
+3. **F3 — PROYECTO TASKS** — 🔶 parcial: **500→109** (console 86, emoji 9, inline-style 5, limite-lineas 4
+   = `store.ts` + `runtime.rs`/`agente.rs`/`ai.rs`, parametros-excesivos-rs 4, funcion-larga-rs 1). El frontalento
+   de bajo riesgo/qualiad queda AGOTADO: objeto-mutable, fallo-sin-feedback, usestate-excesivo,
+   singleton-mutable-state e import-muerto a 0; `limite-lineas` frontend reducido de 12 a solo
+   monolito `store.ts`. Lo pendiente son excepciones legítimas / refactor riesgoso: (a) `console-production`
+   ×86 = logueo legítimo a evaluar aparte; (b) emoji ×9 e inline-style ×5 = copy/dinámico documentado;
+   (c) `limite-lineas` de `store.ts` (rhizoma de streaming/turnos) y `runtime.rs`/`agente.rs`/`ai.rs`
+   (monolitos Rust con contrato de API) documentados sin forzar división que toque gran superficie;
+   (d) `parametros-excesivos-rs` ×4 y `funcion-larga-rs` ×1 → cambian firma pública con muchos
+   llamadores (misma disciplina que RESTAURANTE). Árbol limpio; avanzado en lotes verificados con
+   `tsc --noEmit` y `cargo check --tests` (SQLX_OFFLINE=true verde).
 4. **F4 — RESTAURANTE** — ✅ **piso honesto en 120**, **pusheado** (rama `glory-rs-rest`, `2fa1e652`;
    verificación restaurada con `run-cargo.mjs check --tests` offline `.sqlx` verde). Lo restante son
    excepciones legítimas: monolitos de gran superficie (`sync_venta` 291, `sincronizar_cliente_bdp` 263,
