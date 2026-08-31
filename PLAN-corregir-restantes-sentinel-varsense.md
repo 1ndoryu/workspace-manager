@@ -699,8 +699,49 @@ familias distintas, y solo una es "arreglar ahora". Conclusiones con evidencia:
   "colores de marca hardcodeados" de RESTAURANTE no tiene objetivo entre
   los findings (`valorHardcoded` ya en 15 = floor honesto, sin regresión:
   0 errores varsense, `tsc` sin hallazgos en `src/`, sentinel sin nada en
-  los archivos tocados, todo verificado en I-7). Siguiente frente
-  enmarcado: WANDORIUS / agregado (decisión del usuario).
+  los archivos tocados, todo verificado en I-7). Siguiente frente ejecutado:
+  WANDORIUS (ver I-9).
+
+### I-9 — WANDORIUS varsense (front 186 → 173, 0 errores, hecho 2026-08-31)
+- Config `varsense.config.json` ya estaba correcta (`variableFiles` =
+  `frontend/src/styles/variables.css`, include css/ts, exclude generado) —
+  sin misconfig que corregir (a diferencia de gloryapi G-fase).
+- Baseline 186 (0e/97w/89i/0h): `claseHuerfana` 38 + `token-duplicate` 59 +
+  `cssInlineScript` 89 (info: `element.style.*` del runtime escritorio -
+  drag/iconos/ventanas, excepción legítima).
+- **12 `claseHuerfana` reales borradas** (verificadas 0 usos repo-wide en
+  ts/tsx/js/html con word-boundary, excluyendo CSS y fixtures):
+  `account-app__error`, `account-app__secondary`, `font-panel` (pages.css)
+  y `preferences-conflict` (base) + `__message`/`__values`/`__actions` y
+  `workspace-overlay-conflict` ×5 (Overlay.css). Evidencia extra: el test
+  `preferences-panel.test.ts` aserta `preferences-conflict` == null (clase
+  ausente del markup [297A-13] conflicto auto-resuelto por LWW). Se
+  conserva `preferences-conflict__title` (3 usos reales: preferences/
+  control/security panels).
+- **Conservadas como falsos positivos del scanner (§I-2):**
+  `tag-estado--archivado` y `media-library__badge--processing/--rejected`
+  (construcción dinámica `` `tag-estado--${item.status}` `` /
+  `` `media-library__badge--${item.asset_state}` ``) + `tiptap`/
+  `ProseMirror` (DOM de TipTap). Fixtures de `.quality-bench/` y legacy
+  de `_archivo/` fuera del build: no se tocan.
+- **`token-duplicate` 59 → 58:** los 58 restantes son (a) aliasing
+  intencional ya en `var()` (grupo `--fuente-*` → `--fuente-sistema`,
+  comentario explícito [297A-29 F1]), (b) pares paralelos `--sistema-*`
+  vs `--color-*` con overrides de scope distintos en dark mode (colapsar
+  rompería la resolución por scope; varios pares comparan definiciones del
+  scope oscuro contra el root), (c) igualdad coincidental entre knobs
+  semánticos distintos (`--win-x`/`--menu-spacing`, `--espacio-md`/
+  `--tamano-titulo`, `--icono-col`/`--icono-row`) — el diseño B&W minimalista
+  usa esos tokens como superficie de configuración (colapsarlos quitaría
+  knobs independientes). Solo un duplicado eran gemelos literales
+  same-scope: `--sistema-borde-doble` → ahora `var(--sistema-borde)` con
+  comentario (auto-invierte vía `--sistema-texto`, [297A-18]).
+- Verificación: `npm --prefix frontend run type-check` (tsc) **exit 0**;
+  backend intacto (cambios CSS-only); varsense fresco **173 =
+  0e/84w/89i**, sin regresión (−13 exactos: −12 claseHuerfana, −1
+  token-duplicate); `sentinel analyze` **0/0/0/0** (baseline, sin hallazgos
+  nuevos). Commits: WANDORIUS `743b75fb` (308A-6WAND), workspace-manager
+  docs (I-9/roadmap).
 
 ### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
 - Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
