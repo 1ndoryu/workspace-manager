@@ -743,6 +743,35 @@ familias distintas, y solo una es "arreglar ahora". Conclusiones con evidencia:
   nuevos). Commits: WANDORIUS `743b75fb` (308A-6WAND), workspace-manager
   docs (I-9/roadmap).
 
+### I-10 — gloryapi varsense (front 131 → 77, 0 errores, hecho 2026-08-31)
+- Baseline 131 (2e/90w/1i/38h): los 2 errores (`variableNoDefinida`
+  `--sortable-transform`/`--sortable-transition` en SortableModelRow.tsx,
+  vars CSS de runtime de dnd-kit) y el 1 info (`cssInlineReact`
+  tooltipStyle de AnalyticsPage, estilo inline legítimo) ya estaban
+  documentados como excepción — se conservan.
+- Config `varsense.config.json` ya correcta (`variableFiles` =
+  `client/src/index.css`); sin misconfig que tocar.
+- **27 clases `token-platform-*` muertas borradas** de `index.css`
+  (colores de marca por proveedor: google/groq/cerebras/ollama/…). Cada una
+  verificada con 0 referencias en `client/src` y `server/src` (.ts/.tsx, grep
+  literal + búsqueda de construcción dinámica `` `token-platform-${…}` `` —
+  patrón de badge que nunca llegó a usarse). Cero usos → seguro.
+- Las mismas 27 líneas eran el origen de **27 `valorHardcoded`**
+  (background-color `#4285f4` etc.): el borrado resuelve ambas familias a la
+  vez (−27 claseHuerfana, −27 valorHardcoded = −54 hallazgos exactos).
+- **Documentado sin forzar (excepción, patrón §I-7/§I-9):** los 74
+  restantes de `index.css` son el puente shadcn/Tailwind v4 —
+  `token-duplicate` 36 (`--card-foreground`/`--popover-foreground`/
+  `--sidebar-foreground` → `--foreground`, aliasing semántico de dominio
+  distinto) y `token-unused` 38 (`--color-sidebar-*`, `--font-heading`,
+  pares shadcn que el snapshot no ve usar). Colapsarlos rompería el contrato
+  shadcn; ya documentado en G-DEUDA y §I-4.
+- Verificación: `tsc --noEmit -p client/tsconfig.app.json` **exit 0** (cambios
+  CSS-only; backend intacto); varsense fresco **77 = 2e/36w/1i/38h** (−54
+  exactos, 0 errores nuevo, 0 regresión); `sentinel analyze` **0/0/0/0**
+  con 282 archivos, sin hallazgos nuevos. Commit: gloryapi (front
+  308A-6GAPI, index.css) + workspace-manager docs (I-10/roadmap).
+
 ### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
 - Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
   gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`,
