@@ -317,6 +317,17 @@ Nuevo campo en `ConfigWorkspace` (v3): `sinGate: string[]` (claves de proyecto e
     - **ONG AGAPE** commit `896a864`: mismo port, **corrigiendo las rutas del compartido a
       `../../.quality-tools/`** (el repro estaba un nivel más por `TRABAJOS CLIENTES/`) y
       re-incluyendo `scripts/quality/` en la whitelist del `.gitignore` (otra causa).
-- **Pendiente F7** — verificación final en el panel (los consumidores migrados sobre el
-  compartido + `glory-sentinel` exento) tras resolver F2-WANDORIUS y `308A-2` (VarSense).
-  El bootstrap de GL/ONG ya no es pendiente.
+- **F7 ✅ HECHO (2026-08-31, commit `973158c`, publicado)** — verificación final en el panel:
+  nueva vista «gate centralizado» en el PanelConfig con el estado de centralización por
+  consumidor sobre el checkout compartido. Implementación: módulo `src/server/gate/sincronizacion.ts`
+  que reusa **`quality-sync.mjs --json`** vía `spawn` (captura stdout aunque salga con `exit 1` por
+  desync; no duplica la validación fail-closed ya existente), endpoint `GET /api/gate/sincronizacion`
+  (puro lectura), store `cargarSincronizacion` y vista con checkbox-totales, botón «verificar
+  alineación» y badge por consumidor (`✓ alineado` verde / `desync` amarillo con detalle por
+  herramienta). Verificado en vivo: Glory-Laminal/gloryapi/PROYECTO TASKS/RESTAURANTE/ONG AGAPE `ok`
+  al checkout compartido (`sentinel@643353d`, `varsense@88f281f`), WANDORIUS `desync`
+  (`0349485…`≠`643353d…`); `problemas: 1` = el único pendiente (F2-WANDORIUS).
+- **Estado final de 308A-1:** **F0/F1/F3/F4 (registro + bootstrap)/F5/F6/F7 HECHOS y publicados**;
+  único pendiente **F2-WANDORIUS ⏸ BLOQUEADO por decisión (diferido)**: frame bespoke sin
+  `provisionPath` — requiere un `quality:setup` dirigido o armonizar su frame (más alcance).
+  El bootstrap de GL/ONG y la verificación de panel ya no son pendientes.
