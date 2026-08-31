@@ -756,6 +756,21 @@
     cursor: pointer;
 }
 
+/* Boton 'eximir glory-sentinel' dentro de la subseccion 'sin gate'
+ * (plan 308A-1 F6): mismo aspecto que excBoton. */
+.excAgregar {
+    flex: none;
+    margin-top: 6px;
+    background: none;
+    border: 1px solid var(--v2-borde);
+    border-radius: 0;
+    font: inherit;
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    padding: 3px 8px;
+    cursor: pointer;
+}
+
 .docsVisorCabecera {
     display: flex;
     align-items: center;

@@ -58,6 +58,8 @@ export function PanelConfig() {
   const cargar = useWorkspaceStore((s) => s.cargar);
   const proyectoAConfigurar = useWorkspaceStore((s) => s.proyectoAConfigurar);
   const cambiarIgnorado = useWorkspaceStore((s) => s.cambiarIgnorado);
+  /* Exencion de gate de glory-sentinel (plan 308A-1 F6). */
+  const cambiarSinGate = useWorkspaceStore((s) => s.cambiarSinGate);
   /* Catalogo de reglas vivo del gate (el server lo resuelve del runtime);
    * el store lo pide una vez y cae al estatico si falla. [por que] R1
    * gate-dinamico: el editor debe usar las reglas reales del runtime, no el
@@ -191,6 +193,7 @@ export function PanelConfig() {
   if (!snapshot) return null;
 
   const ignorados = snapshot.config.ignorados;
+  const sinGate = snapshot.config.sinGate ?? [];
   const proyectos = snapshot.proyectos;
   const proyectoVisor = proyectos.find((p) => p.clave === claveVisor);
   const visorIgnorado = claveVisor !== null && ignorados.includes(claveVisor);
@@ -199,6 +202,18 @@ export function PanelConfig() {
     try {
       await cambiarIgnorado(clave, ignorar);
       toastOk(ignorar ? 'ignorado ✓' : 'ya no se ignora ✓');
+    } catch (err) {
+      toastError(mensajeDeError(err));
+    }
+  }
+
+  /* Exime/quita la exencion de gate de glory-sentinel (plan 308A-1 F6).
+   * [por que] Solo este proyecto (el runtime) se exime; el server valida la
+   * clave. El cambio lo persiste el endpoint y el snapshot vuelve actualizado. */
+  async function alternarSinGate(clave: string, eximir: boolean) {
+    try {
+      await cambiarSinGate(clave, eximir);
+      toastOk(eximir ? 'exento de gate ✓' : 'deja de estar exento ✓');
     } catch (err) {
       toastError(mensajeDeError(err));
     }
@@ -358,6 +373,42 @@ export function PanelConfig() {
                 ))}
               </div>
             )}
+
+            {/* Exencion del gate: solo glory-sentinel (plan 308A-1 F6).
+             * [por que] El runtime no debe llevar gate (seria autorreferencial);
+             * sigue VISIBLE en el mapa, no se ignora. Es unicamente este. */}
+            <header className="panelDocsVisorCabecera">
+              <span className="panelDocsVisorTitulo">sin gate ({sinGate.length})</span>
+            </header>
+            <div className="docsVacio">
+              el runtime del gate (glory-sentinel) puede quedar exento de llevar gate;
+              sigue visible en el mapa, con puerta {sinGate.includes('glory-sentinel') ? 'apagada' : 'normal'}.
+            </div>
+            <div className="excListaContenido">
+              {sinGate.map((clave) => (
+                <div key={clave} className="excFila">
+                  <span className="excFilaNombre">{clave}</span>
+                  <button
+                    type="button"
+                    className="excBoton"
+                    onClick={() => void alternarSinGate(clave, false)}
+                    title="quitar la exencion de gate"
+                  >
+                    quitar exención
+                  </button>
+                </div>
+              ))}
+              {!sinGate.includes('glory-sentinel') && (
+                <button
+                  type="button"
+                  className="excAgregar"
+                  onClick={() => void alternarSinGate('glory-sentinel', true)}
+                  title="eximir el runtime del gate"
+                >
+                  eximir glory-sentinel
+                </button>
+              )}
+            </div>
           </>
         )}
 
