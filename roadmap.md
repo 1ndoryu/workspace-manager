@@ -21,7 +21,7 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md`, `PLAN-corregir-1408.md` y re
 
 1. `308A-2 / S2-05` — resolver VarSense por fuente oficial o documentar limitación (bloqueada sin runtime).
 2. `308A-2 / S2-12` — refactors de código: Glory-Laminal 12→0 (eebe026); **gloryapi COMPLETO 8→0** (F5, `4e97e2a`, 315/315 tests OK); RESTAURANTE piso honesto **120** pusheado; **PROYECTO TASKS 500→23** (console-production 86→0 con logger central `ac5d4c4`; restante = excepciones legítimas: emoji 9, inline-style 5, monolitos de API 9); **WANDORIUS COMPLETO 410→0** (`c1af8af6`, analizador 0.7.4 = 0/481; único matiz: primaria `wandorius` vs rama real `main`). Los pendientes restantes tienen porqué verifiable en `PLAN-corregir-1408.md` §7.
-3. `308A-2 / S2-08` — revisión SOLID, eficiencia y regresiones de la detección nueva.
+3. ~~`308A-2 / S2-08` — revisión SOLID, eficiencia y regresiones de la detección nueva.~~ **COMPLETO** — auditoría del frente completo (analizador/proveedor/endpoints/timer/consola): corregido el único defecto real (caché sin evicción de claves obsoletas; `analizarTodo` poda por snapshot, verificado con área aislada). Sin otras regresiones; detalle en `PLAN-analisis-sentinel-consola.md` §9.
 3. `308A-1` — **centralizar runtime del gate** (checkout compartido `.quality-tools/` + `sourcePathEnv` + `quality:sync`); `glory-sentinel` queda exento de gate (excepción en el panel). Ver `PLAN-centralizar-gate.md` (reorienta el antiguo `PLAN-agregar-gate-proyectos.md`).
 
 ## Planes activos

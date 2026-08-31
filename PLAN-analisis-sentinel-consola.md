@@ -202,6 +202,24 @@ Endpoints en `index.ts`:
 > responde durante un spawn forzado de Glory-Laminal (11 warning + 1 hint en 519 ms).
 > La caché sigue siendo por `clave` (acotada por nº de proyectos, cada uno con su
 > hallazgos tope de 500); `persistir()` escribe best-effort y no tumbar el análisis.
+>
+> **Revisión S2-08 (2026-08-30):** auditoría SOLID/eficiencia del frente completo
+> (analizador, proveedor, proveedores, serial, endpoints, timer del store,
+> consola/config/detalle). Recorrido: cola serial por `await` ✓, single-flight por
+> promesa compartida ✓ (check+set atómico sin `await` en medio), caché por
+> branch+HEAD+versión ✓, timeout por spawn 60 s ✓, salida acotada a 500 hallazgos
+> ✓, timer cliente respeta `scan.automatico`/`intervaloMin` con catch ✓, filtros de
+> consola por entrada ✓. **Defecto real corregido:** la caché **nunca eviccionaba
+> claves obsoletas** — si un proyecto se renombra/elimina del área o deja de ser
+> elegible, su entrada persistía en memoria y en `data/cache/analisis.json` para
+> siempre (caché no acotada). `analizarTodo` ahora poda las claves que no existen
+> en el snapshot (set `vivas` = claves actuales, delete + un solo `persistir` tras
+> el barrido, sin `await` en el medio). Verificado con área aislada
+> (`WS_AREA_ROOT` falso, cache sembrada con clave muerta + viva, proyectos NO
+> elegibles para evitar spawn): `proyecto-viejo-eliminado` podada, `Glory-Laminal`
+> conservada, exit 0. La caché real del área (6 claves = 6 elegibles) quedó
+> intacta. No se encontraron otras regresiones: lo demás ya cumplía los principios
+> de la sección 10.
 
 ## 10. Revisión integrada (principios)
 
