@@ -127,11 +127,11 @@ Fases cerradas y evidencia verificable en vivo:
 |---|---|---|
 | F1 — Exclusions/config/huérfanos | ✅ completo | `config` 36→0; `huérfanos` 0; `sin-git` 0 |
 | F2 — WANDORIUS | 🔶 bloqueado | rama `main` (ahead 3) vs primaria `wandorius`; Rust sqlx sin corte verde |
-| F3 — PROYECTO TASKS | 🔶 parcial | **229** (58W/90I/82H); rama `main` ahead 121 |
+| F3 — PROYECTO TASKS | 🔶 parcial | **500→23** (console 86→0, ISP 74→0, fronts pequeños →0; restante = excepciones documentadas); rama `main` ahead 2 (`ac5d4c4`) |
 | F4 — RESTAURANTE | ✅ piso honesto **120**, pusheado | `2fa1e652`, rama `glory-rs-rest` (ahead 42) |
 | F5 — gloryapi | ✅ **COMPLETO** | **8→0**; `4e97e2a`, rama `gloryapi` limpia |
 | Transversal VarSense | 🔶 bloqueado | sin runtime oficial (S2-05) |
-| Trabajo ajeno | — | `PanelAgente.tsx` + `useConfiguracionLayout.ts` (PT, 7 archivos sin commitear) se excluyen |
+| Trabajo ajeno | — | ninguno: el usuario confirmó que no hay otro agente ni cambios ajenos; todo lo del hilo quedó commiteado |
 
 **Cumplido de lo planificado (F1/F4/F5/F6):** exclusions canónicas que dejan los proyectos ignorados
 fuera del conteo; RESTAURANTE al piso honesto con verificación cargo restaurada y pusheado;
@@ -141,9 +141,10 @@ documentada para directorios organizados por dominio.
 **Ítems del plan que siguen pendientes y su porqué verificable:**
 1. **WANDORIUS (F2)** — la rama activa es `main`, no la primaria declarada `wandorius`; no se confirma
    caché `.sqlx` para el corte Rust (283 sqlx). Bloqueado hasta decidir la rama correcta y verificar cargo.
-2. **PROYECTO TASKS Rust (F3)** — `handler-accede-bd` (21) y `funcion-larga` (5) sin `cargo check --tests`
-   verde confirmado en esta máquina; 7 archivos de otro frente sin commitear (`PanelAgente.tsx`,
-   `useConfiguracionLayout.ts` y dependientes) no se tocan.
+2. **PROYECTO TASKS residual (F3)** — `cargo check --tests` verde confirmado (SQLX_OFFLINE); lo que
+   queda (23) son excepciones legítimas documentadas: emoji 9 e inline-style 5 (copy/dinámico),
+   `limite-lineas` 4 (monolitos `store.ts` + `runtime.rs`/`agente.rs`/`ai.rs`), `parametros-excesivos-rs` 4
+   y `funcion-larga-rs` 1 (firma pública con muchos llamadores). No se fuerzan.
 3. **RESTAURANTE residual (F4)** — monolitos / parámetros-excesivos documentados como excepciones
    legítimas (riesgo de romper API pública), no se fuerzan.
 4. **VarSense (S2-05)** — sin runtime oficial, no se toca.
