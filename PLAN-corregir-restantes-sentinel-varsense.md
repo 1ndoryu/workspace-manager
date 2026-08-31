@@ -996,6 +996,144 @@ errores menos) sin tocar runtime.
 6. Actualizar `roadmap.md` (quitar bloque completado, registrar evidencia en
    `Agente/completados/` del repo correspondiente y en `data/inventarios/`).
 
+## J — Plan de reducción completa hacia el piso mínimo (2026-08-31)
+
+Pedido del usuario: «arregla todo lo reportado en los análisis hasta el número
+más pequeño posible de forma segura y honesta». Agregado vivo consultado
+(`/api/gate/analisis?analizar=todo`): **1716 = 3e/1416w/143i/154h** (PT capado
+a 500; su runtime real ~1718). Desglose por regla (todo el agregado):
+
+| Familia | n | Proyectos (mayores) | Naturaleza | Vía honesta |
+| --- | --- | --- | --- | --- |
+| `claseHuerfana` | 526 | PT 263, ws-manager 89, ONG AGAPE 69, Glory-Laminal 49, WANDORIUS 26, coolify 16, REST 14 | **FP del scanner** (construcción dinámica, §I-2 verificado por proyecto) | corregir el analizador (J-8, requiere autorización) o mantener documentado |
+| `valorHardcoded` | 242 | PT 93, ONG AGAPE 82, ws-manager 37, REST 15*, coolify 11*, GL 4* | real (colores/medidas sin token) salvo *one-off documentados | **J-2/J-3: mover a tokens** con segundo consumidor real |
+| `token-duplicate` | 163 | WANDORIUS 58, REST 42, gloryapi 36 | puente shadcn/Tailwind v4 = aliasing semántico (documentado §I-4/I-7/I-9/I-10) | excepción; colapsar solo same-scope reales (ws-manager 7, PT 7, coolify 8, ONG AGAPE 4) |
+| `cssInlineScript` | 112i+32w | WANDORIUS 89i (runtime escritorio), GL 23i, PT 32w | runtime legítimo documentado | excepción (WANDORIUS/GL); PT bloqueado |
+| `token-unused` | 95 | gloryapi 38, REST 39 | pares shadcn (excepción §I-10/I-7) | excepción; GL 14 = API Blender sin consumir |
+| `cssInlineReact` | 76w+31i | PT 76, REST 24i | PT bloqueado; resto info | excepción documentada |
+| `limite-lineas` | 62 | REST 37, ONG AGAPE 9, ws-manager 6, coolify 4, PT 5, GLORYPORT 1 | splits por seam de dominio (no arbitrarios) | **J-3/J-4/J-5: splits** |
+| `sqlx-query-as-sin-macro` + `sqlx-query-sin-macro` | 61 | ONG AGAPE 55+6 | deuda documentada (migrar a query_as! = cambios de runtime, no forzar §D) | excepción documentada |
+| `funcion-larga-rs` + `parametros-excesivos-rs` | 86 | coolify 36+22, REST 12+11 | monolitos de gran superficie (deploy_service 2135 etc., §I-4) | excepción documentada |
+| `inline-style-prohibido` | 27 | REST 18, PT 5, ws-manager 3, ONG AGAPE 1 | posicionamiento dinámico legítimo (documentado) o refactor a clase | J-4 parcial |
+| `css-elemento-html-directo` + `button-clase-especifica` + `css-adhoc-button-style` | 47 | ONG AGAPE 25+13+4, ws-manager 1+2+2 | refactor a clases/Button (patrón §I-6/Fase C) | **J-3: refactor** |
+| `html-nativo-en-vez-de-componente` + `componente-sin-hook-glory` | 44 | ONG AGAPE 11+12, ws-manager 14+7 | refactor a componentes Glory | J-2/J-3 parcial |
+| `emoji-en-codigo` | 17 | PT 9, ONG AGAPE 8 | quitar emojis del código | J-3 (PT bloqueado) |
+| `usestate-excesivo` | 15 | ONG AGAPE 11, ws-manager 2 | hook con >3 useState (refactor) | J-2/J-3 |
+| `handler-accede-bd-rs` + `window/dom-outside-platform` + `broadcast-mutex` + `large-interface-isp` + `css-especificacion-diseno-local` | ~37 | REST 8+5+10, ws-manager 6+2+4+4, REST handler 8 | boundary legítimo / riesgo real broadcast (D) | documentar; broadcast-mutex atender (J-4) |
+| `console-production` + `fallo-sin-feedback` | 4 | ws-manager 2+2 (MapaV2, ahora en alcance) | logger central | **J-2: logger** |
+| errores | 3 | gloryapi 2 (dnd-kit runtime), coolify 1 (monolito deploy_service) | documentados | excepción |
+| `key-index-lista` / `key-index` | 5 | REST 3, ONG AGAPE 2 | claves estables | J-3/J-4 |
+
+### J-1 — decisiones que definen el piso (requieren al usuario)
+1. **Analizador (`.quality-tools`):** corregir el FP `claseHuerfana` (no ve
+   construcción dinámica de clases) elimina ~526 hallazgos en masa — es el
+   único fix que reduce el agregado sin tocar código de producto, con casos
+   mínimos ya documentados (§I-2). Prohibido hasta ahora en todos los frentes.
+2. **PROYECTO TASKS:** cap 500 de ~1718 reales (263 claseHuerfana + 93
+   valorHardcoded + 76 cssInlineReact + 76 cssInlineReact + 32 cssInlineScript
+   + 7 token-duplicate + 5 limite-lineas + 9 emoji + 5 inline-style + …). El
+   usuario trabaja en ese repo; sus frentes son los mismos métodos validados.
+
+### J-2 — workspace-manager (197 → objetivo ~110-130)
+- 37 `valorHardcoded` → tokens en variables-v2.css (verificar segundo
+  consumidor; one-off documentar).
+- 2 `console-production` + 2 `fallo-sin-feedback` de MapaV2.tsx → logger
+  central (patrón §H).
+- 6 `limite-lineas` → splits por seam de dominio.
+- 89 `claseHuerfana` → verificación repo-wide (método §I-2); borrar muertas
+  reales, conservar FPs dinámicos.
+- 14 `html-nativo-en-vez-de-componente` + 7 `componente-sin-hook-glory` + 6
+  `css-especificacion-diseno-local` + 4 `large-interface-isp` + 7
+  `token-duplicate` + 2 `button-clase-especifica` + 2 `css-adhoc-button-style`
+  + 3 `inline-style-prohibido` → refactors puntuales o documentar boundary.
+- Excepciones: 6 `window-reference-outside-platform` + 2
+  `dom-access-outside-platform` (boundary del shell, ya documentado).
+
+### J-3 — ONG AGAPE (324 → objetivo ~150-190)
+- 82 `valorHardcoded` → tokens de frontend-v2 (patrón §I-1).
+- 25 `css-elemento-html-directo` + 13 `button-clase-especifica` + 4
+  `css-adhoc-button-style` → clases/Button (patrón §I-6/Fase C).
+- 9 `limite-lineas` → splits; 8 `emoji-en-codigo` → quitar; 11
+  `usestate-excesivo` → hook; 5 `key-index-lista` → claves estables.
+- 11 `html-nativo-en-vez-de-componente` + 12 `componente-sin-hook-glory` →
+  componentes Glory (parcial; documentar si el componente canónico no existe).
+- 69 `claseHuerfana` → verificación repo-wide; borrar muertas reales.
+- Excepciones: 55+6 sqlx (deuda §D, sin forzar query_as!), monolitos
+  `funcion-larga-rs` (no listados en desglose, verificar).
+
+### J-4 — RESTAURANTE (250 → objetivo ~190-220)
+- 37 `limite-lineas` → splits por seam (el frente más grande de esta familia).
+- 18 `inline-style-prohibido` → clases CSS cuando no sea posicionamiento
+  dinámico; 6 `propiedadProhibida` → propiedades permitidas; 5
+  `key-index-lista` → claves estables.
+- 5 `broadcast-mutex-riesgo-rs` → **riesgo real (Fase D)**; atender con
+  mutex/bloqueo honesto donde aplique o documentar cada caso.
+- Excepciones: 42+39 shadcn, 24 cssInlineReact info, 15 valorHardcoded
+  one-off (§I-8), 14 claseHuerfana FP, 12+11+10 monolitos/ISP.
+
+### J-5 — coolify-manager-rs (103 → objetivo ~90-100)
+- 4 `limite-lineas` → splits si hay seam; 16 `claseHuerfana` FP verificados
+  (§I-13) mantener; 11 `valorHardcoded` one-off (§I-13) mantener; 8
+  `token-duplicate` escalas (excepción). 36+22 monolitos documentados.
+
+### J-6 — verificación final de WANDORIUS/gloryapi/Glory-Laminal/GLORYPORT
+- Re-verificar FPs y excepciones documentadas (§I-9/I-10/I-11/E/F); limpiar
+  solo muertas reales si aparecen. Sin cambios esperados salvo hallazgo nuevo.
+
+### J-7 — cierre y agregado vivo
+- Re-consultar `/api/gate/analisis` tras cada frente, forzar re-análisis de
+  los proyectos tocados, cruzar contra las verificaciones locales y documentar
+  el total final en el roadmap.
+
+### J-8 — (HECHO 2026-08-31) corregir el FP `claseHuerfana` en el analizador
+- **Autorizado por el usuario** (decisiones J-1). Commit en el checkout
+  compartido `.quality-tools/varsense`: `303e7f9` (rama `fix/claseHuerfana-j8`).
+- **Cambios en `src/core/classIndexBuilder.ts`:**
+  1. **Bug real preexistente `removeComments`**: `current === '\\n'` (doble
+     backslash = string de 2 chars) nunca matcheaba un newline real → los
+     comentarios de línea `//` nunca terminaban → TODO el contenido posterior
+     al primer `//` de cada archivo se destruía → cientos de FPs
+     `claseHuerfana` (caso `mapaV2Cuadricula` en MapaV2.tsx, uso en L208 tras
+     comentario en L139). Corregido a `'\n'` (3 líneas, verificado con diff).
+  2. `className={expr}` JSX con ternarios/identificadores (WANDORIUS/ONG
+     AGAPE/glory-rs).
+  3. `createElement('tag', 'clase')` posicional (Glory-Laminal `src/platform/dom.ts`).
+  4. `classList.toggle/remove/add` con clase literal o condicional.
+  5. Indirección por variable: `const x = 'a b'` → `className={x}`.
+  6. `MAX_TOKENS` 10000 → 50000 (cap de archivos de consumo).
+- **Verificación:** `check:core` OK, lint OK, verificación funcional
+  standalone de los 4 patrones + contrato `helper('x')` conservado.
+- **Medición con el CLI corregido (0 errores en todos):**
+
+  | Proyecto | Antes | Ahora | Δ |
+  |---|---|---|---|
+  | Glory-Laminal | 91 | 42 | −49 |
+  | workspace-manager | 137 | 92 | −45 |
+  | WANDORIUS | 173 | 157 | −16 |
+  | coolify-manager-rs | 36 | 32 | −4 |
+  | RESTAURANTE | 140 | 137 | −3 |
+  | gloryapi | 77 | 76 | −1 (+2 errores dnd-kit destapados, luego 0) |
+  | ONG AGAPE | — | 141 | — |
+
+  Δ total ≈ **−118** en los 7 proyectos con baseline previo. Los 5
+  `claseHuerfana` restantes de Glory-Laminal son reales (verificados);
+  workspace-manager pasa de 89 `claseHuerfana` a ~40 reales/FP restantes
+  (los FPs dinámicos por concatenación `boton--${variante}` quedan fuera del
+  alcance del scanner, documentados).
+- **Efecto colateral positivo**: el fix de `removeComments` destapó 2 errores
+  reales en gloryapi (`--sortable-transform`/`--sortable-transition` de dnd-kit,
+  inyectados inline en `SortableModelRow.tsx` con fallback en `index.css`) —
+  corregidos declarando los defaults en `client/src/index.css` (visual-neutral,
+  el inline de dnd-kit sigue sobrescribiendo durante el drag). gloryapi vuelve
+  a **0 errores** (37w/1i/38h).
+- **Publicación alineada**: pins actualizados `88f281f` → `303e7f9` en los 9
+  consumidores del checkout compartido (todos excepto PROYECTO TASKS,
+  excluido por el usuario) con sus `quality-tools.json` + `sentinel.lock.json`
+  regenerados y verificados (`quality:sync` 10/11 alineados; el único desync
+  es PROYECTO TASKS, esperado). WANDORIUS queda con manifest alineado y lock
+  legacy stale preexistente (frame bespoke, documentado 308A-1 F2). gloryapi
+  no declara varsense en su manifest (usa el checkout directo, sin pin).
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
