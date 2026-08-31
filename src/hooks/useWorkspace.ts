@@ -146,6 +146,8 @@ interface EstadoWorkspace {
   configurarProyecto: (clave: string) => void;
   /* Ignorar / dejar de ignorar un proyecto por su clave y re-escanea. */
   cambiarIgnorado: (clave: string, ignorar: boolean) => Promise<void>;
+  /* Eximir / quitar la exencion de gate de glory-sentinel (plan 308A-1 F6). */
+  cambiarSinGate: (clave: string, eximir: boolean) => Promise<void>;
 }
 
 export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
@@ -344,6 +346,21 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
       }));
     } finally {
       set({ analizando: false });
+    }
+  },
+
+  /* Exime/quita la exencion de gate de glory-sentinel (plan 308A-1 F6). El
+   * server valida que la clave sea glory-sentinel; solo persiste la config. */
+  cambiarSinGate: async (clave, eximir) => {
+    try {
+      const { data } = await axios.post<{ ok: boolean; snapshot?: SnapshotWorkspace }>('/api/config/singate', {
+        op: eximir ? 'eximir' : 'quitar',
+        clave,
+      });
+      if (data.snapshot) set({ snapshot: data.snapshot, desdeCache: false });
+    } catch (err) {
+      const detalle = (err as { response?: { data?: { detalle?: string } } })?.response?.data?.detalle;
+      throw new Error(detalle ?? 'no se pudo guardar la config');
     }
   },
 

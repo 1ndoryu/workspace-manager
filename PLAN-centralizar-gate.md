@@ -233,3 +233,29 @@ Nuevo campo en `ConfigWorkspace` (v3): `sinGate: string[]` (claves de proyecto e
   consumidor.
 - Reemplaza la dirección de `PLAN-agregar-gate-proyectos.md` (que proponía instalar gate desde
   cero en coolify-manager-rs/GLORYPORT/workspace-manager — **descartado**: no llevan gate).
+
+## Seguimiento 2026-08-30 (sesión 308A-1)
+
+- **F0/F1 ✅** — Checkout compartido creado en `area-trabajo/.quality-tools/`: `sentinel`
+  (detached `643353d`, v0.7.5, limpio) y `varsense` (detached `88f281f`, limpio) sembrados desde
+  las fuentes locales ya verificadas. `.quality-tools` ya consta en `IGNORADAS` del scanner.
+  El «mismo commit para todos» se valida comparando `dist/index.ts` (binario real) entre versiones,
+  no solo el hash de git.
+- **F6 ✅** — Excepción `sinGate` en workspace-manager: campo `sinGate: string[]` en
+  `ConfigWorkspace` (v3), normalización en `configArea.ts`, respeto en el scanner (`puerta`
+  forzada a `'none'`, `gateDisponible: false`, sigue visible en mapa), endpoint
+  `POST /api/config/singate` (solo acepta la clave real `glory-sentinel`), acción
+  `cambiarSinGate` en el store y subsección «sin gate» en el PanelConfig. Registrado
+  `glory-sentinel` en `data/workspace.config.json` (ignorado por git → artefacto runtime).
+  Verificado end-to-end: toggle eximir/quitar devuelve 200 y persiste; escaneo real fuerza
+  `puerta:none` para `glory-sentinel` mientras los 6 consumidores con gate (Glory-Laminal,
+  gloryapi, ONG AGAPE, PROYECTO TASKS, RESTAURANTE, WANDORIUS) siguen `declarado:true`.
+- **Bloqueado F2–F4** — Migrar los 6 consumidores al `sourcePathEnv` compartido y regenerar
+  locks queda **pendiente/bloqueado**: VarSense no tiene runtime oficial utilizable en el área
+  (S2-05); migrar los 6 repos y regenerar locks de varsense sin poder verificarlos sería forzar
+  sin evidencia. Sentinel sí podría migrarse (643353d probado), pero el plan migra ambas
+  herramientas juntas; se registra la causa real en vez de forzar.
+- **Pendiente F5/F7** — `quality:sync` (script de bloque que valida el commit común) y la
+  verificación final en el panel quedan para la pasada siguiente, una vez decidida la política
+  de varsense. NOTA: `sentinel.lock.json` (gloryapi) usa `sourcePath` previo a `sourcePathEnv`;
+  revisar al implementar F5.

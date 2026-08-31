@@ -9,7 +9,7 @@ import { estadoGate, diagnosticarGate } from './gate.js';
 import { resumenRoadmap } from './roadmap.js';
 import { resumenAgents, agentesGlobales } from './agents.js';
 import { leerConfigArea } from '../configArea.js';
-import type { Proyecto, SnapshotWorkspace } from '../../shared/types.js';
+import type { EstadoGate, Proyecto, SnapshotWorkspace } from '../../shared/types.js';
 
 /* Carpetas que nunca se tratan como proyecto */
 const IGNORADAS = new Set([
@@ -61,13 +61,16 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
   const proyectos: Proyecto[] = [];
   const entradas = leerEntradas(opts.raiz);
 
+  const config = leerConfigArea(opts.raiz);
+  const sinGate = new Set(config.sinGate ?? []);
+
   for (const nombre of entradas) {
     const ruta = join(opts.raiz, nombre);
     if (IGNORADAS.has(nombre)) continue;
     const info = detectarGit(ruta);
 
     if (info.esRepo) {
-      proyectos.push(proyectoCompleto(opts.raiz, ruta, nombre, info.esWorktree ? 'worktree' : 'repo', info.padre));
+      proyectos.push(proyectoCompleto(opts.raiz, ruta, nombre, info.esWorktree ? 'worktree' : 'repo', info.padre, sinGate));
     } else if (RECURSIVAS.has(nombre)) {
       /* bajar un nivel: ONG AGAPE dentro de TRABAJOS CLIENTES */
       const internos = leerEntradas(ruta);
@@ -76,7 +79,7 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
         if (IGNORADAS.has(interno)) continue;
         const infoInterno = detectarGit(rutaInterna);
         if (infoInterno.esRepo) {
-          proyectos.push(proyectoCompleto(opts.raiz, rutaInterna, interno, infoInterno.esWorktree ? 'worktree' : 'repo', infoInterno.padre));
+          proyectos.push(proyectoCompleto(opts.raiz, rutaInterna, interno, infoInterno.esWorktree ? 'worktree' : 'repo', infoInterno.padre, sinGate));
         } else {
           proyectos.push({ id: interno, clave: claveDe(rutaInterna, opts.raiz), ruta: rutaInterna, esGit: false, tipo: 'carpeta', padre: nombre });
         }
@@ -89,7 +92,6 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
   /* Clave en los proyectos git y filtro de ignorados. [por que] La config
    * persistente define que proyectos se ignoran (p. ej. 3D/01); se quitan del
    * snapshot para que no aparezcan en mapa/lista/consola. */
-  const config = leerConfigArea(opts.raiz);
   const ignoradoSet = new Set(config.ignorados);
   const visibles: Proyecto[] = proyectos
     .map((p) => ({ ...p, clave: claveDe(p.ruta, opts.raiz) }))
@@ -116,16 +118,26 @@ function proyectoCompleto(
   id: string,
   tipo: 'repo' | 'worktree',
   padre: string | null,
+  sinGate: Set<string> = new Set(),
 ): Proyecto {
+  const clave = claveDe(ruta, raiz);
+  const gate = estadoGate(ruta);
+  /* [por que] Excepcion explicita del gate (plan 308A-1): glory-sentinel (el
+   * propio repo del runtime) se exime de llevar gate. Sigue VISIBLE en
+   * mapa/lista (a diferencia de ignorados) y no genera problema "sin gate"
+   * en la consola: la puerta se fuerza a 'none' y gateDisponible a false. */
+  const gateReal: EstadoGate | undefined = sinGate.has(clave)
+    ? { ...gate, declarado: false, puerta: 'none', gateDisponible: false }
+    : gate;
   return {
     id,
-    clave: claveDe(ruta, raiz),
+    clave,
     ruta,
     esGit: true,
     tipo,
     padre: padre ?? undefined,
     git: estadoGit(ruta) ?? undefined,
-    gate: estadoGate(ruta),
+    gate: gateReal,
     gateProblemas: diagnosticarGate(ruta),
     roadmap: resumenRoadmap(ruta),
     agents: resumenAgents(ruta, ''),

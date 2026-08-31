@@ -96,6 +96,13 @@ export interface ConfigWorkspace {
   /* Claves (rutas relativas al area) de proyectos ignorados: no aparecen en
    * el snapshot, se listan en la pagina de excepciones. */
   ignorados: string[];
+  /* Claves de proyectos pertenecientes al gate que NO llevan gate (plan
+   * 308A-1, excepcion explícita). A diferencia de ignorados, el proyecto
+   * SIGUE visible en mapa/lista, pero su puerta se fuerza a 'none' y no
+   * genera problema "sin gate" en la consola. Solo se registra
+   * 'glory-sentinel' (el propio repo del runtime; instalarle gate seria
+   * autorreferencial). */
+  sinGate?: string[];
   /* Analisis automatico de sentinel por proyecto (ausente => apagado). */
   scan?: ConfigScan;
 }

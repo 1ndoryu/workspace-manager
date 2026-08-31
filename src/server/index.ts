@@ -7,7 +7,7 @@ import { basename, extname, join, normalize, relative, sep } from 'node:path';
 import { obtenerSnapshot, actualizarSnapshot } from './cache.js';
 import { escanearWorkspace, claveDe, resumenDe } from './scanner/workspace.js';
 import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
-import { cambiarIgnorado, guardarConfigScan, leerConfigArea } from './configArea.js';
+import { cambiarIgnorado, cambiarSinGate, guardarConfigScan, leerConfigArea } from './configArea.js';
 import { esquemaGate, reglasGate } from './gate/proveedor.js';
 import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from './gate/analizador.js';
 import type { AnalisisSentinel, ConfigScan, SnapshotWorkspace } from '../shared/types.js';
@@ -369,6 +369,35 @@ export function crearServidor() {
               resumen: resumenDe(proyectos),
               escaneadoEn: new Date().toISOString(),
             };
+            actualizarSnapshot(mutado);
+            json(res, 200, { ok: true, config: configNueva, snapshot: mutado });
+            return;
+          } catch (err) {
+            json(res, 500, { error: 'No se pudo guardar la config', detalle: String(err) });
+          }
+          return;
+        }
+        /* Exencion del gate (plan 308A-1 F6): marcar/desmarcar un proyecto
+         * en sinGate. [por que] Solo glory-sentinel (el runtime) es elegible;
+         * el endpoint no acepta claves arbitrarias. El proyecto sigue VISIBLE
+         * (a diferencia de ignorados), solo fuerza puerta none sin problema
+         * 'sin gate' en la consola. */
+        if (ruta === '/api/config/singate') {
+          if (req.method !== 'POST') {
+            json(res, 405, { error: 'Metodo no permitido' });
+            return;
+          }
+          const body = (await leerBody(req)) as { op?: unknown; clave?: unknown };
+          const op = body.op;
+          const clave = typeof body.clave === 'string' ? body.clave : '';
+          if ((op !== 'eximir' && op !== 'quitar') || clave !== 'glory-sentinel') {
+            json(res, 400, { error: 'solo se puede eximir la clave real glory-sentinel' });
+            return;
+          }
+          try {
+            const configNueva = cambiarSinGate(RAÍZ_AREA, clave, op === 'eximir');
+            const base = snapshotArea(false);
+            const mutado: SnapshotWorkspace = { ...base.snapshot, config: configNueva };
             actualizarSnapshot(mutado);
             json(res, 200, { ok: true, config: configNueva, snapshot: mutado });
             return;

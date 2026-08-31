@@ -10,10 +10,12 @@ import type { ConfigScan, ConfigWorkspace } from '../shared/types.js';
 export const NOMBRE_CONFIG = 'workspace.config.json';
 /* [por que] v2: agrega la seccion 'scan' (analisis automatico de sentinel,
  * opt-in y apagado por defecto). Una config v1 (ignorados a secas) sigue
- * valid siendo leida, se normaliza al default de scan. */
+ * valid siendo leida, se normaliza al default de scan. v3 (308A-1): agrega
+ * 'sinGate' (proyectos del gate exentos de llevar gate, solo glory-sentinel). */
 export const CONFIG_DEFECTO: ConfigWorkspace = {
-  version: 2,
+  version: 3,
   ignorados: [],
+  sinGate: [],
   scan: { automatico: false, intervaloMin: 30 },
 };
 
@@ -48,6 +50,11 @@ export function leerConfigArea(raiz: string): ConfigWorkspace {
       version: typeof d.version === 'number' ? d.version : CONFIG_DEFECTO.version,
       /* Normaliza: solo strings no vacios, unicos, sin duplicados. */
       ignorados: [...new Set(d.ignorados.filter((x) => typeof x === 'string' && x.length > 0))],
+      /* [por que] sinGate es opt-in por excepcion explicita (Solo glory-sentinel);
+       * normaliza igual que ignorados para no aceptar basura. */
+      sinGate: Array.isArray(d.sinGate)
+        ? [...new Set(d.sinGate.filter((x) => typeof x === 'string' && x.length > 0))]
+        : [],
       scan: normalizarScan(d),
     };
   } catch {
@@ -72,6 +79,18 @@ export function guardarConfigScan(raiz: string, scan: ConfigWorkspace['scan']): 
   const config = leerConfigArea(raiz);
   config.scan = scan ?? { automatico: false, intervaloMin: 30 };
   config.version = 2;
+  guardarConfigArea(raiz, config);
+  return config;
+}
+
+/* Alterna la clave de un proyecto en la lista sinGate (exencion del gate) y
+ * persiste. [por que] Plan 308A-1 F6: solo glory-sentinel (el runtime) es
+ * elegible; el endpoint valida la clave, aqui solo se persiste la lista. */
+export function cambiarSinGate(raiz: string, clave: string, eximir: boolean): ConfigWorkspace {
+  const config = leerConfigArea(raiz);
+  const sinDuplicados = (config.sinGate ?? []).filter((c) => c !== clave);
+  config.sinGate = eximir ? [...sinDuplicados, clave] : sinDuplicados;
+  config.version = 3;
   guardarConfigArea(raiz, config);
   return config;
 }
