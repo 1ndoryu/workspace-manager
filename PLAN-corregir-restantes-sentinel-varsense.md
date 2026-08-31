@@ -943,6 +943,40 @@ Documentado sin forzar: los paquetes con fixes solo en majors con runtime
 cambiado (esbuild-kit legacy muerto es excepción segura por la prueba de 0
 referencias). Total de vulnerabilidades del agregado: **8 → 0**.
 
+### I-15 — errores de varsense de workspace-manager (18 → 0, hecho 2026-08-31)
+
+Lote de bajo riesgo pedido por el usuario («resuelve los problemas de bajo
+riesgo que quedan (1815)»), con `paneles.css` ya en alcance (el usuario
+confirmó que no hay diff ajeno). Baseline fresco por CLI: **18e/133w/4i** —
+desglose real: **15 `--v2-oscuro` + 1 `--alto-consola`** en `paneles.css`
+(el doc previo decía 16 `--v2-oscuro`; había 1 `--alto-consola` del mismo
+bloque runtime) y **2 runtime** en `v2.css`.
+
+**Qué se corrigió (visual-neutral, verificado antes de editar):**
+
+- **15 `var(--v2-oscuro)` → `var(--v2-texto)`** en `paneles.css` (clases
+  `.fj*`/`.ej*`: FormularioJSON y EditorEsquema). `--v2-oscuro` era una
+  variable inexistente (el propio comentario del switch lo confirmaba:
+  «--v2-oscuro (variable inexistente)»); el token de texto sobre fondo
+  blanco del design system monocromo es `--v2-texto: #000000` (19+ usos en
+  v2, incl. paneles.css). Los `color:` heredaban negro por el body sin el
+  fallback — ahora explícito e idéntico.
+- **3 runtime (`--ancho-detalle`/`--ancho-lista`/`--alto-consola`) resueltos
+  con defaults en `variables-v2.css`** (patrón del GUI de coolify, §I-6:
+  defaults declarados en el token file, el estilo inline de AppV2 —más
+  específico— los sobrescribe con los valores persistidos en localStorage).
+  Los defaults coinciden 1:1 con el fallback original de cada `var()`
+  (300px/260px/200px), así que es exactamente equivalente incluso sin JS.
+  Antes se documentaban como «runtime con fallback correcto»; ahora el token
+  existe en el índice de varsense y no hay nada que documentar.
+
+**Verificación:** varsense fresco **18e → 0e** (133w/4i intactos, sin
+regresión) + `pnpm run type-check` exit 0 (CSS-only) + `sentinel analyze`
+**60 (0e/56w/4h) = baseline exacto**, sin hallazgos nuevos. Commit
+`df737fb` (2 archivos, +25/−15). Con esto **workspace-manager queda con 0
+errores de varsense y 0 errores de sentinel**: 215 → 197 hallazgos (18
+errores menos) sin tocar runtime.
+
 ### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
 - Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
   gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`,
