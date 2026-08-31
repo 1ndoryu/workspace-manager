@@ -1133,6 +1133,33 @@ a 500; su runtime real ~1718). Desglose por regla (todo el agregado):
   es PROYECTO TASKS, esperado). WANDORIUS queda con manifest alineado y lock
   legacy stale preexistente (frame bespoke, documentado 308A-1 F2). gloryapi
   no declara varsense en su manifest (usa el checkout directo, sin pin).
+- **Commits (2026-08-31, stage explícito, mensaje `308A-6J8`):** varsense
+  `303e7f9`; consumidores: workspace-manager `cdeba0c`+`18d715f` (docs),
+  coolify `8a91eb4`, RESTAURANTE `c5054b8`, WANDORIUS `8b381255`, Glory-Laminal
+  `d932054`, freebuff-bridge `9dc5646`, GLORYINSPECTOR `fb84bb8` (incluye
+  `directoryExceptions` inspector/tests del frente B2), GLORYPORT `d2160c0`,
+  ONG AGAPE `6f7d1ca`, gloryapi `787b705` (defaults dnd-kit en index.css).
+  Todos los repos quedan limpios; `.bak` de locks eliminados.
+- **CIERRE agregado vivo (2026-08-31):** re-análisis forzado por proyecto
+  (todos con varsense) + `curl /api/gate/analisis?analizar=todo`. **Suma de
+  hallazgos (cap 500/proyecto): 1716 → 1580 (−136)**. Desglose: Glory-Laminal
+  42, workspace-manager 152 (60s+92v), gloryapi 76, WANDORIUS 157, coolify
+  99 (67s+32v), RESTAURANTE 247, ONG AGAPE 305 (164s+141v, −19 claseHuerfana
+  FPs), PROYECTO TASKS 500 (cap; runtime real bajó con el fix pero sigue
+  >500), GLORYPORT 2, freebuff-bridge/GLORYINSPECTOR 0. **Visible en la
+  consola ≈ 1591** = 1580 + 10 sinPush (repos con commits del frente) + 1
+  gate (`varsense ausente` de GLORYPORT, sin `varsense.config.json`); sinCommit
+  0, config 0, vulnerabilidades 0. Desde el 1815 que vio el usuario: **−224**;
+  desde el 2571 inicial: **−980**.
+- **Nota GLORYPORT (2 vs 1, sin regresión):** el server corre sentinel
+  **0.7.4** (runtime `RAIZ_VERSIONS`) mientras el fijado en quality-tools es
+  0.7.5 — discrepancia preexistente ya documentada (§I-12). Al invalidarse la
+  cache (HEAD cambió por el commit del pin) el runtime 0.7.4 afloró un
+  hallazgo preexistente `directorio-abarrotado` (raíz con 11 archivos de
+  manifests/config; el conteo de archivos NO cambió con J-8). El CLI fijado
+  0.7.5 reporta solo 1 (popup.rs monolito). Misma clase de excepción que
+  coolify §H-1 (la raíz canónica no se reorganiza sin romper tooling) —
+  documentada, no forzada.
 
 ## Gotchas / riesgos
 
