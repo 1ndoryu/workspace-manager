@@ -29,7 +29,7 @@
 | gloryapi | 8 → **0** | limite-lineas ×4, ISP ×2, barrel ×2 | limpio ✓ | ✅ **F5 COMPLETO** (commit `4e97e2a`) |
 | PROYECTO TASKS | 500 → **23** (desglose final: emoji-en-codigo 9, inline-style-prohibido 5, limite-lineas 4, parametros-excesivos-rs 4, funcion-larga-rs 1) | **ISP COMPLETO (74→0)**; batch fronts pequeños COMPLETO (objeto-mutable 3→0, fallo-sin-feedback 3→0, usestate-excesivo 2→0, singleton-mutable-state→0, import-muerto→0, limite-lineas frontend 12→4 solo monolitos); **console-production COMPLETO (86→0)** con logger central `frontend/src/app/utils/logger.ts` + `portableBoundaries.loggerModules` corregido (`ac5d4c4`) | árbol limpio | 🔶 parcial — quedan 23 = excepciones legítimas documentadas (emoji/inline-style copy-dinámico) + monolitos de API (`store.ts`, `runtime.rs`, `agente.rs`, `ai.rs`, params/funcion-larga con firma pública) |
 | RESTAURANTE | 463 → **120** | tras F4/F5: sqlx (26) disable-file, glory-conv (38) config.rules, window/dom (13) boundaries, barras (10) + directorio (4) fixes + splits Rust `funcion-larga-rs` | limpio ✓ / **pusheado** (rama `glory-rs-rest`, `2fa1e652`) | ✅ piso honesto 120 |
-| WANDORIUS | 410 | **sqlx sin macro (283)**, window/dom (63), css (18), console (8) | **limpio** ✓ pero rama **`main`** (primaria declarada `wandorius`) | 🔶 bloqueado |
+| WANDORIUS | 410 → **0** | corte completo en `c1af8af6` ([308A-1]): exclusiones canónicas (`_archivo/**`, dirs inertes), logger boundary (console), disables justificados de sqlx (sin macros ni DB compile-time) y handler-accede-bd en fixtures, boundaries de plataforma ampliados, splits reales de limite-lineas (`auth.rs`→`auth_totp`, `commerce_e2e.rs`→`tests/common`) | limpio ✓, rama **`main`** sincronizada con `legacy-wandorius/main` (0/0) | ✅ **F2 COMPLETO** |
 
 ## 2. Decisiones de alcance (acordadas con el usuario)
 
@@ -66,10 +66,16 @@
    `excludePatterns` de WANDORIUS/RESTAURANTE/PROYECTO TASKS (fix canónico, con `directoryExceptions`),
    sin borrar nada. `config` 36→0, `huérfanos` 0. Los proyectos ignorados/backups quedan fuera del
    análisis y NO se vuelven a detectar como problema.
-2. **F2 — WANDORIUS (repo limpio, objetivo principal)** — 🔶 **bloqueado**: la rama actual es `main`;
-   el AGENTS.md §9.5 declara `primaryBranch` `wandorius` (`main` = template vacío). No se confirma el
-   corte Rust (`sqlx-query-sin-macro`, 283) sin verificar si WANDORIUS tiene caché `.sqlx` como
-   RESTAURANTE; sin cargo verde confirmado no se fuerza. Se requiere decidir la rama correcta antes.
+2. **F2 — WANDORIUS** — ✅ **COMPLETO**: analizador 0.7.4 = **0 hallazgos en 481 archivos** sobre rama
+   `main` limpia (HEAD `7976d74e`; padre `c1af8af6`). El corte 410→0 se ejecutó en `c1af8af6`
+   ([308A-1]) con mecanismos honestos: exclusión canónica de `_archivo/**` y dirs inertes en config,
+   logger boundary para `console-production`, disables justificados de `sqlx-query-sin-macro` (sin
+   feature macros ni DB compile-time) y de `handler-accede-bd-rs` en fixtures de test, boundaries de
+   plataforma ampliados (dom/window), `mixed-barrel-logic` por config (re-exports intencionales) y
+   splits reales de `limite-lineas` (`auth.rs` → submódulo `auth_totp`; `commerce_e2e.rs` → helpers
+   `tests/common`). `main` sincronizada con `legacy-wandorius/main` (0/0). Único matiz documental:
+   la primaria declarada es `wandorius` (AGENTS.md §9.5 / `sentinel.config.json`) pero la rama activa
+   real con todo el trabajo es `main` — desajuste de config, no bloqueo.
 3. **F3 — PROYECTO TASKS** — 🔶 parcial: **500→23** (emoji 9, inline-style 5, limite-lineas 4, parametros-excesivos-rs 4, funcion-larga-rs 1; console-production 86→0 con logger central `ac5d4c4`)
    = `store.ts` + `runtime.rs`/`agente.rs`/`ai.rs`, parametros-excesivos-rs 4, funcion-larga-rs 1). El frontalento
    de bajo riesgo/qualiad queda AGOTADO: objeto-mutable, fallo-sin-feedback, usestate-excesivo,
@@ -126,21 +132,22 @@ Fases cerradas y evidencia verificable en vivo:
 | Frente | Estado | Evidencia (hash/rama) |
 |---|---|---|
 | F1 — Exclusions/config/huérfanos | ✅ completo | `config` 36→0; `huérfanos` 0; `sin-git` 0 |
-| F2 — WANDORIUS | 🔶 bloqueado | rama `main` (ahead 3) vs primaria `wandorius`; Rust sqlx sin corte verde |
+| F2 — WANDORIUS | ✅ **COMPLETO** | **410→0** en `c1af8af6`; analizador 0.7.4 = 0/481; `main` sincronizada con `legacy-wandorius/main` (0/0) |
 | F3 — PROYECTO TASKS | 🔶 parcial | **500→23** (console 86→0, ISP 74→0, fronts pequeños →0; restante = excepciones documentadas); rama `main` ahead 2 (`ac5d4c4`) |
 | F4 — RESTAURANTE | ✅ piso honesto **120**, pusheado | `2fa1e652`, rama `glory-rs-rest` (ahead 42) |
 | F5 — gloryapi | ✅ **COMPLETO** | **8→0**; `4e97e2a`, rama `gloryapi` limpia |
 | Transversal VarSense | 🔶 bloqueado | sin runtime oficial (S2-05) |
 | Trabajo ajeno | — | ninguno: el usuario confirmó que no hay otro agente ni cambios ajenos; todo lo del hilo quedó commiteado |
 
-**Cumplido de lo planificado (F1/F4/F5/F6):** exclusions canónicas que dejan los proyectos ignorados
+**Cumplido de lo planificado (F1/F2/F4/F5/F6):** exclusions canónicas que dejan los proyectos ignorados
 fuera del conteo; RESTAURANTE al piso honesto con verificación cargo restaurada y pusheado;
 gloryapi 8→0 con refactors reales verificados (`tsc -b` + 315/315) y una `directoryExceptions`
 documentada para directorios organizados por dominio.
 
 **Ítems del plan que siguen pendientes y su porqué verificable:**
-1. **WANDORIUS (F2)** — la rama activa es `main`, no la primaria declarada `wandorius`; no se confirma
-   caché `.sqlx` para el corte Rust (283 sqlx). Bloqueado hasta decidir la rama correcta y verificar cargo.
+1. ~~**WANDORIUS (F2)**~~ — **completo** (410→0 en `c1af8af6`; analizador 0.7.4 = 0 hallazgos en 481
+   archivos). Único matiz documental: primaria declarada `wandorius` vs rama activa real `main`
+   (desajuste de config/AGENTS.md, no bloqueo de trabajo).
 2. **PROYECTO TASKS residual (F3)** — `cargo check --tests` verde confirmado (SQLX_OFFLINE); lo que
    queda (23) son excepciones legítimas documentadas: emoji 9 e inline-style 5 (copy/dinámico),
    `limite-lineas` 4 (monolitos `store.ts` + `runtime.rs`/`agente.rs`/`ai.rs`), `parametros-excesivos-rs` 4
