@@ -7,6 +7,7 @@
  * se persisten en localStorage. */
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useWorkspaceStore } from '../hooks/useWorkspace.js';
+import { logger } from '../shared/logger.js';
 import { MapaV2 } from './mapa/MapaV2.js';
 import { NavBar } from './NavBar.js';
 import { PanelConsola } from './paneles/PanelConsola.js';
@@ -49,7 +50,7 @@ function layoutGuardado(): LayoutGuardado {
     }
     return { anchoDetalle: d.anchoDetalle, anchoLista: d.anchoLista, altoConsola: d.altoConsola };
   } catch (err) {
-    console.warn('[appV2] no se pudo leer el layout guardado:', err);
+    logger.warn('no se pudo leer el layout guardado:', err);
     return LAYOUT_DEFECTO;
   }
 }
@@ -88,7 +89,7 @@ export function AppV2() {
         JSON.stringify({ anchoDetalle, anchoLista, altoConsola } satisfies LayoutGuardado),
       );
     } catch (err) {
-      console.warn('[appV2] no se pudo guardar el layout:', err);
+      logger.warn('no se pudo guardar el layout:', err);
     }
   }, [anchoDetalle, anchoLista, altoConsola]);
 

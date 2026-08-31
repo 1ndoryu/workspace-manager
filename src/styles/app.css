@@ -52,3 +52,14 @@
 .error {
     color: var(--danger);
 }
+
+/* Separaciones verticales entre bloques de la vista mapa: antes eran
+ * marginTop por inline-style; pasan a clase para no usar estilo inline.
+ * [por que] Se conserva el valor exacto que tenia el inline-style (16/20px). */
+.contenidoMapa {
+    margin-top: 16px;
+}
+
+.contenidoDetalle {
+    margin-top: 20px;
+}

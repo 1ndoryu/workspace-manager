@@ -11,6 +11,7 @@ import { cambiarIgnorado, cambiarSinGate, guardarConfigScan, leerConfigArea } fr
 import { esquemaGate, reglasGate } from './gate/proveedor.js';
 import { correrSincronizacion } from './gate/sincronizacion.js';
 import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from './gate/analizador.js';
+import { logger } from '../shared/logger.js';
 import {
   auditarProyecto,
   auditarTodo,
@@ -203,7 +204,7 @@ export function crearServidor() {
               try {
                 snapshotArea(true);
               } catch (err) {
-                console.warn('[gate] re-escaneo tras guardar fallo:', err);
+                logger.warn('re-escaneo tras guardar [gate] fallo:', err);
               }
               json(res, 200, { ok: true, clave, nombre, ruta });
             } catch (err) {
@@ -544,7 +545,7 @@ export function crearServidor() {
               try {
                 snapshotArea(true);
               } catch (err) {
-                console.warn('[skills] re-escaneo tras guardar fallo:', err);
+                logger.warn('re-escaneo tras guardar [skills] fallo:', err);
               }
               json(res, 200, { ok: true, nombre, ruta: skill.ruta });
             } catch (err) {
@@ -610,7 +611,7 @@ export function crearServidor() {
               try {
                 snapshotArea(true);
               } catch (err) {
-                console.warn('[agentes] re-escaneo tras guardar fallo:', err);
+                logger.warn('re-escaneo tras guardar [agentes] fallo:', err);
               }
               json(res, 200, { ok: true, id, ruta });
             } catch (err) {
@@ -725,6 +726,6 @@ export function crearServidor() {
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))) {
   const servidor = crearServidor();
   servidor.listen(PUERTO, '127.0.0.1', () => {
-    console.log(`[workspace-manager] API escuchando en http://127.0.0.1:${PUERTO}`);
+    logger.log(`API escuchando en http://127.0.0.1:${PUERTO}`);
   });
 }

@@ -34,7 +34,9 @@ export function EditorJson({ value, onChange }: Props) {
   }
   return (
     <div className="fjPlano">
-      {filas.map((c, i) => <Fila key={i} campo={c} />)}
+      {/* key estable: label = ruta jerárquica única del campo (objeto usa la
+       * clave, array el índice 1-based => rutas sin colisión en JSON válido). */}
+      {filas.map((c) => <Fila key={c.label} campo={c} />)}
     </div>
   );
 }

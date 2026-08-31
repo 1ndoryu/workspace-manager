@@ -22,41 +22,6 @@
     gap: var(--v2-spaceXs);
 }
 
-.mapaV2ZoomBoton {
-    width: 32px;
-    height: 32px;
-    background: var(--v2-fondo);
-    color: var(--v2-texto);
-    border: 1px solid var(--v2-borde);
-    font-family: var(--v2-font);
-    font-size: var(--v2-textLg);
-    line-height: 1;
-    cursor: pointer;
-    font-weight: normal;
-}
-
-/* Boton de mano (modo mover): mismo estilo monocromo que el zoom, con icono
- * SVG heredando currentColor. */
-.mapaV2ManoBoton {
-    width: 32px;
-    height: 32px;
-    background: var(--v2-fondo);
-    color: var(--v2-texto);
-    border: 1px solid var(--v2-borde);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-}
-
-/* Activo (modo mover): fondo invertido para indicar que el arrastre esta
- * habilitado y las cajas ya no responden al click. */
-.mapaV2ManoBoton--activo {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
 .mapaV2ManoIcono {
     width: 18px;
     height: 18px;

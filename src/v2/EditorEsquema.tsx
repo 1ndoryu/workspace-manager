@@ -71,8 +71,9 @@ export function EditorEsquema({ esquema, value, onChange, readOnly, reglas }: Pr
         readOnly={readOnly}
       />
       )}
-      {filasPlanas.map((f, i) => (
-        <Fila key={i} fila={f} setEn={setEn} quitar={readOnly ? undefined : (r) => onChange(borrarRuta(value, r))} readOnly={readOnly} />
+      {/* key estable: la ruta del esquema identifica la fila de forma única. */}
+      {filasPlanas.map((f) => (
+        <Fila key={f.ruta.join('/')} fila={f} setEn={setEn} quitar={readOnly ? undefined : (r) => onChange(borrarRuta(value, r))} readOnly={readOnly} />
       ))}
     </div>
   );

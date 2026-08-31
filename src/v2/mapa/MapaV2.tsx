@@ -12,6 +12,7 @@ import {
   verticesTecho,
 } from './tiles.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
+import { Button } from '../Button.js';
 import './mapaV2.css';
 
 /* Estado del mapa persistido entre recargas (zoom y posicion de arrastre).
@@ -273,9 +274,9 @@ export function MapaV2() {
 
       {/* Controles del mapa (esquina superior derecha): mano (modo mover) y zoom. */}
       <div className="mapaV2Controles">
-        <button
-          type="button"
-          className={`mapaV2ManoBoton${modoArrastre ? ' mapaV2ManoBoton--activo' : ''}`}
+        <Button
+          cuadrado
+          activo={modoArrastre}
           onClick={() => {
             setModoArrastre((m) => !m);
             arrastre.current = null;
@@ -294,25 +295,25 @@ export function MapaV2() {
               fill="currentColor"
             />
           </svg>
-        </button>
-        <button
-          type="button"
-          className="mapaV2ZoomBoton"
+        </Button>
+        <Button
+          cuadrado
+          className="botonV2--grande"
           onClick={() => setZoom((z) => Math.min(ZOOM_MAX, z + ZOOM_PASO))}
           aria-label="Acercar"
           title="Acercar"
         >
           +
-        </button>
-        <button
-          type="button"
-          className="mapaV2ZoomBoton"
+        </Button>
+        <Button
+          cuadrado
+          className="botonV2--grande"
           onClick={() => setZoom((z) => Math.max(ZOOM_MIN, z - ZOOM_PASO))}
           aria-label="Alejar"
           title="Alejar"
         >
           −
-        </button>
+        </Button>
       </div>
 
       {hover && tooltipPos && (

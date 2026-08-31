@@ -9,7 +9,7 @@
  * (fuente: 'estatica'), nunca rompe el árbol por ausencia de runtime.
  * Resolución server-side: el cliente es 'tonto' y solo pide /gate/reglas. */
 import { createRequire } from 'node:module';
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ReglaCatalogo, SeveridadRegla } from '../../shared/gate/reglas.js';
 import { REGLAS as REGLAS_ESTATICAS } from '../../shared/gate/reglas.js';
@@ -179,9 +179,11 @@ export function reglasGate(): {
 
 /* Proveedores concretos del gate, registrados server-side (el cliente solo
  * consulta por API). [por que] `ProveedorGate` es la unica puerta del editor:
- * sentinel resuelve esquema curado + reglas vivas del runtime; varsense todavia
- * no tiene runtime instalado (así su proveedor es eschema curado, reglas vacias
- * y fuente estatica). Anadir tool = registrar aqui; el editor no cambia (E1). */
+ * sentinel resuelve esquema curado + reglas vivas del runtime; varsense desde
+ * la fase G reporta su runtime REAL del checkout compartido (fuente runtime,
+ * no estatica) aunque su catalogo de reglas siga vacio (las reglas viven en
+ * el binario, no en un catalogo consultable). Anadir tool = registrar aqui;
+ * el editor no cambia (E1). */
 registrarProveedor({
   tipo: 'sentinel',
   esquema: (): NodoEsquema => ESQUEMA_SENTINEL(),
@@ -190,13 +192,34 @@ registrarProveedor({
   runtimeInstalado: (): string | null => versionRuntime(),
   fuente: (): 'runtime' | 'estatica' => reglasGate().fuente,
 });
+/* Version real de varsense del checkout compartido (misma resolucion que
+ * `entornoGate` del analizador: env override gana, sino <area>/.quality-tools/
+ * varsense). null si no esta provisionado. */
+export function versionVarsense(): string | null {
+  try {
+    const base =
+      process.env.GLORY_VARSENSE_SOURCE_PATH ||
+      join(
+        process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo',
+        '.quality-tools',
+        'varsense',
+      );
+    const pkg = join(base, 'package.json');
+    if (!existsSync(pkg)) return null;
+    const data = JSON.parse(readFileSync(pkg, 'utf8')) as { version?: unknown };
+    return typeof data.version === 'string' ? data.version : null;
+  } catch {
+    return null;
+  }
+}
+
 registrarProveedor({
   tipo: 'varsense',
   esquema: (): NodoEsquema => ESQUEMA_VARSENSE(),
   reglas: (): ReglaCatalogo[] => [],
   versionReferencia: (): string => '—',
-  runtimeInstalado: (): string | null => null,
-  fuente: (): 'estatica' => 'estatica',
+  runtimeInstalado: (): string | null => versionVarsense(),
+  fuente: (): 'runtime' | 'estatica' => (versionVarsense() ? 'runtime' : 'estatica'),
 });
 
 /* Esquema + reglas + metadata de una herramienta, como la sirve la API

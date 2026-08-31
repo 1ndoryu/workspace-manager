@@ -69,18 +69,45 @@ function filasProyecto(p: Proyecto): { k: string; v: string }[] {
   return filas;
 }
 
-/* Resumen corto de un analisis para la fila del detalle. */
+/* Resumen corto de un analisis para la fila del detalle. Desde la fase G el
+ * analisis fusiona sentinel + varsense (hallazgos tagueados por fuente): se
+ * muestran ambos conteos, y si solo hay hallazgos de varsense el estado 'ok'
+ * no debe decir 'sentinel sin hallazgos' (hay hallazgos, de la otra tool). */
 function resumenAnalisis(a: AnalisisSentinel | undefined): string | null {
   if (!a) return null;
   if (a.estado === 'error') return `análisis falló${a.error ? `: ${a.error}` : ''}`;
-  if (a.estado === 'ok') return 'sentinel sin hallazgos';
-  const { error, warning, information, hint } = a.resumen;
+  /* Conteo de sentinel = hallazgos con fuente sentinel (o sin fuente, cache
+   * vieja pre-G). [por que] `a.resumen` ya suma ambas tools desde la fase G. */
+  const s = a.hallazgos.filter((h) => h.fuente !== 'varsense');
+  const sError = s.filter((h) => h.severidad === 'error').length;
+  const sWarning = s.filter((h) => h.severidad === 'warning').length;
+  const sInfo = s.filter((h) => h.severidad === 'information').length;
+  const sHint = s.filter((h) => h.severidad === 'hint').length;
   const partes: string[] = [];
-  if (error) partes.push(`${error} error${error === 1 ? '' : 'es'}`);
-  if (warning) partes.push(`${warning} warning${warning === 1 ? '' : 's'}`);
-  if (information) partes.push(`${information} info`);
-  if (hint) partes.push(`${hint} hint${hint === 1 ? '' : 's'}`);
-  return `sentinel: ${partes.join(' · ') || 'sin detalle'}`;
+  if (a.estado === 'ok') {
+    partes.push('sentinel sin hallazgos');
+  } else if (s.length > 0) {
+    const sev: string[] = [];
+    if (sError) sev.push(`${sError} error${sError === 1 ? '' : 'es'}`);
+    if (sWarning) sev.push(`${sWarning} warning${sWarning === 1 ? '' : 's'}`);
+    if (sInfo) sev.push(`${sInfo} info`);
+    if (sHint) sev.push(`${sHint} hint${sHint === 1 ? '' : 's'}`);
+    partes.push(`sentinel: ${sev.join(' · ') || 'sin detalle'}`);
+  } else if (a.varsense && s.length === 0) {
+    /* Solo hallazgos de varsense: no decir 'sentinel sin hallazgos' como si
+     * el analisis entero estuviera limpio. */
+    partes.push('sentinel sin hallazgos');
+  }
+  if (a.varsense) {
+    const r = a.varsense.resumen;
+    const sev: string[] = [];
+    if (r.error) sev.push(`${r.error} error${r.error === 1 ? '' : 'es'}`);
+    if (r.warning) sev.push(`${r.warning} warning${r.warning === 1 ? '' : 's'}`);
+    if (r.information) sev.push(`${r.information} info`);
+    if (r.hint) sev.push(`${r.hint} hint${r.hint === 1 ? '' : 's'}`);
+    partes.push(`varsense v${a.varsense.version}: ${sev.join(' · ') || 'sin hallazgos'}`);
+  }
+  return partes.join(' · ') || null;
 }
 
 /* Resumen corto de una auditoria de dependencias para la fila del detalle. */

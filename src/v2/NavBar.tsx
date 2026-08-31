@@ -4,6 +4,7 @@
  * visibilidad de cada panel lateral/consola. Iconos lucide-react. */
 import { BookOpen, Boxes, FolderOpen, GitBranch, PanelLeft, PanelRight, Settings, SquareTerminal, type LucideIcon } from 'lucide-react';
 import { useWorkspaceStore, type PanelCentral, type VisibilidadPaneles } from '../hooks/useWorkspace.js';
+import { Button } from './Button.js';
 
 const CENTRALES: { clave: PanelCentral; icono: LucideIcon; etiqueta: string }[] = [
   { clave: 'mapa', icono: Boxes, etiqueta: 'mapa' },
@@ -41,32 +42,30 @@ export function NavBar() {
     <nav className="v2Nav" aria-label="Navegación principal">
       <div className="v2NavCentral" role="tablist" aria-label="Panel central">
         {CENTRALES.map((c) => (
-          <button
+          <Button
             key={c.clave}
-            type="button"
             role="tab"
             aria-selected={panelCentral === c.clave}
-            className={`v2NavBoton${panelCentral === c.clave ? ' v2NavBoton--activo' : ''}`}
+            activo={panelCentral === c.clave}
             onClick={() => setPanelCentral(c.clave)}
             title={`Mostrar ${c.etiqueta}`}
           >
             <c.icono size={14} />
             <span>{c.etiqueta}</span>
-          </button>
+          </Button>
         ))}
       </div>
       <div className="v2NavVisible" role="group" aria-label="Visibilidad de paneles">
         {togglesVisibles.map((t) => (
-          <button
+          <Button
             key={t.clave}
-            type="button"
-            className={`v2NavBoton${visibles[t.clave] ? ' v2NavBoton--activo' : ''}`}
+            activo={visibles[t.clave]}
             onClick={() => setPanelVisible(t.clave, !visibles[t.clave])}
             aria-pressed={visibles[t.clave]}
             title={`${visibles[t.clave] ? 'Ocultar' : 'Mostrar'} ${t.etiqueta}`}
           >
             <t.icono size={14} />
-          </button>
+          </Button>
         ))}
       </div>
     </nav>
