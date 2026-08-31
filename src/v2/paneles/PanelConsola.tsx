@@ -186,8 +186,18 @@ export function PanelConsola() {
     const porProyecto = new Map<string, Problema>();
     const poner = (pr: Problema) => {
       const ex = porProyecto.get(pr.p.ruta);
-      if (ex) ex.entradas.push(...pr.entradas);
-      else porProyecto.set(pr.p.ruta, pr);
+      if (ex) {
+        /* [por que] Nunca mutar los objetos de 'problemas'/'problemasSentinel':
+         * si `ex` fuese el objeto original de 'problemas' y le hiciéramos
+         * push, la mutación persistiría entre renders (ese useMemo no se
+         * recalcula si el snapshot no cambia) y CADA escaneo volvería a
+         * añadir otra capa de entradas sentinel (1408 -> 2789 -> 4170...).
+         * Se crea un objeto nuevo con entradas combinadas, no se toca el
+         * original. */
+        porProyecto.set(pr.p.ruta, { p: ex.p, entradas: [...ex.entradas, ...pr.entradas] });
+      } else {
+        porProyecto.set(pr.p.ruta, { p: pr.p, entradas: [...pr.entradas] });
+      }
     };
     problemas.forEach(poner);
     problemasSentinel.forEach(poner);
