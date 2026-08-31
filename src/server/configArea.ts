@@ -78,7 +78,9 @@ export function guardarConfigArea(raiz: string, config: ConfigWorkspace): void {
 export function guardarConfigScan(raiz: string, scan: ConfigWorkspace['scan']): ConfigWorkspace {
   const config = leerConfigArea(raiz);
   config.scan = scan ?? { automatico: false, intervaloMin: 30 };
-  config.version = 2;
+  /* [por que] No degradar la version del esquema: el area ya puede tener
+   * 'sinGate' (v3); al guardar el scan no debe retroceder a v2. */
+  config.version = CONFIG_DEFECTO.version;
   guardarConfigArea(raiz, config);
   return config;
 }
