@@ -657,6 +657,27 @@ familias distintas, y solo una es "arreglar ahora". Conclusiones con evidencia:
   documentado) sin regresión; varsense **0 errores**. Verificado con
   `cargo check --tests` exit 0 + `tsc --noEmit` del GUI exit 0.
 
+### I-7 — design system de RESTAURANTE (front varsense 172 → 140, hecho 2026-08-31)
+- **Borradas 20 `claseHuerfana` reales** (verificadas 0 usos repo-wide con
+  word-boundary en `.ts/.tsx`, excluyendo fixtures y `glory-rs`): bloques
+  muertos de `PlanoSala.css` (planoSala/planoBarraHerramientas/planoZonas/…)
+  y `PlanoOcupacion.css` (planoOcupacion/…Titulo/…Zonas/…ZonaTab + `.activa`,
+  leyenda e indicadores). Se conservaron los selectores `.mesaOcupacion.*` y
+  las formas/estados (`cuadrada/redonda/rectangular/libre/ocupada/no_show/
+  inactiva`) que se construyen dinámicamente con `${estado}`/`${mesa.forma}`.
+- **10 `claseHuerfana` restantes en la app = falsos positivos del scanner**
+  (§I-2, construcción dinámica array-join/template); los 81 de `index.css`
+  (`token-duplicate` 42 + `token-unused` 39) son **aliasing semántico del
+  puente shadcn/Tailwind v4** (`--card`/`--popover`→`--background`, sidebar) —
+  NO se colapsan (rompería el contrato shadcn). `valorHardcoded`/`cssInlineReact`/
+  `propiedadProhibida` restantes = posicionamiento dinámico legítimo o deuda
+  de diseño (excepción fundamentada).
+- **Resultado: varsense 172 → 140** (0e/77w/24i/39h): `claseHuerfana` 34→14,
+  `valorHardcoded` 26→15 (los de bloques muertos), `propiedadProhibida` 7→6.
+  Verificado: `tsc --noEmit` (22 errores, todos del submódulo `glory-rs`
+  preexistentes, cero de `src/`), `cargo check --tests` exit 0, `sentinel
+  analyze` sin hallazgos en los archivos tocados (sin regresión).
+
 ### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
 - Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
   gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`,
