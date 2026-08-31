@@ -12,6 +12,7 @@
     "server": "tsx watch src/server/index.ts",
     "diagnostico": "tsx scripts/diagnostico-escaner.ts",
     "sync:gate": "tsx scripts/sync-gate-schema.mjs",
+    "sync:quality": "tsx scripts/quality-sync.mjs",
     "check": "npm run type-check"
   },
   "dependencies": {
