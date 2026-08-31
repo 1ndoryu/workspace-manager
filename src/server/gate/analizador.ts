@@ -197,30 +197,53 @@ interface ResultadoSpawn {
   dato: ReporteJson;
 }
 
+/* Parseo tolerante del reporte JSON: solo es un reporte válido si hay un
+ * objeto parseable en stdout. [por que] comparte la logica entre el rama de
+ * exito y la de exit != 0 (ver correrSentinel). */
+function parsearReporte(stdout: string | undefined): ReporteJson | null {
+  if (typeof stdout !== 'string' || !stdout) return null;
+  try {
+    const dato = JSON.parse(stdout) as ReporteJson;
+    return dato && typeof dato === 'object' ? dato : null;
+  } catch {
+    return null;
+  }
+}
+
 /* Ejecuta el analisis real (asincrono, cede el event loop para no congelar la
  * API). [por que] el JSON va SOLO en stdout; el stderr trae logs INFO del
- * analizador que no deben romper el parseo. Ante fallo devuelve null (el
- * llamador marca 'error', nunca rompe el snapshot). */
+ * analizador que no deben romper el parseo. `sentinel analyze` sale con exit
+ * != 0 cuando existen hallazgos de severidad 'error' (contrato del CLI, igual
+ * que `grep`), aunque el reporte este presente y sea valido en stdout;
+ * execFileAsync rechaza ante exit != 0 y en el catch hay que leer `err.stdout`.
+ * Asi el estado del proyecto usa los hallazgos reales (conHallazgos) en lugar
+ * de marcarlo 'error' de herramienta. Solo devuelve null si no hay stdout
+ * parseable (fallo real de runtime/spawn: el llamador marca 'error'). */
 const execFileAsync = promisify(execFile);
 async function correrSentinel(ruta: string): Promise<ResultadoSpawn | null> {
   const cli = cliRuntime();
   if (!cli) return null;
+  const version = versionRuntime() ?? '?';
+  const opciones = {
+    encoding: 'utf8' as const,
+    windowsHide: true,
+    timeout: 60000,
+    env: { ...process.env, ...entornoGate() },
+  };
   try {
     const { stdout } = await execFileAsync(
       process.execPath,
       [cli, 'analyze', '--workspace', ruta, '--format', 'json'],
-      {
-        encoding: 'utf8',
-        windowsHide: true,
-        timeout: 60000,
-        env: { ...process.env, ...entornoGate() },
-      },
+      opciones,
     );
-    const dato = JSON.parse(stdout) as ReporteJson;
-    if (!dato || typeof dato !== 'object') return null;
-    return { version: versionRuntime() ?? '?', dato };
-  } catch {
-    return null;
+    const dato = parsearReporte(stdout);
+    if (!dato) return null;
+    return { version, dato };
+  } catch (err) {
+    const e = err as { stdout?: string };
+    const dato = parsearReporte(e.stdout);
+    if (!dato) return null;
+    return { version, dato };
   }
 }
 
