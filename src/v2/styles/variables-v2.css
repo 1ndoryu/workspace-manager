@@ -38,4 +38,14 @@
     --v2-textSm: 0.85rem;
     --v2-textMd: 1rem;
     --v2-textLg: 1.15rem;
+
+    /* Dimensiones de paneles persistidas por AppV2 como variables inline
+     * (--ancho-detalle / --ancho-lista / --alto-consola). [por que] El indice
+     * de varsense solo conoce CSS, asi que los defaults viven aqui; el estilo
+     * inline de AppV2 (mas especifico) los sobrescribe con los valores
+     * persistidos en localStorage. Los defaults coinciden 1:1 con el fallback
+     * original de cada var() en v2.css/paneles.css. */
+    --ancho-detalle: 300px;
+    --ancho-lista: 260px;
+    --alto-consola: 200px;
 }
