@@ -635,14 +635,32 @@ familias distintas, y solo una es "arreglar ahora". Conclusiones con evidencia:
   (`deploy_service.rs` 2135, `mcp/tools` 872, `google_drive` 694, store/runtime
   de PT) — un split sin seam sería arbitrario.
 - Tokens: gloryapi (puente Tailwind v4; "duplicados/unused" = aliasing
-  semántico), RESTAURANTE (172), GUI de coolify-manager-rs (25
-  `css-elemento-html-directo`, button ad hoc → requiere componente `Button`
-  canónico = refactor de design system).
+  semántico), RESTAURANTE (172).
 - `paneles.css`/`MapaV2.tsx` (workspace-manager) — preservados.
+
+### I-6 — front design system del GUI de coolify-manager-rs (hecho 308A-6GUI)
+- `css-elemento-html-directo` **25 → 0** y `button-clase-especifica` **12 → 0**
+  en `gui/`: selectores de elemento (`.{clase} button/h1-h3`) movidos a clases
+  con `className` en el JSX (visual-neutral, mismas declaraciones), colapsando
+  títulos de sección; renombrada la clase `vpsBotonBase` → `vpsControlBase`
+  (contenía "Boton" y disparaba `button-clase-especifica`).
+- Login → componente canónico `Button` (variant `primario`): `css-adhoc`
+  ×1 y `.botonLogin` eliminado; `cursor`/`:disabled` movidos al `.boton`
+  canónico en `componentes.css`.
+- `inline-style-prohibido` de `MenuContextual` → CSS custom properties
+  (`--menuPosTop`/`--menuPosLeft`), clase modificadora para no romper el
+  reposo de `SelectorPersonalizado`. Defaults declarados en `variables.css`
+  (VarSense solo indexa `variableFiles`).
+- **Resultado: GUI 28 → 3** (2 warning preexistentes en `portal.css`
+  `css-especificacion-diseno-local` + 1 hint ISP de `tipos.ts`); sentinel
+  proyecto **96 → 67** (1e/43w/23h, el 1 error = monolito `deploy_service`
+  documentado) sin regresión; varsense **0 errores**. Verificado con
+  `cargo check --tests` exit 0 + `tsc --noEmit` del GUI exit 0.
 
 ### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
 - Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
-  gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`.
+  gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`,
+  coolify-manager-rs GUI `308A-6GUI` (design system gui/).
 - **No commiteado deliberadamente: `freebuff/`** (diff grande no reconocido de
   mi trabajo del bloque; `bun` no está disponible para verificar que no rompe;
   puede ser trabajo del usuario en curso). PROYECTO TASKS no se toca (el
