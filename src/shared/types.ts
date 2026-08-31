@@ -136,6 +136,41 @@ export interface AnalisisSentinel {
   error?: string;
 }
 
+/* Conteo por severidad de la auditoria de dependencias. [por que] Separado del
+ * resto de la consola igual que el analisis: critical/high/moderate/low son la
+ * nube de severidades que npm/pnpm/cargo audit reportan. */
+export interface ConteoVulnerabilidades {
+  critical: number;
+  high: number;
+  moderate: number;
+  low: number;
+}
+
+export interface HallazgoVulnerabilidad {
+  paquete: string;
+  severidad: 'critical' | 'high' | 'moderate' | 'low';
+  /* Rango de versiones afectadas (del advisory). */
+  rango: string;
+  url?: string;
+}
+
+/* Resultado de la auditoria de dependencias de un proyecto (plan
+ * vulnerabilidades-consola 308A-4). El cliente es 'tonto': pide, el server
+ * resuelve el gestor (npm/pnpm/cargo) segun el lockfile y devuelve este shape
+ * plano, con fallback 'noAuditable' si el proyecto no tiene lockfile o el CLI
+ * de audit no esta disponible (cargo-audit no instalado). */
+export interface AnalisisVulnerabilidades {
+  clave: string;
+  gestor: 'npm' | 'pnpm' | 'cargo' | null;
+  lockfile: string;
+  estado: 'ok' | 'conHallazgos' | 'noAuditable' | 'error';
+  analizadoEn: string;
+  resumen: ConteoVulnerabilidades;
+  hallazgos: HallazgoVulnerabilidad[];
+  /* Detalle cuando estado === 'error' o 'noAuditable'. */
+  error?: string;
+}
+
 export interface SkillGlobal {
   nombre: string;
   descripcion: string;

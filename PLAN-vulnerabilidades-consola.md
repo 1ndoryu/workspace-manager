@@ -150,3 +150,19 @@ añade un detector homólogo para vulnerabilidades, **sin duplicar** el patrón.
 - Añadir tarea `308A-4` al roadmap (depende de infraestructura ya existente de análisis).
 - Arranquear por V1 (núcleo) para ver el valor antes que la UI; luego V2 (consola+auto),
   V3 (Rust+no-auditables+R).
+- **V1 HECHO (2026-08-30, commit workspace-manager):** módulo
+  `src/server/gate/vulnerabilidades.ts` (detector homologo a `analizador.ts`: cola
+  serial + single-flight por proyecto + cache por hash-del-lockfile + timeout 120 s),
+  endpoints `/api/gate/vulnerabilidades` (POST single) y `/api/gate/vulnerabilidades-todo`
+  + `/api/gate/vulnerabilidades-cache` (GET rehidratar), acciones de store
+  (`auditarUno`/`auditarTodo`/`cargarVulnerabilidades`) cargadas en `AppV2`, subseccion
+  «vulnerabilidades» con boton «auditá toda la consola» y badges por severidad en el
+  PanelConfig (vista scan), y categoria `vulnerabilidades` en la consola (PanelConsola)
+  con badges y severidad por linea, sumando al total 'todos'. Verificado en vivo:
+  workspace-manager 4 (1 high+3 mod), gloryapi 23 (3 crit+11 high+7 mod+2 low),
+  RESTAURANTE 2 critical (npm package-lock), glory-sentinel 2, Glory-Laminal 0.
+  **Detalle tecnico:** `npm/pnpm/cargo audit` salen con exit 1 cuando hay
+  vulnerabilidades; `correrConOutput` (spawn) recolecta stdout sin rechazar por exit
+  code y decide por JSON parseable.
+  **Pendiente de V1:** Rust (cargo) queda `noAuditable` hasta instalar `cargo-audit`
+  (decision abierta). V2 (auto-timer periodo) y V3 (Rust+no-auditables+R) pendientes.

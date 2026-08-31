@@ -335,6 +335,28 @@
     opacity: 0.7;
 }
 
+/* Severidades de vulnerabilidades (308A-4): critical/high con borde doble
+ * (urgencia), moderate/low discretos, reusando la paleta de la consola. */
+.consolaSeveridad--critical {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    border-style: double;
+}
+
+.consolaSeveridad--high {
+    border-style: double;
+}
+
+.consolaSeveridad--moderate {
+    border-style: dashed;
+    opacity: 0.9;
+}
+
+.consolaSeveridad--low {
+    border-style: dotted;
+    opacity: 0.7;
+}
+
 /* ============================================================
  * Panel central: documentacion (skills globales + AGENTS.md).
  * [v2.2] Una sola lista lateral con etiqueta de tipo por entrada;
@@ -1162,6 +1184,36 @@
     opacity: 0.9;
     padding: var(--v2-spaceSm);
     border-left: 2px solid var(--v2-borde);
+}
+
+/* Separador de seccion dentro de la vista 'scan' (analisis vs vulnerabil-idades). */
+.scanCfgSeparador {
+    margin-top: var(--v2-spaceMd);
+    padding-top: var(--v2-spaceMd);
+    border-top: 1px solid var(--v2-borde);
+    font-size: var(--v2-textXxs);
+    text-transform: uppercase;
+    color: var(--v2-texto);
+    opacity: 0.6;
+}
+
+/* Badges de severidad de vulnerabilidades (critical/high/moderate/low).
+ * Color fotbordes para no asumir la paleta; recuerda al esquema de audit. */
+.scanCfgBadge--crit {
+    border-color: var(--v2-invertido);
+    border-style: double;
+    color: var(--v2-texto);
+}
+.scanCfgBadge--high {
+    border-color: var(--v2-invertido);
+    color: var(--v2-texto);
+}
+.scanCfgBadge--mod {
+    color: var(--v2-texto);
+}
+.scanCfgBadge--low {
+    color: var(--v2-texto);
+    opacity: 0.8;
 }
 
 /* Analisis real de sentinel en el detalle de un proyecto (plan A2). */
