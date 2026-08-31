@@ -15,6 +15,7 @@ import type { ReglaCatalogo } from '../shared/gate/reglas.js';
 import { REGLAS as REGLAS_ESTATICAS } from '../shared/gate/reglas.js';
 import type { NodoEsquema } from '../shared/gate/esquema.js';
 import type { TipoGate } from '../shared/gate/proveedores.js';
+import type { ReporteSincronizacion } from '../server/gate/sincronizacion.js';
 import { ESQUEMA_SENTINEL } from '../shared/gate/sentinel.js';
 import { ESQUEMA_VARSENSE } from '../shared/gate/varsense.js';
 import { deserializarEsquema } from '../shared/gate/serial.js';
@@ -163,6 +164,11 @@ interface EstadoWorkspace {
   cambiarIgnorado: (clave: string, ignorar: boolean) => Promise<void>;
   /* Eximir / quitar la exencion de gate de glory-sentinel (plan 308A-1 F6). */
   cambiarSinGate: (clave: string, eximir: boolean) => Promise<void>;
+  /* Estado de centralizacion del gate (plan 308A-1 F7): reporte de
+   * quality-sync (aligned/desync por consumidor). Se cachea en el store y se
+   * refresca a demanda (boton 'Verificar' en el panel). */
+  sincronizacion: ReporteSincronizacion | null;
+  cargarSincronizacion: () => Promise<void>;
 }
 
 export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
@@ -181,6 +187,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   proyectoAConfigurar: null,
   reglasCatalogo: { version: '—', fuente: 'estatica', reglas: REGLAS_ESTATICAS },
   esquemas: {},
+  sincronizacion: null,
   analisis: {},
   analizando: false,
   vulnerabilidades: {},
@@ -420,6 +427,19 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
       }));
     } finally {
       set({ auditando: false });
+    }
+  },
+
+  /* Estado del checkout compartido del gate (plan 308A-1 F7): reusa la
+   * validacion de quality-sync via endpoint y la cachea en el store. Se
+   * refresca con el boton 'Verificar' del panel (nunca en el arranque para no
+   * correr git en cada carga). */
+  cargarSincronizacion: async () => {
+    try {
+      const { data } = await axios.get<{ reporte: ReporteSincronizacion }>('/api/gate/sincronizacion');
+      if (data && data.reporte) set({ sincronizacion: data.reporte });
+    } catch (err) {
+      console.warn('[workspace] no se pudo verificar la sincronizacion del gate:', err);
     }
   },
 
