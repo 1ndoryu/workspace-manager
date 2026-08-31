@@ -240,12 +240,16 @@ export function PanelConfig() {
       .catch((err: unknown) => toastError(`no se pudo guardar el escaneo: ${mensajeDeError(err)}`));
   }
 
-  /* Boton 'Escanea todo': recorre el workspace con la cola serial del server. */
+  /* Boton 'Escanea todo': recorre el workspace con la cola serial del server.
+   * [por que] forzar=true: el usuario quiere un escaneo GENUINO (re-escanea
+   * git/HEAD y re-ejecuta sentinel aunque la frescura no cambio). Si no se
+   * forzara, la cache de analisis del server se serviria sin re-ejecutar y el
+   * contador no reflejaria los fixes aunque esten commiteados. */
   async function escanearAhora() {
     setEscaneando(true);
     setScanAviso(null);
     try {
-      await escanearTodo();
+      await escanearTodo(true);
       setScanAviso('análisis completado ✓');
     } catch (err) {
       setScanAviso(null);

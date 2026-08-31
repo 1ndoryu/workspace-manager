@@ -125,7 +125,8 @@ interface EstadoWorkspace {
    * lanza un segundo barrido si ya hay uno — single-flight). */
   analizando: boolean;
   escanearUno: (clave: string, forzar?: boolean) => Promise<AnalisisSentinel>;
-  escanearTodo: () => Promise<void>;
+  /* Barrido serial del workspace (auto-timer y boton 'Escanea todo'). */
+  escanearTodo: (forzar?: boolean) => Promise<void>;
   configurarScan: (scan: ConfigScan) => Promise<void>;
   cargar: (forzar?: boolean) => Promise<void>;
   cargarReglas: () => Promise<void>;
@@ -314,8 +315,12 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
     return data;
   },
 
-  /* Barrido serial del workspace (auto-timer y boton 'Escanea todo'). */
-  escanearTodo: async () => {
+  /* Barrido serial del workspace (auto-timer y boton 'Escanea todo').
+   * [por que] El boton manual manda forzar=true para que sea GENUINO: el
+   * server re-escanea git (nuevos commits/HEAD) y re-ejecuta sentinel aunque
+   * la frescura no haya cambiado; el auto-timer manda forzar=false y reusa la
+   * cache por frescura (branch+HEAD+version) sin spawns innecesarios. */
+  escanearTodo: async (forzar = false) => {
     /* [por que] el flag analizando evita barridos encolados (single-flight);
      * el server igual no hace spawn si nada cambio (cache por HEAD/version). */
     if (get().analizando) return;
@@ -323,6 +328,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
     try {
       const { data } = await axios.post<{ escaneadoEn: string; proyectos: AnalisisSentinel[] }>(
         '/api/gate/analizar-todo',
+        { forzar },
       );
       const analisis: Record<string, AnalisisSentinel> = {};
       for (const a of data.proyectos) analisis[a.clave] = a;

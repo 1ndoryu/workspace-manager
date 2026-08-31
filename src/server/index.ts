@@ -271,7 +271,13 @@ export function crearServidor() {
             json(res, 405, { error: 'Metodo no permitido' });
             return;
           }
-          const { snapshot } = snapshotArea(false);
+          /* [por que] El boton 'escanea ahora' debe ser GENUINO: re-escanea el
+           * snapshot (git, HEAD, rama) y re-ejecuta sentinel. Si se usara
+           * snapshotArea(false), el snapshotMemoria del server nunca se
+           * invalida mientras este vivo: aunque el usuario commitee, el HEAD
+           * sigue siendo el viejo, la frescura no cambia y la cache de
+           * analisis se sirve sin re-ejecutar. forzar=true fuerza git real. */
+          const { snapshot } = snapshotArea(true);
           /* Un proyecto: body { clave, forzar? }. Solo si es elegible (sentinel). */
           if (ruta === '/api/gate/analizar') {
             const body = (await leerBody(req)) as { clave?: unknown; forzar?: unknown };
@@ -289,8 +295,13 @@ export function crearServidor() {
             json(res, 200, await analizarProyecto(proyecto, forzar));
             return;
           }
-          /* Todo el workspace: barrido serial de los elegibles. */
-          const analisis = await analizarTodo(snapshot.proyectos);
+          /* Todo el workspace: barrido serial de los elegibles. El body puede
+           * pedir forzar=true (boton manual 'escanea ahora' = genuino: vuelve
+           * a ejecutar sentinel aunque la frescura no cambio); el auto-timer
+           * manda forzar=false y reusa la cache por frescura. */
+          const body = (await leerBody(req)) as { forzar?: unknown };
+          const forzar = body.forzar === true;
+          const analisis = await analizarTodo(snapshot.proyectos, forzar);
           json(res, 200, {
             escaneadoEn: new Date().toISOString(),
             proyectos: analisis,
