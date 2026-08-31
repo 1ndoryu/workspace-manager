@@ -3,7 +3,7 @@
  * \"cuadro\" sobre ella, sino un panel lateral con la misma estetica de caja
  * del mapa (monocromo, wireframe). La seleccion es estado global del store. */
 import { useState } from 'react';
-import type { AnalisisSentinel, Proyecto } from '../../shared/types.js';
+import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../../shared/types.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import { estadoProyecto } from '../estado.js';
 import { verticesParedDer, verticesParedIzq, verticesTecho } from '../mapa/tiles.js';
@@ -83,13 +83,35 @@ function resumenAnalisis(a: AnalisisSentinel | undefined): string | null {
   return `sentinel: ${partes.join(' · ') || 'sin detalle'}`;
 }
 
+/* Resumen corto de una auditoria de dependencias para la fila del detalle. */
+function resumenAuditoria(a: AnalisisVulnerabilidades | undefined): string | null {
+  if (!a) return null;
+  if (a.estado === 'error') return `auditoría falló${a.error ? `: ${a.error}` : ''}`;
+  if (a.estado === 'noAuditable') return `no auditables${a.error ? ` (${a.error})` : ''}`;
+  if (a.estado === 'ok') return `${a.gestor ?? 'deps'} sin vulnerabilidades`;
+  const { critical, high, moderate, low } = a.resumen;
+  const partes: string[] = [];
+  if (critical) partes.push(`${critical} crític${critical === 1 ? 'a' : 'as'}`);
+  if (high) partes.push(`${high} alta${high === 1 ? '' : 's'}`);
+  if (moderate) partes.push(`${moderate} moderada${moderate === 1 ? '' : 's'}`);
+  if (low) partes.push(`${low} baja${low === 1 ? '' : 's'}`);
+  return `auditoría: ${partes.join(' · ') || 'sin detalle'}`;
+}
+
 export function PanelDetalle() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const escanearUno = useWorkspaceStore((s) => s.escanearUno);
   const analisis = useWorkspaceStore((s) => s.analisis);
+  /* Auditoria de dependencias por proyecto (plan 308A-4 V1): boton 'Auditar
+   * ahora' en el detalle, homologo a 'escanea ahora'. [por que] La accion
+   * auditarUno del store y el endpoint ya existian pero el boton por proyecto
+   * del plan nunca se habia cableado (quedaba solo 'auditar todo' global). */
+  const auditarUno = useWorkspaceStore((s) => s.auditarUno);
+  const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
   const [escanneando, setEscaneando] = useState(false);
+  const [auditando, setAuditando] = useState(false);
 
   if (!snapshot || !seleccionadoId) return null;
   const proyecto = snapshot.proyectos.find((p) => p.id === seleccionadoId);
@@ -98,6 +120,8 @@ export function PanelDetalle() {
   const estado = estadoProyecto(proyecto);
   const analisisProy = analisis[proyecto.clave];
   const resumen = resumenAnalisis(analisisProy);
+  const auditoriaProy = vulnerabilidades[proyecto.clave];
+  const resumenAudit = resumenAuditoria(auditoriaProy);
 
   return (
     <aside className="panelCaja panelDetalle" aria-label={`Detalle de ${proyecto.id}`}>
@@ -155,6 +179,27 @@ export function PanelDetalle() {
           )}
         </div>
       )}
+
+      {/* Auditoria de dependencias (plan 308A-4 V1): boton por proyecto.
+       * El server rehusa lo fresco por hash-del-lockfile sin re-auditar. */}
+      <div className="panelDetalleScan" aria-label="Auditoría de dependencias">
+        <button
+          type="button"
+          className="excBoton"
+          disabled={auditando}
+          onClick={() => {
+            setAuditando(true);
+            void auditarUno(proyecto.clave).finally(() => setAuditando(false));
+          }}
+        >
+          {auditando ? 'auditando…' : 'auditá ahora'}
+        </button>
+        {resumenAudit && (
+          <div className="panelDetalleScanMeta" title={auditoriaProy?.analizadoEn}>
+            {resumenAudit}
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
