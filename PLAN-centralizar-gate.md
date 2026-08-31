@@ -271,21 +271,36 @@ Nuevo campo en `ConfigWorkspace` (v3): `sinGate: string[]` (claves de proyecto e
   sentinel por proyecto (`correrSentinel`), sin pisar overrides del usuario (solo si la env no
   viene definida) y sin filtrarse a otras herramientas. Cubre las invocaciones `analyze` del
   manager; no la env global que usaría el `gate:check`/`doctor` **manual** del desarrollador.
-- **F2–F4 BLOQUEADO — decisión de entorno del host (2026-08-30)** — La causa **ya no** es
-  técnica: Sentinel (0.7.5) y VarSense (2.2.1) están verificados, reproducibles y provisionados
-  en el compartido; el piloto gloryapi a `sourcePathEnv` está **probado y es reutilizable** (con
-  `GLORY_SENTINEL_SOURCE_PATH` definida: `doctor` PASS + `task:check GLORY-BASELINE` PASS 0
-  errores; runtime global 0.7.4 y compartido 0.7.5 soportan `sourcePathEnv`). El bloqueo es que,
-  sin la env global definida a nivel de máquina, migrar un consumidor a `sourcePathEnv` rompería
-  su gate cuando el desarrollador lo corre a mano. Se precisa una **decisión del usuario** del
-  mecanismo de la env global:
-   - **Opción A:** variables de sistema del host `GLORY_SENTINEL_SOURCE_PATH` /
-     `GLORY_VARSENSE_SOURCE_PATH` apuntando al checkout compartido (los consumidores migrados
-     funcionan igual a mano y vía manager).
-   - **Opción B:** los consumidores corren su gate **siempre vía el manager** (que ya deriva las
-     env), documentando que el gate manual del desarrollador requiere pasar por la consola.
-  Hasta elegir, los consumidores quedan en su mecanismo actual y el piloto está revertido
-  (gloryapi en `sourcePath`, árbol limpio, doctor PASS).
-- **Pendiente F7** — verificación final en el panel (los 6 consumidores sobre el compartido +
-  `glory-sentinel` exento) tras resolver F2–F4. NOTA: `sentinel.lock.json` (gloryapi) usa
-  `sourcePath` previo a `sourcePathEnv`; revisar al migrar.
+- **F2 ✅ parcial / F3 ✅ COMPLETO (2026-08-30)** — Mecanismo final elegido y probado: en vez
+  de depender de la env global del host (Opción A cruda) ni de correr todo vía el manager
+  (Opción B), se usa el **relative `sourcePath` + `provisionPath` a `../.quality-tools/`**
+  (resuelto contra baseDir por el frame, portable entre máquinas, **sin OS env**). Esto es
+  efectivamente la «Opción A gestionada»: una única fuente de verdad (el checkout compartido)
+  sin configuración manual por máquina.
+  - **gloryapi (piloto)** ✅ — `sourcePathEnEnv`_
+  _dejado atrás_; `quality-tools.json` con `sourcePath`+`provisionPath` `../.quality-tools/sentinel`
+  @`643353d` v0.7.5. Doctor PASS (`readyForGate:true`, `issues:[]`, policy enforce) con `GLORY_*`
+  vacía. Commit `e0981cd`.
+  - **PROYECTO TASKS** ✅ — sentinel `../.quality-tools/sentinel` @`643353d` + varsense
+    `../.quality-tools/varsense` @`88f281f`; doctor PASS (`readyForGate:true`, issues vacío,
+    policy enforce) con env vacía. Commit `ef65283`.
+  - **RESTAURANTE** ✅ — sentinel+varsense `../.quality-tools/` full hash `643353d7e968…`
+    (`quality:sync` requiere hash completo); doctor del frame verde (status `policy`, `blocked:false`)
+    contra el build compartido. Commit `2f53e39a`.
+  - `quality:sync` tras F3+RESTAURANTE: **`problemas: 1`** (solo WANDORIUS desync); gloryapi/PT/RESTAURANTE
+    `alineado`.
+- **F2 WANDORIUS ⏸ BLOQUEADO con evidencia (2026-08-30)** — Su frame bespoke **no usa
+  `provisionPath`** (a diferencia de RESTAURANTE), lleva su propio lifecycle de install/lock
+  (`.quality-tools/install-state.json` reliquia 0.4.0), y al repuntar `sourcePath` al compartido
+  el `doctor` exige **`npm run quality:setup`** (recompila/regenera lock en el commit nuevo) y
+  reporta 5 issues (`tool-release-evidence-missing`, `checkout-mismatch`, `lock-mismatch`,
+  `lock-version-mismatch`, `installed-mismatch`). Migrarlo por la fuerza arrastraría un rebuild
+  completo + regeneración amplia de locks — riesgo que la disciplina del hilo no permite forzar.
+  Se **revirtió al estado verificado 0.7.4** (`tools/sentinel`, árbol limpio, doctor green,
+  `readyForGate:true`, issues 0). Queda documentado como pendiente que requiere o bien un
+  `quality:setup` dirigido a su vida (decisión explícita) o armonizar su frame bespoke con el
+  patrón `provisionPath` (cambio de más alcance).
+- **F4 Glory-Laminal / ONG AGAPE — pendiente (sin gate aun)**: crear `quality-tools.json` +
+  `varsense.config.json` + locks sobre el compartido. `quality:sync` los reporta `pendiente-F4`.
+- **Pendiente F7** — verificación final en el panel (los consumidores migrados sobre el
+  compartido + `glory-sentinel` exento) tras resolver F2-WANDORIUS y F4.
