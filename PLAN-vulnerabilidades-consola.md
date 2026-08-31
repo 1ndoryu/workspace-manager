@@ -166,3 +166,13 @@ añade un detector homólogo para vulnerabilidades, **sin duplicar** el patrón.
   code y decide por JSON parseable.
   **Pendiente de V1:** Rust (cargo) queda `noAuditable` hasta instalar `cargo-audit`
   (decision abierta). V2 (auto-timer periodo) y V3 (Rust+no-auditables+R) pendientes.
+- **V2 HECHO (2026-08-30, commit workspace-manager):** el timer de
+  auto-auditoria en el cliente. El single `temporizadorAuto` de `useWorkspace.ts`
+  (que ya respeta `scan.automatico`/`scan.intervaloMin`, cero recursos con la app
+  cerrada y se rearma al cargar/cambiar config) ahora dispara **ambos** barridos en
+  cada intervalo: `escanearTodo` (sentinel/git) y `auditarTodo` (vulnerabilidades),
+  cada uno con su single-flight propio (`analizando`/`auditando`) para no duplicar
+  corridas solapadas, y con `.catch(() => {})` para nunca propagar rejections. El
+  server de `auditarTodo` reusa la cache por hash-del-lockfile, asi que si ningun
+  lockfile cambio la pasada es barata y no lanza spawns. Sin config nueva (reusa
+  `scan.automatico`); no triggea si la sesion carga sin automatico.

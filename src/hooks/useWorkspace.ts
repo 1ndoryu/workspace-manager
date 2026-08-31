@@ -473,11 +473,16 @@ function rearmarAuto(): void {
       detenerAuto();
       return;
     }
-    if (st.analizando) return;
     /* [por que] El timer no debe propagar una rechazo del POST (p. ej. server
      * caido) como rejection no manejada cada intervalo; la proxima pasada lo
      * reintenta. El flag analizando se limpia en el finally de escanearTodo. */
-    void st.escanearTodo().catch(() => {});
+    if (!st.analizando) void st.escanearTodo().catch(() => {});
+    /* [por que] Vulnerabilidades (308A-4 V2): el mismo intervalo tambien audita
+     * dependencias, con single-flight propio (auditando) para no duplicar una
+     * corrida solapada, y el server reusa la cache por hash-del-lockfile asi que
+     * si ningun lockfile cambio la pasada es barata. Igual que escanearTodo,
+     * nunca se propaga una rechazo fuera del intervalo. */
+    if (!st.auditando) void st.auditarTodo().catch(() => {});
   }, min * 60_000);
 }
 
