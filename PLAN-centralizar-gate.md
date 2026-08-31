@@ -300,7 +300,20 @@ Nuevo campo en `ConfigWorkspace` (v3): `sinGate: string[]` (claves de proyecto e
   `readyForGate:true`, issues 0). Queda documentado como pendiente que requiere o bien un
   `quality:setup` dirigido a su vida (decisión explícita) o armonizar su frame bespoke con el
   patrón `provisionPath` (cambio de más alcance).
-- **F4 Glory-Laminal / ONG AGAPE — pendiente (sin gate aun)**: crear `quality-tools.json` +
-  `varsense.config.json` + locks sobre el compartido. `quality:sync` los reporta `pendiente-F4`.
+- **F4 Glory-Laminal / ONG AGAPE ✅ REGISTRO (2026-08-30)**: creados `quality-tools.json`
+  (sentinel `../.quality-tools/sentinel` @`643353d7e968…` v0.7.5 + varsense `../.quality-tools/varsense`
+  @`88f281f…` v2.2.1, full hash) y `varsense.config.json` (stack token) sobre el compartido,
+  siguiendo el patrón gloryapi/PT. `quality:sync` tras el registro: **Glory-Laminal `sentinel=ok
+  varsense=ok ✓`**, **ONG AGAPE `sentinel=ok varsense=ok ✓`** — `problemas: 1` (solo WANDORIUS).
+  JSON parsean y los commits declarados coinciden con los HEAD del checkout compartido.
+  **Sub-paso pendiente (no forzado, mismo criterio que F2-WANDORIUS)**: el `doctor` del shim
+  directo sigue sin `readyForGate:true` porque estos dos repos **nunca fueron bootstrap del gate**:
+  no tienen `scripts/quality/` ni `quality:setup`, sus locks previos eran 0.7.4/commit `null` y
+  falta generar `.sentinel/release-evidence/{sentinel,varsense}.json` + `sentinel.lock.json`
+  regenerado (vía el `quality:setup`/`quality:lock` que el proveedor escribe, que el CLI no
+  compila ni el lock se auto-regenera). Completar ese bootstrap (copiar la maquinaria de
+  setup/lock a dos repos que jamás la tuvieron) es un bootstrap de alcance, y se deja registrado
+  como paso explícito aparte en lugar de forzarlo con scripts copiados.
 - **Pendiente F7** — verificación final en el panel (los consumidores migrados sobre el
-  compartido + `glory-sentinel` exento) tras resolver F2-WANDORIUS y F4.
+  compartido + `glory-sentinel` exento) tras resolver F2-WANDORIUS, el bootstrap de GL/ONG y
+  `308A-2` (VarSense).
