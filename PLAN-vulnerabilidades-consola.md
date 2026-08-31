@@ -179,3 +179,22 @@ añade un detector homólogo para vulnerabilidades, **sin duplicar** el patrón.
   Conteo real de validación: **GLORYPORT cargo audit = 0 hallazgos** (1226 advisory database,
   24 deps, exit 0). Quedan pendientes: la fase R (revisión SOLID/eficiencia del frente completo)
   y los conteos cargo audit del resto de repos Rust para el cuadro completo.
+- **R HECHO (2026-08-31, commit workspace-manager)** — revisión SOLID/eficiencia del frente
+  completo (`vulnerabilidades.ts`, endpoints en `index.ts`, store `useWorkspace.ts`, UI
+  PanelConfig/PanelConsola/PanelDetalle):
+  - **Revisado (sin defectos):** cola serial de `auditarTodo` (1 auditor a la vez con await),
+    single-flight por proyecto (`enVuelo` con cleanup en `finally`), caché por hash-del-lockfile
+    (clave de frescura correcta: el audit depende del lockfile, no de HEAD), evicción de claves
+    muertas, timeout 120 s por auditoría con cleanup, `correrConOutput` con `cmd /d /s /c`
+    (`shell:false`, comando interno estático sin superficie de inyección), `cargarVulnerabilidades`
+    best-effort con catch, timer único `temporizadorAuto` con single-flight propio (`auditando`)
+    y `.catch` (sin unhandled rejection), botón «auditá toda la consola» con try/catch/finally,
+    conteos por entrada y badges por severidad separados del resto en la consola.
+  - **Corregido (1 defecto real):** el plan V1 pedía botón **por proyecto** («Auditar ahora» en
+    PanelConfig/PanelDetalle) y la acción de store `auditarUno` + endpoint POST existían pero
+    NINGÚN componente los llamaba (código muerto: el único botón cableado era el global). Se
+    agregó el botón «auditá ahora» en `PanelDetalle.tsx` (homólogo a «escaneá ahora», mismo
+    patrón con `finally`) + resumen por severidad de la auditoría del proyecto seleccionado.
+  - **Verificado:** `pnpm type-check` exit 0; corrida real contra la instancia local
+    `POST /api/gate/vulnerabilidades {clave:'workspace-manager'}` → shape esperado
+    (`gestor:'pnpm'`, `estado:'conHallazgos'`, resumen 1 high + 3 moderate).
