@@ -909,6 +909,40 @@ dev (gloryapi esbuild/drizzle-kit, RESTAURANTE concurrently/shell-quote
 critical) — candidato a frente aparte con `npm audit fix` si los builds quedan
 verdes.
 
+### I-14 — vulnerabilidades dev (RESTAURANTE + gloryapi → 0, hecho 2026-08-31)
+
+Front de las 8 vulnerabilidades dev reportadas en el agregado del 1815
+(consulta `npm audit` por repo; no toca runtime de producción).
+
+**RESTAURANTE (4 vulns, 1 critical):** `concurrently ^9.0.0` arrastraba
+`shell-quote 1.8.3` (critical, dev). El fix de npm era inservible (downgrade
+a 0.18.1) porque `concurrently@9.2.1` fija `shell-quote` exacto a 1.8.3 sin
+caret. Subido a `concurrently ^10.0.5` (ya usa `shell-quote 1.9.0` parcheada)
+— no se invoca en ningún script npm del manifest (solo declarado), así que es
+el fix mínimo que mantiene la herramienta. Lock regenerado con
+`--package-lock-only`. **Audit → 0.** Commit `155a234`.
+
+**gloryapi (4 vulns moderate):** todo vía `drizzle-kit@0.31.10` →
+`@esbuild-kit/esm-loader` (legacy, esbuild 0.18.20 vulnerable). Verificado que
+drizzle-kit **nunca carga** `@esbuild-kit` en runtime (0 referencias; usa
+`tsx` como loader) → herencia muerta. Override puntual de esbuild a 0.25.12
+en el subárbol. Gotcha npm: con lock existente npm 11 ignora el override
+(hidden-lock de node_modules + quirk del hash del root entry; repro mínimo en
+`C:/tmp/repro-override` demostró que el override es correcto) → se regeneró el
+lock de cero (churn 185 paquetes = bumps caret dentro de rango, verificado
+que ningún script del manifest quedó roto). **Audit → 0.**
+
+**Batería de verificación completa (todo exit 0):** `npm audit` 0 · `tsc
+--noEmit` (client) 0 · builds de server + client (ejercita base-ui 1.7) 0 ·
+`npm test` (suite server + build client) 0 · **smoke funcional de drizzle-kit**
+(config cargado vía tsx + migración generada en `node_modules/.cache`,
+gitignored, salida a C:/tmp) PASS — la vía que el override afecta.
+Commit `7c58531`, audit 0 post-commit.
+
+Documentado sin forzar: los paquetes con fixes solo en majors con runtime
+cambiado (esbuild-kit legacy muerto es excepción segura por la prueba de 0
+referencias). Total de vulnerabilidades del agregado: **8 → 0**.
+
 ### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
 - Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
   gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`,
