@@ -306,14 +306,17 @@ Nuevo campo en `ConfigWorkspace` (v3): `sinGate: string[]` (claves de proyecto e
   siguiendo el patrón gloryapi/PT. `quality:sync` tras el registro: **Glory-Laminal `sentinel=ok
   varsense=ok ✓`**, **ONG AGAPE `sentinel=ok varsense=ok ✓`** — `problemas: 1` (solo WANDORIUS).
   JSON parsean y los commits declarados coinciden con los HEAD del checkout compartido.
-  **Sub-paso pendiente (no forzado, mismo criterio que F2-WANDORIUS)**: el `doctor` del shim
-  directo sigue sin `readyForGate:true` porque estos dos repos **nunca fueron bootstrap del gate**:
-  no tienen `scripts/quality/` ni `quality:setup`, sus locks previos eran 0.7.4/commit `null` y
-  falta generar `.sentinel/release-evidence/{sentinel,varsense}.json` + `sentinel.lock.json`
-  regenerado (vía el `quality:setup`/`quality:lock` que el proveedor escribe, que el CLI no
-  compila ni el lock se auto-regenera). Completar ese bootstrap (copiar la maquinaria de
-  setup/lock a dos repos que jamás la tuvieron) es un bootstrap de alcance, y se deja registrado
-  como paso explícito aparte en lugar de forzarlo con scripts copiados.
+  **BOOTSTRAP F4 ✅ (2026-08-31)**: portada la maquinaria minimal de provisión (la misma que usan
+  los consumidores migrados) a ambos repos, y queda el `doctor` del shim en **`readyForGate:true`**
+  con issues `[]` y `quality:sync` alineado (sentinel+varsense ✓; `problemas: 1`, solo WANDORIUS):
+    - **Glory-Laminal** commit `edbd1e7`: `scripts/quality/quality-setup.mjs` (evidencia release
+      real: compila + suite contra el compartido, 559 tests de sentinel + smoke de varsense) +
+      `scripts/quality/lock-generator.mjs` (regenera `sentinel.lock.json` con backup, commit/
+      sha256 reales) + scripts npm `quality:setup`/`quality:lock`. Evidencia gitignored (por
+      máquina); lock 0.7.5/`643353d` + varsense 2.2.1/`88f281f`.
+    - **ONG AGAPE** commit `896a864`: mismo port, **corrigiendo las rutas del compartido a
+      `../../.quality-tools/`** (el repro estaba un nivel más por `TRABAJOS CLIENTES/`) y
+      re-incluyendo `scripts/quality/` en la whitelist del `.gitignore` (otra causa).
 - **Pendiente F7** — verificación final en el panel (los consumidores migrados sobre el
-  compartido + `glory-sentinel` exento) tras resolver F2-WANDORIUS, el bootstrap de GL/ONG y
-  `308A-2` (VarSense).
+  compartido + `glory-sentinel` exento) tras resolver F2-WANDORIUS y `308A-2` (VarSense).
+  El bootstrap de GL/ONG ya no es pendiente.
