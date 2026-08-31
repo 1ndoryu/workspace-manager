@@ -912,14 +912,14 @@
 .fjFila:last-child { border-bottom: none; }
 .fjEtiqueta {
   display: flex; align-items: center; gap: 6px; min-width: 0;
-  font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em;
+  font-size: var(--v2-font); color: var(--v2-texto); letter-spacing: .02em;
   overflow: hidden; margin-bottom: 8px;
 }
 .fjControl { display: flex; align-items: center; min-width: 0; width: 100%; }
 /* [por que] El control de tags debe ocupar todo el ancho de la fila para
  * que el texto no se corte: sin esto el span flex se encoge al contenido. */
 .fjControl > .fjTags { width: 100%; }
-.fjVacio { font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .55; font-style: italic; }
+.fjVacio { font-size: var(--v2-font); color: var(--v2-texto); opacity: .55; font-style: italic; }
 /* Switch (booleano). Monocromo: OFF = contorno negro con palo negro; ON =
  * relleno negro con palo blanco. [por que] Antes el borde usaba
  * --v2-invertido (blanco) y el palo --v2-oscuro (variable inexistente):
@@ -936,7 +936,7 @@
 .fjSwitch--on { background: var(--v2-borde); }
 .fjSwitch--on .fjSwitchPalo { left: 21px; background: var(--v2-fondo); }
 .fjInput {
-  font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro);
+  font-family: inherit; font-size: var(--v2-font); color: var(--v2-texto);
   background: transparent; border: 1px solid var(--v2-borde); padding: 3px 8px;
   border-radius: 3px; width: 100%; min-width: 0; line-height: 1.4; box-sizing: border-box;
 }
@@ -954,7 +954,7 @@
 }
 .fjTag .fjTagInput { flex: 1 1 auto; }
 .fjTagInput {
-  font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro);
+  font-family: inherit; font-size: var(--v2-font); color: var(--v2-texto);
   background: transparent; border: none; padding: 2px 4px; min-width: 0; flex: 1 1 auto;
   box-sizing: border-box; width: 100%;
 }
@@ -963,7 +963,7 @@
 .fjTagInput:focus { outline: 1px solid var(--v2-borde); background: transparent; }
 .fjTagQuitar {
   font-family: inherit; font-size: 13px; width: 18px; height: 18px; line-height: 1;
-  border: none; background: transparent; color: var(--v2-oscuro); cursor: pointer;
+  border: none; background: transparent; color: var(--v2-texto); cursor: pointer;
   border-radius: 2px; flex-shrink: 0;
 }
 /* Fila para agregar valores. */
@@ -972,7 +972,7 @@
 .fjBoton {
   font-family: inherit; font-size: var(--v2-font); letter-spacing: .05em;
   padding: 3px 10px; border: 1px solid var(--v2-borde); background: transparent;
-  color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; flex-shrink: 0;
+  color: var(--v2-texto); cursor: pointer; border-radius: 3px; flex-shrink: 0;
 }
 
 /* ---- Editor por esquema (EditorEsquema): indicadores de estado ---- */
@@ -985,13 +985,13 @@
  * ya hereda la opacidad propia de .ejEstado--falte. Se distingue del valor
  * real por el borde punteado y la marca ＋ (al hacer clic se inserta). */
 .ejDefaultGhost {
-  font-family: inherit; font-size: 12px; color: var(--v2-oscuro);
+  font-family: inherit; font-size: 12px; color: var(--v2-texto);
   background: transparent; border: 1px dashed var(--v2-borde); border-radius: 3px;
   padding: 3px 8px; cursor: pointer; width: 100%; max-width: 100%;
   text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ejDefaultGhost .ejAgregarMini { margin-left: 8px; font-size: 12px; opacity: .7; }
-.ejEtiqueta { display: flex; align-items: flex-start; gap: 6px; font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em; min-width: 0; }
+.ejEtiqueta { display: flex; align-items: flex-start; gap: 6px; font-size: var(--v2-font); color: var(--v2-texto); letter-spacing: .02em; min-width: 0; }
 .ejRutaLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Nombre legible + descripcion de una ruta (EditorEsquema). El nombre no se
  * trunca en exceso; la descripcion va debajo en italica opaca (monocromo). */
@@ -1027,17 +1027,17 @@
 .ejMarca { flex-shrink: 0; opacity: .85; display: inline-flex; }
 .ejMarcaTexto { font-style: italic; opacity: .6; font-size: 11px; flex-shrink: 0; }
 .ejControl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
-.ejValorTexto { font-size: var(--v2-font); color: var(--v2-oscuro); opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ejValorTexto { font-size: var(--v2-font); color: var(--v2-texto); opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .ejSugerencia { font-size: 11px; font-style: italic; opacity: .6; }
-.ejAgregar { font-family: inherit; font-size: 11px; letter-spacing: .05em; margin-top: 2px; padding: 3px 8px; width: max-content; border: 1px dashed var(--v2-borde); background: transparent; color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; }
+.ejAgregar { font-family: inherit; font-size: 11px; letter-spacing: .05em; margin-top: 2px; padding: 3px 8px; width: max-content; border: 1px dashed var(--v2-borde); background: transparent; color: var(--v2-texto); cursor: pointer; border-radius: 3px; }
 /* Mini-form del default de una opcion faltante (ver/editar antes de agregar).
  * Monocromo y alineado al diseno plano; cada sub-valor es una fila con su
  * etiqueta corta y el mismo Control de las opciones presentes. */
 .ejDefault { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 2px; padding: 6px 8px; border: 1px solid var(--v2-borde); border-radius: 3px; }
 .ejDefaultFila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .ejDefaultFila--rec { opacity: .6; font-style: italic; }
-.ejDefaultEtiqueta { font-size: 11px; color: var(--v2-oscuro); opacity: .75; letter-spacing: .01em; min-width: 120px; }
-.ejQuitar { font-family: inherit; font-size: 11px; letter-spacing: .05em; padding: 2px 8px; border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-oscuro); cursor: pointer; border-radius: 3px; }
+.ejDefaultEtiqueta { font-size: 11px; color: var(--v2-texto); opacity: .75; letter-spacing: .01em; min-width: 120px; }
+.ejQuitar { font-family: inherit; font-size: 11px; letter-spacing: .05em; padding: 2px 8px; border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-texto); cursor: pointer; border-radius: 3px; }
 /* ---- Seccion de reglas (EditorEsquema): todas las reglas del catalogo,
  * cada una con switch (habilitada) y select de severidad. [por que] El
  * usuario pidio que las reglas aparezcan en una sesion aparte, todas
@@ -1049,12 +1049,12 @@
   padding: 7px 10px 10px; border-bottom: 1px solid var(--v2-borde);
 }
 .ejReglasCabecera { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.ejReglasTitulo { font-size: var(--v2-font); color: var(--v2-oscuro); letter-spacing: .02em; }
+.ejReglasTitulo { font-size: var(--v2-font); color: var(--v2-texto); letter-spacing: .02em; }
 .ejReglasMeta { font-size: 11px; font-style: italic; opacity: .55; }
 /* Tabs por categoria de regla (sin :hover, regla global del editor). */
 .ejTabs { display: flex; flex-wrap: wrap; gap: 3px; }
 .ejTab {
-  font-family: inherit; font-size: 11px; color: var(--v2-oscuro);
+  font-family: inherit; font-size: 11px; color: var(--v2-texto);
   background: transparent; border: 1px solid var(--v2-borde); border-radius: 3px;
   padding: 3px 8px; cursor: default;
 }
@@ -1078,7 +1078,7 @@
 .ejReglaSev { flex-shrink: 0; display: inline-flex; align-items: center; }
 .ejReglaSev .fjSelect { max-width: 120px; }
 .fjFila--mal .fjControl { border-left: 2px solid var(--v2-invertido); padding-left: 8px; }
-.fjSelect { font-family: inherit; font-size: var(--v2-font); color: var(--v2-oscuro); background: var(--v2-fondo); border: 1px solid var(--v2-borde); padding: 3px 6px; border-radius: 3px; }
+.fjSelect { font-family: inherit; font-size: var(--v2-font); color: var(--v2-texto); background: var(--v2-fondo); border: 1px solid var(--v2-borde); padding: 3px 6px; border-radius: 3px; }
 .fjTag--ro { padding: 2px 6px; }
 
 /* Escaneo real de sentinel por proyecto (config. escaneo del panel config).
