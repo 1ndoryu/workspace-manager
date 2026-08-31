@@ -46,6 +46,13 @@ const CONSUMIDORES = [
   { nombre: 'WANDORIUS', ruta: 'WANDORIUS', fase: 'F2' },
   { nombre: 'RESTAURANTE', ruta: 'RESTAURANTE', fase: 'F2' },
   { nombre: 'ONG AGAPE', ruta: join('TRABAJOS CLIENTES', 'ONG AGAPE'), fase: 'F4' },
+  /* Gate ampliado (308A-1 extension, 2026-08-31): todos los proyectos del area
+   * con gate declarado, excepto glory-sentinel (exento por ser el runtime). */
+  { nombre: 'coolify-manager-rs', ruta: 'coolify-manager-rs', fase: 'F1' },
+  { nombre: 'freebuff-bridge', ruta: 'freebuff-bridge', fase: 'F1' },
+  { nombre: 'GLORYINSPECTOR', ruta: 'GLORYINSPECTOR', fase: 'F1' },
+  { nombre: 'GLORYPORT', ruta: 'GLORYPORT', fase: 'F1' },
+  { nombre: 'workspace-manager', ruta: 'workspace-manager', fase: 'F1' },
 ];
 
 /* Herramientas del checkout compartido y su subcarpeta. */
