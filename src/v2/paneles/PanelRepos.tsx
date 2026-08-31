@@ -7,12 +7,16 @@ import { useMemo } from 'react';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import './paneles.css';
 
-/* Extrae el nombre corto "org/repo" de una URL de remoto para el enlace. */
+/* Extrae el nombre corto "org/repo" de una URL de remoto para el enlace.
+ * [por que] github.com es redundante en la etiqueta (el href ya lleva la URL
+ * completa y el icono/dominio se sobreentiende); se conserva el host cuando
+ * el remoto NO es de GitHub para que el enlace siga siendo identificable. */
 function remotoCorto(remoto: string): string {
-  return remoto
+  const limpia = remoto
     .replace(/^git@[^:]+:/, '')
     .replace(/^https?:\/\//, '')
     .replace(/\.git$/, '');
+  return limpia.replace(/^(www\.)?github\.com\//, '');
 }
 
 export function PanelRepos() {
