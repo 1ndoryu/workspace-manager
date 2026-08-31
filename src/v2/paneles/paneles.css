@@ -772,21 +772,6 @@
     cursor: pointer;
 }
 
-/* Boton 'eximir glory-sentinel' dentro de la subseccion 'sin gate'
- * (plan 308A-1 F6): mismo aspecto que excBoton. */
-.excAgregar {
-    flex: none;
-    margin-top: 6px;
-    background: none;
-    border: 1px solid var(--v2-borde);
-    border-radius: 0;
-    font: inherit;
-    font-size: var(--v2-textXs);
-    color: var(--v2-texto);
-    padding: 3px 8px;
-    cursor: pointer;
-}
-
 .docsVisorCabecera {
     display: flex;
     align-items: center;
@@ -872,7 +857,6 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    padding: var(--v2-spaceXs);
 }
 
 .excListaContenido .excFila {
@@ -1150,6 +1134,106 @@
     white-space: nowrap;
 }
 
+/* Centralizacion del gate (plan 308A-1 F7): filas de consumidores.
+ * Misma estructura que excepciones: el contenedor (.syncVista) aporta
+ * scroll y un padding base pequeno, pero cada fila queda a TODO el ancho
+ * del visor (como excFila), no insertada en un recuadro estilo scanCfg. */
+.syncVista {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.syncVista .scanCfgAcciones {
+    justify-content: space-between;
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+.syncLista {
+    display: flex;
+    flex-direction: column;
+    margin-top: var(--v2-spaceXs);
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.syncCheckout {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+    border: 1px solid var(--v2-borde);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    margin: var(--v2-spaceXs) 0;
+}
+
+.syncTitulo {
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    opacity: 0.72;
+}
+
+.syncMeta {
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    opacity: 0.72;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.syncFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.syncFila:last-child {
+    border-bottom: none;
+}
+
+.syncBadge {
+    flex: none;
+    width: 1.2em;
+    text-align: center;
+    font-size: var(--v2-textXs);
+    line-height: 1.3;
+    border: 1px solid var(--v2-borde);
+    padding: 1px 2px;
+    color: var(--v2-texto);
+}
+
+.syncBadge--ok {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.syncBadge--warn {
+    color: var(--v2-texto);
+}
+
+.syncNombre {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: var(--v2-textSm);
+    color: var(--v2-texto);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.syncMeta--ok {
+    opacity: 0.72;
+}
+
+.syncMeta--warn {
+    opacity: 1;
+    border: 1px solid var(--v2-borde);
+    padding: 1px 4px;
+}
+
 .scanCfgResumen {
     display: flex;
     align-items: center;
@@ -1180,15 +1264,18 @@
     border-left: 2px solid var(--v2-borde);
 }
 
-/* Separador de seccion dentro de la vista 'scan' (analisis vs vulnerabil-idades). */
+/* Separador de seccion dentro de la vista 'scan' (analisis vs vulnerabil-idades).
+ * [por que] Mismo peso tipografico que las etiquetas del panel (textXs,
+ * Departure Mono, sin uppercase) para no romper la coherencia visual con
+ * 'analisis automatico': solo lo distingue la linea superior. */
 .scanCfgSeparador {
     margin-top: var(--v2-spaceMd);
     padding-top: var(--v2-spaceMd);
     border-top: 1px solid var(--v2-borde);
-    font-size: var(--v2-textXxs);
-    text-transform: uppercase;
+    font-size: var(--v2-textXs);
+    text-transform: none;
     color: var(--v2-texto);
-    opacity: 0.6;
+    opacity: 0.72;
 }
 
 /* Badges de severidad de vulnerabilidades (critical/high/moderate/low).
