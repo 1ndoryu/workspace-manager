@@ -249,6 +249,20 @@ export async function analizarTodo(
   for (const p of proyectos.filter(esElegible)) {
     detalles.push(await analizarProyecto(p, forzar));
   }
+  /* [por que] Eviccion de la cache: si un proyecto se renombra/elimina del
+   * area o deja de existir en el snapshot, su entrada quedaba en memoria y en
+   * data/cache/analisis.json para SIEMPRE (mapa sin eviccion = cache no
+   * acotada). Se podan las claves que ya no existen hoy y se persiste una
+   * sola vez tras el barrido. Sin await en el medio: check+set es atomico. */
+  const vivas = new Set(proyectos.map((p) => p.clave));
+  let huboPoda = false;
+  for (const clave of [...cache.keys()]) {
+    if (!vivas.has(clave)) {
+      cache.delete(clave);
+      huboPoda = true;
+    }
+  }
+  if (huboPoda) persistir();
   return detalles;
 }
 
