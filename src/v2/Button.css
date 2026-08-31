@@ -1,0 +1,49 @@
+/* Boton canonico del shell v2: monocromo estricto, cuadrado (sin radio),
+ * sin sombra, sin bold. [por que] Reemplaza los estilos ad-hoc por clase
+ * (mapaV2ZoomBoton, mapaV2ManoBoton, v2NavBoton) por un unico componente
+ * compartido: cuadrado = boton de solo icono/tamano fijo (zoom/mover),
+ * activo = inversion de relleno (masmo patron que los estados del mapa).
+ * El archivo se llama Button.css para que css-adhoc-button-style lo trate
+ * como el sistema de botones del proyecto. */
+.botonV2 {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px var(--v2-spaceSm);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    font-family: var(--v2-font);
+    font-size: var(--v2-textXs);
+    line-height: 1;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+/* [por que] Sin anillo de foco naranja del navegador; se usa un outline
+ * negro fino propio, coherente con el monocromo. */
+.botonV2:focus-visible {
+    outline: 1px solid var(--v2-texto);
+    outline-offset: 1px;
+}
+
+/* Activo: fondo invertido. [por que] Los estados se diferencian por
+ * inversion de relleno, nunca por color (regla monocromo del v2). */
+.botonV2--activo {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+/* Cuadrado: boton compacto de tamano fijo para solo icono (mover/zoom). */
+.botonV2--cuadrado {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+}
+
+/* Solo gliphos grandes (zoom +/−): conserva el tamano de letra que tenia
+ * el boton de zoom ad-hoc (mapaV2ZoomBoton usaba --v2-textLg). */
+.botonV2--grande {
+    font-size: var(--v2-textLg);
+}
