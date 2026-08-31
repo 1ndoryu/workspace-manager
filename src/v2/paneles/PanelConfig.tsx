@@ -198,9 +198,14 @@ export function PanelConfig() {
     for (const a of gate.archivos) {
       const tool = ARCHIVO_A_TOOL[a.nombre];
       if (!tool || esquemas[tool]) continue;
-      void cargarEsquema(tool).then((nodo) => {
-        if (viva && nodo) setEsquemas((e) => ({ ...e, [tool]: nodo }));
-      });
+      void cargarEsquema(tool)
+        .then((nodo) => {
+          if (viva && nodo) setEsquemas((e) => ({ ...e, [tool]: nodo }));
+        })
+        /* [por que] Pre-carga de cache; si la API falla, el bundle sigue usando
+         * el esquema embebido, asi que un rechazo aqui es tolerante y no debe
+         * convertirse en unhandled rejection. */
+        .catch(() => {});
     }
     return () => {
       viva = false;

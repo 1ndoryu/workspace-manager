@@ -357,11 +357,9 @@
     opacity: 0.7;
 }
 
-/* ============================================================
- * Panel central: documentacion (skills globales + AGENTS.md).
+/* Panel central: documentacion (skills globales + AGENTS.md).
  * [v2.2] Una sola lista lateral con etiqueta de tipo por entrada;
- * el contenido abre en el unico panel de la derecha.
- * ============================================================ */
+ * el contenido abre en el unico panel de la derecha. */
 .panelDocs {
     height: 100%;
     display: flex;
@@ -558,9 +556,7 @@
     font-size: var(--v2-textSm);
 }
 
-/* ============================================================
- * Panel central: estados de los repositorios.
- * ============================================================ */
+/* Panel central: estados de los repositorios. */
 .panelRepos {
     height: 100%;
     display: flex;
@@ -659,11 +655,9 @@
     opacity: 0.6;
 }
 
-/* ============================================================
- * Panel central: navegador de archivos.
+/* Panel central: navegador de archivos.
  * Reutiliza la estructura de docs (lista lateral + visor) con su
- * propia fila de ruta (breadcrumb + boton de subir).
- * ============================================================ */
+ * propia fila de ruta (breadcrumb + boton de subir). */
 .navegadorRuta {
     flex: none;
     display: flex;

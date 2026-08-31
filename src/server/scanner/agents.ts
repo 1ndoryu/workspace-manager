@@ -3,7 +3,7 @@
  * de ~/.agents/skills; este modulo extrae reglas y skills sin depender de parseo
  * completo de markdown. */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import type { AgentesInfo, ResumenAgents, SkillGlobal } from '../../shared/types.js';
 
 /* [por que] Quita comillas envolventes (simples o dobles) que YAML puede

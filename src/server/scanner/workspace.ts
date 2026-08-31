@@ -2,8 +2,8 @@
  * en la raiz del area de trabajo, con recursividad controlada.
  * [por que] RESTAURANTE es un worktree cuyo .git es un ARCHIVO (no carpeta);
  * TRABAJOS CLIENTES/ contiene ONG AGAPE que si es repo -> se baja un nivel. */
-import { existsSync, readdirSync } from 'node:fs';
-import { basename, join, normalize, relative, sep } from 'node:path';
+import { readdirSync } from 'node:fs';
+import { join, normalize, relative, sep } from 'node:path';
 import { detectarGit, estadoGit } from './git.js';
 import { estadoGate, diagnosticarGate } from './gate.js';
 import { resumenRoadmap } from './roadmap.js';
