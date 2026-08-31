@@ -42,6 +42,38 @@ interface GateRespuesta {
   contenidos: Partial<Record<(typeof ARCHIVOS)[number], string | null>>;
 }
 
+/* Resultado del parseo de los archivos de gate del proyecto abierto. */
+interface EditorPreparado {
+  inicial: Record<string, string>;
+  editado: Record<string, unknown>;
+  errores: Record<string, string>;
+}
+
+/* Prepara el estado del editor desde la respuesta del gate: copia los
+ * contenidos en texto (para el EditorJson) y parsea cada archivo valido a su
+ * valor JSON. [por que] Aislar el parseo en una funcion pura mantiene el
+ * `.then` corto (el analyzer promise-sin-catch solo mira 20 lineas) y separa
+ * la transformacion del efecto. */
+function prepararEditor(data: GateRespuesta): EditorPreparado {
+  const inicial: Record<string, string> = {};
+  const pars: Record<string, unknown> = {};
+  const errs: Record<string, string> = {};
+  for (const a of ARCHIVOS) {
+    const c = data.contenidos[a];
+    if (typeof c !== 'string') continue;
+    inicial[a] = c;
+    if (!c.trim()) continue;
+    try {
+      /* Cast controlado: JSON.parse devuelve cualquier valor; EditorJson
+       * espera un JsonValue, que sanitizamos recursivamente al renderizar. */
+      pars[a] = JSON.parse(c) as unknown;
+    } catch (e) {
+      errs[a] = e instanceof Error ? e.message : 'JSON inválido';
+    }
+  }
+  return { inicial, editado: pars, errores: errs };
+}
+
 /* Formatea el estado del gate en etiquetas legibles. */
 function badgesDe(estado: EstadoGate | null): { texto: string; clave: string }[] {
   if (!estado) return [{ texto: 'gate: no', clave: 'badge--sin' }];
@@ -137,31 +169,10 @@ export function PanelConfig() {
       .then(({ data }) => {
         if (!viva) return;
         setGate(data);
-        /* Pre-carga el contenido de cada archivo existente en el editor ya
-         * parseado como JSON (el EditorJson trabaja sobre el valor, no el texto). */
-        const inicial: Record<string, string> = {};
-        for (const a of ARCHIVOS) {
-          const c = data.contenidos[a];
-          if (typeof c === 'string') inicial[a] = c;
-        }
+        const { inicial, editado, errores } = prepararEditor(data);
         setContenidos(inicial);
-        setParseErrores({});
-        /* Parseo cada archivo valido a su valor JSON para el EditorJson. */
-        const pars: Record<string, unknown> = {};
-        const errs: Record<string, string> = {};
-        for (const a of ARCHIVOS) {
-          const c = data.contenidos[a];
-          if (typeof c !== 'string' || !c.trim()) continue;
-          try {
-            /* Cast controlado: JSON.parse devuelve cualquier valor; EditorJson
-         * espera un JsonValue, que sanitizamos recursivamente al renderizar. */
-        pars[a] = JSON.parse(c) as unknown;
-          } catch (e) {
-            errs[a] = e instanceof Error ? e.message : 'JSON inválido';
-          }
-        }
-        setEditado(pars);
-        setParseErrores(errs);
+        setEditado(editado);
+        setParseErrores(errores);
       })
       .catch((err) => {
         if (!viva) return;

@@ -13,11 +13,13 @@
  * El cliente es 'tonto': pide y muestra; este modulo es el dueno de la ejecucion. */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import type {
   AnalisisSentinel,
   HallazgoSentinel,
+  NombreSeveridad,
   Proyecto,
   SeveridadSentinel,
 } from '../../shared/types.js';
@@ -43,6 +45,25 @@ interface EntryJson {
 interface ReporteJson {
   severityCounts?: Partial<Record<string, number>>;
   entries?: EntryJson[];
+}
+
+/* Tipos del JSON real de `varsense all --format json`. Comparte la forma con
+ * sentinel (severityCounts + entries con findings) y ademas cada hallazgo
+ * lleva `source: 'VarSense'`; se normaliza con la misma estructura, marcando
+ * la fuente. */
+interface VarsenseFindingJson {
+  ruleId?: unknown;
+  message?: unknown;
+  severity?: unknown;
+  range?: { start?: { line?: unknown } };
+}
+interface VarsenseEntryJson {
+  ruta?: unknown;
+  findings?: VarsenseFindingJson[];
+}
+interface VarsenseReporteJson {
+  severityCounts?: Partial<Record<string, number>>;
+  entries?: VarsenseEntryJson[];
 }
 
 /* Dueno de la cache en memoria (clave -> resultado con su frescura). */
@@ -107,13 +128,52 @@ export function esElegible(p: Proyecto): boolean {
   return p.gate?.puerta === 'sentinel';
 }
 
-/* Clave de frescura: branch + HEAD + version de sentinel. Si cualquiera
- * cambia, se re-analiza; si no, la cache sirve sin spawn. */
+/* Clave de frescura: branch + HEAD + version de sentinel + (si el proyecto
+ * declara varsense) version de varsense + hash de su config. [por que] El
+ * analisis fusiona ambos reportes (fase G): si varsense cambia de version o
+ * su `varsense.config.json` cambia, el resultado deja de ser fresco aunque el
+ * repo y sentinel no cambien. */
 function frescoDe(p: Proyecto): string {
   const rama = p.git?.rama ?? '?';
   const head = p.git?.ultimoCommit?.hash ?? '?sin-commits';
   const v = versionRuntime() ?? '?';
-  return `${p.ruta}|${rama}|${head}|${v}`;
+  const vs = varsenseRuntime();
+  const cfg = varsenseConfigHash(p.ruta);
+  return `${p.ruta}|${rama}|${head}|${v}|${vs?.version ?? 'sin-varsense'}|${cfg ?? 'sin-config'}`;
+}
+
+/* Resuelve el runtime de varsense del checkout compartido
+ * (<area>/.quality-tools/varsense). [por que] 308A-1 centraliza el runtime;
+ * el override de env (GLORY_VARSENSE_SOURCE_PATH) gana, igual que en
+ * `entornoGate`. Devuelve null si no esta provisionado. */
+function checkoutVarsense(): string | null {
+  const base = process.env.GLORY_VARSENSE_SOURCE_PATH || join(RAÍZ_AREA, '.quality-tools', 'varsense');
+  const cli = join(base, 'dist', 'cli', 'index.js');
+  return existsSync(cli) ? base : null;
+}
+
+/* Version real de varsense (desde su package.json). null si no hay runtime. */
+function varsenseRuntime(): { version: string } | null {
+  try {
+    const base = checkoutVarsense();
+    if (!base) return null;
+    const pkg = JSON.parse(readFileSync(join(base, 'package.json'), 'utf8')) as { version?: unknown };
+    return typeof pkg.version === 'string' ? { version: pkg.version } : null;
+  } catch {
+    return null;
+  }
+}
+
+/* Hash del varsense.config.json del proyecto (o null si no lo declara): si la
+ * config cambia, el analisis de varsense cambia aunque el codigo no. */
+function varsenseConfigHash(ruta: string): string | null {
+  try {
+    const f = join(ruta, 'varsense.config.json');
+    if (!existsSync(f)) return null;
+    return createHash('sha256').update(readFileSync(f)).digest('hex').slice(0, 16);
+  } catch {
+    return null;
+  }
 }
 
 /* Ruta del bin real del runtime: node out/cli/index.js. [por que] El shim
@@ -149,12 +209,15 @@ function relArchivo(abs: string, raiz: string): string {
   return abs;
 }
 
-/* Normaliza el JSON real de `analyze` a un AnalisisSentinel plano y acotado. */
+/* Normaliza el JSON real de `analyze` a un AnalisisSentinel plano y acotado.
+ * `fuenteHallazgo` taguea cada hallazgo con la herramienta que lo emitio
+ * ('sentinel' | 'varsense', fase G). */
 function normalizar(
   dato: ReporteJson,
   clave: string,
   version: string,
   raiz: string,
+  fuenteHallazgo: 'sentinel' | 'varsense' = 'sentinel',
 ): AnalisisSentinel {
   const sc = dato.severityCounts ?? {};
   const resumen = {
@@ -177,6 +240,7 @@ function normalizar(
         archivo,
         linea,
         sugerencia,
+        fuente: fuenteHallazgo,
       });
     }
   }
@@ -189,6 +253,16 @@ function normalizar(
     analizadoEn: new Date().toISOString(),
     resumen,
     hallazgos: hallazgos.slice(0, 500),
+  };
+}
+
+/* Suma dos resumenes por severidad (merge de sentinel + varsense). */
+function sumarResumen(a: NombreSeveridad, b: NombreSeveridad): NombreSeveridad {
+  return {
+    error: a.error + b.error,
+    warning: a.warning + b.warning,
+    information: a.information + b.information,
+    hint: a.hint + b.hint,
   };
 }
 
@@ -247,10 +321,48 @@ async function correrSentinel(ruta: string): Promise<ResultadoSpawn | null> {
   }
 }
 
+/* Ejecuta `varsense all` si el proyecto lo declara (varsense.config.json) y
+ * el runtime esta provisionado en el checkout compartido. Misma convencion
+ * de exit code que sentinel: != 0 con hallazgos de severidad 'error' (el
+ * reporte valido va en stdout); 2 = fallo real. Devuelve null si no aplica. */
+async function correrVarsense(ruta: string): Promise<ResultadoSpawn | null> {
+  const base = checkoutVarsense();
+  if (!base) return null;
+  if (!existsSync(join(ruta, 'varsense.config.json'))) return null;
+  const vs = varsenseRuntime();
+  if (!vs) return null;
+  const cli = join(base, 'dist', 'cli', 'index.js');
+  const opciones = {
+    encoding: 'utf8' as const,
+    windowsHide: true,
+    timeout: 60000,
+  };
+  try {
+    const { stdout } = await execFileAsync(
+      process.execPath,
+      [cli, 'all', '--workspace', ruta, '--format', 'json'],
+      opciones,
+    );
+    const dato = parsearReporte(stdout);
+    if (!dato) return null;
+    return { version: vs.version, dato };
+  } catch (err) {
+    const e = err as { stdout?: string };
+    const dato = parsearReporte(e.stdout);
+    if (!dato) return null;
+    return { version: vs.version, dato };
+  }
+}
+
 /* Analiza UN proyecto, con cache por frescura (sin spawn si esta fresco) y
  * single-flight por promesa compartida: si el mismo proyecto ya se esta
  * analizando, quien lo pide espera el MISMO vuelo (nunca dos spawns a la vez
- * del mismo repo). El check+set es atomico (sin await en el medio). */
+ * del mismo repo). El check+set es atomico (sin await en el medio).
+ * [por que] Desde la fase G el analisis fusiona sentinel + varsense: si el
+ * proyecto declara varsense y el runtime esta provisionado, ambos corren en
+ * paralelo y los reportes se unen (hallazgos tagueados por fuente). Si solo
+ * varsense falla, sentinel sigue valiendo y el estado varsense queda en el
+ * campo `varsense` (nunca rompe el analisis). */
 const enVuelo = new Map<string, Promise<AnalisisSentinel>>();
 export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisSentinel> {
   const clave = p.clave;
@@ -260,7 +372,7 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
   const yaEnVuelo = enVuelo.get(clave);
   if (yaEnVuelo) return yaEnVuelo;
   const vuelo = (async (): Promise<AnalisisSentinel> => {
-    const res = await correrSentinel(p.ruta);
+    const [res, resVs] = await Promise.all([correrSentinel(p.ruta), correrVarsense(p.ruta)]);
     let dato: AnalisisSentinel;
     if (!res) {
       dato = {
@@ -273,8 +385,21 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
         hallazgos: [],
         error: 'runtime sentinel no disponible o analisis fallo',
       };
+      if (resVs) {
+        const vs = normalizar(resVs.dato, clave, resVs.version, p.ruta, 'varsense');
+        dato.resumen = vs.resumen;
+        dato.hallazgos = vs.hallazgos;
+        dato.varsense = { version: resVs.version, resumen: vs.resumen };
+      }
     } else {
-      dato = normalizar(res.dato, clave, res.version, p.ruta);
+      dato = normalizar(res.dato, clave, res.version, p.ruta, 'sentinel');
+      if (resVs) {
+        const vs = normalizar(resVs.dato, clave, resVs.version, p.ruta, 'varsense');
+        dato.resumen = sumarResumen(dato.resumen, vs.resumen);
+        dato.hallazgos = [...dato.hallazgos, ...vs.hallazgos].slice(0, 500);
+        dato.varsense = { version: resVs.version, resumen: vs.resumen };
+        if (dato.estado === 'ok' && vs.estado === 'conHallazgos') dato.estado = 'conHallazgos';
+      }
     }
     cache.set(clave, { fresco, dato });
     persistir();

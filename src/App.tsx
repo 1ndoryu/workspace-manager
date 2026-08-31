@@ -56,7 +56,7 @@ export function App() {
             {vista === 'mapa' && (
               <>
                 <Resumen />
-                <div style={{ marginTop: 16 }}>
+                <div className="contenidoMapa">
                   <IsoMap />
                 </div>
               </>
@@ -67,7 +67,7 @@ export function App() {
         )}
 
         {proyectoSeleccionado && (
-          <div style={{ marginTop: 20 }}>
+          <div className="contenidoDetalle">
             <DetalleProyecto proyecto={proyectoSeleccionado} />
           </div>
         )}

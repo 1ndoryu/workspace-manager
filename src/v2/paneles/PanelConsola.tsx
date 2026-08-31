@@ -111,12 +111,16 @@ function problemasDe(p: Proyecto): Problema | null {
  * hallazgo es una entrada propia en la categoria 'sentinel'. [por que] La
  * consola se entera del analisis por el store (resultado de escanearUno/Todo);
  * NO mezcla estos hallazgos con 'todos' (decision del usuario: el total de la
- * cabecera no suma analyze; cada filtro conserva su conteo). */
+ * cabecera no suma analyze; cada filtro conserva su conteo). Desde la fase G
+ * el analisis fusiona varsense: los hallazgos con `fuente: 'varsense'` se
+ * etiquetan en la linea para distinguir la tool que los emitio. */
 function problemasSentinelDe(p: Proyecto, a: AnalisisSentinel | undefined): Problema | null {
   if (!a || a.estado !== 'conHallazgos' || a.hallazgos.length === 0) return null;
   const entradas: Entrada[] = a.hallazgos.map((h) => ({
     categoria: 'sentinel',
-    motivo: `${h.archivo || p.id}${h.linea != null ? `:${h.linea}` : ''} — ${h.ruleId} — ${h.mensaje}`,
+    /* [por que] el prefijo permite distinguir la tool que emitio el hallazgo
+     * (fase G: el analisis fusiona sentinel + varsense) sin tocar el render. */
+    motivo: `${h.fuente === 'varsense' ? '[varsense] ' : ''}${h.archivo || p.id}${h.linea != null ? `:${h.linea}` : ''} — ${h.ruleId} — ${h.mensaje}`,
     seriedad: h.severidad === 'error' ? 'error' : 'advertencia',
     sentinelSeveridad: h.severidad,
   }));

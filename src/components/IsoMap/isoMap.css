@@ -61,6 +61,12 @@
 }
 
 .isoTooltip {
+    /* [por que] Antes position/top/left eran inline-style; pasan a clase (el
+     * contenedor .isoMapContenedor ya era position: relative, asi que el ancla
+     * no cambia). Se conserva el valor exacto que tenia el inline (12px). */
+    position: absolute;
+    top: 12px;
+    left: 12px;
     background: var(--surfaceRaised);
     border: 1px solid var(--border);
     border-radius: var(--radiusSm);

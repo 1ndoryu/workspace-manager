@@ -1,5 +1,5 @@
 {
-  "variableFiles": [],
+  "variableFiles": ["src/styles/variables.css", "src/v2/styles/variables-v2.css"],
   "includePatterns": [
     "src/**/*.css",
     "src/**/*.ts",

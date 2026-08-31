@@ -107,8 +107,10 @@ export interface ConfigWorkspace {
   scan?: ConfigScan;
 }
 
-/* Hallazgo real que sentinel analyze detecta (desnormalizado y plano para que
- * la consola no conozca el formato del runtime: aísla cambios de sentinel). */
+/* Hallazgo real que sentinel analyze / varsense detectan (desnormalizado y
+ * plano para que la consola no conozca el formato del runtime: aísla cambios
+ * de sentinel/varsense). `fuente` distingue qué herramienta emitió el
+ * hallazgo (fase G: el analisis fusiona ambos reportes). */
 export interface HallazgoSentinel {
   ruleId: string;
   mensaje: string;
@@ -117,6 +119,8 @@ export interface HallazgoSentinel {
   archivo: string;
   linea: number | null;
   sugerencia?: string;
+  /* 'sentinel' | 'varsense'. Ausente => sentinel (retrocompat cache vieja). */
+  fuente?: 'sentinel' | 'varsense';
 }
 
 export type SeveridadSentinel = 'error' | 'warning' | 'information' | 'hint';
@@ -134,6 +138,13 @@ export interface AnalisisSentinel {
   hallazgos: HallazgoSentinel[];
   /* Detalle del error si estado === 'error'. */
   error?: string;
+  /* Estado de VarSense fusionado al analisis (fase G): version del runtime
+   * y conteos de sus hallazgos (ya incluidos en `resumen`/`hallazgos`, con
+   * `fuente: 'varsense'`). Ausente => varsense no declarado o no corrido. */
+  varsense?: {
+    version: string;
+    resumen: NombreSeveridad;
+  };
 }
 
 /* Conteo por severidad de la auditoria de dependencias. [por que] Separado del

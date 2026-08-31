@@ -78,7 +78,7 @@ export function IsoMap() {
       </svg>
 
       {hover && (
-        <div className="isoTooltip" style={{ position: 'absolute', top: 12, left: 12 }}>
+        <div className="isoTooltip">
           <strong>{hover.id}</strong>
           {hover.esGit && hover.git && (
             <div>

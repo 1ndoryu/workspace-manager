@@ -58,7 +58,9 @@ export function PanelNavegador() {
       });
       setDir(data.ruta);
       setPadre(data.padre);
-      setEntradas(data.entradas);
+      /* [por que] Fallback defensivo: si la API no incluye 'entradas', la
+       * lista queda vacia en lugar de romper con undefined. */
+      setEntradas(data.entradas ?? []);
     } catch (err) {
       setError(`no se pudo listar: ${err instanceof Error ? err.message : 'error'}`);
       setEntradas([]);

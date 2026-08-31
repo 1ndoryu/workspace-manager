@@ -61,25 +61,6 @@ html {
     gap: var(--v2-spaceSm);
 }
 
-.v2NavBoton {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px var(--v2-spaceSm);
-    background: var(--v2-fondo);
-    color: var(--v2-texto);
-    border: 1px solid var(--v2-borde);
-    font-family: inherit;
-    font-size: var(--v2-textXs);
-    line-height: 1;
-    cursor: pointer;
-}
-
-.v2NavBoton--activo {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
 /* [por que] Grosor fino 300 en todo: Departure Mono solo trae peso 400, asi
  * que 300 es el peso sintetico mas fino que el navegador puede producir
  * (Firefox sintetiza thinner; Chrome queda en 400 al no tener una cara mas

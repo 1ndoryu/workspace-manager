@@ -18,6 +18,7 @@ import type { TipoGate } from '../shared/gate/proveedores.js';
 import type { ReporteSincronizacion } from '../server/gate/sincronizacion.js';
 import { ESQUEMA_SENTINEL } from '../shared/gate/sentinel.js';
 import { ESQUEMA_VARSENSE } from '../shared/gate/varsense.js';
+import { logger } from '../shared/logger.js';
 import { deserializarEsquema } from '../shared/gate/serial.js';
 
 /* Persistencia de la seleccion entre recargas, igual que zoom/pan del mapa.
@@ -31,7 +32,7 @@ function seleccionGuardada(): string | null {
     const raw = localStorage.getItem(CLAVE_SELECCION);
     return raw || null;
   } catch (err) {
-    console.warn('[workspace] no se pudo leer la seleccion guardada:', err);
+    logger.warn('no se pudo leer la seleccion guardada:', err);
     return null;
   }
 }
@@ -84,7 +85,7 @@ function uiGuardada(): { panelCentral: PanelCentral; visibles: VisibilidadPanele
     }
     return { panelCentral, visibles };
   } catch (err) {
-    console.warn('[workspace] no se pudo leer la UI guardada:', err);
+    logger.warn('no se pudo leer la UI guardada:', err);
     return UI_DEFECTO;
   }
 }
@@ -96,7 +97,7 @@ function guardarUi(panelCentral: PanelCentral, visibles: VisibilidadPaneles): vo
   try {
     localStorage.setItem(CLAVE_UI, JSON.stringify({ panelCentral, visibles }));
   } catch (err) {
-    console.warn('[workspace] no se pudo guardar la UI:', err);
+    logger.warn('no se pudo guardar la UI:', err);
   }
 }
 
@@ -225,7 +226,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
         set({ reglasCatalogo: { version: data.version, fuente: data.fuente, reglas: data.reglas } });
       }
     } catch (err) {
-      console.warn('[workspace] catalogo de reglas vive no disponible, uso estatico:', err);
+      logger.warn('catalogo de reglas vive no disponible, uso estatico:', err);
     }
   },
 
@@ -249,7 +250,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
         return nodo;
       }
     } catch (err) {
-      console.warn(`[workspace] esquema ${tool} vive no disponible, uso estatico:`, err);
+      logger.warn(`esquema ${tool} vive no disponible, uso estatico:`, err);
     }
     const fb = estatico(tool);
     if (fb) set((s) => ({ esquemas: { ...s.esquemas, [tool]: fb } }));
@@ -265,7 +266,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
         localStorage.setItem(CLAVE_SELECCION, id);
       }
     } catch (err) {
-      console.warn('[workspace] no se pudo guardar la seleccion:', err);
+      logger.warn('no se pudo guardar la seleccion:', err);
     }
     set({ proyectoSeleccionado: id });
   },
@@ -329,7 +330,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
         set((s) => ({ analisis: { ...s.analisis, ...data.analisis } }));
       }
     } catch (err) {
-      console.warn('[workspace] no se pudo rehidratar el analisis guardado:', err);
+      logger.warn('no se pudo rehidratar el analisis guardado:', err);
     }
   },
 
@@ -389,7 +390,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
         }));
       }
     } catch (err) {
-      console.warn('[workspace] no se pudo rehidratar las vulnerabilidades guardadas:', err);
+      logger.warn('no se pudo rehidratar las vulnerabilidades guardadas:', err);
     }
   },
 
@@ -439,7 +440,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
       const { data } = await axios.get<{ reporte: ReporteSincronizacion }>('/api/gate/sincronizacion');
       if (data && data.reporte) set({ sincronizacion: data.reporte });
     } catch (err) {
-      console.warn('[workspace] no se pudo verificar la sincronizacion del gate:', err);
+      logger.warn('no se pudo verificar la sincronizacion del gate:', err);
     }
   },
 
