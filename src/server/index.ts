@@ -298,12 +298,17 @@ export function crearServidor() {
           /* Todo el workspace: barrido serial de los elegibles. El body puede
            * pedir forzar=true (boton manual 'escanea ahora' = genuino: vuelve
            * a ejecutar sentinel aunque la frescura no cambio); el auto-timer
-           * manda forzar=false y reusa la cache por frescura. */
+           * manda forzar=false y reusa la cache por frescura. [por que] Se
+           * incluye el snapshot fresco (git/HEAD real) en la respuesta: el
+           * boton manual re-escanea git con snapshotArea(true) y el cliente
+           * DEBE aplicarlo, si no la consola sigue mostrando los contadores
+           * de git (sin push/sin commit) del snapshot viejo del arranque. */
           const body = (await leerBody(req)) as { forzar?: unknown };
           const forzar = body.forzar === true;
           const analisis = await analizarTodo(snapshot.proyectos, forzar);
           json(res, 200, {
             escaneadoEn: new Date().toISOString(),
+            snapshot,
             proyectos: analisis,
           });
           return;

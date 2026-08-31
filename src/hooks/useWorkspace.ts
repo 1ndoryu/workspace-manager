@@ -326,13 +326,22 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
     if (get().analizando) return;
     set({ analizando: true });
     try {
-      const { data } = await axios.post<{ escaneadoEn: string; proyectos: AnalisisSentinel[] }>(
-        '/api/gate/analizar-todo',
-        { forzar },
-      );
+      const { data } = await axios.post<{
+        escaneadoEn: string;
+        snapshot?: SnapshotWorkspace;
+        proyectos: AnalisisSentinel[];
+      }>('/api/gate/analizar-todo', { forzar });
       const analisis: Record<string, AnalisisSentinel> = {};
       for (const a of data.proyectos) analisis[a.clave] = a;
-      set((s) => ({ analisis: { ...s.analisis, ...analisis } }));
+      /* [por que] El server re-escanea git real (snapshotArea(true)) y lo
+       * devuelve en `snapshot`: hay que aplicarlo, si no la consola sigue
+       * mostrando los contadores de git (sin push/sin commit) del snapshot
+       * del arranque aunque el usuario ya haya commiteado/pusheado. */
+      set((s) => ({
+        snapshot: data.snapshot ?? s.snapshot,
+        desdeCache: false,
+        analisis: { ...s.analisis, ...analisis },
+      }));
     } finally {
       set({ analizando: false });
     }
