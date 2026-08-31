@@ -772,6 +772,51 @@ familias distintas, y solo una es "arreglar ahora". Conclusiones con evidencia:
   con 282 archivos, sin hallazgos nuevos. Commit: gloryapi (front
   308A-6GAPI, index.css) + workspace-manager docs (I-10/roadmap).
 
+### I-11 — Glory-Laminal varsense (124 → 91, 0 errores, hecho 2026-08-31)
+- **Misconfig de alcance corregida (patrón G-DEUDA):** `includePatterns` era
+  solo `src/**` pero los CSS reales del proyecto viven en `styles/`
+  (editor.css/widgets.css, 111 usos `var()` reales) — el snapshot de uso de
+  tokens ignoraba los consumidores. Verificado antes de tocar: todas las
+  `var(--…)` de `styles/*.css` están definidas en `variables.css` (cero
+  `variableNoDefinida` nuevos al ampliar), sin definiciones ocultas en
+  editor/widgets. Añadido `styles/**/*.css` a `includePatterns`.
+- **Medición honesta:** con el alcance corregido el baseline real era 124→115
+  (el 46 `token-unused` bajó solo a 17 porque los usos de styles ahora
+  cuentan; aparecieron 20 `valorHardcoded` que la misconfig ocultaba).
+- **`valorHardcoded` 20 → 4** (tokens nuevos justificados por segundo
+  consumidor real, todos visual-neutral): 5× `#ffffff` sobre selección →
+  nuevo `--textoSeleccion`; 4× `#4a4a4a` de hover/activo de controles →
+  nuevo `--interaccion`; 2× `border-radius: 2px` (asas/menús) → nuevo
+  `--radioFino`; y a tokens existentes: `#282828`→`--botonInternoMenu`,
+  `#333333`→`--bordeSuave`, `rgba(…,0.08)`→`--editorContorno`, `11px`→
+  `--textoChico`, `3px`→`--radioArea`. **4 excepciones one-off** (1 uso,
+  sin par de token; forzarlas sería abstracción sin segundo consumidor,
+  prohibida por el plan): `#2c2c2c` asa hover, `#5f5f5f` botón hover,
+  `#334d80` activo de outliner, `rgba(255,255,255,0.12)` grupoIconos hover.
+- **`token-duplicate` 6 → 1:** los 5 pares same-scope con valor literal
+  idéntico se colapsaron a alias `var()` (patrón WANDORIUS §I-9):
+  `--fondoHeader`/`--fondoPanel`→`var(--fondoStatusbar)`, `--fondoInput`→
+  `var(--fondoBase)`, `--fondoInputSel`→`var(--fondoTopbar)`, `--borde`→
+  `var(--fondoPanelCabecera)`, `--seleccion`→`var(--fondoHoverMenu)`. El 1
+  restante (`--fondoPanel` vs `--fondoHeader`) es la auto-colisión de los dos
+  alias al mismo token — el detector compara valor literal y no resuelve
+  `var()`, límite del analizador, excepción documentada (patrón §I-9).
+- **`token-unused` 46 → 14** (los 14 restantes = API pública del tema
+  Blender: acentos/ejes/estados/alturas aún sin consumir — excepción, no se
+  borran: son la superficie de configuración del tema, patrón WANDORIUS).
+- **`claseHuerfana` 49 intactas = falsos positivos §I-2 verificados:** las 49
+  tienen uso real (word-boundary en 53 archivos) vía `createElement(tag,
+  className)` posicional de `platform/dom.ts` + `classList.toggle` — patrones
+  que el scanner no indexa. `cssInlineScript` 23 info = runtime del editor,
+  excepción.
+- Verificación: `npm run type-check` **exit 0** (cambios CSS-only); varsense
+  fresco **91 = 0e/54w/23i/14h** (124→115 con alcance→91 con refactors, −33
+  netos reales, 0 errores, sin regresión); `sentinel analyze` **0/0/0/0**
+  (baseline intacto). Commit: Glory-Laminal `308A-6GL` (variables.css +
+  editor.css + widgets.css + varsense.config.json) + workspace-manager docs
+  (I-11/roadmap). Nota: los scripts temp del frente medían el archivo viejo
+  (`gl_vs.json`) en vez del argumento — corregido el script antes de cerrar.
+
 ### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
 - Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
   gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`,
