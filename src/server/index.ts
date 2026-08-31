@@ -9,6 +9,7 @@ import { escanearWorkspace, claveDe, resumenDe } from './scanner/workspace.js';
 import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
 import { cambiarIgnorado, cambiarSinGate, guardarConfigScan, leerConfigArea } from './configArea.js';
 import { esquemaGate, reglasGate } from './gate/proveedor.js';
+import { correrSincronizacion } from './gate/sincronizacion.js';
 import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from './gate/analizador.js';
 import {
   auditarProyecto,
@@ -266,6 +267,21 @@ export function crearServidor() {
             reglas: r.metadatos.tipo === 'sentinel' ? reglasGate().reglas : [],
             totalReglas: r.totalReglas,
           });
+          return;
+        }
+        /* Estado de centralizacion del gate (plan centralizar-gate 308A-1 F7):
+         * corre quality-sync.mjs --json (reusa la validacion fail-closed que ya
+         * existe) y sirve el reporte. [por que] Es GET puro de lectura, de
+         * corrida barata (git rev-parse del checkout y los manifests), sin tocar
+         * el escaneo raiz ni ningun JSON real. La UI lo muestra con badges
+         * verde/desync. */
+        if (ruta === '/api/gate/sincronizacion') {
+          if (req.method !== 'GET') {
+            json(res, 405, { error: 'Metodo no permitido' });
+            return;
+          }
+          const reporte = await correrSincronizacion();
+          json(res, 200, { reporte });
           return;
         }
         /* Analisis real de sentinel por proyecto (plan analisis-sentinel-consola

@@ -33,7 +33,7 @@ const ARCHIVO_A_TOOL: Partial<Record<(typeof ARCHIVOS)[number], TipoGate>> = {
 /* Vista del visor derecho: excepciones, escaneo de sentinel o la config de
  * un proyecto. [por que] El usario pidio que el escaneo tenga su propia
  * opcion de menu y no viva embebido dentro de las excepciones. */
-type Vista = 'excepciones' | 'scan' | 'proyecto';
+type Vista = 'excepciones' | 'scan' | 'gate' | 'proyecto';
 
 interface GateRespuesta {
   clave: string;
@@ -74,6 +74,9 @@ export function PanelConfig() {
   /* Vulnerabilidades (308A-4 V1): boton 'Auditar todo' + badges por severidad. */
   const auditarTodo = useWorkspaceStore((s) => s.auditarTodo);
   const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
+  /* Estado del checkout compartido del gate (plan 308A-1 F7). */
+  const sincronizacion = useWorkspaceStore((s) => s.sincronizacion);
+  const cargarSincronizacion = useWorkspaceStore((s) => s.cargarSincronizacion);
 
   /* Esquemas por herramienta ya rehidratados desde la API (cache local a la
    * vista; el store cachea a nivel global). */
@@ -87,6 +90,15 @@ export function PanelConfig() {
 
   /* Vista actual y, si es 'proyecto', la clave del proyecto abierto. */
   const [vista, setVista] = useState<Vista>('excepciones');
+
+  /* Al abrir la vista 'gate' (plan 308A-1 F7) se refresca el estado del
+   * checkout compartido (GET barato de quality-sync). [por que] No se corre en
+   * el arranque para no lanzar git en cada carga; solo cuando el usuario pide
+   * ver esta vista o pulsa 'verificar'. */
+  useEffect(() => {
+    if (vista === 'gate') void cargarSincronizacion();
+  }, [vista, cargarSincronizacion]);
+
   const [claveVisor, setClaveVisor] = useState<string | null>(null);
   const [gate, setGate] = useState<GateRespuesta | null>(null);
   const [contenidos, setContenidos] = useState<Record<string, string>>({});
@@ -353,6 +365,16 @@ export function PanelConfig() {
             >
               <span className="docsFilaNombre">escaneo sentinel</span>
             </button>
+            <button
+              type="button"
+              className={`docsFila${vista === 'gate' ? ' docsFila--activa' : ''}`}
+              onClick={() => {
+                setVista('gate');
+                setClaveVisor(null);
+              }}
+            >
+              <span className="docsFilaNombre">gate centralizado</span>
+            </button>
           </div>
         </section>
         <section className="panelDocsSeccion">
@@ -539,6 +561,77 @@ export function PanelConfig() {
                 </div>
               )}
               {auditAviso && <div className="scanCfgAviso">{auditAviso}</div>}
+            </section>
+          </>
+        )}
+
+        {/* Vista 'gate': estado del checkout compartido del runtime (plan
+         * 308A-1 F7). [por que] Muestra en la UI que cada consumidor apunta al
+         * checkout compartido con el MISMO commit, con badges verde/desync y
+         * boton 'verificar' para refrescarlo. Reusa la validacion de
+         * quality-sync (el server la expone por GET, no duplica logica). */}
+        {vista === 'gate' && (
+          <>
+            <header className="panelDocsVisorCabecera">
+              <span className="panelDocsVisorTitulo">gate centralizado</span>
+            </header>
+            <section aria-label="Centralización del gate">
+              <div className="scanCfgAcciones">
+                <button
+                  type="button"
+                  className="excBoton"
+                  onClick={() => void cargarSincronizacion()}
+                >
+                  verificar alineación
+                </button>
+                <span className="scanCfgMeta">
+                  {sincronizacion
+                    ? `${sincronizacion.consumidores.length} consumidores · ${sincronizacion.problemas} desync`
+                    : 'pulsá verificar para comprobar el checkout compartido'}
+                </span>
+              </div>
+              {sincronizacion && (
+                <div className="syncLista">
+                  {(sincronizacion.checkout_sentinel || sincronizacion.checkout_varsense) && (
+                    <div className="syncCheckout">
+                      <span className="syncTitulo">checkout compartido {sincronizacion.checkout}</span>
+                      {sincronizacion.checkout_sentinel && (
+                        <span className="syncMeta">
+                          sentinel@{sincronizacion.checkout_sentinel.head ?? 'no-provisto'}
+                          {sincronizacion.checkout_sentinel.sucio ? ` (sucio ${sincronizacion.checkout_sentinel.sucio})` : ''}
+                        </span>
+                      )}
+                      {sincronizacion.checkout_varsense && (
+                        <span className="syncMeta">
+                          varsense@{sincronizacion.checkout_varsense.head ?? 'no-provisto'}
+                          {sincronizacion.checkout_varsense.sucio ? ` (sucio ${sincronizacion.checkout_varsense.sucio})` : ''}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {sincronizacion.consumidores.map((c) => (
+                    <div key={c.nombre} className="syncFila">
+                      <span
+                        className={`syncBadge syncBadge--${c.estado === 'ok' ? 'ok' : 'warn'}`}
+                        title={c.detalle || c.problemas?.join('; ') || c.estado}
+                      >
+                        {c.estado === 'ok' ? '✓' : c.estado}
+                      </span>
+                      <span className="syncNombre">{c.nombre}</span>
+                      {c.sentinel && (
+                        <span className={`syncMeta syncMeta--${c.sentinel.estado === 'ok' ? 'ok' : 'warn'}`}>
+                          sentinel={c.sentinel.estado}
+                        </span>
+                      )}
+                      {c.varsense && (
+                        <span className={`syncMeta syncMeta--${c.varsense.estado === 'ok' ? 'ok' : 'warn'}`}>
+                          varsense={c.varsense.estado}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           </>
         )}
