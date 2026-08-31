@@ -4,11 +4,11 @@
  * desactualizado. La clasificacion se deriva del snapshot, sin llamada extra
  * al server. */
 import { useMemo, useState } from 'react';
-import type { AnalisisSentinel, Proyecto } from '../../shared/types.js';
+import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../../shared/types.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import './paneles.css';
 
-type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano';
+type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad';
 
 /* Severidad real del hallazgo de sentinel (analyze); solo la categoria
  * 'sentinel' la usa. El badge del proyecto y de la linea deriva de aqui. */
@@ -30,7 +30,13 @@ interface Entrada {
   /* Severidad del hallazgo de sentinel (analyze), p. ej. error/warning/information/
    * hint. Null salvo en la categoria 'sentinel'. */
   sentinelSeveridad?: SeveridadSentinel;
+  /* Severidad de la vulnerabilidad de dependencias (critical/high/moderate/low).
+   * Null salvo en la categoria 'vulnerabilidad'. */
+  vulnSeveridad?: SeveridadVuln;
 }
+
+/* Severidad de una vulnerabilidad de dependencias (npm/pnpm/cargo audit). */
+type SeveridadVuln = 'critical' | 'high' | 'moderate' | 'low';
 
 /* Un proyecto con sus problemas. Cada problema (Entrada) es una linea
  * individual: el CONTEO es por entrada, no por proyecto, porque un proyecto
@@ -117,9 +123,27 @@ function problemasSentinelDe(p: Proyecto, a: AnalisisSentinel | undefined): Prob
   return { p, entradas };
 }
 
+/* Vulnerabilidades de dependencias de un proyecto (308A-4). Cada hallazgo es
+ * una entrada propia en la categoria 'vulnerabilidad'. El server resuelve el
+ * lockfile/gestor; aqui solo se enlistan los paquetes afectados. Los proyectos
+ * 'noAuditable' (sin lockfile o cargo-audit ausente) NO generan problema. */
+function problemasVulnerabilidadDe(
+  p: Proyecto,
+  v: AnalisisVulnerabilidades | undefined,
+): Problema | null {
+  if (!v || v.estado !== 'conHallazgos' || v.hallazgos.length === 0) return null;
+  const entradas: Entrada[] = v.hallazgos.map((h) => ({
+    categoria: 'vulnerabilidad',
+    motivo: `${h.paquete} (${v.gestor})${h.rango ? ` — ${h.rango}` : ''}`,
+    seriedad: h.severidad === 'critical' || h.severidad === 'high' ? 'error' : 'advertencia',
+    vulnSeveridad: h.severidad,
+  }));
+  return { p, entradas };
+}
+
 /* Categorias unicas de un proyecto (para sus badges), en orden fijo. */
 function categoriasDe(pr: Problema): Categoria[] {
-  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'huerfano'];
+  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'vulnerabilidad', 'huerfano'];
   return orden.filter((c) => pr.entradas.some((e) => e.categoria === c));
 }
 
@@ -131,6 +155,7 @@ const FILTROS: { clave: 'todos' | Categoria; etiqueta: string }[] = [
   { clave: 'gate', etiqueta: 'sentinel/varsense' },
   { clave: 'config', etiqueta: 'config' },
   { clave: 'sentinel', etiqueta: 'análisis' },
+  { clave: 'vulnerabilidad', etiqueta: 'vulnerabilidades' },
   { clave: 'huerfano', etiqueta: 'huérfanos' },
 ];
 
@@ -141,6 +166,7 @@ const ETIQUETA_CATEGORIA: Record<Categoria, string> = {
   gate: 'sentinel',
   config: 'config',
   sentinel: 'análisis',
+  vulnerabilidad: 'vulnerabilidades',
   huerfano: 'huérfano',
 };
 
@@ -158,6 +184,7 @@ function rutaRelativa(raiz: string | undefined, rutaAbs: string): string {
 export function PanelConsola() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const analisis = useWorkspaceStore((s) => s.analisis);
+  const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const irAArchivos = useWorkspaceStore((s) => s.irAArchivos);
@@ -179,21 +206,29 @@ export function PanelConsola() {
       .filter((x): x is Problema => x !== null);
   }, [snapshot, analisis]);
 
-  /* 'todos' fusiona los problemas regulares con los hallazgos de sentinel
-   * AGRUPADOS por proyecto (un proyecto con ambos tipos sale una sola vez con
-   * sus entradas combinadas y sus badges). */
+  /* Vulnerabilidades por proyecto (308A-4 V1). Tambien viven en su propio
+   * filtro 'vulnerabilidades' y su conteo entra en el total 'todos'. */
+  const problemasVuln = useMemo(() => {
+    if (!snapshot) return [];
+    return snapshot.proyectos
+      .map((p) => problemasVulnerabilidadDe(p, vulnerabilidades[p.clave]))
+      .filter((x): x is Problema => x !== null);
+  }, [snapshot, vulnerabilidades]);
+
+  /* 'todos' fusiona los problemas regulares con los hallazgos de sentinel y
+   * las vulnerabilidades AGRUPADOS por proyecto (un proyecto con varias
+   * categorias sale una sola vez con sus entradas combinadas y sus badges). */
   const problemasTodo = useMemo(() => {
     const porProyecto = new Map<string, Problema>();
     const poner = (pr: Problema) => {
       const ex = porProyecto.get(pr.p.ruta);
       if (ex) {
         /* [por que] Nunca mutar los objetos de 'problemas'/'problemasSentinel':
-         * si `ex` fuese el objeto original de 'problemas' y le hiciéramos
-         * push, la mutación persistiría entre renders (ese useMemo no se
-         * recalcula si el snapshot no cambia) y CADA escaneo volvería a
-         * añadir otra capa de entradas sentinel (1408 -> 2789 -> 4170...).
-         * Se crea un objeto nuevo con entradas combinadas, no se toca el
-         * original. */
+         * si `ex` fuese el objeto original y le hiciéramos push, la mutación
+         * persistiría entre renders (ese useMemo no se recalcula si el
+         * snapshot no cambia) y CADA escaneo volvería a añadir otra capa de
+         * entradas (1408 -> 2789 -> 4170...). Se crea un objeto nuevo con
+         * entradas combinadas, no se toca el original. */
         porProyecto.set(pr.p.ruta, { p: ex.p, entradas: [...ex.entradas, ...pr.entradas] });
       } else {
         porProyecto.set(pr.p.ruta, { p: pr.p, entradas: [...pr.entradas] });
@@ -201,11 +236,13 @@ export function PanelConsola() {
     };
     problemas.forEach(poner);
     problemasSentinel.forEach(poner);
+    problemasVuln.forEach(poner);
     return [...porProyecto.values()];
-  }, [problemas, problemasSentinel]);
+  }, [problemas, problemasSentinel, problemasVuln]);
 
   const visibles = useMemo(() => {
     if (filtro === 'sentinel') return problemasSentinel;
+    if (filtro === 'vulnerabilidad') return problemasVuln;
     if (filtro === 'todos') return problemasTodo;
     /* Cada filtro renderiza SOLO sus entradas: al filtrar por una categoria
      * no deben verse las lineas de otras categorias del mismo proyecto.
@@ -214,7 +251,7 @@ export function PanelConsola() {
     return problemas
       .map((pr) => ({ p: pr.p, entradas: pr.entradas.filter((e) => e.categoria === filtro) }))
       .filter((pr) => pr.entradas.length > 0);
-  }, [problemas, problemasSentinel, problemasTodo, filtro]);
+  }, [problemas, problemasSentinel, problemasVuln, problemasTodo, filtro]);
 
   /* El conteo es por PROBLEMA individual (entradas), no por proyecto.
    * [por que] Un proyecto puede agrupar varias lineas; contarlo como 1
@@ -225,6 +262,9 @@ export function PanelConsola() {
     if (clave === 'sentinel') {
       return problemasSentinel.reduce((n, pr) => n + pr.entradas.length, 0);
     }
+    if (clave === 'vulnerabilidad') {
+      return problemasVuln.reduce((n, pr) => n + pr.entradas.length, 0);
+    }
     if (clave === 'todos') return problemasTodo.reduce((n, pr) => n + pr.entradas.length, 0);
     return problemas.reduce((n, pr) => n + pr.entradas.filter((e) => e.categoria === clave).length, 0);
   };
@@ -233,6 +273,13 @@ export function PanelConsola() {
    * error si algun hallazgo es error; si no, advertencia (warning/info/hint). */
   const severidadProyectoSentinel = (pr: Problema): 'error' | 'warn' =>
     pr.entradas.some((e) => e.sentinelSeveridad === 'error') ? 'error' : 'warn';
+
+  /* Badge del proyecto en la categoria 'vulnerabilidad': error si hay algun
+   * paquete critical/high; si no, advertencia (moderate/low). */
+  const severidadProyectoVuln = (pr: Problema): 'error' | 'warn' =>
+    pr.entradas.some((e) => e.vulnSeveridad === 'critical' || e.vulnSeveridad === 'high')
+      ? 'error'
+      : 'warn';
 
   if (!snapshot) return null;
 
@@ -287,6 +334,8 @@ export function PanelConsola() {
                       : '--warn';
                   } else if (c === 'sentinel') {
                     severidadBadge = `--${severidadProyectoSentinel(pr)}`;
+                  } else if (c === 'vulnerabilidad') {
+                    severidadBadge = `--${severidadProyectoVuln(pr)}`;
                   }
                   return (
                     <span key={c} className={`consolaFilaBadge${severidadBadge}`}>
@@ -304,6 +353,11 @@ export function PanelConsola() {
                     {e.sentinelSeveridad ? (
                       <span className={`consolaSeveridad consolaSeveridad--${e.sentinelSeveridad}`}>
                         {SEV_ETIQUETA[e.sentinelSeveridad]}
+                      </span>
+                    ) : null}
+                    {e.vulnSeveridad ? (
+                      <span className={`consolaSeveridad consolaSeveridad--${e.vulnSeveridad}`}>
+                        {e.vulnSeveridad}
                       </span>
                     ) : null}
                     {e.motivo}

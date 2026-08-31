@@ -71,6 +71,9 @@ export function PanelConfig() {
   const configurarScan = useWorkspaceStore((s) => s.configurarScan);
   const escanearTodo = useWorkspaceStore((s) => s.escanearTodo);
   const analisis = useWorkspaceStore((s) => s.analisis);
+  /* Vulnerabilidades (308A-4 V1): boton 'Auditar todo' + badges por severidad. */
+  const auditarTodo = useWorkspaceStore((s) => s.auditarTodo);
+  const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
 
   /* Esquemas por herramienta ya rehidratados desde la API (cache local a la
    * vista; el store cachea a nivel global). */
@@ -98,6 +101,8 @@ export function PanelConfig() {
   const [intervalo, setIntervalo] = useState<number>(snapshot?.config?.scan?.intervaloMin ?? 30);
   const [escaneando, setEscaneando] = useState(false);
   const [scanAviso, setScanAviso] = useState<string | null>(null);
+  const [auditando, setAuditando] = useState(false);
+  const [auditAviso, setAuditAviso] = useState<string | null>(null);
 
   /* [por que] El menu contextual abre la pagina 'config' con un proyecto
    * determinado: inicial/a cada cambio, si llega un proyecto, se muestra su
@@ -285,6 +290,36 @@ export function PanelConfig() {
     }
     return { error, warning };
   }
+  /* Boton 'Auditar todo': recorre el workspace auditando dependencias.
+   * forzar=true para que sea genuino (re-audita aunque la cache de hash-de-
+   * lockfile no cambio); el server single-flight igual evita solaparse. */
+  async function auditarAhora() {
+    setAuditando(true);
+    setAuditAviso(null);
+    try {
+      await auditarTodo(true);
+      setAuditAviso('auditoría completa ✓');
+    } catch (err) {
+      setAuditAviso(null);
+      toastError(`no se pudo auditar: ${mensajeDeError(err)}`);
+    } finally {
+      setAuditando(false);
+    }
+  }
+
+  /* Totales de vulnerabilidades por severidad sobre los proyectos auditados. */
+  function totalesVuln(): { critical: number; high: number; moderate: number; low: number } {
+    const t = { critical: 0, high: 0, moderate: 0, low: 0 };
+    for (const v of Object.values(vulnerabilidades)) {
+      t.critical += v.resumen.critical;
+      t.high += v.resumen.high;
+      t.moderate += v.resumen.moderate;
+      t.low += v.resumen.low;
+    }
+    return t;
+  }
+  const tVuln = totalesVuln();
+  const tieneVuln = tVuln.critical + tVuln.high + tVuln.moderate + tVuln.low > 0;
   const totales = totalesEscaneo();
   const ultimaActualizacion = Object.values(analisis).reduce<number>((mx, a) => {
     const t = new Date(a.analizadoEn).getTime();
@@ -477,6 +512,33 @@ export function PanelConfig() {
                 </div>
               )}
               {scanAviso && <div className="scanCfgAviso">{scanAviso}</div>}
+
+              {/* Vulnerabilidades de dependencias (308A-4 V1): el usuario pidio
+               * que aparezcan solas en la consola, con auditoria por proyecto.
+               * Boton 'Auditar todo' + badges por severidad de la cache. */}
+              <div className="scanCfgSeparador">vulnerabilidades</div>
+              <div className="scanCfgAcciones">
+                <button
+                  type="button"
+                  className="excBoton"
+                  onClick={() => void auditarAhora()}
+                  disabled={auditando}
+                >
+                  {auditando ? 'auditando…' : 'auditá toda la consola'}
+                </button>
+                <span className="scanCfgMeta">
+                  {Object.keys(vulnerabilidades).length} proyectos auditados
+                </span>
+              </div>
+              {tieneVuln && (
+                <div className="scanCfgResumen">
+                  <span className="scanCfgBadge scanCfgBadge--crit">{tVuln.critical} crític{tVuln.critical === 1 ? 'a' : 'as'}</span>
+                  <span className="scanCfgBadge scanCfgBadge--high">{tVuln.high} alta{tVuln.high === 1 ? '' : 's'}</span>
+                  <span className="scanCfgBadge scanCfgBadge--mod">{tVuln.moderate} moderada{tVuln.moderate === 1 ? '' : 's'}</span>
+                  <span className="scanCfgBadge scanCfgBadge--low">{tVuln.low} baja{tVuln.low === 1 ? '' : 's'}</span>
+                </div>
+              )}
+              {auditAviso && <div className="scanCfgAviso">{auditAviso}</div>}
             </section>
           </>
         )}

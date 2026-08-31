@@ -10,7 +10,13 @@ import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
 import { cambiarIgnorado, cambiarSinGate, guardarConfigScan, leerConfigArea } from './configArea.js';
 import { esquemaGate, reglasGate } from './gate/proveedor.js';
 import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from './gate/analizador.js';
-import type { AnalisisSentinel, ConfigScan, SnapshotWorkspace } from '../shared/types.js';
+import {
+  auditarProyecto,
+  auditarTodo,
+  leerTodasVulnerabilidades,
+  leerVulnerabilidades,
+} from './gate/vulnerabilidades.js';
+import type { AnalisisSentinel, AnalisisVulnerabilidades, ConfigScan, SnapshotWorkspace } from '../shared/types.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || 'C:/Users/Owner/.agents/skills';
@@ -332,6 +338,59 @@ export function crearServidor() {
             return;
           }
           json(res, 200, { clave, analisis: leerAnalisis(clave) });
+          return;
+        }
+        /* Vulnerabilidades de dependencias por proyecto (plan
+         * vulnerabilidades-consola 308A-4 V1). Homologo a /api/gate/analisis
+         * pero para audit: POST audita (con cache por hash-de-lockfile y
+         * single-flight), GET sirve la cache para rehidratar al recargar. */
+        if (
+          ruta === '/api/gate/vulnerabilidades' ||
+          ruta === '/api/gate/vulnerabilidades-todo'
+        ) {
+          if (req.method !== 'POST') {
+            json(res, 405, { error: 'Metodo no permitido' });
+            return;
+          }
+          const { snapshot } = snapshotArea(true);
+          if (ruta === '/api/gate/vulnerabilidades') {
+            const body = (await leerBody(req)) as { clave?: unknown; forzar?: unknown };
+            const clave = typeof body.clave === 'string' ? body.clave : '';
+            const forzar = body.forzar === true;
+            const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
+            if (!proyecto) {
+              json(res, 404, { error: 'Proyecto no encontrado', clave });
+              return;
+            }
+            json(res, 200, await auditarProyecto(proyecto, forzar));
+            return;
+          }
+          const body = (await leerBody(req)) as { forzar?: unknown };
+          const forzar = body.forzar === true;
+          const vuls = await auditarTodo(snapshot.proyectos, forzar);
+          json(res, 200, {
+            escaneadoEn: new Date().toISOString(),
+            snapshot,
+            proyectos: vuls,
+          });
+          return;
+        }
+        /* Cache de vulnerabilidades. GET sin ?clave devuelve TODA la cache
+         * persistida para rehidratar el store al recargar (sin re-auditar). */
+        if (ruta === '/api/gate/vulnerabilidades-cache') {
+          if (req.method !== 'GET') {
+            json(res, 405, { error: 'Metodo no permitido' });
+            return;
+          }
+          const clave = url.searchParams.get('clave') ?? '';
+          if (clave === '') {
+            const vuls = leerTodasVulnerabilidades();
+            const porClave: Record<string, AnalisisVulnerabilidades> = {};
+            for (const v of vuls) porClave[v.clave] = v;
+            json(res, 200, { total: vuls.length, vulnerabilidades: porClave });
+            return;
+          }
+          json(res, 200, { clave, vulnerabilidad: leerVulnerabilidades(clave) });
           return;
         }
         /* Config del area: alternar un proyecto entre ignorar / dejar de
