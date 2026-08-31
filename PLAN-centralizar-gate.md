@@ -258,18 +258,34 @@ Nuevo campo en `ConfigWorkspace` (v3): `sinGate: string[]` (claves de proyecto e
   `area-trabajo/.quality-tools/varsense` (detached `88f281f` v2.2.1) `npm install` + `npm run
   compile` y `node dist/cli/index.js --version` responde `2.2.1`. Locks restaurados, árboles
   detached/limpios, `.quality-tools` sigue en `IGNORADAS`.
-- **Bloqueado F2–F4 — causa real corregida (2026-08-30)** — La migración a `sourcePathEnv` es
-  viable y ya probada: migré gloryapi (piloto) a `sourcePathEnv: GLORY_SENTINEL_SOURCE_PATH`
-  apuntando al checkout compartido y, **con la env definida**, `doctor` + `task:check
-  GLORY-BASELINE` pasan (PASS, 0 errores); el runtime global 0.7.4 y el 0.7.5 soportan
-  `sourcePathEnv` (regex `^GLORY_[A-Z0-9_]+$` → `process.env`). **Pero sin la env el doctor
-  queda BLOQUEADO (7 problemas)**: el server del workspace-manager hoy NO deriva las `GLORY_*`
-  (solo lee `WS_AREA_ROOT`/`WS_PORT`). Por tanto F2–F4 requieren como **paso previo** que
-  `src/server` derive `GLORY_SENTINEL_SOURCE_PATH`/`GLORY_VARSENSE_SOURCE_PATH` desde
-  `RAÍZ_AREA/.quality-tools/{sentinel,varsense}` al invocar sentinel/varsense de cada
-  consumidor. El piloto gloryapi se revirtió al `sourcePath` previo (sin romper su gate;
-  árbol limpio) hasta implementar esa derivación.
-- **Pendiente F5/F7** — `quality:sync` (script de bloque que valida el commit común) y la
-  verificación final en el panel quedan para la pasada siguiente, una vez derivadas las env en
-  el server. NOTA: `sentinel.lock.json` (gloryapi) usa `sourcePath` previo a `sourcePathEnv`;
-  revisar al implementar F5.
+- **F5 ✅ (2026-08-30)** — `scripts/quality-sync.mjs` + registro npm `sync:quality` (commit `64c4ee5`):
+  validación en-repo fail-closed que compara `sentinel.commit`/`varsense.commit` de cada
+  `quality-tools.json` contra el HEAD del checkout compartido, verifica que la ruta de la tool
+  apunte al compartido y que el checkout esté limpio; exit 1 claro ante cualquier desviación y
+  con `--json` para CI. Corrida real: exit 1 `problemas: 2` (WANDORIUS y RESTAURANTE desync
+  0.7.4 `0349485` vs compartido 0.7.5 `643353d` — el paso pendiente de F2); gloryapi/PT ya
+  alineados; Glory-Laminal/ONG AGAPE aún sin `quality-tools` (pendiente F4).
+- **Derivación de env en el server (2026-08-30)** — `src/server/gate/analizador.ts` (commit
+  `2ae5f10`): `entornoGate()` deriva `GLORY_SENTINEL_SOURCE_PATH` y `GLORY_VARSENSE_SOURCE_PATH`
+  desde `RAÍZ_AREA/.quality-tools/{sentinel,varsense}` en el punto exacto donde el server lanza
+  sentinel por proyecto (`correrSentinel`), sin pisar overrides del usuario (solo si la env no
+  viene definida) y sin filtrarse a otras herramientas. Cubre las invocaciones `analyze` del
+  manager; no la env global que usaría el `gate:check`/`doctor` **manual** del desarrollador.
+- **F2–F4 BLOQUEADO — decisión de entorno del host (2026-08-30)** — La causa **ya no** es
+  técnica: Sentinel (0.7.5) y VarSense (2.2.1) están verificados, reproducibles y provisionados
+  en el compartido; el piloto gloryapi a `sourcePathEnv` está **probado y es reutilizable** (con
+  `GLORY_SENTINEL_SOURCE_PATH` definida: `doctor` PASS + `task:check GLORY-BASELINE` PASS 0
+  errores; runtime global 0.7.4 y compartido 0.7.5 soportan `sourcePathEnv`). El bloqueo es que,
+  sin la env global definida a nivel de máquina, migrar un consumidor a `sourcePathEnv` rompería
+  su gate cuando el desarrollador lo corre a mano. Se precisa una **decisión del usuario** del
+  mecanismo de la env global:
+   - **Opción A:** variables de sistema del host `GLORY_SENTINEL_SOURCE_PATH` /
+     `GLORY_VARSENSE_SOURCE_PATH` apuntando al checkout compartido (los consumidores migrados
+     funcionan igual a mano y vía manager).
+   - **Opción B:** los consumidores corren su gate **siempre vía el manager** (que ya deriva las
+     env), documentando que el gate manual del desarrollador requiere pasar por la consola.
+  Hasta elegir, los consumidores quedan en su mecanismo actual y el piloto está revertido
+  (gloryapi en `sourcePath`, árbol limpio, doctor PASS).
+- **Pendiente F7** — verificación final en el panel (los 6 consumidores sobre el compartido +
+  `glory-sentinel` exento) tras resolver F2–F4. NOTA: `sentinel.lock.json` (gloryapi) usa
+  `sourcePath` previo a `sourcePathEnv`; revisar al migrar.
