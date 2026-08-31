@@ -817,6 +817,48 @@ familias distintas, y solo una es "arreglar ahora". Conclusiones con evidencia:
   (I-11/roadmap). Nota: los scripts temp del frente medían el archivo viejo
   (`gl_vs.json`) en vez del argumento — corregido el script antes de cerrar.
 
+### I-12 — CIERRE del ciclo: agregado vivo re-verificado (TOTAL consola 1830→1797, 2026-08-31)
+
+Re-consultado `curl http://127.0.0.1:8787/api/gate/analisis?analizar=todo` con
+el servidor 8787 arriba y reproducido el cálculo de `PanelConsola` (suma de
+`hallazgos` por proyecto con cap 500 — la respuesta actual no incluye
+`problemas`/`vulnerabilidades`); para Glory-Laminal la cache estaba stale
+(analizadoEn 19:14, previo a mi frente) → **re-análisis forzado puntual** vía
+`POST /api/gate/analizar` `{clave, forzar:true}` (el resto de proyectos ya
+estaba fresco y reflejaba los frentes commiteados).
+
+**TOTAL consola: 1974 → 1797 (−177)**; desde el 2571 inicial: **−774**.
+
+```text
+  500 PROYECTO TASKS          cap (runtime real 1718w/1i/5h preexistente, deuda de alineación de runtime documentada)
+  324 ONG AGAPE               0e/317w/1i/6h (2 errores → 0 por §I-1, reflejado)
+  250 RESTAURANTE             286→250 (varsense 172→140 §I-7/§I-8 reflejado)
+  215 workspace-manager       18e/189w/4i/4h = 60 sentinel + 155 varsense (sin cambios en este frente)
+  173 WANDORIUS               186→173 (§I-9, fresco)
+  166 coolify-manager-rs      195→166 (sentinel 96→67 del GUI §I-6 + 99 varsense)
+   91 Glory-Laminal           124→91 (§I-11 — re-análisis forzado 21:13, coincide 1:1 con la verificación manual)
+   77 gloryapi                131→77 (§I-10, fresco)
+    1 GLORYPORT               (monolito popup.rs, excepción E/F)
+    0 freebuff-bridge / GLORYINSPECTOR
+TOTAL 1797
+```
+
+- **Errores visibles en el agregado: 21, todos documentados** — 18 de
+  workspace-manager (16 `paneles.css` ajeno + 2 runtime con fallback) + 1 de
+  coolify-manager-rs (monolito `deploy_service.rs`) + 2 de gloryapi (runtime
+  dnd-kit `--sortable-*`, G-DEUDA). ONG AGAPE quedó en **0 errores** (§I-1
+  `--colorRojoOscuro`, reflejado en el agregado: 2e→0e). No quedó ningún
+  error no documentado.
+- Cruce 1:1 con las verificaciones locales por proyecto: Glory-Laminal 91,
+  gloryapi 77, WANDORIUS 173 con los mismos `error/warning/information/hint`
+  que los análisis manuales post-frente; coolify 166 = 67+99 exacto; los
+  conteos viven en la cache autoritativa `/api/gate/analisis`.
+- Nota de medición: la diferencia entre RESTAURANTE 250 cache vs 254 esperado
+  (140 varsense + 114 sentinel) es la variación de runtime del manager ya
+  documentada en §H-2 (mismo runtime global, bins fijados por proyecto).
+- Sin commit en este cierre: no hubo hallazgo inesperado (todo lo anterior
+  ya estaba commiteado en los frentes §I-6..§I-11); solo se documenta.
+
 ### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
 - Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
   gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`,
