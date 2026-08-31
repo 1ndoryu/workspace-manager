@@ -13,7 +13,11 @@
     "diagnostico": "tsx scripts/diagnostico-escaner.ts",
     "sync:gate": "tsx scripts/sync-gate-schema.mjs",
     "sync:quality": "tsx scripts/quality-sync.mjs",
-    "check": "npm run type-check"
+    "check": "npm run type-check",
+    "quality:doctor": "sentinel doctor --json",
+    "quality:setup": "node scripts/quality/quality-setup.mjs",
+    "quality:lock": "node scripts/quality/lock-generator.mjs",
+    "quality:lock:check": "node scripts/quality/lock-generator.mjs"
   },
   "dependencies": {
     "axios": "^1.7.0",

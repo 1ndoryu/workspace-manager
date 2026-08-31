@@ -6,3 +6,4 @@ data/*
 *.log
 *.tsbuildinfo
 .DS_Store
+.sentinel/
