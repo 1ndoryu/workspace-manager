@@ -678,6 +678,30 @@ familias distintas, y solo una es "arreglar ahora". Conclusiones con evidencia:
   preexistentes, cero de `src/`), `cargo check --tests` exit 0, `sentinel
   analyze` sin hallazgos en los archivos tocados (sin regresión).
 
+### I-8 — RESTAURANTE `valorHardcoded` (15 restantes): NO son colores de marca — excepción (2026-08-31)
+- Verificado el desglose exacto de los 15 `valorHardcoded` restantes de la
+  app: **0 colores**. Son 8 `font-size` + 7 `border-radius`, todos one-off
+  del lienzo del plano en `PlanoSala.css`/`PlanoOcupacion.css` (mesas,
+  handles de resize, minimapa, indicadores off-screen).
+- Todos los colores del plano ya consumen tokens (`var(--border/--card/
+  --primary/--destructive/--muted-foreground/…)`); los únicos literales
+  son `oklch(0.7 0.2 142)` (verde estado "ocupada", L66-67) y el detector
+  no los marca; junto a él `no_show` ya usa `var(--destructive)` —
+  asimetría candidata a token de estado, NO forzada (asignación semántica
+  de color = decisión de diseño del propietario).
+- No hay escala que honrar sin cambiar el diseño: `index.css` tiene **0
+  tokens de `font-size`**, y la escala de radio shadcn es rem
+  (`--radius-sm`=0.27rem≈4.3px, base `--radius`=0.45rem≈7.2px) — no
+  coincide con los px del canvas (2/3/4/6/999px). Mapear a la escala
+  shadcn alteraría el visual; crear `--plano-*` px paralelos sería una
+  abstracción sin segundo consumidor real (prohibida por el plan).
+- **Decisión: excepción fundamentada, sin código tocado.** El frente
+  "colores de marca hardcodeados" de RESTAURANTE no tiene objetivo entre
+  los findings (`valorHardcoded` ya en 15 = floor honesto, sin regresión:
+  0 errores varsense, `tsc` sin hallazgos en `src/`, sentinel sin nada en
+  los archivos tocados, todo verificado en I-7). Siguiente frente
+  enmarcado: WANDORIUS / agregado (decisión del usuario).
+
 ### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
 - Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
   gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`,
