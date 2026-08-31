@@ -859,6 +859,56 @@ TOTAL 1797
 - Sin commit en este cierre: no hubo hallazgo inesperado (todo lo anterior
   ya estaba commiteado en los frentes §I-6..§I-11); solo se documenta.
 
+### I-13 — agile varsense del GUI de coolify-manager-rs (99 → 36, 0 errores, hecho 2026-08-31)
+
+Front de varsense del GUI (`gui/src/estilos/`), peticion del usuario
+(«resuelve los problemas de bajo riesgo que quedan (1815)»). Baseline fresco
+verificado con el CLI del checkout compartido (`node
+.quality-tools/varsense/dist/cli/index.js all --workspace . --format json`):
+**99 = 92w/1i/6h** (la cache del agregado estaba stale y apuntaba a líneas
+viejas → baseline manual fiable antes de editar). El config `variableFiles`
+(ya corregido en 308A-6) estaba bien.
+
+**Qué se corrigió (todo verificado antes de editar):**
+
+- **21 clases sin uso borradas** de `componentes.css`/`layout.css`
+  (`gridTarjetas`, `panelAcciones`, `filaFormulario` + fila del media query
+  L666-677, `campoTextoMono`, `tablaSeccionTitulo`, `bloqueDetalles`,
+  `listaRecomendaciones`×2, `etiquetaMetrica`/`valorMetrica`, `estadoRuntime`
+  ×4, `badgeInfo`, `botonDeshabilitado`, `botonIconoPendiente`,
+  `accionesFila`, `cabeceraPagina`, `subtituloPagina`) — cada una con 0
+  referencias en `.tsx` (grep word-boundary + construcción dinámica).
+  **Conservadas** como falsos positivos §I-2: `vpsStatusBar1-4` (se usan por
+  `` `vpsStatusBar${index+1}` `` en VistaPortalVisual) y 12 más con uso real
+  (`estadoRuntimeJson` etc. — 37→16).
+- **49 `valorHardcoded` → tokens** en `portal.css`/`global.css`/`variables.css`:
+  paleta VPS (`.vpsPortal`) movida a `html:has(.vpsPortal)` para resolver el
+  fondo del documento por token + tokens nuevos con consumidor real
+  (`--vpsFuenteBase` 12px×4, `--vpsFuenteMediana` 16px×2, `--vpsFuenteTitulo`
+  44px×2, `--vpsColorFondo78`/`--vpsColorFondo42`); fuentes/radios a tokens
+  del design system (`--radioPill`, `--radioCheck`, `--altoTopbar`,
+  `--fuenteXl`/`--fuenteMd`/`--fuenteXs`); retirado `--vpsColorBlanco/Negro`
+  y `--fuenteLg` (sin consumidor, probado con grep). Quedan **11 one-off** de
+  1 uso sin par de token (excepción: no crear abstracción sin segundo
+  consumidor).
+- **`token-unused` 6 → 0**; `claseHuerfana` 37 → 16 (solo FPs §I-2);
+  `token-duplicate` 6 → 8 por límite del detector (compara valores literales,
+  no resuelve `var()`: `--vpsFuenteBase`/`--espacioMd` y
+  `--vpsFuenteMediana`/`--espacioLg` son escalas distintas del grid 4px —
+  excepción consistente con `--radioSm`/`--espacioXs` ya documentado).
+
+**Verificación:** `cargo check --tests` exit 0 + `tsc --noEmit` del gui exit 0
+(CSS-only) + varsense fresco **36 = 0e/25w/1i/10h** (−63: 21 clases + 49
+valores + 0) sin regresión + `sentinel analyze` **67 (1e/43w/23h) = baseline
+§I-6 exacto**, sin hallazgos nuevos (el error es el monolito `deploy_service.rs`
+documentado). Commit `308A-6COOL` = `1b48d68`. coolify total: sentinel 67 +
+varsense 36 = **103** (desde 166, −63).
+
+Pendiente del agregado ya documentado en §I-12 excepto las 8 vulnerabilidades
+dev (gloryapi esbuild/drizzle-kit, RESTAURANTE concurrently/shell-quote
+critical) — candidato a frente aparte con `npm audit fix` si los builds quedan
+verdes.
+
 ### I-5 — commits autorizados por el usuario (solo soy el agente salvo PT)
 - Commiteados: workspace-manager `5863474`, coolify-manager-rs `d4f9f15`,
   gloryapi `e7157ce`, freebuff-bridge `42cf5b0`, ONG AGAPE `6f4cbb6`,
