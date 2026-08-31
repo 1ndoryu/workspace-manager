@@ -217,7 +217,9 @@ Nuevo campo en `ConfigWorkspace` (v3): `sinGate: string[]` (claves de proyecto e
 
 1. ~~**Versión común de Sentinel**~~ — **RESUELTO (2026-08-30): subir todos a `643353d` (v0.7.5)**.
 2. **Dónde vive la env var** para el CLI de los consumidores (por máquina): definir en el
-   entorno de usuario o derivarla el server del workspace-manager.
+   entorno de usuario o derivarla el server del workspace-manager. **RESUELTO (2026-08-30):**
+   el server la deriva por proyecto (`entornoGate()` en `analizador.ts`) y WANDORIUS la usa vía
+   `sourcePathEnv` (F2 ✅).
 3. **`quality:sync`**: como script npm de workspace-manager (recomendado) o script suelto del área.
 4. **`.quality-tools` local** de WANDORIUS/RESTAURANTE/PROYECTO TASKS: retirar (única fuente =
    compartido, recomendado) o dejar como caché por proyecto.
@@ -289,17 +291,22 @@ Nuevo campo en `ConfigWorkspace` (v3): `sinGate: string[]` (claves de proyecto e
     contra el build compartido. Commit `2f53e39a`.
   - `quality:sync` tras F3+RESTAURANTE: **`problemas: 1`** (solo WANDORIUS desync); gloryapi/PT/RESTAURANTE
     `alineado`.
-- **F2 WANDORIUS ⏸ BLOQUEADO con evidencia (2026-08-30)** — Su frame bespoke **no usa
-  `provisionPath`** (a diferencia de RESTAURANTE), lleva su propio lifecycle de install/lock
-  (`.quality-tools/install-state.json` reliquia 0.4.0), y al repuntar `sourcePath` al compartido
-  el `doctor` exige **`npm run quality:setup`** (recompila/regenera lock en el commit nuevo) y
-  reporta 5 issues (`tool-release-evidence-missing`, `checkout-mismatch`, `lock-mismatch`,
-  `lock-version-mismatch`, `installed-mismatch`). Migrarlo por la fuerza arrastraría un rebuild
-  completo + regeneración amplia de locks — riesgo que la disciplina del hilo no permite forzar.
-  Se **revirtió al estado verificado 0.7.4** (`tools/sentinel`, árbol limpio, doctor green,
-  `readyForGate:true`, issues 0). Queda documentado como pendiente que requiere o bien un
-  `quality:setup` dirigido a su vida (decisión explícita) o armonizar su frame bespoke con el
-  patrón `provisionPath` (cambio de más alcance).
+- **F2 WANDORIUS ✅ HECHO (2026-08-31, commit `60879ac3`, publicado)** — Resuelto con el
+  mecanismo que el frame bespoke sí soporta: **`sourcePathEnv`** (`GLORY_SENTINEL_SOURCE_PATH` /
+  `GLORY_VARSENSE_SOURCE_PATH`), que el server del workspace-manager ya deriva al checkout
+  compartido (`entornoGate()` en `analizador.ts`, commit `2ae5f10`) sin pisar overrides.
+  El bloqueo real documentado (2026-08-30) era: el chequeo de integridad de gitlink en
+  `lockfile.mjs` de WANDORIUS rechaza un `sourcePath` relativo `../` (devuelve null → throw),
+  por lo que `quality:setup`/`quality:lock` no aplican contra el compartido **ni en WANDORIUS
+  ni en RESTAURANTE** (el setup del frame hermano también falla así; no es la vía de alineación).
+  La vía canónica es `sourcePathEnv` (modo externo para el que el frame fue construido).
+  Cambio: `quality-tools.json` de WANDORIUS pasó de submódulos locales `tools/{sentinel,varsense}`
+  (0.7.4 `0349485`) a `sourcePathEnv` compartido (sentinel `643353d` v0.7.5, varsense `88f281f`
+  v2.2.1). Verificado: `quality-sync` → **`problemas: 0`** (los 6 consumidores alineados, exit 0)
+  y el endpoint F7 confirma **WANDORIUS `ok`**. Backup previo verificado por hash en
+  `data/inventarios/`; los gitlinks `tools/` locales se conservan intactos (no se retiraron: el
+  frame no los usa cuando hay `sourcePathEnv`). Con esto **308A-1 queda COMPLETO: F0/F1/F3/
+  F4-bootstrap/F5/F6/F7 ✅ y F2 ✅**.
 - **F4 Glory-Laminal / ONG AGAPE ✅ REGISTRO (2026-08-30)**: creados `quality-tools.json`
   (sentinel `../.quality-tools/sentinel` @`643353d7e968…` v0.7.5 + varsense `../.quality-tools/varsense`
   @`88f281f…` v2.2.1, full hash) y `varsense.config.json` (stack token) sobre el compartido,
@@ -327,7 +334,9 @@ Nuevo campo en `ConfigWorkspace` (v3): `sinGate: string[]` (claves de proyecto e
   herramienta). Verificado en vivo: Glory-Laminal/gloryapi/PROYECTO TASKS/RESTAURANTE/ONG AGAPE `ok`
   al checkout compartido (`sentinel@643353d`, `varsense@88f281f`), WANDORIUS `desync`
   (`0349485…`≠`643353d…`); `problemas: 1` = el único pendiente (F2-WANDORIUS).
-- **Estado final de 308A-1:** **F0/F1/F3/F4 (registro + bootstrap)/F5/F6/F7 HECHOS y publicados**;
-  único pendiente **F2-WANDORIUS ⏸ BLOQUEADO por decisión (diferido)**: frame bespoke sin
-  `provisionPath` — requiere un `quality:setup` dirigido o armonizar su frame (más alcance).
-  El bootstrap de GL/ONG y la verificación de panel ya no son pendientes.
+- **Estado final de 308A-1 (2026-08-31):** **F0/F1/F3/F4 (registro + bootstrap)/F5/F6/F7
+  HECHOS y publicados** y **F2-WANDORIUS ✅ HECHO** (`60879ac3`, vía `sourcePathEnv` compartido —
+  ver arriba). **308A-1 COMPLETO:** los 6 consumidores (Glory-Laminal, gloryapi, PROYECTO TASKS,
+  WANDORIUS, RESTAURANTE, ONG AGAPE) alineados al checkout compartido con `quality:sync` en
+  `problemas: 0`; `glory-sentinel` exento vía `sinGate` (F6). Único matiz documental: la primaria
+  declarada de WANDORIUS es `wandorius` (AGENTS.md §9.5) pero la rama activa real es `main`.

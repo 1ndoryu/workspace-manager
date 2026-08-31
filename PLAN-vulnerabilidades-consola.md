@@ -135,8 +135,11 @@ añade un detector homólogo para vulnerabilidades, **sin duplicar** el patrón.
 
 ## 6. Pendientes / decisiones abiertas
 
-1. **instalar `cargo-audit`** (cubrir Rust) — requiere decisión (instalación global de
-   herramienta). Hasta entonces los Rust quedan no-auditables documentados.
+1. **instalar `cargo-audit`** (cubrir Rust) — **RESUELTO (2026-08-31):** `cargo-audit` instalado
+   global vía `cargo install cargo-audit` (build con `CARGO_TARGET_DIR` en `C:/tmp`, limpiado
+   después; `cargo audit --version` OK, nada del entorno roto). El detector ya invocaba
+   `cargo audit --json` automáticamente, así que los repos Rust dejaron de ser no-auditables
+   sin cambio de código (ver V3 HECHO en §7).
 2. **Origen del conteo**: usar el CLI de audit del gestor (recomendado, es la misma
    base que Dependabot pero local y por proyecto) vs replicar GHSA. Se adoptará el CLI.
 3. **Lockfile en subcarpeta (frontend/)**: detectar el lockfile real por proyecto
@@ -166,13 +169,13 @@ añade un detector homólogo para vulnerabilidades, **sin duplicar** el patrón.
   code y decide por JSON parseable.
   **Pendiente de V1:** Rust (cargo) queda `noAuditable` hasta instalar `cargo-audit`
   (decision abierta). V2 (auto-timer periodo) y V3 (Rust+no-auditables+R) pendientes.
-- **V2 HECHO (2026-08-30, commit workspace-manager):** el timer de
-  auto-auditoria en el cliente. El single `temporizadorAuto` de `useWorkspace.ts`
-  (que ya respeta `scan.automatico`/`scan.intervaloMin`, cero recursos con la app
-  cerrada y se rearma al cargar/cambiar config) ahora dispara **ambos** barridos en
-  cada intervalo: `escanearTodo` (sentinel/git) y `auditarTodo` (vulnerabilidades),
-  cada uno con su single-flight propio (`analizando`/`auditando`) para no duplicar
-  corridas solapadas, y con `.catch(() => {})` para nunca propagar rejections. El
-  server de `auditarTodo` reusa la cache por hash-del-lockfile, asi que si ningun
-  lockfile cambio la pasada es barata y no lanza spawns. Sin config nueva (reusa
-  `scan.automatico`); no triggea si la sesion carga sin automatico.
+- **V3 HECHO (2026-08-31, sin cambio de código)** — `cargo-audit` instalado global (vía
+  `cargo install cargo-audit`, build en `C:/tmp` respetando la política del área, limpiado
+  después; `cargo audit --version` OK y sin efectos colaterales en el entorno). El detector
+  `vulnerabilidades.ts` ya invocaba `cargo audit --json` automáticamente y decidía `ok`/
+  `conHallazgos` cuando el parseo funcionaba; la única razón por la que los Rust quedaban
+  `noAuditable` era la ausencia del binario, así que **no hizo falta tocar código**. Cobertura:
+  GLORYPORT, WANDORIUS, PROYECTO TASKS, coolify-manager-rs (y cualquier repo con `Cargo.lock`).
+  Conteo real de validación: **GLORYPORT cargo audit = 0 hallazgos** (1226 advisory database,
+  24 deps, exit 0). Quedan pendientes: la fase R (revisión SOLID/eficiencia del frente completo)
+  y los conteos cargo audit del resto de repos Rust para el cuadro completo.
