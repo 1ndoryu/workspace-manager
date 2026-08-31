@@ -83,6 +83,25 @@ function persistir(): void {
   }
 }
 
+/* [por que] 308A-1 centraliza el runtime: los consumidores declaran
+ * `sourcePathEnv: GLORY_SENTINEL_SOURCE_PATH`/`GLORY_VARSENSE_SOURCE_PATH` y
+ * resuelven el binario/schema desde el path que esas env senalan. Este server
+ * las deriva desde la raiz del area (RAIZ_AREA/.quality-tools/{sentinel,
+ * varsense}) justo ANTES de lanzar sentinel por proyecto, para que cada
+ * invocacion apunte al checkout compartido. Nunca pisa una env que el usuario
+ * ya haya definido: el override manual gana. */
+function entornoGate(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  const derivar = (nombre: string, sub: string): void => {
+    if (process.env[nombre] === undefined) {
+      env[nombre] = join(RAÍZ_AREA, '.quality-tools', sub);
+    }
+  };
+  derivar('GLORY_SENTINEL_SOURCE_PATH', 'sentinel');
+  derivar('GLORY_VARSENSE_SOURCE_PATH', 'varsense');
+  return env;
+}
+
 /* Solo los proyectos cuyo gate real es sentinel (carpetas/cargo no aplican). */
 export function esElegible(p: Proyecto): boolean {
   return p.gate?.puerta === 'sentinel';
@@ -190,7 +209,12 @@ async function correrSentinel(ruta: string): Promise<ResultadoSpawn | null> {
     const { stdout } = await execFileAsync(
       process.execPath,
       [cli, 'analyze', '--workspace', ruta, '--format', 'json'],
-      { encoding: 'utf8', windowsHide: true, timeout: 60000 },
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 60000,
+        env: { ...process.env, ...entornoGate() },
+      },
     );
     const dato = JSON.parse(stdout) as ReporteJson;
     if (!dato || typeof dato !== 'object') return null;
