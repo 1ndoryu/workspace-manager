@@ -1475,6 +1475,59 @@ luego lock; el generador lee el gitlink de HEAD, requiere commit previo al
 CLI viejo no tenía el fix; shared dist ya al día). gloryapi no pinnea
 varsense (gate legacy). Sin push en ningún repo.
 
+### J-11V4 — HECHO 2026-09-01 (bloque 318A-7V4) — consistencia CLI↔provider de `sentinel-disable` + `cssInlineReact` de PT
+
+**Pedido:** siguiente bloque accionable tras V3 — las ~112 `cssInlineReact` de
+PROYECTO TASKS, con la disciplina de bloque V2/V3 (baseline con dist fijado,
+clasificación real-excepción-FP, verificación doble herramienta, commit local
+sin push, docs al cierre).
+
+**Clasificación (baseline PT 821 = 0e, `cssInlineReact` 112 en 61 archivos,)
+con líneas exactas (range.start.line):**
+- **77 de 112 ya llevan `sentinel-disable inline-style-prohibido`** en el
+  código (excepción declarada con justificación: estilos dinámicos runtime
+  `estiloGrid`/`estiloArea`/posiciones/progreso `%`/colores de datos). El
+  provider de VS Code las honraba pero el **core del CLI las ignoraba** →
+  inconsistencia de conteo (consola vs CLI) del mismo tipo que la V2, pero en
+  el core. **Fix en el analizador (`beb05ba`, tag `v2.2.1-j8d`):** el core
+  (`analyzeDocument.ts`) ahora filtra hallazgos sobre líneas con
+  `sentinel-disable`/`varsense-disable` + rule-id o genérico, replicando la
+  semántica del provider; tests 71/71 + lint + check:core.
+- **6 de 112: `iconStyle` en `PageLayout.tsx`** (glory-core, git-tracked, en
+  alcance): `{width: 18, height: 18}` estático aplicado a 6 svgs vía
+  `style={iconStyle}` → migrado a `className="w-[18px] h-[18px]"` (arbitrarios
+  Tailwind ya usados en el archivo, visualmente idéntico).
+- **29 restantes sin marker = dinámicos runtime legítimos** (`estiloGrid`,
+  `estiloArea`, posiciones, progresos `%`) — excepción documentada, sin
+  forzar.
+
+**Resultado (PT, dist fijado, estado commiteado):** `cssInlineReact` **112→29**
+(−83), total **821→742**, 0 errores nuevos; **0 FN auditado** (las 77
+suprimidas están sobre o inmediatamente tras su comentario disable; las 6
+migradas son las líneas svg de `iconStyle`). `claseHuerfana` estable en **429**
+(sin nuevas huérfanas). Verificación completa: `npm run type-check` exit 0,
+`vite build` verde (solo warning preexistente de chunk), `sentinel analyze`
+(dist fijado 0.7.7/0559576) **96 = 0e/88w/8h = baseline V3 exacto** sin
+hallazgos nuevos (los 3 FPs documentados de menu-contextual intactos),
+varsense **742 = 1e/741w** (el único error = `variableNoDefinida` de
+`panelIA.css`, regla del WIP activo del usuario, no del bloque).
+
+**Release (convención J-8/V3):** pins `50913d2`→`beb05ba` + locks regenerados
+en 10 consumidores: RESTAURANTE `809679c`, coolify `eadfe99`, ONG AGAPE
+`6e7abd1`, Glory-Laminal `a3cd26c`, GLORYPORT `5ed29d6`, GLORYINSPECTOR
+`fbbbcc0`, freebuff-bridge `ccfe004`, workspace-manager `31aa0f2`, PROYECTO
+TASKS `91e3ee0` (qt.json+lock+PageLayout.tsx; WIP del usuario intacto:
+`data/`, `test_prueba.md`, diffs de panelAgente.css/variables.css sin tocar),
+WANDORIUS `dd53a5d8`+`57b220b3` (gitlink+qt.json → lock con generador propio
+vía `GLORY_SENTINEL_SOURCE_PATH`/`GLORY_VARSENSE_SOURCE_PATH` a los submódulos
+internos; dist de tools/varsense reconstruido con el fix). gloryapi sin pin
+(gate legacy). Sin push en ningún repo.
+
+**Runtime vivo verificado:** `POST /api/gate/analizar {clave:"PROYECTO
+TASKS", forzar:true}` en 8787 → varsense del server con `cssInlineReact` **29**
+y `claseHuerfana` **429** — composición idéntica a la corrida local con el dist
+fijado: el runtime del server ejecuta el fix V4 (no solo el CLI local).
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
