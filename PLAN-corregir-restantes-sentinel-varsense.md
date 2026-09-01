@@ -1161,7 +1161,7 @@ a 500; su runtime real ~1718). Desglose por regla (todo el agregado):
   coolify §H-1 (la raíz canónica no se reorganiza sin romper tooling) —
   documentada, no forzada.
 
-### J-9 — (HECHO 2026-08-31) runtime del server 8787 + cache stale: GLORYPORT fantasma resuelto
+### J-9 — (HECHO 2026-08-31, sweep verificado 2026-09-01) runtime del server 8787 + cache stale: GLORYPORT fantasma resuelto
 - **Síntoma:** el agregado vivo mostraba GLORYPORT=2 (`directorio-abarrotado`
   + `limite-lineas`) mientras el CLI (0.7.4 Y 0.7.5) da exactamente 1
   (`limite-lineas`, popup.rs documentado). Hipótesis inicial "desalineación
@@ -1192,6 +1192,18 @@ a 500; su runtime real ~1718). Desglose por regla (todo el agregado):
   DESPUÉS sospechar de versiones. La cache persistida sobrevive al restart
   del server (intencional, para rehidratar la consola), así que "el server
   acaba de arrancar" NO implica cache fresca.
+- **Sweep completo verificado (cierre J-9):** `POST /api/gate/analizar-todo
+  {forzar:true}` ejecutado (200 OK, 376 KB). La cache persistida
+  (`data/cache/analisis.json`, fuera del árbol del repo) quedó reescrita:
+  **GLORYPORT = 1w (`limite-lineas`, popup.rs)** con clave de frescura
+  apuntando al HEAD actual `d2160c0` — la entrada stale desapareció.
+  Desglose completo (suma sin cap): PT 1605 (WIP del usuario, +2 vs §J-8,
+  esperado), ONG AGAPE 305, RESTAURANTE 247, WANDORIUS 157,
+  workspace-manager 152, coolify 99 (1e = monolito documentado), gloryapi
+  76, Glory-Laminal 42, GLORYPORT 1, freebuff-bridge/GLORYINSPECTOR 0.
+  **Todos los proyectos coinciden 1:1 con los baselines §J-8** (PT excluido:
+  su WIP evoluciona). Excluyendo PT: **1079 = exactamente el total §J-8**.
+  Errores totales del agregado: 1 (deploy_service.rs, documentado).
 
 ## Gotchas / riesgos
 
