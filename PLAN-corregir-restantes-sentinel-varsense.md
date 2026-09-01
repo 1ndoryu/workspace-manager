@@ -1211,10 +1211,26 @@ exit 0 + `sentinel analyze` (CLI 0.7.5) 29 hallazgos + varsense CLI 2.2.1
   Sin cambios esperados adicionales; hallazgos restantes = excepciones
   documentadas 1:1.
 
-### J-7 — cierre y agregado vivo
+### J-7 — cierre y agregado vivo — HECHO 2026-09-01 (bloque 308A-6 cerrado)
 - Re-consultar `/api/gate/analisis` tras cada frente, forzar re-análisis de
   los proyectos tocados, cruzar contra las verificaciones locales y documentar
   el total final en el roadmap.
+- **CIERRE FINAL verificado (2026-09-01):** GET `/api/gate/analisis?analizar=todo`
+  tras sweep forzado de las entradas stale (RESTAURANTE 182/40e pre-`:root` y
+  coolify 99 pre-J-5 → `POST /api/gate/analizar {clave, forzar:true}`).
+  **TOTAL visible: 1473** (suma de hallazgos fusionados, cap 500/proyecto; la
+  respuesta actual no expone problemas/vuln). Desglose 1:1 con los baselines
+  post-J verificados por CLI: PT 500 (cap; WIP del usuario, excluido),
+  ONG AGAPE 241, RESTAURANTE 231, WANDORIUS 157, workspace-manager 127,
+  coolify-manager-rs 98 (1e monolito documentado §H-1), gloryapi 76,
+  Glory-Laminal 42, GLORYPORT 1, freebuff-bridge 0, GLORYINSPECTOR 0.
+  Excluyendo PT: **973** (desde 1079 de §J-8/§J-9 y 1580 del cierre J-8;
+  desde el 2571 inicial: **−1598**; desde el 1815 que vio el usuario: −842).
+  Errores totales del agregado: **1** (deploy_service.rs, documentado).
+  sinCommit 0. No queda frente J accionable: J-2, J-3, J-4, J-5, J-6, J-8,
+  J-9 HECHO; J-7 era este mismo cierre (no existe J-10). **Bloque 308A-6
+  cerrado** — nada abierto fuera de las excepciones documentadas en esta
+  tabla y en §I-13.
 
 ### J-8 — (HECHO 2026-08-31) corregir el FP `claseHuerfana` en el analizador
 - **Autorizado por el usuario** (decisiones J-1). Commit en el checkout
