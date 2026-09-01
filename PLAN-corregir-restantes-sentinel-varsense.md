@@ -1381,6 +1381,59 @@ exit 0 + `sentinel analyze` (CLI 0.7.5) 29 hallazgos + varsense CLI 2.2.1
   308A-7 (alcance/meta/objetivo numérico) es decisión del usuario sobre esta
   lista.
 
+### J-11 — HECHO 2026-09-01 (bloque 308A-7V2) — conteo desalineado (consola vs CLI) + FPs de `claseHuerfana`
+
+**Causa raíz del conteo distinto (2 defectos reales, ambos corregidos):**
+
+1. **Cap 500 en el server:** `normalizar()` truncaba `hallazgos.slice(0, 500)`
+   y el agregado derivaba los conteos por regla de esa lista truncada → PT
+   mostraba 298 `claseHuerfana` en la consola vs **1083** reales del CLI.
+   Fix: hallazgos COMPLETOS en `normalizar()` y en la fusión sentinel+varsense
+   (`src/server/gate/analizador.ts` + `src/shared/types.ts`). El render del
+   cliente sigue acotado; la fuente de verdad es el reporte completo.
+2. **Frescura sin el artefacto runtime:** `frescoDe` solo incluía versiones
+   (0.7.4/0.7.5) y hash de config; un rebuild del dist (mismo version) dejaba
+   cache «fresca» con resultados viejos. Fix: `hashArtefacto()` (size+mtime del
+   `out/cli` de sentinel y del `dist/cli` de varsense) en la clave de frescura
+   → cualquier rebuild invalida la cache persistida del server 8787.
+
+**Verificación de paridad (agregado vivo vs CLI directo):** tras el fix, el
+`analizar=todo` del server sirve conteos por proyecto/regla idénticos al CLI
+fijado: PT `claseHuerfana` = 1083 (antes 298 cap), total area-wide 2509 →
+**2203** tras el fix del analizador. Resto de proyectos sin regresión.
+
+**Fix de FPs de `claseHuerfana` en el analizador (`8ce45b6`, tag `v2.2.1-j8b`):**
+- El scanner solo miraba `className`/`class`; no veía props transportadoras de
+  clase del design system local (`claseExtra`, `claseAdicional`, `*clase`…)
+  ni templates de declaración >240 chars. Fix en
+  `.quality-tools/varsense/src/core/classIndexBuilder.ts`:
+  (1) `prop-clase` — toda prop que termine en `clase`/`className` alimenta el
+  índice de clases usadas; (2) captura de declaraciones ampliada (MAX_TOKENS
+  10000→50000) para templates largos con ternarios/array-join.
+- Tests nuevos en `coreContracts.test.ts` (prop-*clase, templates largos,
+  ternario vía prop) — suite **64/64 OK** + lint clean.
+- **0 falsos negativos verificado:** de 319 clases que dejaron de reportarse
+  en PT, las 319 tienen uso repo-wide real (chequeo con word-boundary); los
+  777 restantes incluyen las 645 muertas reales + coincidencias de strings
+  (keys de datos/comentarios) que siguen marcadas por diseño.
+- Consumidores sin regresión: todos con 0 errores y conteos iguales a las
+  líneas base por proyecto (solo PT baja: `claseHuerfana` 1083→777).
+
+**Release (convención J-8):** commit `8ce45b6` en rama local
+`fix/318A-7V2-falsos-positivos` + tag `v2.2.1-j8b`; dist reconstruido desde el
+pin; 9 consumidores re-pineados a `8ce45b6` con lock regenerado (workspace-
+manager `d43456d`, coolify `4dbf793`, ONG AGAPE `97bb1dd`, RESTAURANTE
+`bd8f34b`, Glory-Laminal `ea5ad3e`, GLORYPORT `4e758da`, freebuff-bridge
+`e9f5e49`, GLORYINSPECTOR `176d79e`, PROYECTO TASKS `f09497a` — solo
+qt.json+lock, WIP del usuario intacto; WANDORIUS `6027bee4`+`1e8722b4`;
+gloryapi no pinnea varsense — gate legacy, sin cambio).
+
+**Estado final del agregado vivo (2026-09-01, tras sweep):** total **2203**
+(1 error, monolito `deploy_service.rs` documentado): PT 1230 (ch 777),
+ONG AGAPE 241, RESTAURANTE 231, WANDORIUS 157, workspace-manager 127,
+coolify 98, gloryapi 76, Glory-Laminal 42, GLORYPORT 1. La consola y el CLI
+ahora muestran el MISMO número por regla/proyecto.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
