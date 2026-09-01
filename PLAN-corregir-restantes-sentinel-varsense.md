@@ -1567,6 +1567,45 @@ usuario —variables.css, panelAgente.css etc.— intacto). Próximo frente
 actionable enmarcado: `cssInlineScript`/resto de PT o el agregado; el push de
 PT sigue pendiente de decisión del usuario.
 
+### J-11V6 — HECHO 2026-09-01 (bloque 318A-7V6) — `cssInlineScript` de PT (32 → 32, 0 fixes aplicados: excepción documentada)
+
+Siguiente frente declarado en roadmap tras V5. Baseline con runtime fijado
+(`beb05ba`): varsense PT **736 = 1e/735w**, `cssInlineScript` **32** en 11
+archivos, 0 errores (el único error = `variableNoDefinida` del WIP del usuario
+en panelIA.css, documentado).
+
+**Clasificación 32/32:** TODOS son `style.X`/`style.left/top` imperativos
+runtime — mutaciones transitorias de estado de puntero y coordenadas
+calculadas:
+
+- `document.body.style.cursor = 'col-resize'` / `userSelect` / `overflow =
+  'hidden'` durante drag/resize/modal (useAnchoSidebar, useDrawerMovil,
+  useLayoutManager, useModal, useResizeHandleColumn, useArrastrePaneles,
+  useModoEnfoque, useResizeDrag).
+- `el.style.left/top = ${x}px` con coordenadas de getBoundingClientRect +
+  clamp viewport (useMenuContextual, useMenuFlotante, useSelectorBadge).
+- Sin markers `sentinel-disable` previos (a diferencia de V4); sin seam
+  estático: los valores dependen del evento/size en curso y no tienen
+  equivalente en CSS estático sin cambiar comportamiento.
+
+**Decisión:** excepción documentada, CERO código tocado. Los locks de
+`body.style.overflow` (useModal/useModoEnfoque) tienen seam teórico a clase
+`body.modalAbierto` (patrón drawerAbierto existente), pero convertiría 11
+hooks de UX crítica (drag/resize/modal) y reclamar «cero regresión» sin
+prueba real de interacción sería deshonesto; se deja como mejora futura
+enmarcada, no forzada. No se añaden disables nuevos (política del bloque:
+los markers existentes se honran, no se crean para bajar conteo).
+
+**Verificación (sin cambio de código):** `npm run type-check` (frontend)
+exit 0 · `sentinel analyze` PT (0.7.7/0559576) **95 = 0e/87w/8h = baseline
+exacto**, sin hallazgos nuevos · varsense **736 = 1e/735w** con
+`cssInlineScript` 32 estable · WIP del usuario intacto (solo `variables.css`
+modificada a mano). **Sin commit en PT** (ningún archivo tocado). Agregado
+vivo 8787: sin re-análisis forzado porque no hay código nuevo — los conteos
+PT (sentinel cap+desync de runtime documentado, varsense 742→736 por V5)
+permanecen válidos; PT sigue ahead 9 de origin, push pendiente de decisión
+del usuario. Scratch de C:/tmp del bloque eliminado.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
