@@ -1677,6 +1677,68 @@ documentado en J-9; los conteos por regla varsense coinciden 1:1). Sin commit
 en PT (nada que tocar); PT sigue ahead 9 de origin, push pendiente de
 decisión del usuario. Scratch de C:/tmp del bloque eliminado.
 
+### J-11V8 — HECHO 2026-09-01 (bloque 318A-7V8) — mejora del analizador `token-duplicate`: agrupación same-file (PT 186 → 181, 0 FN)
+
+Frente declarado por el cierre V7 («candidato a mejora futura del analizador:
+reportar solo duplicados same-file/same-scope»). Ejecutado con disciplina de
+bloques core V3/V4.
+
+**Semántica adoptada (documentada antes de tocar código):** un `token-duplicate`
+real es la **misma variable (o valor idéntico) definida dos veces dentro del
+mismo archivo**, donde colapsarla no cambia comportamiento. La coincidencia de
+valor crudo entre archivos o dominios semánticos distintos (`--ptr-translateY`
+[offset runtime de pull-to-refresh] vs `--dashboard-radioMinimo`; `--space-xs`
+vs `--scrollbarAncho`; `--arbol-color` vs `--pixel-editor-iconoActivo`;
+`--panelHeaderBorde` vs `--pixel-editor-iconoBorde`) es coincidencia, no
+duplicado — reportarla es un match espurio.
+
+**Medición previa:** de los 186 de PT, **10 pares cross-file** (todos espurios
+semánticamente) y 176 same-file (reales, colapsables dentro del archivo del
+design system).
+
+**Implementación (core varsense):** `src/core/tokenRules.ts` — el agrupador de
+`analyzeTokenRules` ahora agrupa por **(archivo, valor)** en vez de valor
+global; el canonical reportado es el del mismo archivo. El `CssVariable` no
+lleva scope de declaración, así que `archivo` es la dimensión disponible sin
+tocar el extractor; same-scope dentro del archivo queda cubierto por el
+canonical reportado por línea (decisión documentada en el comentario del código).
+
+**Tests:** 3 tests nuevos en `coreContracts.test.ts` (cross-file spurious NO
+reportado; same-file SÍ reportado contra canonical del mismo archivo;
+proyección de índice). Suite completa: **74/74 passing** en host real de VS
+Code (71 previos + 3 nuevos), lint clean, `check:core` OK.
+
+**Resultado en PT (dist reconstruido, CLI fijado):** `token-duplicate` **186 →
+181** (−5, todos cross-file espurios), varsense **736 → 731** (`1e/730w`),
+**0 hallazgos nuevos, audit FN = 0** (diff por (archivo, línea, nombre) de
+base→post: 5 dropped, 0 added; los 5 son exactamente los pares cross-file de
+V7). Errors siguen en 0 (el único error es `variableNoDefinida` del WIP del
+usuario en panelIA.css, documentado en V4–V7).
+
+**Release V8 (`1a0c588` → 10 consumidores):** commit varsense `1a0c588`
+(árbol limpio, dist reconstruido); pins `beb05ba→1a0c588` + locks regenerados
+en PT `75d302c`, WANDORIUS (gitlink+qt `1768042c` + lock `31856ef1`, dist
+interno reconstruido e idéntico byte-a-byte en el bundle del CLI consumido),
+workspace-manager `6ab9fe6`, RESTAURANTE `f317bcb`, ONG AGAPE `281f25b`,
+GLORYPORT `cf6a60a`, Glory-Laminal `1fda566`, coolify-manager-rs `0b70356`.
+Fixture smoke (config tokenDetection.duplicate): same-file reporta,
+cross-file puro = 0 — contratos V8 en el dist del clone interno.
+
+**Verificación:** `npm run type-check` (frontend PT) exit 0 · `vite build`
+verde (solo warning preexistente de chunk) · sentinel PT (0.7.7/0559576)
+**95 = 0e/87w/8h = baseline exacto** sin hallazgos nuevos · varsense
+**731 = 1e/730w** con duplicate 181 / unused 19 / claseHuerfana 429 =
+composición estable · WIP del usuario intacto (`variables.css`, `data/`,
+`test_prueba.md`).
+
+**Verificación viva 8787:** sweep forzado `POST /api/gate/analizar-todo
+{forzar:true}` → server reporta varsense PT **1e/730w = 731 total** —
+el runtime corre el fix V8 (pre-V8 habría dado 736).
+
+PT queda ahead 11 de origin (incluye V4–V8 y commits propios del usuario),
+push pendiente de decisión del usuario (instrucción vigente de no pushear PT).
+Scratch C:/tmp del bloque eliminado.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
