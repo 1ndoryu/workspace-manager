@@ -979,7 +979,6 @@
 }
 .ejDefaultGhost .ejAgregarMini { margin-left: 8px; font-size: 12px; opacity: .7; }
 .ejEtiqueta { display: flex; align-items: flex-start; gap: 6px; font-size: var(--v2-font); color: var(--v2-texto); letter-spacing: .02em; min-width: 0; }
-.ejRutaLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Nombre legible + descripcion de una ruta (EditorEsquema). El nombre no se
  * trunca en exceso; la descripcion va debajo en italica opaca (monocromo). */
 .ejRutaTexto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -1020,10 +1019,6 @@
 /* Mini-form del default de una opcion faltante (ver/editar antes de agregar).
  * Monocromo y alineado al diseno plano; cada sub-valor es una fila con su
  * etiqueta corta y el mismo Control de las opciones presentes. */
-.ejDefault { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 2px; padding: 6px 8px; border: 1px solid var(--v2-borde); border-radius: 3px; }
-.ejDefaultFila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
-.ejDefaultFila--rec { opacity: .6; font-style: italic; }
-.ejDefaultEtiqueta { font-size: 11px; color: var(--v2-texto); opacity: .75; letter-spacing: .01em; min-width: 120px; }
 .ejQuitar { font-family: inherit; font-size: 11px; letter-spacing: .05em; padding: 2px 8px; border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-texto); cursor: pointer; border-radius: 3px; }
 /* ---- Seccion de reglas (EditorEsquema): todas las reglas del catalogo,
  * cada una con switch (habilitada) y select de severidad. [por que] El
@@ -1079,19 +1074,6 @@
     padding: var(--v2-spaceMd);
     border: 1px solid var(--v2-borde);
     background: var(--v2-fondo);
-}
-
-.scanCfgCabecera {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--v2-borde);
-    padding-bottom: var(--v2-spaceSm);
-}
-
-.scanCfgTitulo {
-    font-size: var(--v2-textSm);
-    color: var(--v2-texto);
 }
 
 .scanCfgFila {

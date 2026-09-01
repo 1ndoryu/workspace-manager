@@ -1,0 +1,268 @@
+{
+  "$nota": "Registro estructurado de familias de excepción verificadas (318A-7V13). Sembrado desde las entradas del plan PLAN-corregir-restantes-sentinel-varsense.md (§J-11V2..V12 y §I-10/11/13). Cada familia tiene evidencia (sección del plan o commit). Un hallazgo solo es excepción si quedó documentado aquí o se añade con evidencia nueva. Ver: scripts/quality/analyze-blocks.mjs",
+  "proyectos": [
+    {
+      "proyecto": "workspace-manager",
+      "familias": [
+        {
+          "regla": "limite-lineas",
+          "categoria": "monolito-documentado",
+          "evidencia": "§J-2/§I-15 — split sin seam natural; monolito paneles.css documentado",
+          "archivos": ["paneles.css"],
+          "nota": "Solo el monolito del shell v2; un split real futuro debe re-clasificar"
+        },
+        {
+          "regla": "claseHuerfana",
+          "categoria": "borde-analizador",
+          "evidencia": "§J-11V13 — configBadge--sin (paneles.css:825): mismatch code/CSS (PanelConfig.tsx:80-85 construye 'badge--sin', el selector nunca matchea; estilo no aplicado preexistente); mapaV2Etiqueta: miembro de compuesto .mapaV2ParedIzq/ParedDer/Etiqueta usado por MapaV2.tsx:174-175",
+          "marcas": ["configBadge--sin", "mapaV2Etiqueta"]
+        },
+        {
+          "regla": "claseHuerfana",
+          "categoria": "fp-dinamico",
+          "evidencia": "§J-2/§J-11V13 — construcción dinámica verificada línea a línea: isoTile--${estado} (IsoMap.tsx:60), badge--${estado} (Badge.tsx:17), boton--${variante} (Boton.tsx:15), v2Resizer--${orientacion} (Resizer.tsx:43), estadoMarcador--${estado} (PanelLista.tsx:44), consolaFilaBadge${severidadBadge}/consolaMotivo--/consolaSeveridad-- (PanelConsola.tsx:332-363), syncBadge--${}/syncMeta--${} (PanelConfig.tsx:577-589)",
+          "nota": "V13 borró 7 muertas reales de paneles.css (ejRutaLabel, ejDefault x4, scanCfgCabecera/scanCfgTitulo) — no re-registrarlas"
+        },
+        {
+          "regla": "valorHardcoded",
+          "categoria": "one-off-sin-token",
+          "evidencia": "§J-11V9 — restantes sin token equivalente: radios/fuentes px del shell, tooltip #000/#fff; V13 −2 por borrado de ejDefault*",
+          "nota": "Los fallbacks var(--token, literal) redundantes YA se colapsaron en V9 (42→36)"
+        },
+        {
+          "regla": "token-duplicate",
+          "categoria": "cruce-dominio/paralelos",
+          "evidencia": "§J-2 (7 token-duplicate excepción) — variables.css:42-43 radio=espacio (dominios distintos, colapsar acoplaría); variables-v2.css:23-24 pares de inversión de tema (--v2-invertido/--v2-fondo, --v2-borde/--v2-texto) del monocromo",
+          "nota": "Paquete same-file POST-V8: el fix same-file no los reporta en otros archivos; estos 4 siguen por ser same-file real pero semánticamente independientes"
+        },
+        {
+          "regla": "cssInlineReact",
+          "categoria": "runtime-posicion",
+          "evidencia": "§J-11V13 — 4 = runtime de posicionamiento/layout: --ancho-detalle/--ancho-lista/--alto-consola desde estado (AppV2.tsx:67), coords de tooltip por portal (EditorEsquema.tsx:478, MapaV2.tsx:224), x/y del menú contextual (MenuContextual.tsx:42)",
+          "nota": "Misma familia excepcionada en WANDORIUS (cssInlineScript) y coolify (cssInlineReact)"
+        },
+        {
+          "regla": "css-hardcoded-value",
+          "categoria": "one-off-sin-token",
+          "evidencia": "§J-11V9 — tooltip #000/#fff preexistente sin token de fondo oscuro",
+          "marcas": ["#000", "#fff"]
+        }
+      ]
+    },
+    {
+      "proyecto": "RESTAURANTE",
+      "familias": [
+        {
+          "regla": "token-duplicate",
+          "categoria": "puente-generado",
+          "evidencia": "§I-7/§J-11V10 — pares paralelos shadcn/Tailwind v4 en index.css (bridge)",
+          "archivos": ["index.css"]
+        },
+        {
+          "regla": "token-unused",
+          "categoria": "puente-generado",
+          "evidencia": "§I-7/§J-11V10 — puente Tailwind v4/shadcn; consumido vía utilidades compiladas",
+          "archivos": ["index.css"]
+        },
+        {
+          "regla": "valorHardcoded",
+          "categoria": "one-off-canvas",
+          "evidencia": "§J-11V10 — 15 reales=0; one-offs del canvas sin token equivalente",
+          "nota": "V10 verificó 0 candidatos con token exacto"
+        },
+        {
+          "regla": "claseHuerfana",
+          "categoria": "fp-dinamico",
+          "evidencia": "§J-11V10 — 10/10 con uso real: template dinámico PlanoOcupacion.tsx:191 + descriptor same-file; resto en glory-rs (submódulo)"
+        },
+        {
+          "regla": "cssInlineReact",
+          "categoria": "runtime-dinamico",
+          "evidencia": "§J-11V10 — mismo patrón excepcionado en PT (318A-7V4/V6): estilos condicionales runtime"
+        },
+        {
+          "regla": "propiedadProhibida",
+          "categoria": "no-aplicable",
+          "evidencia": "§J-11V10 baseline — 7 hallazgos sin desglose accionable; re-clasificar si aparece análisis nuevo"
+        }
+      ]
+    },
+    {
+      "proyecto": "ONG AGAPE",
+      "familias": [
+        {
+          "regla": "claseHuerfana",
+          "categoria": "fp-dinamico",
+          "evidencia": "§J-11V10 — 38 restantes son construcción dinámica verificada: tarjetaAgape--${tono}, toast--${tipo}, panelEstadoChip--${status}, panelHistoriaCuadro--color${i}, cuadroAcerca--color${i}, botonEnlace--${variante}",
+          "nota": "V10 borró 10 muertas reales (commit AGAPE 0532a99)"
+        },
+        {
+          "regla": "valorHardcoded",
+          "categoria": "one-off-sin-token",
+          "evidencia": "§J-11V10 — 69 sin token exacto en el theme (verificado)"
+        },
+        {
+          "regla": "token-duplicate",
+          "categoria": "puente-generado",
+          "evidencia": "§J-11V10 baseline — pares shadcn/Tailwind sin desglose accionable"
+        },
+        {
+          "regla": "token-unused",
+          "categoria": "puente-generado",
+          "evidencia": "§J-11V10 baseline — mismas 4 entradas preexistentes, cero nuevas tras V10"
+        },
+        {
+          "regla": "cssInlineReact",
+          "categoria": "runtime-datos",
+          "evidencia": "§J-11V13 — Donar.tsx:288 ancho de barra de progreso = valor dinámico de datos (comentado en código: 'anchura ... valor dinámico de datos (progreso), no una especificación de diseño'); única cssInlineReact de AGAPE",
+          "nota": "Familia regla-nivel: si una cssInlineReact nueva aparece con estilo de diseño estático, re-clasificarla"
+        }
+      ]
+    },
+    {
+      "proyecto": "WANDORIUS",
+      "familias": [
+        {
+          "regla": "token-duplicate",
+          "categoria": "cross-scope-tema",
+          "evidencia": "§J-11V11 — 54 restantes: pares same-value ENTRE scopes de tema (:root vs [data-tema='oscuro']/ventanas OS), knobs de inversión [297A-18]/[308A-6]; colapsar rompe dark mode verificada: --color-texto-secundario redefinido en scope ventanas",
+          "nota": "V11 colapsó 4 same-scope reales (variables.css), token-duplicate 58→54"
+        },
+        {
+          "regla": "claseHuerfana",
+          "categoria": "fp-dinamico",
+          "evidencia": "§J-11V11 — 10/10 FPs: tag-estado--${item.status}, media-library__badge--${item.asset_state}, movilLauncher__tema literal, tiptap/ProseMirror DOM inyectado"
+        },
+        {
+          "regla": "cssInlineScript",
+          "categoria": "runtime-desktop",
+          "evidencia": "§J-11V11 — 89 = runtime del desktop (posicionamiento win-manager, drag, ghost, estado condicional)"
+        }
+      ]
+    },
+    {
+      "proyecto": "coolify-manager-rs",
+      "familias": [
+        {
+          "regla": "claseHuerfana",
+          "categoria": "fp-dinamico",
+          "evidencia": "§J-11V12 — 12/12 FPs verificados línea a línea: vpsStatusBar${index+1} (VistaPortalVisual.tsx:26 con portal.css:620-622), ternarios VistaSitios/VistaPortalVisual, variantes Button.tsx"
+        },
+        {
+          "regla": "valorHardcoded",
+          "categoria": "one-off-sin-token",
+          "evidencia": "§J-11V12 — 11 one-offs del portal VPS (52/32/36/34/18px, #f5a01f, rgba) sin token en variables.css"
+        },
+        {
+          "regla": "token-duplicate",
+          "categoria": "cross-dominio",
+          "evidencia": "§J-11V12 — 6 coincidencias de valor cross-dominio del monocromo (texto/fondo, acento/borde, radio/espacio); colapsar acoplaría dominios semánticos"
+        },
+        {
+          "regla": "cssInlineReact",
+          "categoria": "runtime-dinamico",
+          "evidencia": "§J-11V12 — 1 = posicionamiento del menú contextual (variables.css:31-33 comentado)"
+        }
+      ]
+    },
+    {
+      "proyecto": "gloryapi",
+      "familias": [
+        {
+          "regla": "token-unused",
+          "categoria": "puente-generado",
+          "evidencia": "§I-10 (líneas 375-403) — 38 dentro del bloque @theme inline (puente Tailwind v4): se consumen vía utilidades compiladas"
+        },
+        {
+          "regla": "token-duplicate",
+          "categoria": "aliasing-semantico",
+          "evidencia": "§I-10 (líneas 375-403) — 37 aliasing semántico shadcn (pares paralelos con overrides de scope)"
+        },
+        {
+          "regla": "cssInlineReact",
+          "categoria": "runtime-dinamico",
+          "evidencia": "§I-10 — 1 runtime dnd-kit"
+        }
+      ]
+    },
+    {
+      "proyecto": "Glory-Laminal",
+      "familias": [
+        {
+          "regla": "token-unused",
+          "categoria": "api-publica-tema",
+          "evidencia": "§I-11 (líneas 775-815) — 14 = API pública del tema Blender (contrato: 'Ningún componente declara colores... usa estas variables'); 0 uso repo-wide fuera de su definición"
+        },
+        {
+          "regla": "cssInlineScript",
+          "categoria": "runtime-editor",
+          "evidencia": "§I-11 — 23 = runtime del editor"
+        },
+        {
+          "regla": "valorHardcoded",
+          "categoria": "one-off-sin-token",
+          "evidencia": "§I-11 — 4 one-offs (#2c2c2c asa hover, #334d80 outliner, #5f5f5f, rgba) ya excepcionados"
+        },
+        {
+          "regla": "token-duplicate",
+          "categoria": "limite-analizador",
+          "evidencia": "§I-11 — 1 = auto-colisión de alias var() (límite del analizador)"
+        }
+      ]
+    },
+    {
+      "proyecto": "GLORYPORT",
+      "familias": [],
+      "nota": "Sin hallazgos varsense accionables; el único hallazgo conocido es sentinel popup.rs (ver plan §J-9)"
+    },
+    {
+      "proyecto": "PROYECTO TASKS",
+      "familias": [
+        {
+          "regla": "claseHuerfana",
+          "categoria": "fp-corregido-core",
+          "evidencia": "318A-7V3 (dist 50913d2) — detector corregido (empty-string-literal); con runtime fijado post-V3 el conteo real es ~429 y los restantes son construcción dinámica verificada",
+          "nota": "Requiere dist fijado ≥ 50913d2; con dist viejo el scanner reporta FPs por millar"
+        },
+        {
+          "regla": "token-duplicate",
+          "categoria": "corregido-core",
+          "evidencia": "318A-7V8 (1a0c588) — agrupación same-file; los pares cross-file son coincidencia de valor, no duplicados (--ptr-translateY/--radioMinimo, --space-xs/--scrollbarAncho, --arbol-color/--iconoActivo, --panelHeaderBorde/--iconoBorde, --space-sm/--espacioTactil)"
+        },
+        {
+          "regla": "cssInlineReact",
+          "categoria": "runtime-dinamico",
+          "evidencia": "318A-7V4/V6 — estilos condicionales runtime del desktop, excepción documentada"
+        },
+        {
+          "regla": "cssInlineScript",
+          "categoria": "runtime-desktop",
+          "evidencia": "318A-7V6 — scripts/dinámicos del runtime desktop"
+        },
+        {
+          "regla": "valorHardcoded",
+          "categoria": "one-off-sin-token",
+          "evidencia": "§J-11V5 — 40 excepción fundamentada: 8 font-size px one-off del constructor (escala de tokens lleva ajusteTipografia −1.5px), colores del runtime desktop/glory-core, radios del tema (todos 0, diseño monocromo), recordatorios.css/layoutManager.css sin par en el set de tokens del dashboard; NO forzar token sin segundo consumidor real",
+          "archivos": ["App.css", "constructorPaginas.css", "glory-core/index.css", "recordatorios.css", "layoutManager.css"],
+          "nota": "Los 3 reales con match exacto (#0f172a → --item-surface) YA se fixearon en V5 (commit PT 3368dc6)"
+        },
+        {
+          "regla": "token-unused",
+          "categoria": "wip-usuario",
+          "evidencia": "§J-11V5/V8 — 18 = tokens del dashboard (variables.css del usuario, sin tocar; definidos en :root y scope oscuro = definición duplicada en WIP, no accionable por el bloque)",
+          "archivos": ["variables.css"]
+        },
+        {
+          "regla": "variableNoDefinida",
+          "categoria": "wip-usuario",
+          "evidencia": "V8 — único error restante proviene del WIP del usuario (variables.css/data/), no del árbol commiteado"
+        },
+        {
+          "regla": "menu-contextual",
+          "categoria": "fp-analizador",
+          "evidencia": "318A-7V1 — 3 warnings FPs: bug self-closing-tag del analizador con línea de prueba documentada"
+        }
+      ]
+    }
+  ]
+}

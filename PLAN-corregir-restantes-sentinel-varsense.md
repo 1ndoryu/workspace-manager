@@ -1935,6 +1935,24 @@ CSS tocados — ninguno tocado) · WIP intacto · C:/tmp limpio.
 coolify/gloryapi/Laminal sin cambiar. Push pendiente de decisión del
 usuario.
 
+### J-11V13 — HECHO 2026-09-01 (bloque 318A-7V13) — harness commiteado + registro estructurado de excepciones + criterio de convergencia
+
+Mejora estructural nombrada por la auditoría de 4 dimensiones como el siguiente paso de mayor valor: convertir el ritual de ~20 scripts desechables por bloque en 3 comandos y hacer que el conocimiento de excepciones sea consultable en vez de prosa en el monolito.
+
+**1) Harness `scripts/quality/analyze-blocks.mjs` (commiteado):** un comando hace lo que hacían los scripts v9–v12 desechables — baseline con CLI varsense fijado → desglose por regla/archivo → plantilla de clasificación → veredicto de convergencia. Acepta el proyecto como argumento (`workspace-manager`, `RESTAURANTE`, `ONG AGAPE`, `WANDORIUS`, `coolify-manager-rs`, `gloryapi`, `Glory-Laminal`, `GLORYPORT`, `PROYECTO TASKS`) con `--json` y `--detalle <regla>`. Tolerante al exit code != 0 del CLI cuando el JSON es válido (p. ej. errores de WIP del usuario). Corrige el matcher de rutas para Windows (separadores normalizados a `/` — bug encontrado en el smoke de PT donde 7 hallazgos de `glory-core/index.css` no matcheaban por `\`).
+
+**2) Registro `scripts/quality/excepciones.json` (commiteado, referenciado desde este plan):** familias de excepción verificadas V2–V12 extraídas de las entradas del plan por proyecto, con regla/categoría/evidencia (sección o commit) y archivos/marcas opcionales. Sembrado: workspace-manager (7 familias), RESTAURANTE (6), ONG AGAPE (5), WANDORIUS (3), coolify (4), gloryapi (3), Glory-Laminal (4), GLORYPORT (vacio, sentinel-only), PT (8). Durante el sembrado se detectó y registró el hallazgo faltante de AGAPE (`cssInlineReact` de Donar.tsx:288 — barra de progreso con ancho dinámico de datos, comentado en código) y la familia `variableNoDefinida` del WIP de PT.
+
+**3) Criterio de convergencia:** un proyecto entra en MANTENIMIENTO cuando todos sus hallazgos están cubiertos por el registro y ninguno queda fuera (`descubiertos = 0`); el harness lo reporta en cada corrida como veredicto. Cualquier hallazgo nuevo fuera del registro revierte a ACCIONABLE y debe clasificarse (fix real o registro con evidencia nueva).
+
+**4) Trabajo accionable que el harness destapó:** los 51 hallazgos de workspace-manager que §I-15 había marcado como «FP» resultaron en **7 claseHuerfana reales muertas** (0 uso literal/dinámico repo-wide): `ejRutaLabel`, `ejDefault` ×4, `scanCfgCabecera`, `scanCfgTitulo` (paneles.css) — borradas + 2 literales de diseño dentro de ellas → varsense workspace-manager **93→78** (pre-V13) → **78/78 en mantenimiento**. Se documentó en el registro el borde `configBadge--sin` (mismatch code/CSS preexistente: PanelConfig.tsx construye `badge--sin`, el selector nunca matchea) y el compuesto `mapaV2Etiqueta` (miembro de selector usado en MapaV2.tsx:174-175).
+
+**5) Verificación:** 9/9 proyectos con veredicto MANTENIMIENTO y 0 hallazgos fuera del registro (RESTAURANTE 141, AGAPE 116, WANDORIUS 153, coolify 30 = smoke exacto 12/11/6/1, gloryapi 76, Laminal 42, GLORYPORT 0+mant, PT 731 = 1e/730w con el error del WIP del usuario cubierto como familia documentada, workspace-manager 78) · `node --check` OK · `pnpm run type-check` exit 0 · sin cambios en otros repos del área.
+
+**6) Cómo cambia el flujo del próximo bloque:** en vez de re-derivar familias a mano con scripts desechables, el bloque corre `node scripts/quality/analyze-blocks.mjs <proyecto>`; si el veredicto es MANTENIMIENTO, el frente está cerrado salvo hallazgos nuevos; si es ACCIONABLE, el propio harness lista los hallazgos fuera del registro. Cualquier clasificación nueva se registra en `excepciones.json` con evidencia, no en prosa del plan.
+
+Commit: workspace-manager (harness + registro + paneles.css + docs §J-11V13). Push pendiente del usuario.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
