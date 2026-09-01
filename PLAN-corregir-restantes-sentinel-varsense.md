@@ -1528,6 +1528,45 @@ TASKS", forzar:true}` en 8787 → varsense del server con `cssInlineReact` **29*
 y `claseHuerfana` **429** — composición idéntica a la corrida local con el dist
 fijado: el runtime del server ejecuta el fix V4 (no solo el CLI local).
 
+### J-11V5 — HECHO 2026-09-01 (bloque 318A-7V5) — `valorHardcoded` de PT (43 → 40, 0 errores)
+
+**Pedido:** siguiente bloque accionable tras V4 — las ~43 `valorHardcoded` de
+PROYECTO TASKS, misma disciplina (baseline con dist fijado `beb05ba`,
+clasificación real-excepción-FP, verificación doble, commit local sin push,
+docs al cierre).
+
+**Baseline:** varsense de PT `739 = 1e/738w` (el error = `variableNoDefinida`
+del WIP del usuario en `panelIA.css`, documentado, no del bloque);
+`valorHardcoded` **43** en 5 archivos = TODO CSS puro (App.css ~20,
+constructorPaginas.css 11, glory-core/index.css 7, recordatorios.css 3,
+layoutManager.css 2).
+
+**Clasificación:**
+- **3 reales con match exacto de token:** `background: #0f172a` ×3 en
+  `App.css` ≡ token `--item-surface` declarado en el propio `:root` de
+  App.css → reemplazados por `var(--item-surface)` (visual idéntico).
+- **40 restantes = excepción fundamentada:** 8 `font-size` px one-off del
+  constructor (la escala de tokens de PT lleva `ajusteTipografia` −1.5px y
+  no hay pares exactos que honrar sin cambiar diseño), colores del runtime
+  desktop/glory-core, radios del tema (todos 0, diseño monocromo — radios
+  literales son del canvas del constructor, sin token equivalente), y
+  valores de `recordatorios.css`/`layoutManager.css` sin par en el set de
+  tokens del dashboard (verificado contra `variables.css`/App.css
+  `:root`). No se fuerza token nuevo sin segundo consumidor real.
+
+**Resultado (PT, dist fijado):** `valorHardcoded` **43→40** (−3 exactos),
+total **739→736**, 0 errores nuevos, sin huérfanas nuevas (claseHuerfana 429
+estable). Verificación completa: `npm run type-check` exit 0, `vite build`
+verde (warning preexistente de chunk), `sentinel analyze` (0.7.7/0559576)
+**95 = 0e/87w/8h = baseline V5 exacto** sin hallazgos nuevos, varsense
+**736 = 1e/735w** (único error = WIP del usuario, no regresión).
+
+**Commit local (sin push):** PT `3368dc6` (`318A-7V5: valorHardcoded #0f172a
+→ --item-surface`, stage explícito solo de `frontend/src/App.css`; el WIP del
+usuario —variables.css, panelAgente.css etc.— intacto). Próximo frente
+actionable enmarcado: `cssInlineScript`/resto de PT o el agregado; el push de
+PT sigue pendiente de decisión del usuario.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
