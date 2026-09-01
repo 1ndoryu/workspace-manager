@@ -16,7 +16,7 @@ Conteos autoritativos: `sentinel analyze 0.7.4` vía la cache viva del server
 | Proyecto | Conteo | Qué es | Acción prevista |
 |---|---|---|---|
 | coolify-manager-rs | 124 → **99** ✅ | runtime destrabado (A1); 1 error = monolito `deploy_service.rs` (2135 l, límite 500) documentado | A1: destrabar análisis (hecho); 308A-6: 124→99 |
-| ONG AGAPE | 369 → **164** ✅ | errores 26→0; scope de submodulos + boundary + logger + split | D-2 (ver §D-2; piso honesto) |
+| ONG AGAPE | 369 → **241 (110 sentinel + 131 varsense, 0e)** ✅ §J-3 | J-3: sentinel 164→110 (emoji ×8, key-index ×2, css-elemento ×25 :is(), css-especificacion/button-clase renames ×51, css-adhoc → Button); varsense 141→131 (10px→--radioTarjeta ×9, #fff→--colorBlanco ×1, 0 huérfanas nuevas) | D-2 + **J-3 HECHO** (ver §J-3) |
 | gloryapi | 0 sentinel + 131 → **76 varsense** ✅ | `variableFiles` corregido a `client/src/index.css` (G-deuda CERRADA 2026-08-31): variableNoDefinida 37→2 (runtime); frentes §G/§I-10 cerraron 131→77→76 | A2 + G + §I-10: deuda cerrada |
 | freebuff-bridge | 20 → **0** ✅ | 18× `console-production` (cli/main.ts) + barrel + ISP | B1 resuelto (logger central + barrel + split ISP) |
 | GLORYINSPECTOR | 2 → **0** ✅ | `directorio-abarrotado` (inspector/ tests/) | B2 resuelto (directoryExceptions canónico) |
@@ -1015,14 +1015,14 @@ a 500; su runtime real ~1718). Desglose por regla (todo el agregado):
 | `sqlx-query-as-sin-macro` + `sqlx-query-sin-macro` | 61 | ONG AGAPE 55+6 | deuda documentada (migrar a query_as! = cambios de runtime, no forzar §D) | excepción documentada |
 | `funcion-larga-rs` + `parametros-excesivos-rs` | 86 | coolify 36+22, REST 12+11 | monolitos de gran superficie (deploy_service 2135 etc., §I-4) | excepción documentada |
 | `inline-style-prohibido` | 27 | REST 18, PT 5, ws-manager 3, ONG AGAPE 1 | posicionamiento dinámico legítimo (documentado) o refactor a clase | J-4 parcial |
-| `css-elemento-html-directo` + `button-clase-especifica` + `css-adhoc-button-style` | 47 | ONG AGAPE 25+13+4, ws-manager 1+2+2 | refactor a clases/Button (patrón §I-6/Fase C) | **J-3: refactor** |
+| `css-elemento-html-directo` + `button-clase-especifica` + `css-adhoc-button-style` | 0 | ONG AGAPE 25+13+4 ✅ (J-3: :is() + renames + Button), ws-manager ✅ (J-2) | refactor a clases/Button (patrón §I-6/Fase C) | **J-2/J-3 HECHO** |
 | `html-nativo-en-vez-de-componente` + `componente-sin-hook-glory` | 44 | ONG AGAPE 11+12, ws-manager 14+7 | refactor a componentes Glory | J-2/J-3 parcial |
-| `emoji-en-codigo` | 17 | PT 9, ONG AGAPE 8 | quitar emojis del código | J-3 (PT bloqueado) |
+| `emoji-en-codigo` | 9 | PT 9, ONG AGAPE 8 ✅ (J-3: entidades HTML) | quitar emojis del código | J-3 (PT bloqueado) |
 | `usestate-excesivo` | 15 | ONG AGAPE 11, ws-manager 2 | hook con >3 useState (refactor) | J-2/J-3 |
 | `handler-accede-bd-rs` + `window/dom-outside-platform` + `broadcast-mutex` + `large-interface-isp` + `css-especificacion-diseno-local` | ~37 | REST 8+5+10, ws-manager 6+2+4+4, REST handler 8 | boundary legítimo / riesgo real broadcast (D) | documentar; broadcast-mutex atender (J-4) |
 | `console-production` + `fallo-sin-feedback` | 4 | ws-manager 2+2 (MapaV2, ahora en alcance) | logger central | **J-2: logger** |
 | errores | 3 | gloryapi 2 (dnd-kit runtime), coolify 1 (monolito deploy_service) | documentados | excepción |
-| `key-index-lista` / `key-index` | 5 | REST 3, ONG AGAPE 2 | claves estables | J-3/J-4 |
+| `key-index-lista` / `key-index` | 4 | REST 3, ONG AGAPE 2 ✅ + 1 excepción (galería 3 ranuras fijas: la ranura ES la identidad, `url=''` en vacías impide clave única) | claves estables | J-3 da/J-4 |
 
 ### J-1 — decisiones que definen el piso (requieren al usuario)
 1. **Analizador (`.quality-tools`):** corregir el FP `claseHuerfana` (no ve
@@ -1098,17 +1098,40 @@ exit 0 + `sentinel analyze` (CLI 0.7.5) 29 hallazgos + varsense CLI 2.2.1
   por diseño]); colapsar acoplaría roles no relacionados (patrón §I-9/§I-10);
   `cssInlineReact` 4 → info.
 
-### J-3 — ONG AGAPE (324 → objetivo ~150-190)
-- 82 `valorHardcoded` → tokens de frontend-v2 (patrón §I-1).
-- 25 `css-elemento-html-directo` + 13 `button-clase-especifica` + 4
-  `css-adhoc-button-style` → clases/Button (patrón §I-6/Fase C).
-- 9 `limite-lineas` → splits; 8 `emoji-en-codigo` → quitar; 11
-  `usestate-excesivo` → hook; 5 `key-index-lista` → claves estables.
-- 11 `html-nativo-en-vez-de-componente` + 12 `componente-sin-hook-glory` →
-  componentes Glory (parcial; documentar si el componente canónico no existe).
-- 69 `claseHuerfana` → verificación repo-wide; borrar muertas reales.
-- Excepciones: 55+6 sqlx (deuda §D, sin forzar query_as!), monolitos
-  `funcion-larga-rs` (no listados en desglose, verificar).
+### J-3 — ONG AGAPE (324 → objetivo ~150-190) — HECHO 2026-08-31
+- Baseline real medido con CLIs fijados: sentinel **164** (0e/162w/2h) + varsense
+  **141** (0e/136w/1i/4h) = **305** (el encabezado 324 era pre-J-8; la absorción
+  de `claseHuerfana` ×69 del FP corregido reduce el total). Resultado final:
+  **sentinel 110 + varsense 131 = 241** (0 errores).
+- Resueltos (64):
+  - `emoji-en-codigo` ×8 → entidades HTML (render idéntico): `AgapeAdminPanel`,
+    `AgapeLanding`, `BlogPreview`, `TransparencyBoard`.
+  - `key-index-lista` ×2 → claves estables (`HistoriaDetalle`, `VistaHistoria`
+    lista de campos).
+  - `css-elemento-html-directo` ×25 → selectores `.{clase} button` reestructurados
+    con `:is()` (misma especificidad, patrón validado §J-2).
+  - `css-especificacion-diseno-local` ×3 + `button-clase-especifica` ×13 → 51
+    renames a nombres neutros (verificado repo-wide, 0 huérfanas nuevas).
+  - `css-adhoc-button-style` ×4 → bloques a `Button.css` exento con compuestos.
+  - `valorHardcoded` ×10 → tokens con match exacto: `10px` → `var(--radioTarjeta)`
+    (×9, valor idéntico) y `#fff` → `var(--colorBlanco)` (×1).
+- Excepciones documentadas (241 restantes, 0 errores):
+  - sentinel 110: `sqlx-query-as-sin-macro` ×55 + `sqlx-query-sin-macro` ×6
+    (SQL crudo = deuda §D, no forzar `query_as!` en esta pasada);
+    `componente-sin-hook` ×12 + `html-nativo` ×11 + `usestate-excesivo` ×11
+    (monolitos de vista sin seam seguro; hooks solo donde el seam existe);
+    `limite-lineas` ×9 (monolitos, split arbitrario); modals ×3 (estructura
+    canónica inexistente); `key-index-lista` ×1 (galería de 3 ranuras fijas:
+    la ranura ES la identidad, `url=''` en ranuras vacías impide clave única);
+    `directorio-abarrotado` ×1; `inline-style` ×1 dinámico.
+  - varsense 131: `valorHardcoded` ×72 (sin token exacto: radios 46/14/12/16px
+    one-off, overlays rgb sin token semántico — patrón §I-7); `claseHuerfana`
+    ×50 (mayoría en `archivado/` legacy v1 + FPs dinámicos §J-8);
+    `token-duplicate` ×4 + `token-unused` ×4 (pares semánticos);
+    `cssInlineReact` ×1 info.
+- Verificación: `npx tsc --noEmit` frontend-v2 exit 0 + `frontend` type-check
+  exit 0; sentinel 164→110; varsense 141→131 con `claseHuerfana` estable (50),
+  sin huérfanas por los renames. Commit `308A-6J3` en ONG AGAPE (26 archivos).
 
 ### J-4 — RESTAURANTE (250 → objetivo ~190-220)
 - 37 `limite-lineas` → splits por seam (el frente más grande de esta familia).
