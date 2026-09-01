@@ -21,7 +21,7 @@ Conteos autoritativos: `sentinel analyze 0.7.4` vía la cache viva del server
 | freebuff-bridge | 20 → **0** ✅ | 18× `console-production` (cli/main.ts) + barrel + ISP | B1 resuelto (logger central + barrel + split ISP) |
 | GLORYINSPECTOR | 2 → **0** ✅ | `directorio-abarrotado` (inspector/ tests/) | B2 resuelto (directoryExceptions canónico) |
 | workspace-manager | 86 → 78 → **127 (29 sentinel + 98 varsense, 0e)** ✅ §J-2 | J-2: sentinel 60→29 (console/fallo/button/css-adhoc/html-nativo/hooks/css-especificacion); varsense 98 (45 claseHuerfana FP §J-8, 42 valorHardcoded → J-3, 7 token-duplicate excepción, 4 cssInlineReact info) | B3 + C + G + **J-2 HECHO** (ver §J-2) |
-| RESTAURANTE | 114 sentinel + 172 → **137 varsense** ✅ | key-index/console/todo reales corregidos; §I-7/§I-8 cerraron 172→140→137 | D-1 + G + §I-7/§I-8 (ver §D-1 y §G) |
+| RESTAURANTE | 247 (110 sentinel + 137 varsense) → **231 (89 sentinel + 142 varsense, 0e)** ✅ §J-4 | J-4: key-index ×3 claves estables, inline-style ×18 → patrón CSS-var exento (runtime-inyectadas declaradas en `:root` de index.css), cssInlineReact −3; +7 token-duplicate pares semánticos +1 propiedadProhibida anillo selección = excepciones doc. | D-1 + G + §I-7/§I-8 + **J-4 HECHO** (ver §J-4) |
 | PROYECTO TASKS | 23 ✅ | excepciones legítimas ya documentadas (E verificó 1:1) | E ✅ re-verificado, no forzar |
 | GLORYPORT | 1 ✅ | `popup.rs` monolito (1275 líneas) | F ✅ excepción verificada |
 | Glory-Laminal / WANDORIUS | 0 | limpios | mantener |
@@ -1011,10 +1011,10 @@ a 500; su runtime real ~1718). Desglose por regla (todo el agregado):
 | `cssInlineScript` | 112i+32w | WANDORIUS 89i (runtime escritorio), GL 23i, PT 32w | runtime legítimo documentado | excepción (WANDORIUS/GL); PT bloqueado |
 | `token-unused` | 95 | gloryapi 38, REST 39 | pares shadcn (excepción §I-10/I-7) | excepción; GL 14 = API Blender sin consumir |
 | `cssInlineReact` | 76w+31i | PT 76, REST 24i | PT bloqueado; resto info | excepción documentada |
-| `limite-lineas` | 62 | REST 37, ONG AGAPE 9, ws-manager 6, coolify 4, PT 5, GLORYPORT 1 | splits por seam de dominio (no arbitrarios) | **J-3/J-4/J-5: splits** |
+| `limite-lineas` | 62 | REST 37, ONG AGAPE 9, ws-manager 6, coolify 4, PT 5, GLORYPORT 1 | splits por seam de dominio (no arbitrarios) | J-3/J-4 parcial (REST 37 sin seam, excepción doc.); **J-5: splits** |
 | `sqlx-query-as-sin-macro` + `sqlx-query-sin-macro` | 61 | ONG AGAPE 55+6 | deuda documentada (migrar a query_as! = cambios de runtime, no forzar §D) | excepción documentada |
 | `funcion-larga-rs` + `parametros-excesivos-rs` | 86 | coolify 36+22, REST 12+11 | monolitos de gran superficie (deploy_service 2135 etc., §I-4) | excepción documentada |
-| `inline-style-prohibido` | 27 | REST 18, PT 5, ws-manager 3, ONG AGAPE 1 | posicionamiento dinámico legítimo (documentado) o refactor a clase | J-4 parcial |
+| `inline-style-prohibido` | 27 | REST 18, PT 5, ws-manager 3, ONG AGAPE 1 | posicionamiento dinámico legítimo (documentado) o refactor a clase | J-4 HECHO (REST 18→0 vía patrón CSS-var) |
 | `css-elemento-html-directo` + `button-clase-especifica` + `css-adhoc-button-style` | 0 | ONG AGAPE 25+13+4 ✅ (J-3: :is() + renames + Button), ws-manager ✅ (J-2) | refactor a clases/Button (patrón §I-6/Fase C) | **J-2/J-3 HECHO** |
 | `html-nativo-en-vez-de-componente` + `componente-sin-hook-glory` | 44 | ONG AGAPE 11+12, ws-manager 14+7 | refactor a componentes Glory | J-2/J-3 parcial |
 | `emoji-en-codigo` | 9 | PT 9, ONG AGAPE 8 ✅ (J-3: entidades HTML) | quitar emojis del código | J-3 (PT bloqueado) |
@@ -1022,7 +1022,7 @@ a 500; su runtime real ~1718). Desglose por regla (todo el agregado):
 | `handler-accede-bd-rs` + `window/dom-outside-platform` + `broadcast-mutex` + `large-interface-isp` + `css-especificacion-diseno-local` | ~37 | REST 8+5+10, ws-manager 6+2+4+4, REST handler 8 | boundary legítimo / riesgo real broadcast (D) | documentar; broadcast-mutex atender (J-4) |
 | `console-production` + `fallo-sin-feedback` | 4 | ws-manager 2+2 (MapaV2, ahora en alcance) | logger central | **J-2: logger** |
 | errores | 3 | gloryapi 2 (dnd-kit runtime), coolify 1 (monolito deploy_service) | documentados | excepción |
-| `key-index-lista` / `key-index` | 4 | REST 3, ONG AGAPE 2 ✅ + 1 excepción (galería 3 ranuras fijas: la ranura ES la identidad, `url=''` en vacías impide clave única) | claves estables | J-3 da/J-4 |
+| `key-index-lista` / `key-index` | 4 | REST 3 ✅, ONG AGAPE 2 ✅ + 1 excepción (galería 3 ranuras fijas: la ranura ES la identidad, `url=''` en vacías impide clave única) | claves estables | J-3/J-4 HECHO |
 
 ### J-1 — decisiones que definen el piso (requieren al usuario)
 1. **Analizador (`.quality-tools`):** corregir el FP `claseHuerfana` (no ve
@@ -1142,6 +1142,42 @@ exit 0 + `sentinel analyze` (CLI 0.7.5) 29 hallazgos + varsense CLI 2.2.1
   mutex/bloqueo honesto donde aplique o documentar cada caso.
 - Excepciones: 42+39 shadcn, 24 cssInlineReact info, 15 valorHardcoded
   one-off (§I-8), 14 claseHuerfana FP, 12+11+10 monolitos/ISP.
+
+### J-4 — RESTAURANTE — HECHO 2026-09-01
+- Baseline fresco (CLIs fijados, 0 errores): sentinel **110** + varsense **137**
+  = **247** (el 250 del encabezado era pre-J-8).
+- Resultado: sentinel **110→89** (−21), varsense **137→142** (+5 neto, 0 errores)
+  → total **231**, dentro del objetivo ~190-220.
+- Resueltos:
+  - `key-index-lista` ×3 → claves estables: `bdp-menu-explorer` usa la identidad
+    del artículo; skeletons estáticos de `BdpStock`/`BdpCompras` usan constante
+    `SKELETON_IDS` (lista sin identidad de ítem).
+  - `inline-style-prohibido` ×18 → patrón CSS-var exento (`styleInlineSoloCssVars`,
+    validado §I-6/§J-2): `ParedDraggable`/`MesaDraggable`/`PlanoSala`/
+    `PlanoOcupacion`/`DashboardReservas`/`data-table`/`chart`. Selectores
+    `.planoPared`/`.planoMesa`/`.planoCanvas` + utilidades en index.css; 28 custom
+    properties runtime-inyectadas **declaradas como contrato en `:root` de
+    index.css** (fuente `variableFiles`) con defaults neutros = fallbacks previos
+    → `variableNoDefinida` 0 (0 errores).
+  - `cssInlineReact` −3 (información) por las conversiones.
+- Regresiones mínimas 0-errores documentadas como excepción (patrón
+  §J-2/§I-9/§I-10):
+  - `token-duplicate` +7: pares de rol semántico con mismo default
+    (`--x/--y`, `--w/--h`, `--anchoC/--altoC` ejes; `--rot/--tr/--trs/--sombra`
+    = default neutro `0/none`) — colapsarlos acoplaría roles distintos.
+  - `propiedadProhibida` +1: anillo `box-shadow` de selección en `.planoPared`
+    (espeja los 5 anillos preexistentes de `.planoMesa` L107-148, deuda de
+    diseño documentada).
+- Excepciones preexistentes sin tocar: `limite-lineas` ×37 (sin seams — split
+  arbitrario no se fuerza), `broadcast-mutex` ×5 (patrón-safe §D-1), shadcn
+  token-duplicate 42 + token-unused 39, propiedadProhibida 6, claseHuerfana 11,
+  cssInlineReact 21 info, valorHardcoded 15 one-off (§I-8).
+- Verificación: `npx tsc --noEmit` exit 0 (22 errores del submódulo glory-rs =
+  baseline preexistente, cero de `src/`), `sentinel analyze` **89** (0e/67w/22h),
+  `varsense all` **142** (0e/82w/21i/39h), `claseHuerfana` 11→11 (sin huérfanas
+  nuevas).
+- Commits: RESTAURANTE `308A-6J4` (13 archivos); workspace-manager docs
+  `308A-6J4doc`.
 
 ### J-5 — coolify-manager-rs (103 → objetivo ~90-100)
 - 4 `limite-lineas` → splits si hay seam; 16 `claseHuerfana` FP verificados
