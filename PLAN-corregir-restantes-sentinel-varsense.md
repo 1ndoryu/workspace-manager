@@ -1776,6 +1776,61 @@ paneles.css son preexistentes: `limite-lineas` monolito documentado + 2
 stage explícito). PT y otros proyectos sin tocar; WIP del usuario intacto.
 Push pendiente de decisión del usuario. Scratch C:/tmp del bloque eliminado.
 
+### J-11V10 — HECHO 2026-09-01 (bloque 318A-7V10) — frentes RESTAURANTE + ONG AGAPE (RESTAURANTE excepción total; AGAPE 10 clases muertas eliminadas, varsense 129 → 116)
+
+Frente declarado por el cierre V9 (RESTAURANTE ~230 / AGAPE ~239 en el
+agregado; varsense: RESTAURANTE 141, AGAPE 129 con runtime fijado `1a0c588`).
+
+**RESTAURANTE (141 varsense; sentinel no medido aparte, agregado 230):**
+clasificado completo con el método del bloque — `valorHardcoded` ×15: 0 con
+token exacto (canvas one-offs: radios 2-6px, fonts 0.65-0.95rem de PlanoSala/
+PlanoOcupacion; positionamiento dinámico del mapa de mesas, sin seam de
+token) → excepción §I-15; `claseHuerfana` ×10: 10/10 con uso verificado
+(repo-wide en ts/tsx, incl. construcción dinámica tipo ternario/plantillas) =
+FPs del detector (patrón §I-2/§J-11); resto de hallazgos del desglose viven
+en el submódulo `glory-rs` (fuera de alcance). **0 cambios, 0 commits.**
+
+**ONG AGAPE (129 varsense):** desglose por regla/archivo → `valorHardcoded`
+×72: 0 reales con token exacto (72 one-offs: border-radius 8-46px y
+font-size 0.52em-1.5rem sin token del theme; los únicos radios del theme son
+--radioTarjeta 10px y --radioBoton 40.5px, y solo 2 usos de 40.5px eran
+candidatos pero no hay consumidor segundo real) → excepción fundamentada;
+`claseHuerfana` ×48: de las 26 candidatas del clasificador automático,
+verificación repo-wide con subcadena y construcción dinámica (método V2/V3/
+§I-2) → **las 16 restantes son FPs dinámicos verificados** (`tarjetaAgape--$
+{tono}` con tono=crema/amarillo/azul en archivado, `toast--${tipo}`,
+`panelEstadoChip--${status}` ×5 vistas, `panelHistoriaCuadro--color${i++}`,
+`cuadroAcerca--color${i++}`, `botonEnlace--${variante}`) y **10 muertas
+reales**: `marcaSimbolo`/`marcaTexto`(+small/strong)/`marcaHoja`
+(NavegacionPrincipal.css — el header real usa `marcaAgape`/`logoAgape`),
+`panelAviso`/`panelError`/`panelAccionesTabla` (PanelAdmin.css),
+`opcionalDonar` (Donar.css), `tituloBlog`/`enlaceInstagram` (BlogInicio.css
+donde el título real es `etiquetaBlog`/`textoBlog` y no hay enlace
+Instagram en el markup), `etiquetaHero` (HeroInicio.css — el hero real usa
+`lineaHero`/`retratoHero`/`descripcionHero`/`accionesHero`).
+
+**Fixes AGAPE (commit `0532a99`):** eliminadas las 10 clases + sus bloques
+completos, y retirados los tokens `--textoMarcaSimbolo`/`--textoMarcaMini`
+que quedaron sin ninguna referencia; `--textoMarca` se conserva
+(PiePagina.css:38 lo usa). `--tituloTarjeta`/`--textoMarca` verificados con
+uso real antes de conservar. Visual-neutral: solo selectores muertos.
+
+**Resultado AGAPE:** varsense **129 → 116** (claseHuerfana 48 → 38,
+valorHardcoded 72 → 69 por la salida de los bloques dead, token-duplicate 4
+y token-unused 4 sin cambios), **0 errores, 0 hallazgos nuevos** (dif. de
+composición = audit de cada familia). RESTAURANTE sin cambio (excepción
+documented).
+
+**Verificación:** AGAPE `npm run check:front` y `tsc --noEmit` (frontend-v2)
+exit 0 · `vite build` verde · sentinel 0.7.7 **149 = 0e/148w/1h con 0
+hallazgos en los 5 CSS tocados** (la diferencia vs 110 del plan es la
+discrepancia de runtime 0.7.4/0.7.7 ya documentada en §J-9; sin hallazgos
+nuevos atribuibles). RESTAURANTE: sin cambios, clasificación como evidencia.
+
+**Commits (sin push):** ONG AGAPE `0532a99` (5 CSS + variables.css, stage
+explícito). RESTAURANTE/PT/otros sin tocar; WIP del usuario intacto. Push
+pendiente de decisión del usuario (PT ahead). Scratch C:/tmp limpiado.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
