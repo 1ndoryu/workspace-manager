@@ -1352,6 +1352,35 @@ exit 0 + `sentinel analyze` (CLI 0.7.5) 29 hallazgos + varsense CLI 2.2.1
   su WIP evoluciona). Excluyendo PT: **1079 = exactamente el total §J-8**.
   Errores totales del agregado: 1 (deploy_service.rs, documentado).
 
+### J-10 — siguiente ciclo (308A-7): NO declarado — evidencia y candidatos (2026-09-01)
+- **Verificación:** `grep -rn "308A-7"` en `workspace-manager/roadmap.md` y en
+  el `AGENTS.md` raíz → **0 coincidencias** (también 0 en este plan). El único
+  origen del nombre es la card de follow-up del agente al cerrar J-7; el
+  roadmap «Siguiente bloque ejecutable» sigue apuntando a 308A-5 (stale,
+  completado) y las tareas pendientes 1–5 del roadmap están cerradas
+  (308A-4 COMPLETO). **No existe ciclo declarado 308A-7; no se ejecutó nada
+  en su nombre ni se inventó alcance.**
+- **Estado del agregado (cierre J-7):** 1473 visible (973 excl. PT, 1 error
+  documentado). Todo lo que queda son excepciones documentadas con fundamento
+  en este plan (§D, §I-4/I-6/I-7/I-9/I-10/I-13, §J-2…J-5): monolitos de gran
+  superficie (deploy_service 2135, mcp/tools 872, portal.css 904, popup.rs
+  1275, PT store/runtime/agente/ai), SQL crudo 61 (deuda; migrar a
+  `query_as!` = cambios de runtime), claseHuerfana FPs (límite del scanner),
+  valorHardcoded one-off sin token, token-duplicate/unused (aliasing
+  shadcn/Tailwind v4), cssInlineScript runtime (WANDORIUS/GL), limite-lineas
+  sin seam (REST 37 + ONG AGAPE 9), broadcast-mutex §D-1 (patrón seguro
+  verificado).
+- **Candidatos reales para un próximo ciclo (requieren decisión del usuario;
+  no se ejecutan solos):** (1) RESTAURANTE: migración sqlx `query_as!`
+  (cambios de runtime + DB, fuera de «lo seguro»); (2) alineación del runtime
+  del server 8787 (`RAIZ_VERSIONS` → 0.7.5, decisión de infra del otro hilo,
+  §J-9); (3) PROYECTO TASKS: congelado mientras el usuario trabaja allí
+  (WIP no commiteado); (4) sweep programado del agregado tras aterrizar el WIP
+  de PT (el cap 500 bajará solo).
+- **Decisión:** el bloque 308A-6 queda como el último cerrado; la apertura de
+  308A-7 (alcance/meta/objetivo numérico) es decisión del usuario sobre esta
+  lista.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
