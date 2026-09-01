@@ -11,6 +11,7 @@ import type { EstadoGate } from '../../shared/types.js';
 import { mensajeDeError, toastError, toastOk } from '../toast.js';
 import { EditorJson } from '../EditorJson.js';
 import { EditorEsquema } from '../EditorEsquema.js';
+import { Button } from '../Button.js';
 import type { NodoEsquema } from '../../shared/gate/esquema.js';
 import type { TipoGate } from '../../shared/gate/proveedores.js';
 import './paneles.css';
@@ -419,14 +420,13 @@ export function PanelConfig() {
                 {ignorados.map((clave) => (
                   <div key={clave} className="excFila">
                     <span className="excFilaNombre">{clave}</span>
-                    <button
-                      type="button"
+                    <Button
                       className="excBoton"
                       onClick={() => void alternarIgnorado(clave, false)}
                       title="dejar de ignorar este proyecto"
                     >
                       quitar
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -472,14 +472,13 @@ export function PanelConfig() {
                 <span className="scanCfgIntervalo">min</span>
               </div>
               <div className="scanCfgAcciones">
-                <button
-                  type="button"
+                <Button
                   className="excBoton"
                   onClick={() => void escanearAhora()}
                   disabled={escaneando}
                 >
                   {escaneando ? 'analizando…' : 'escaneá ahora'}
-                </button>
+                </Button>
                 <span
                   className="scanCfgMeta"
                   title={Object.entries(analisis)
@@ -505,14 +504,13 @@ export function PanelConfig() {
                * Boton 'Auditar todo' + badges por severidad de la cache. */}
               <div className="scanCfgSeparador">vulnerabilidades</div>
               <div className="scanCfgAcciones">
-                <button
-                  type="button"
+                <Button
                   className="excBoton"
                   onClick={() => void auditarAhora()}
                   disabled={auditando}
                 >
                   {auditando ? 'auditando…' : 'auditá toda la consola'}
-                </button>
+                </Button>
                 <span className="scanCfgMeta">
                   {Object.keys(vulnerabilidades).length} proyectos auditados
                 </span>
@@ -542,13 +540,12 @@ export function PanelConfig() {
             </header>
             <section className="syncVista" aria-label="Centralización del gate">
               <div className="scanCfgAcciones">
-                <button
-                  type="button"
+                <Button
                   className="excBoton"
                   onClick={() => void cargarSincronizacion()}
                 >
                   verificar alineación
-                </button>
+                </Button>
                 <span className="scanCfgMeta">
                   {sincronizacion
                     ? `${sincronizacion.consumidores.length} consumidores · ${sincronizacion.problemas} desync`
@@ -611,13 +608,12 @@ export function PanelConfig() {
           <>
             <header className="docsVisorCabecera">
               <span className="docsVisorTitulo">{visorIgnorado ? `${claveVisor} (ignorado)` : claveVisor}</span>
-              <button
-                type="button"
+              <Button
                 className="excBoton"
                 onClick={() => void alternarIgnorado(claveVisor, !visorIgnorado)}
               >
                 {visorIgnorado ? 'dejar de ignorar' : 'ignorar'}
-              </button>
+              </Button>
             </header>
 
             {proyectoVisor && <div className="configMeta">{proyectoVisor.ruta}</div>}

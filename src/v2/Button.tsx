@@ -10,14 +10,16 @@ import './Button.css';
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   activo?: boolean;
   cuadrado?: boolean;
+  grande?: boolean;
   children: ReactNode;
 }
 
-export function Button({ activo = false, cuadrado = false, children, className, ...rest }: ButtonProps) {
+export function Button({ activo = false, cuadrado = false, grande = false, children, className, ...rest }: ButtonProps) {
   const clases = [
     'botonV2',
     activo ? 'botonV2--activo' : '',
     cuadrado ? 'botonV2--cuadrado' : '',
+    grande ? 'botonV2--grande' : '',
     className ?? '',
   ]
     .filter(Boolean)

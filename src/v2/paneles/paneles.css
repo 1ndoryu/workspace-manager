@@ -63,7 +63,7 @@
 }
 
 /* Filas de detalle: label encima de valor, separadas por linea. */
-.panelDetalleLista {
+.panelDetalleFilas {
     margin: 0;
     padding: var(--v2-spaceMd);
     display: flex;
@@ -87,7 +87,7 @@
 }
 
 /* Panel derecho: lista de proyectos. */
-.panelLista {
+.panelProyectos {
     width: 260px;
     min-height: 0;
     align-self: stretch;
@@ -780,17 +780,8 @@
     padding: 2px 0;
 }
 
-.excBoton {
-    flex: none;
-    background: none;
-    border: 1px solid var(--v2-borde);
-    border-radius: 0;
-    font: inherit;
-    font-size: var(--v2-textXs);
-    color: var(--v2-texto);
-    padding: 3px 8px;
-    cursor: pointer;
-}
+/* .excBoton se movio a Button.css (compuesto .botonV2.excBoton): el archivo
+ * Button.css es el unico lugar permitido para estilos de boton. */
 
 .docsVisorCabecera {
     display: flex;
@@ -969,11 +960,7 @@
 /* Fila para agregar valores. */
 .fjAgregar { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
 .fjAgregar .fjInput--nuevo { flex: 0 1 220px; }
-.fjBoton {
-  font-family: inherit; font-size: var(--v2-font); letter-spacing: .05em;
-  padding: 3px 10px; border: 1px solid var(--v2-borde); background: transparent;
-  color: var(--v2-texto); cursor: pointer; border-radius: 3px; flex-shrink: 0;
-}
+/* .fjBoton se movio a Button.css (compuesto .botonV2.fjBoton). */
 
 /* ---- Editor por esquema (EditorEsquema): indicadores de estado ---- */
 .ejEstado { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 7px 10px; border-bottom: 1px solid var(--v2-borde); }

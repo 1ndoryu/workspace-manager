@@ -2,11 +2,12 @@
  * [por que] El usuario pidio que al seleccionar una caja NO aparezca un
  * \"cuadro\" sobre ella, sino un panel lateral con la misma estetica de caja
  * del mapa (monocromo, wireframe). La seleccion es estado global del store. */
-import { useState } from 'react';
 import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../../shared/types.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import { estadoProyecto } from '../estado.js';
 import { verticesParedDer, verticesParedIzq, verticesTecho } from '../mapa/tiles.js';
+import { Button } from '../Button.js';
+import { usePanelDetalle } from '../../hooks/usePanelDetalle.js';
 import './paneles.css';
 
 /* Cubo decorativo de la cabecera: la MISMA caja iso del mapa (mismas
@@ -129,16 +130,9 @@ export function PanelDetalle() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
-  const escanearUno = useWorkspaceStore((s) => s.escanearUno);
   const analisis = useWorkspaceStore((s) => s.analisis);
-  /* Auditoria de dependencias por proyecto (plan 308A-4 V1): boton 'Auditar
-   * ahora' en el detalle, homologo a 'escanea ahora'. [por que] La accion
-   * auditarUno del store y el endpoint ya existian pero el boton por proyecto
-   * del plan nunca se habia cableado (quedaba solo 'auditar todo' global). */
-  const auditarUno = useWorkspaceStore((s) => s.auditarUno);
   const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
-  const [escanneando, setEscaneando] = useState(false);
-  const [auditando, setAuditando] = useState(false);
+  const { escanneando, auditando, escanearAhora, auditarAhora } = usePanelDetalle();
 
   if (!snapshot || !seleccionadoId) return null;
   const proyecto = snapshot.proyectos.find((p) => p.id === seleccionadoId);
@@ -174,7 +168,7 @@ export function PanelDetalle() {
           ×
         </button>
       </header>
-      <dl className="panelDetalleLista">
+      <dl className="panelDetalleFilas">
         {filasProyecto(proyecto).map((f) => (
           <div className="panelDetalleFila" key={f.k}>
             <dt>{f.k}</dt>
@@ -188,17 +182,13 @@ export function PanelDetalle() {
        * branch+HEAD+version sin re-spawn. */}
       {proyecto.gate?.puerta === 'sentinel' && (
         <div className="panelDetalleScan" aria-label="Análisis de sentinel">
-          <button
-            type="button"
+          <Button
             className="excBoton"
             disabled={escanneando}
-            onClick={() => {
-              setEscaneando(true);
-              void escanearUno(proyecto.clave).finally(() => setEscaneando(false));
-            }}
+            onClick={() => void escanearAhora(proyecto.clave)}
           >
             {escanneando ? 'analizando…' : 'escaneá ahora'}
-          </button>
+          </Button>
           {resumen && (
             <div className="panelDetalleScanMeta" title={analisisProy?.analizadoEn}>
               {resumen}
@@ -210,17 +200,13 @@ export function PanelDetalle() {
       {/* Auditoria de dependencias (plan 308A-4 V1): boton por proyecto.
        * El server rehusa lo fresco por hash-del-lockfile sin re-auditar. */}
       <div className="panelDetalleScan" aria-label="Auditoría de dependencias">
-        <button
-          type="button"
+        <Button
           className="excBoton"
           disabled={auditando}
-          onClick={() => {
-            setAuditando(true);
-            void auditarUno(proyecto.clave).finally(() => setAuditando(false));
-          }}
+          onClick={() => void auditarAhora(proyecto.clave)}
         >
           {auditando ? 'auditando…' : 'auditá ahora'}
-        </button>
+        </Button>
         {resumenAudit && (
           <div className="panelDetalleScanMeta" title={auditoriaProy?.analizadoEn}>
             {resumenAudit}

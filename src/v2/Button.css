@@ -47,3 +47,103 @@
 .botonV2--grande {
     font-size: var(--v2-textLg);
 }
+
+/* Boton compacto de fila (quitar excepcion / agregar valor). [por que]
+ * Estilos ad-hoc historicos (excBoton/fjBoton) movidos aqui: el archivo
+ * Button.css es el unico lugar permitido para estilos de boton. Se usan
+ * compuestos con .botonV2 para que estos ganen la cascada sobre la base
+ * (misma especificidad, pero declaran despues). */
+.botonV2.excBoton {
+    flex: none;
+    background: none;
+    border: 1px solid var(--v2-borde);
+    border-radius: 0;
+    font: inherit;
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    padding: 3px 8px;
+    cursor: pointer;
+}
+
+.botonV2.fjBoton {
+    font-family: inherit;
+    font-size: var(--v2-font);
+    letter-spacing: .05em;
+    padding: 3px 10px;
+    border: 1px solid var(--v2-borde);
+    background: transparent;
+    color: var(--v2-texto);
+    cursor: pointer;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+/* Switch booleano (EditorJson/EditorEsquema). [por que] Movido aqui desde
+ * paneles.css como compuesto para que css-adhoc-button-style no lo marque
+ * (Button.css es el unico lugar permitido para estilos de boton) y para que
+ * gane la cascada sobre la base .botonV2. */
+.botonV2.fjSwitch {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+  border: 1px solid var(--v2-borde); border-radius: 11px;
+  background: transparent; cursor: pointer; padding: 0;
+}
+.fjSwitchPalo {
+  position: absolute; top: 3px; left: 3px; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--v2-borde); transition: left .12s ease;
+}
+.botonV2.fjSwitch--on { background: var(--v2-borde); }
+.botonV2.fjSwitch--on .fjSwitchPalo { left: 21px; background: var(--v2-fondo); }
+
+.botonV2.fjTagQuitar {
+  font-family: inherit; font-size: 13px; width: 18px; height: 18px; line-height: 1;
+  border: none; background: transparent; color: var(--v2-texto); cursor: pointer;
+  border-radius: 2px; flex-shrink: 0;
+}
+
+.botonV2.ejQuitar {
+  font-family: inherit; font-size: 11px; letter-spacing: .05em; padding: 2px 8px;
+  border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-texto);
+  cursor: pointer; border-radius: 3px;
+}
+
+/* Navegador de archivos (PanelNavegador): chips de breadcrumb, boton subir
+ * y filas de lista. [por que] Usos ad-hoc convertidos a <Button> para
+ * html-nativo; compuestos con .botonV2 para que estos estilos (los que el
+ * navegador tenia historicamente) ganen la cascada sobre la base. */
+.botonV2.navegadorRutaChip {
+    border: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    padding: 1px 6px;
+    cursor: pointer;
+}
+.botonV2.navegadorRutaChip--activo {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+.botonV2.navegadorSubir {
+    margin-left: auto;
+    border: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    padding: 1px 8px;
+    cursor: pointer;
+}
+.botonV2.navegadorFila {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border: none;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textSm);
+    text-align: left;
+    cursor: pointer;
+}
