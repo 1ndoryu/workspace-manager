@@ -1161,6 +1161,38 @@ a 500; su runtime real ~1718). Desglose por regla (todo el agregado):
   coolify §H-1 (la raíz canónica no se reorganiza sin romper tooling) —
   documentada, no forzada.
 
+### J-9 — (HECHO 2026-08-31) runtime del server 8787 + cache stale: GLORYPORT fantasma resuelto
+- **Síntoma:** el agregado vivo mostraba GLORYPORT=2 (`directorio-abarrotado`
+  + `limite-lineas`) mientras el CLI (0.7.4 Y 0.7.5) da exactamente 1
+  (`limite-lineas`, popup.rs documentado). Hipótesis inicial "desalineación
+  0.7.4 vs 0.7.5" **falsa** — ambas versiones producen resultados idénticos
+  en GLORYPORT/gloryapi/workspace-manager (verificado con corridas directas).
+- **Causa real:** cache stale. El server persiste `data/cache/analisis.json`
+  y su clave de frescura es `ruta|rama|HEAD|version|varsense|cfg`. El HEAD de
+  GLORYPORT cambió (`ade2c053` → `d2160c0`, commit del pin J-8), pero la
+  entrada persistida fue escrita con el HEAD VIEJO y el endpoint GET
+  `/api/gate/analisis` sirve la cache persistida sin re-ejecutar. El hallazgo
+  `directorio-abarrotado` era la foto vieja, no un hallazgo nuevo.
+- **Corrección (sin cambio de código):** `POST /api/gate/analizar
+  {clave:'GLORYPORT', forzar:true}` — el flag `forzar` re-escanea git
+  (snapshotArea(true)) y re-ejecuta sentinel aunque la frescura no cambie
+  (diseño del endpoint pensado para el botón "escanea ahora"). Resultado:
+  **GLORYPORT = 1w (`limite-lineas`, popup.rs documentado)** — el fantasma
+  desapareció del resultado vivo y de la cache persistida.
+- **Decisión J-9 (runtime):** NO se cambia `cliRuntime()` a 0.7.5 ni al
+  checkout compartido. El runtime 0.7.4 produce conteos idénticos al 0.7.5
+  en los proyectos medidos; el único desacuerdo documentado (raíz
+  `directorio-abarrotado` de coolify/GLORYPORT) es una diferencia de
+  sensibilidades de regla ya documentada como excepción (§H-1, §I-12).
+  Cambiar el runtime del server es una decisión de infraestructura del otro
+  hilo; la alineación real de versiones pertenece a la actualización de
+  `RAIZ_VERSIONS` (instalar 0.7.5), no a un bypass en el código del server.
+- **Lección operativa:** ante cualquier conteo del agregado que no cuadre con
+  el CLI directo, PRIMERO forzar re-análisis del proyecto (`forzar:true`),
+  DESPUÉS sospechar de versiones. La cache persistida sobrevive al restart
+  del server (intencional, para rehidratar la consola), así que "el server
+  acaba de arrancar" NO implica cache fresca.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
