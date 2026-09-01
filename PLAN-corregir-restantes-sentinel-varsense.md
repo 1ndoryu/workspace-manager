@@ -1883,6 +1883,58 @@ WIP: repo limpio desde el inicio (ahead 8).
 explícito) + docs workspace-manager (este bloque). PT y resto sin tocar.
 Push pendiente de decisión del usuario. Scratch C:/tmp limpiado.
 
+### J-11V12 — HECHO 2026-09-01 (bloque 318A-7V12) — frentes coolify-manager-rs / gloryapi / Glory-Laminal (verificación + documentación, 0 cambios)
+
+Frente declarado por el cierre V11 (siguientes conteos sin desglosar:
+coolify ~96 en agregado, gloryapi ~76, Laminal ~42). Baselines frescos con
+runtime fijado `1a0c588`:
+
+- **coolify-manager-rs: varsense 30** (0e) = `claseHuerfana` ×12,
+  `valorHardcoded` ×11, `token-duplicate` ×6, `cssInlineReact` ×1.
+- **gloryapi: varsense 76** (0e) = `token-unused` ×38, `token-duplicate`
+  ×37, `cssInlineReact` ×1.
+- **Glory-Laminal: varsense 42** (0e) = `cssInlineScript` ×23,
+  `token-unused` ×14, `valorHardcoded` ×4, `token-duplicate` ×1.
+
+**Clasificación completa (cero accionables con token exacto):**
+- **coolify (30)**: 12 `claseHuerfana` = FPs dinámicos verificados línea a
+  línea (`vpsStatusBar${index+1}`, ternarios en VistaSitios/VistaPortalVisual,
+  mapeo de variantes en Button.tsx) → patrón §I-2. `cssInlineReact` ×1 =
+  runtime legítimo (posicionamiento del menú, comentado en
+  variables.css:31-33). `valorHardcoded` ×11 = one-offs del portal VPS sin
+  token equivalente (52/32/36/34/18px, `#f5a01f`, rgba) → excepción.
+  `token-duplicate` ×6 = coincidencias de valor **cross-dominio** (texto/
+fondo, acento/borde, radio/espacio) del diseño monocromo; colapsarlas las
+  acoplaría semánticamente (p. ej. `--acento: var(--bordeActivo)` cambiaría
+  el acento si el borde divergiera) → excepción fundamentada (patrón
+  §I-10/§I-11).
+- **gloryapi (76)**: 100% ya documentado §I-10 (líneas 375-403): 38
+  `token-unused` = puente `@theme inline` de Tailwind v4 (se consumen vía
+  utilidades compiladas), 37 `token-duplicate` = aliasing semántico shadcn,
+  1 `cssInlineReact` = runtime dnd-kit.
+- **Glory-Laminal (42)**: 100% ya documentado §I-11 (líneas 775-815): 14
+  `token-unused` = API pública del tema Blender (contrato del archivo:
+  «Ningún componente declara colores... usa estas variables»), 23
+  `cssInlineScript` = runtime del editor, 4 `valorHardcoded` = one-offs
+  (guizmo `#ff3352` vs tokens `--ejeX/Y/Z` en gizmo, `#2c2c2c` asa hover,
+  `#334d80` outliner, `#5f5f5f`, rgba) ya excepcionados, 1
+  `token-duplicate` = auto-colisión de alias `var()` (límite del analizador).
+  Nota: gizmo duplica valores de `--ejeX/Y/Z` como literales runtime
+  (canvas WebGL2, no CSS) → excepción documentada, no tokenizable.
+
+**Resultado:** 0 cambios de código en los 3 repos — el frente es
+verificación y documentación: los tres quedan en familias de excepción ya
+documentadas con evidencia línea a línea; forzar colapsos acoplaría dominios
+semánticos (lección V9/V10 aplicada: se cazó lo real y no había).
+
+**Verificación:** varsense 0 errores en los 3 · sentinel sin regresión
+(coolify 67 baseline §J-5, gloryapi/GLORYPORT y Laminal sin hallazgos en
+CSS tocados — ninguno tocado) · WIP intacto · C:/tmp limpio.
+
+**Commits (sin push):** solo docs workspace-manager (este bloque);
+coolify/gloryapi/Laminal sin cambiar. Push pendiente de decisión del
+usuario.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
