@@ -14,7 +14,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import type {
   AnalisisSentinel,
@@ -128,18 +128,38 @@ export function esElegible(p: Proyecto): boolean {
   return p.gate?.puerta === 'sentinel';
 }
 
-/* Clave de frescura: branch + HEAD + version de sentinel + (si el proyecto
- * declara varsense) version de varsense + hash de su config. [por que] El
- * analisis fusiona ambos reportes (fase G): si varsense cambia de version o
- * su `varsense.config.json` cambia, el resultado deja de ser fresco aunque el
+/* Hash corto del artefacto que ejecuta el runtime (out/cli o dist/cli): si el
+ * checkout se reconstruye sin cambiar version ni codigo del proyecto, la cache
+ * quedaba "fresca" con resultados viejos. [por que] 308A-6J11: el conteo de la
+ * consola no coincidia con el CLI directo porque la cache persistida servia un
+ * analisis de un dist anterior (mismo version). mtime+size del entry basta: un
+ * rebuild cambia ambos. */
+function hashArtefacto(ruta: string): string {
+  try {
+    const st = statSync(ruta);
+    return `${st.size}:${Math.trunc(st.mtimeMs)}`;
+  } catch {
+    return '?';
+  }
+}
+
+/* Clave de frescura: branch + HEAD + version de sentinel + hash del artefacto
+ * del runtime + (si el proyecto declara varsense) version de varsense + hash
+ * de su dist + hash de su config. [por que] El analisis fusiona ambos reportes
+ * (fase G): si varsense cambia de version, se reconstruye su dist, o su
+ * `varsense.config.json` cambia, el resultado deja de ser fresco aunque el
  * repo y sentinel no cambien. */
 function frescoDe(p: Proyecto): string {
   const rama = p.git?.rama ?? '?';
   const head = p.git?.ultimoCommit?.hash ?? '?sin-commits';
   const v = versionRuntime() ?? '?';
-  const vs = varsenseRuntime();
+  const cli = cliRuntime();
+  const vs = checkoutVarsense();
+  const rSent = cli ? hashArtefacto(cli) : '?sin-runtime';
+  const rVs = vs ? hashArtefacto(join(vs, 'dist', 'cli', 'index.js')) : 'sin-varsense';
+  const vr = varsenseRuntime();
   const cfg = varsenseConfigHash(p.ruta);
-  return `${p.ruta}|${rama}|${head}|${v}|${vs?.version ?? 'sin-varsense'}|${cfg ?? 'sin-config'}`;
+  return `${p.ruta}|${rama}|${head}|${v}|${rSent}|${vr?.version ?? 'sin-varsense'}|${rVs}|${cfg ?? 'sin-config'}`;
 }
 
 /* Resuelve el runtime de varsense del checkout compartido
@@ -252,7 +272,12 @@ function normalizar(
     estado: total > 0 ? 'conHallazgos' : 'ok',
     analizadoEn: new Date().toISOString(),
     resumen,
-    hallazgos: hallazgos.slice(0, 500),
+    /* [por que] 308A-6J11: los hallazgos se guardan COMPLETOS (sin cap 500).
+     * El cap truncaba la lista y los conteos por regla del agregado no
+     * coincidian con el CLI directo (p.ej. claseHuerfana de PT: 298 en la
+     * consola vs 1083 reales). El render del cliente sigue siendo acotado;
+     * aqui la fuente de verdad es el reporte completo. */
+    hallazgos,
   };
 }
 
@@ -396,7 +421,7 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
       if (resVs) {
         const vs = normalizar(resVs.dato, clave, resVs.version, p.ruta, 'varsense');
         dato.resumen = sumarResumen(dato.resumen, vs.resumen);
-        dato.hallazgos = [...dato.hallazgos, ...vs.hallazgos].slice(0, 500);
+        dato.hallazgos = [...dato.hallazgos, ...vs.hallazgos];
         dato.varsense = { version: resVs.version, resumen: vs.resumen };
         if (dato.estado === 'ok' && vs.estado === 'conHallazgos') dato.estado = 'conHallazgos';
       }

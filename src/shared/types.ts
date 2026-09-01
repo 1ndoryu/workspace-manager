@@ -127,7 +127,9 @@ export type SeveridadSentinel = 'error' | 'warning' | 'information' | 'hint';
 export type NombreSeveridad = Record<SeveridadSentinel, number>;
 
 /* Resultado del analisis real de sentinel sobre un proyecto. Nunca anida el
- * formato de sentinel (entries[]): va desnormalizado y acotado. */
+ * formato de sentinel (entries[]): va desnormalizado y plano. Los hallazgos
+ * van COMPLETOS (sin cap): el render del cliente es acotado, pero los conteos
+ * del agregado deben coincidir con el CLI directo (308A-6J11). */
 export interface AnalisisSentinel {
   clave: string;
   version: string;
