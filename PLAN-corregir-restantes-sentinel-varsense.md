@@ -1434,6 +1434,47 @@ ONG AGAPE 241, RESTAURANTE 231, WANDORIUS 157, workspace-manager 127,
 coolify 98, gloryapi 76, Glory-Laminal 42, GLORYPORT 1. La consola y el CLI
 ahora muestran el MISMO número por regla/proyecto.
 
+### J-11V3 — HECHO 2026-09-01 (bloque 308A-7V3) — bug de comillas del scanner `claseHuerfana`
+
+**Síntoma:** 464 `claseHuerfana` en PT; de ellas, ~35 tenían uso repo-wide
+real pero el scanner no las indexaba (usuario: «si dices que tienen uso real
+por qué se detectan entonces»).
+
+**Causa raíz real:** `REGEX_STRING_LITERAL` (regex de comillas) falla ante
+literales de string vacíos: en `x ? 'a' : ''` el cierre de `''` se toma como
+apertura → se traga la siguiente pareja de comillas real
+(`'panelCelda--origenMover'` desaparece) y emite un token basura
+(identificador `estaOrigenMover`) como «clase». Reproducido en
+`panelCelda--eligiendo` (sí indexado) vs `panelCelda--origenMover` (no).
+
+**Fix (`50913d2`, tag `v2.2.1-j8c`):** extractor de literales por escaneo de
+caracteres (quote-pair scanner con escapes) reemplaza la regex; fix en
+`classIndexBuilder.ts` + tests en `coreContracts.test.ts` (**67/67 OK** +
+lint clean + `check:core` OK). Adicionalmente: CSS como consumer pattern por
+defecto (`**/*.css` — referencias entre archivos CSS, p.ej. movilBase.css→
+base.css; por archivo se excluye su propia definición), props objeto
+`clase:`/`claseX:` como usos, y resolución de `switch`/`case` para
+identificadores alimentados a templates de clase.
+
+**Resultado medido (PT, dist fijado):** `claseHuerfana` **464→429 (−35)**,
+0 errores, total 822→**787**; **0 FN verificado** (las 35 removidas del
+reporte tienen uso real repo-wide; los 429 restantes = 363 con uso real que
+el scanner aún no ve, 76 muertas en reglas mixtas conservadas por diseño,
+coincidencias de datos/strings). Sin regresión en otras reglas: el único delta
+fue `valorHardcoded` +1 = regla nueva del WIP no commiteado del usuario
+(`panelIA.css`), documentado.
+
+**Release (convención J-8):** pins `8ce45b6`→`50913d2` + locks regenerados en
+10 consumidores: workspace-manager `7e05d14`, coolify `999b50a`, ONG AGAPE
+`ce373f1`, RESTAURANTE `6971b18`, Glory-Laminal `fb8f08b`, GLORYPORT
+`ef9e40c`, freebuff-bridge `5e264b6`, GLORYINSPECTOR `0413bda`, PROYECTO
+TASKS `8fd6209` (solo qt.json+lock; WIP del usuario intacto, verificada
+ausencia de CSS en su diff), WANDORIUS `d80b83ee`+`734595b8` (gitlink+qt.json,
+luego lock; el generador lee el gitlink de HEAD, requiere commit previo al
+`--write`). dist de WANDORIUS/tools/varsense reconstruido desde el pin (el
+CLI viejo no tenía el fix; shared dist ya al día). gloryapi no pinnea
+varsense (gate legacy). Sin push en ningún repo.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
