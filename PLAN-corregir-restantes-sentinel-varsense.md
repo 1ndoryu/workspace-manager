@@ -1606,6 +1606,77 @@ PT (sentinel cap+desync de runtime documentado, varsense 742→736 por V5)
 permanecen válidos; PT sigue ahead 9 de origin, push pendiente de decisión
 del usuario. Scratch de C:/tmp del bloque eliminado.
 
+### J-11V7 — HECHO 2026-09-01 (bloque 318A-7V7) — `token-unused`/`token-duplicate` de PT (19 + 186 → 19 + 186, 0 fixes aplicados: excepción fundamentada, premisa de puente Tailwind FALSADA)
+
+Siguiente frente declarado en roadmap tras V6. Baseline fresco con runtime
+fijado (`beb05ba`): varsense PT **736 = 1e/735w**, `token-unused` **19**,
+`token-duplicate` **186**, 0 errores (único error = `variableNoDefinida` del
+WIP del usuario en panelIA.css, documentado).
+
+**Premisa del bloque falsada con evidencia:** el encargo suponía «ceguera del
+detector por el puente Tailwind v4/shadcn». PT **no tiene puente Tailwind**:
+cero `@theme` en `src/**/*.css`, cero `tailwind.config.*`, cero
+`postcss.config.*` (solo Vite + CSS manual). No hay canal de consumo que el
+scanner pueda estar perdiendo → **no procede fix del core**; un fix a ciegas
+crearía FNs.
+
+**`token-unused` (19) — detector CORRECTO, remoción bloqueada por WIP:** los
+19 viven todos en `frontend/src/app/styles/dashboard/variables.css`
+(modificada por el usuario; en su WIP). Verificado repo-wide en el scope del
+scan (`frontend/src/**/*.{css,ts,tsx}` + index.html): **0 referencias**
+`var(--…)` fuera del archivo definidor (`--breakpointMovil/Tablet/Escritorio`,
+`--font-primary/serif/mono/sans-alt`, `--dashboard-estadoMuyBajaFondo`,
+`--dashboard-acentoPrimarioRgb`, `--dashboard-superposicionActiva`,
+`--dashboard-sombraFlotante`, `--dashboard-botonPrimarioSombra`,
+`--dashboard-espacioMovilLg`, `--dashboard-safeAreaRight`, etc.). Son tokens
+realmente sin consumo hoy — probablemente reservados para el trabajo en
+curso del usuario. **Remoción = decisión del usuario** (archivo WIP activo);
+excepción documentada, no se borra nada. Nota: `--dashboard-estadoMuyBajaFondo`
+está definido DOS veces (L49 rgba(255,255,255,.06) y L274 rgba(0,0,0,.04)) —
+cascade: gana la última; olor real a reportar al usuario, en su WIP.
+
+**`token-duplicate` (186) — hallazgos factuales correctos, colapso no
+actionable:** el detector agrupa por valor normalizado entre TODOS los
+archivos; los 186 son igualdad de valor coincidental entre dominios
+semánticos o pares paralelos independientes:
+
+- **177** en `variables.css` (WIP del usuario).
+- **9 fuera:** `--space-xs`/`--radius-sm` (App.css, escala spacing/radio) vs
+  `--dashboard-scrollbarAncho`/`--dashboard-espacioTactil` (dashboard) —
+  dominios no relacionados; `--arbol-color` (PanelExp) vs
+  `--pixel-editor-iconoActivo` (modalEditorArbol); `--dashboard-panelHeaderBorde`
+  vs `--pixel-editor-iconoBorde`; y los 2 pares same-domain verificados a mano:
+  `--ptr-translateY`/`--ptr-contenido-translateY` (pullToRefresh.css, L8/L11)
+  son **hooks runtime asignados por JS por separado**
+  (`usePullToRefresh.ts:115,117` — indicador vs contenido), ambos con default
+  `0`; `--col1-fr`/`--col2-fr` (resizeHandleColumna) valores por columna
+  independientes. Colapsar cualquiera de estos pares **rompe comportamiento**
+  o acopla dominios no relacionados → patrón §I-7/§I-9/§I-10 ya documentado
+  («aliasing semántico / pares paralelos con overrides de scope»).
+
+**Decisión:** CERO código tocado, CERO cambios de core (los hallazgos son
+veraces; no hay bridge que arreglar), sin disables nuevos. Los 19 unused
+quedan gated al usuario (WIP); los 186 duplicates = excepción documentada
+por diseño del detector (agrupación cross-file por valor, sin comparación de
+scope/dominio — candidato a mejora futura del analizador: reportar solo
+duplicados same-file/same-scope).
+
+**Verificación (sin cambio de código):** `npm run type-check` (frontend)
+exit 0 · `vite build` verde (solo warning preexistente de chunk) · `sentinel
+analyze` PT (0.7.7/0559576) **95 = 0e/87w/8h = baseline exacto** sin
+hallazgos nuevos · varsense **736 = 1e/735w** estable (duplicate 186, unused
+19, claseHuerfana 429, valorHardcoded 40, cssInlineScript 32, cssInlineReact
+29) · WIP del usuario intacto (`variables.css` única modificación a mano).
+
+**Verificación viva del 8787:** re-análisis forzado `POST
+/api/gate/analizar {clave: "PROYECTO TASKS", forzar: true}` → server reporta
+**PT 801 = 1e/792w/8h con token-duplicate 186, token-unused 19, claseHuerfana
+429** — composición idéntica al CLI local (la diferencia 736 vs 801 = el
+agregado fusiona sentinel+varsense cap 500/proyecto, desync de runtime 0.7.4
+documentado en J-9; los conteos por regla varsense coinciden 1:1). Sin commit
+en PT (nada que tocar); PT sigue ahead 9 de origin, push pendiente de
+decisión del usuario. Scratch de C:/tmp del bloque eliminado.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
