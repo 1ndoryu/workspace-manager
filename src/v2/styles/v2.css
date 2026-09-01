@@ -103,7 +103,7 @@ html {
  * ausente sin dejar hueco. */
 .panelDetalle {
     flex: 0 0 auto;
-    width: var(--ancho-detalle, 300px);
+    width: var(--ancho-detalle);
 }
 
 .v2CentralMarco {
@@ -126,7 +126,7 @@ html {
 
 .panelProyectos {
     flex: 0 0 auto;
-    width: var(--ancho-lista, 260px);
+    width: var(--ancho-lista);
 }
 
 /* Divisores arrastrables INVISIBLES entre paneles: zona de agarre de 12px
