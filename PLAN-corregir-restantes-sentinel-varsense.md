@@ -1179,10 +1179,30 @@ exit 0 + `sentinel analyze` (CLI 0.7.5) 29 hallazgos + varsense CLI 2.2.1
 - Commits: RESTAURANTE `308A-6J4` (13 archivos); workspace-manager docs
   `308A-6J4doc`.
 
-### J-5 — coolify-manager-rs (103 → objetivo ~90-100)
-- 4 `limite-lineas` → splits si hay seam; 16 `claseHuerfana` FP verificados
-  (§I-13) mantener; 11 `valorHardcoded` one-off (§I-13) mantener; 8
-  `token-duplicate` escalas (excepción). 36+22 monolitos documentados.
+### J-5 — coolify-manager-rs (103 → objetivo ~90-100) — HECHO 2026-09-01
+- Baseline fresco con CLIs fijados: sentinel **67** (1e/43w/23h) + varsense
+  **32** (0e/31w/1i) = **99**. Resultado: sentinel **67→66** (1e/42w/23h),
+  varsense **32 intacto** (0 errores) → **98**, sin regresión, sin huérfanas
+  nuevas (claseHuerfana 12 estable).
+- **Split real de `limite-lineas`: `src/infra/google_drive.rs` (834 → módulo
+  `src/infra/google_drive/` con seam triple de dominio**: `mod.rs` = struct +
+  `new()` + helpers (`resolve_credentials_path`/`escape_query_literal`/`urlencoding`)
+  + tests; `auth.rs` = `DriveAuthMethod`/`ServiceAccountCredentials`/JWT/tokens
+  (pub(super) para visibilidad entre hermanos); `files.rs` = operaciones Drive
+  (upload/download/list/delete/ensure/find/metadata). El hallazgo
+  `limite-lineas` de google_drive desapareció del analyze. Cero cambios de
+  comportamiento: misma lógica, 172 tests lib en verde.
+- Excepciones documentadas sin forzar: `limite-lineas` ×2 restantes =
+  `mcp/tools.rs` (872 efectivas; el seam único defs/ejecución deja ~507
+  residuales, no alcanza el límite 500 → excepción `flujo` no arbitraria) y
+  `portal.css` (904/600, GUI ya excepción §I-6) + `deploy_service.rs`
+  (2135, monolito §H-1/§I-13 con su nivel-3, único error = 1e). 36+22
+  monolitos (funcion-larga/parametros) + 16 claseHuerfana FP + 11
+  valorHardcoded one-off + 8 token-duplicate escalas = excepciones §I-13.
+- Verificación: `cargo check --tests` exit 0 + `cargo test --lib` 172/172
+  + `sentinel analyze` **66** (1e/42w/23h, error = deploy_service documentado)
+  + `varsense all` **32** (0 errores).
+- Commits: coolify-manager-rs `308A-6J5`; workspace-manager docs.
 
 ### J-6 — verificación final de WANDORIUS/gloryapi/Glory-Laminal/GLORYPORT — HECHO 2026-08-31
 - Re-verificado FPs y excepciones documentadas (§I-9/I-10/I-11/E/F): WANDORIUS
