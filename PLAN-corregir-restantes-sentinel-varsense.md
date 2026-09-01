@@ -1831,6 +1831,58 @@ nuevos atribuibles). RESTAURANTE: sin cambios, clasificación como evidencia.
 explícito). RESTAURANTE/PT/otros sin tocar; WIP del usuario intacto. Push
 pendiente de decisión del usuario (PT ahead). Scratch C:/tmp limpiado.
 
+### J-11V11 — HECHO 2026-09-01 (bloque 318A-7V11) — frente WANDORIUS (4 colapsos same-scope, varsense 157 → 153)
+
+Frente declarado por el cierre V10 (WANDORIUS siguiente conteo relevante sin
+desglosar; agregado 157). Baseline con runtime fijado `1a0c588`: varsense
+**157** (0e/65w/89h) = `token-duplicate` ×58, `claseHuerfana` ×10,
+`cssInlineScript` ×89.
+
+**Clasificación completa:**
+- `token-duplicate` ×58: la mayoría son coincidencias de valor intencionales
+del monocromo + knobs de inversión de tema — pares cross-scope entre
+`:root` y `[data-tema='oscuro']`/scopes de ventanas que `variables.css`
+documenta como `[297A-18]`/`[308A-6]`; colapsarlos a `var()` rompería el
+dark mode (verificado: `--color-texto-secundario` se redefine en el scope de
+ventanas sin tocar `--sistema-texto-secundario`). **4 reales same-scope
+dentro de `:root` (canónicos declarados una sola vez, sin redefinición en
+ningún scope, con consumidores verificados):** `--win-w`/`--win-h`
+(640/480px = `--sistema-ventana-*-default`, consumidos por
+`desktop-window.css:14-15` como fallback y seteado runtime por
+window-manager) e `--icono-row` (`auto` = `--icono-col`, consumido por
+`desktop-shell.css:79-80` + runtime `workspace-icon-grid.ts:101-106`).
+`--sistema-menu-contexto-texto-tamano` quedó descartado del colapso porque
+`--tamano-pequeno` (11px) tampoco se redefine y ambos conviven en el mismo
+scope — se colapsó igualmente (verificación: definición única en
+`variables.css:38`, consumidores en base.css/Button/Form/Misc/Modal).
+- `claseHuerfana` ×10: 10/10 FPs verificados (construcción dinámica
+`tag-estado--${item.status}`, `media-library__badge--${item.asset_state}`,
+`movilLauncher__tema` literal, tiptap/ProseMirror = DOM inyectado por
+Tiptap) → patrón §I-2 documentado.
+- `cssInlineScript` ×89: runtime del desktop (posicionamiento win-manager,
+drag/ghost, estado condicional), excepción ya documentada en frentes
+anteriores.
+
+**Fixes (commit WANDORIUS `4ef39ee1`):** 4 colapsos same-scope en
+`frontend/src/styles/variables.css` (líneas 74, 117-118, 136-137):
+`--sistema-menu-contexto-texto-tamano: var(--tamano-pequeno)`,
+`--icono-row: var(--icono-col)`, `--win-w: var(--sistema-ventana-ancho-
+default)`, `--win-h: var(--sistema-ventana-alto-default)`. Visual-neutral:
+los valores coinciden exactamente y ninguna fuente queda sin definición (el
+runtime setea los mismos nombres inline).
+
+**Resultado:** varsense **157 → 153** (token-duplicate 58 → 54), **0
+errores, 0 hallazgos nuevos** (sin token-unused nuevos: los 4 canónicos
+siguen consumidos).
+
+**Verificación:** `npm --prefix frontend run type-check` exit 0 · sentinel
+analyze **0e/0w/0i/0h** (sin hallazgos nuevos; cambio solo CSS del shell) ·
+WIP: repo limpio desde el inicio (ahead 8).
+
+**Commits (sin push):** WANDORIUS `4ef39ee1` (variables.css, stage
+explícito) + docs workspace-manager (este bloque). PT y resto sin tocar.
+Push pendiente de decisión del usuario. Scratch C:/tmp limpiado.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
