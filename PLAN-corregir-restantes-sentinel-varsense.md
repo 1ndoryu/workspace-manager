@@ -1953,6 +1953,29 @@ Mejora estructural nombrada por la auditoría de 4 dimensiones como el siguiente
 
 Commit: workspace-manager (harness + registro + paneles.css + docs §J-11V13). Push pendiente del usuario.
 
+### J-11V13C — HECHO 2026-09-01 (cierre de los 3 gaps de correctness de la auditoría)
+
+Cierre de los gaps de verificación/documentación que la auditoría de 4 dimensiones nombró sobre el candidato `722087a` (sin capacidad nueva, solo evidencia):
+
+**Gap 1 — sentinel pinned 0.7.7 re-ejecutado en los 3 repos de V12:**
+- gloryapi: **0e/0w/0h = 0**, match EXACTO con el baseline documentado. ✓
+- coolify-manager-rs: **1e/57w/23h = 81** vs baseline documentado J-5 (1e/42w/23h = 66) → +15, TODOS `css-hardcoded-value`.
+- Glory-Laminal: **0e/5w/0h = 5** vs baseline documentado (0/0/0/0) → +5, TODOS `css-hardcoded-value`.
+- Root cause (no regresión): la regla `css-hardcoded-value` fue **reactivada en sentinel 0.7.6** (`4a4a0f9`, bloque 318A-4) y el dist de `out/` se reconstruye desde `0559576` (0.7.7). Los repos NO tienen cambios de código desde los baselines (verificado: 0 diffs), y los conteos son estables entre 2 corridas → los deltas son cambio de reglas del runtime, no hallazgos nuevos de los repos. Queda documentado que los baselines de sentinel del plan dependen de la versión de reglas del runtime fijado.
+
+**Gap 2 — root cause del delta glory-harness («1w»):**
+- Real y verificable: HEAD `ff65ccfe` de glory-harness tiene **3 warnings reales** en `core/src/llm.rs` (1028 líneas): `limite-lineas` + `nivel-2` + `funcion-larga-rs`, analizado por el POST forzado (23:31:52). El «1w» de V12 correspondía al HEAD anterior (solo `limite-lineas`).
+- Repo sucio con WIP del usuario (error.rs/lib.rs modificados; context.rs/diff.rs untracked) y **omitido del scan POST** («MISSING» en `proyectos`, 12 de 15 proyectos analizados) — el GET (1w/0w que vimos antes) era cache stale previo al sweep.
+- No es artefacto del servidor: es un hallazgo real en un repo que evoluciona bajo control del usuario y fuera del set trackeado de la misión. **No** se registra en `excepciones.json` (sería ocultar un hallazgo real); queda documentado aquí para que los sweeps no lo re-descubran como delta.
+
+**Gap 3 — reconciliación de los dos shapes del 8787:**
+- Ambos endpoints usan la MISMA entrada por proyecto `{clave, resumen, hallazgos, varsense}`; solo difiere el contenedor: GET `/api/gate/analisis` = map keyed por `clave` (cache), POST `/api/gate/analizar-todo` = array (scan forzado).
+- Mapper commiteado: **`scripts/quality/agregado-8787.mjs`** — consume ambos shapes, normaliza por clave de proyecto, suma el total de la misión y compara GET (cache) vs POST (fuerza scan + renueva frescura). Verificado reproduciendo ambos shapes sin drift de claves y con el total coherente (PT con WIP del usuario fluctúa ±2 entre análisis — esperado y documentado). Ningún sweep futuro debe ser shape-frágil.
+
+**Verificación final (sin ediciones de producción):** harness 9/9 proyectos MANTENIMIENTO · sweep vivo forzado post-V13C con total esperado (1727 = la suma por proyecto del POST; PT fluctúa por WIP) · árboles por repo limpios salvo WIP de usuario · `node --check` OK · `pnpm run type-check` exit 0.
+
+Commit: workspace-manager (mapper `agregado-8787.mjs` + docs §J-11V13C). Push pendiente del usuario.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
