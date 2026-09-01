@@ -177,7 +177,7 @@
  * --alto-consola (persistida) y el contenido hace scroll fino. */
 .panelConsola {
     flex: none;
-    height: var(--alto-consola, 200px);
+    height: var(--alto-consola);
     display: flex;
     flex-direction: column;
     background: var(--v2-fondo);
