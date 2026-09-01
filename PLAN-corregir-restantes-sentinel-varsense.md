@@ -1739,6 +1739,43 @@ PT queda ahead 11 de origin (incluye V4–V8 y commits propios del usuario),
 push pendiente de decisión del usuario (instrucción vigente de no pushear PT).
 Scratch C:/tmp del bloque eliminado.
 
+### J-11V9 — HECHO 2026-09-01 (bloque 318A-7V9) — extensión de la metodología V2→V8 al área (workspace-manager valorHardcoded 42 → 36)
+
+Frente declarado por el cierre V8 («extender la metodología probada al resto
+del área»). Ejecutado con la disciplina de bloque estándar.
+
+**Baselines frescos del área con runtime fijado `1a0c588`:** RESTAURANTE
+**141**, ONG AGAPE **129**, WANDORIUS, workspace-manager **93** (pre-fix),
+coolify-manager-rs, Glory-Laminal, gloryapi, GLORYPORT — el resto del área
+permanece en las familias de excepción ya documentadas (token-duplicate/
+unused del puente Tailwind/shadcn, runtime dinámico, one-offs, monolitos con
+excepción §I).
+
+**Único conjunto accionable detectado:** los `valorHardcoded` ×42 de
+workspace-manager — frente que J-3 dejó enmarcado sin ejecutar. Desglose
+línea a línea: **6 reales con token declarado exacto** (fallbacks redundantes
+del tipo `var(--token, literal)` con el token declarado en el propio
+`variables-v2.css` líneas 21-24 y 48-50) → colapsados a `var(--token)` en
+`MenuContextual.css` (fondo/borde/texto del menú contextual), `paneles.css`
+(`--alto-consola`) y `v2.css` (`--ancho-detalle`, `--ancho-lista` — además
+resuelve los 2 runtime `--ancho-*` del bloque anterior al dejar el token como
+única fuente). Visual-neutral: el fallback era inerte (token siempre
+definido por AppV2). Los otros 36: radios/fonts px one-off del shell y
+tooltip `#000/#fff` sin token de fondo oscuro — excepción fundamentada
+(patrón §I-15), no forzados.
+
+**Resultado:** varsense workspace-manager **93 → 87** (`valorHardcoded` 42 →
+36, −6 exactos), 0 hallazgos nuevos, 0 errores.
+
+**Verificación:** `pnpm run type-check` exit 0 · sentinel (0.7.7/0559576)
+**31 = 0e/27w/4h = baseline exacto**, sin hallazgos nuevos (los 3 de
+paneles.css son preexistentes: `limite-lineas` monolito documentado + 2
+`css-hardcoded-value` del tooltip `#000/#fff` en líneas 996-997, no tocadas).
+
+**Commits (sin push):** workspace-manager `f066fb5` (CSS del shell v2,
+stage explícito). PT y otros proyectos sin tocar; WIP del usuario intacto.
+Push pendiente de decisión del usuario. Scratch C:/tmp del bloque eliminado.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
