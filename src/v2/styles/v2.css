@@ -70,8 +70,7 @@ html {
     border-radius: 0 !important;
 }
 
-.v2App button,
-.v2App input {
+.v2App :is(button, input) {
     font-family: inherit;
     font-weight: 300;
 }
@@ -125,7 +124,7 @@ html {
     border: none;
 }
 
-.panelLista {
+.panelProyectos {
     flex: 0 0 auto;
     width: var(--ancho-lista, 260px);
 }

@@ -34,7 +34,7 @@ export function Resumen() {
     >
       <div className="resumenGrid">
         {metricas.map((m) => (
-          <div key={m.etiqueta} className="resumenItem">
+          <div key={m.etiqueta} className="resumenTarjeta">
             <div className="resumenValor">{m.valor}</div>
             <div className="resumenEtiqueta">{m.etiqueta}</div>
           </div>

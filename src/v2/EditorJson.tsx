@@ -14,6 +14,7 @@
  *   objeto / array de objetos -> cada hoja se aplane en su propia fila,
  *                                con la ruta como etiqueta. */
 import { useState } from 'react';
+import { Button } from './Button.js';
 import { toastInfo } from './toast.js';
 
 export type JsonValue = boolean | number | string | null | JsonValue[] | { [k: string]: JsonValue };
@@ -111,9 +112,9 @@ function ControlSimple({ value, onChange }: { value: JsonValue; onChange: (v: Js
   if (value === null) return <span className="fjVacio">—</span>;
   if (typeof value === 'boolean') {
     return (
-      <button type="button" className={`fjSwitch${value ? ' fjSwitch--on' : ''}`} onClick={() => onChange(!value)} aria-pressed={value}>
+      <Button className={`fjSwitch${value ? ' fjSwitch--on' : ''}`} onClick={() => onChange(!value)} aria-pressed={value}>
         <span className="fjSwitchPalo" />
-      </button>
+      </Button>
     );
   }
   if (typeof value === 'number') {
@@ -153,7 +154,7 @@ function TagLista({ valores, onCambiar }: { valores: string[]; onCambiar: (v: st
               onChange={(e) => onCambiar([...valores.slice(0, i), e.target.value, ...valores.slice(i + 1)])}
               aria-label={`valor ${i + 1}`}
             />
-            <button type="button" className="fjTagQuitar" onClick={() => onCambiar(valores.filter((_, j) => j !== i))} title="quitar" aria-label="quitar">×</button>
+            <Button className="fjTagQuitar" onClick={() => onCambiar(valores.filter((_, j) => j !== i))} title="quitar" aria-label="quitar">×</Button>
           </span>
         ))}
       </div>
@@ -165,7 +166,7 @@ function TagLista({ valores, onCambiar }: { valores: string[]; onCambiar: (v: st
           onKeyDown={(e) => e.key === 'Enter' && agregar()}
           placeholder="agregar valor…"
         />
-        <button type="button" className="fjBoton" onClick={agregar}>agregar</button>
+        <Button className="fjBoton" onClick={agregar}>agregar</Button>
       </div>
     </div>
   );

@@ -4,18 +4,9 @@
  * la navegacion de carpetas separada de la vista de archivos. La lista
  * cambia de directorio al entrar/salir de carpetas; el visor muestra el
  * archivo seleccionado (texto; los binarios se marcan como no visibles). */
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-import type { EntradaArchivo, ListadoDirectorio } from '../../shared/types.js';
-import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
+import { Button } from '../Button.js';
+import { usePanelNavegador } from '../../hooks/usePanelNavegador.js';
 import './paneles.css';
-
-interface ArchivoAbierto {
-  ruta: string;
-  nombre: string;
-  binario: boolean;
-  contenido: string | null;
-}
 
 /* Extensiones de texto conocidas; el resto se intenta leer igual y el
  * servidor detecta binarios por byte NUL. */
@@ -32,77 +23,20 @@ function formatearTamano(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/* Convierte una ruta relativa ('a/b/c') en segmentos para el breadcrumb. */
-function segmentos(ruta: string): string[] {
-  return ruta === '' ? [] : ruta.split('/');
-}
-
 export function PanelNavegador() {
-  const navegadorRuta = useWorkspaceStore((s) => s.navegadorRuta);
-  const consumirNavegadorRuta = useWorkspaceStore((s) => s.consumirNavegadorRuta);
-  const [dir, setDir] = useState('');
-  const [padre, setPadre] = useState('');
-  const [entradas, setEntradas] = useState<EntradaArchivo[]>([]);
-  const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [abierto, setAbierto] = useState<ArchivoAbierto | null>(null);
-  const [cargandoArchivo, setCargandoArchivo] = useState(false);
-  const [mensaje, setMensaje] = useState<string | null>(null);
-
-  async function cargarDir(ruta: string) {
-    setCargando(true);
-    setError(null);
-    try {
-      const { data } = await axios.get<ListadoDirectorio>('/api/archivos', {
-        params: { ruta },
-      });
-      setDir(data.ruta);
-      setPadre(data.padre);
-      /* [por que] Fallback defensivo: si la API no incluye 'entradas', la
-       * lista queda vacia en lugar de romper con undefined. */
-      setEntradas(data.entradas ?? []);
-    } catch (err) {
-      setError(`no se pudo listar: ${err instanceof Error ? err.message : 'error'}`);
-      setEntradas([]);
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  async function abrirArchivo(entrada: EntradaArchivo) {
-    setCargandoArchivo(true);
-    setMensaje(null);
-    try {
-      const { data } = await axios.get<ArchivoAbierto>('/api/archivos/contenido', {
-        params: { ruta: entrada.ruta },
-      });
-      setAbierto(data);
-      if (data.binario) setMensaje('archivo binario: no se puede mostrar como texto');
-    } catch (err) {
-      setAbierto(null);
-      setMensaje(`no se pudo leer: ${err instanceof Error ? err.message : 'error'}`);
-    } finally {
-      setCargandoArchivo(false);
-    }
-  }
-
-  /* Al montar, listar la raiz del area (si hay una ruta objetivo pendiente
-   * viene de la consola y la gestiona el efecto de abajo). */
-  useEffect(() => {
-    if (navegadorRuta === null) void cargarDir('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /* Cuando la consola pide abrir la carpeta de un proyecto, navegar ahi. */
-  useEffect(() => {
-    if (navegadorRuta !== null) {
-      void cargarDir(navegadorRuta);
-      consumirNavegadorRuta();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navegadorRuta]);
-
-  const partes = segmentos(dir);
+  const {
+    dir,
+    padre,
+    entradas,
+    cargando,
+    error,
+    abierto,
+    cargandoArchivo,
+    mensaje,
+    cargarDir,
+    abrirArchivo,
+    partes,
+  } = usePanelNavegador();
 
   return (
     <div className="panelDocs" aria-label="Navegación de archivos">
@@ -112,38 +46,35 @@ export function PanelNavegador() {
           <div className="panelDocsEntradas">
             {/* Breadcrumb: raiz + cada segmento; click en uno navega ahi. */}
             <div className="navegadorRuta">
-              <button
-                type="button"
+              <Button
                 className={`navegadorRutaChip${dir === '' ? ' navegadorRutaChip--activo' : ''}`}
                 onClick={() => void cargarDir('')}
               >
                 area-trabajo
-              </button>
+              </Button>
               {partes.map((seg, i) => {
                 const destino = partes.slice(0, i + 1).join('/');
                 const activo = i === partes.length - 1;
                 return (
                   <span key={destino} className="navegadorRutaSeg">
                     <span className="navegadorRutaSep">/</span>
-                    <button
-                      type="button"
+                    <Button
                       className={`navegadorRutaChip${activo ? ' navegadorRutaChip--activo' : ''}`}
                       onClick={() => void cargarDir(destino)}
                     >
                       {seg}
-                    </button>
+                    </Button>
                   </span>
                 );
               })}
               {padre !== '' && (
-                <button
-                  type="button"
+                <Button
                   className="navegadorSubir"
                   onClick={() => void cargarDir(padre)}
                   title={`Subir a ${padre === '' ? 'area-trabajo' : padre}`}
                 >
                   ↑
-                </button>
+                </Button>
               )}
             </div>
             {cargando && <div className="docsVacio">cargando…</div>}
@@ -156,9 +87,8 @@ export function PanelNavegador() {
               entradas.map((e) => {
                 const activa = abierto !== null && e.tipo === 'archivo' && e.ruta === abierto.ruta;
                 return (
-                  <button
+                  <Button
                     key={e.ruta}
-                    type="button"
                     className={`navegadorFila${activa ? ' navegadorFila--activa' : ''}`}
                     onClick={() => {
                       if (e.tipo === 'carpeta') void cargarDir(e.ruta);
@@ -171,7 +101,7 @@ export function PanelNavegador() {
                     </span>
                     <span className="docsFilaNombre">{e.nombre}</span>
                     <span className="docsFilaMeta">{formatearTamano(e.tamano)}</span>
-                  </button>
+                  </Button>
                 );
               })}
           </div>

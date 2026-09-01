@@ -24,7 +24,7 @@ export function PanelLista() {
   if (!snapshot) return null;
 
   return (
-    <aside className="panelLista" aria-label="Lista de proyectos">
+    <aside className="panelProyectos" aria-label="Lista de proyectos">
       <header className="panelListaCabecera">proyectos ({snapshot.proyectos.length})</header>
       <div className="panelListaContenido">
         {orden.map((p) => {

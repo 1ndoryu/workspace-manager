@@ -38,7 +38,7 @@ export function AgentsManager() {
         <div className="agentsColumnas">
           <div>
             <h3 className="agentsSubTitulo">Con AGENTS.md ({proyectosConAgents.length})</h3>
-            <ul className="agentsLista">
+            <ul className="agentsListado">
               {proyectosConAgents.map((p) => (
                 <li key={p.id}>
                   <code>{p.id}</code>
@@ -49,7 +49,7 @@ export function AgentsManager() {
           </div>
           <div>
             <h3 className="agentsSubTitulo">Sin AGENTS.md ({proyectosSinAgents.length})</h3>
-            <ul className="agentsLista">
+            <ul className="agentsListado">
               {proyectosSinAgents.map((p) => (
                 <li key={p.id}>
                   <code>{p.id}</code>
@@ -62,7 +62,7 @@ export function AgentsManager() {
       </Tarjeta>
 
       <Tarjeta titulo={`Skills globales (${agentes.skills.length})`}>
-        <ul className="agentsLista skills">
+        <ul className="agentsListado skills">
           {agentes.skills.map((s) => (
             <li key={s.nombre} className="agentsSkill">
               <code>{s.nombre}</code>

@@ -25,6 +25,7 @@ import {
 } from '../shared/gate/esquema.js';
 import { infoSegmento } from '../shared/gate/etiquetas.js';
 import { REGLAS as REGLAS_ESTATICAS, type ReglaCatalogo } from '../shared/gate/reglas.js';
+import { Button } from './Button.js';
 import { toastInfo } from './toast.js';
 
 interface Props {
@@ -122,9 +123,9 @@ function Fila({
           <ValorCrudo valor={fila.valor} />
           {fila.sugerencia && <span className="ejSugerencia">¿era “{fila.sugerencia}”?</span>}
           {quitar ? (
-            <button type="button" className="ejQuitar" onClick={() => quitar(fila.ruta)} title="quitar clave desconocida">
+            <Button className="ejQuitar" onClick={() => quitar(fila.ruta)} title="quitar clave desconocida">
               quitar
-            </button>
+            </Button>
           ) : null}
         </span>
       </div>
@@ -508,9 +509,9 @@ function Control({
     const on = value === true;
     if (readOnly) return <span className="fjVacio">{on ? 'sí' : 'no'}</span>;
     return (
-      <button type="button" className={`fjSwitch${on ? ' fjSwitch--on' : ''}`} onClick={() => onChange(!on)} aria-pressed={on}>
+      <Button className={`fjSwitch${on ? ' fjSwitch--on' : ''}`} onClick={() => onChange(!on)} aria-pressed={on}>
         <span className="fjSwitchPalo" />
-      </button>
+      </Button>
     );
   }
   if (opcion.tipo === 'number') {
@@ -601,9 +602,9 @@ function TagLista({
                 onChange={(e) => onCambiar([...valores.slice(0, i), e.target.value, ...valores.slice(i + 1)])}
                 aria-label={`valor ${i + 1}`}
               />
-              <button type="button" className="fjTagQuitar" onClick={() => onCambiar(valores.filter((_, j) => j !== i))} title="quitar" aria-label="quitar">
+              <Button className="fjTagQuitar" onClick={() => onCambiar(valores.filter((_, j) => j !== i))} title="quitar" aria-label="quitar">
                 ×
-              </button>
+              </Button>
             </span>
           ),
         )}
@@ -617,9 +618,9 @@ function TagLista({
             onKeyDown={(e) => e.key === 'Enter' && agregar()}
             placeholder="agregar valor…"
           />
-          <button type="button" className="fjBoton" onClick={agregar}>
+          <Button className="fjBoton" onClick={agregar}>
             agregar
-          </button>
+          </Button>
         </div>
       )}
     </div>

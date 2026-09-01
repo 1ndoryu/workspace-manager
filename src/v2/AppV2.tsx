@@ -5,10 +5,10 @@
  * laterales y la consola. Detalle (izquierda), central, lista (derecha) y
  * consola (abajo) con divisores arrastrables; anchos/alto y la UI del nav
  * se persisten en localStorage. */
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { useWorkspaceStore } from '../hooks/useWorkspace.js';
-import { logger } from '../shared/logger.js';
 import { MapaV2 } from './mapa/MapaV2.js';
+import { useLayoutV2, MAX_ANCHO, MAX_ALTO, MIN_ANCHO, MIN_ALTO } from './useLayoutV2.js';
 import { NavBar } from './NavBar.js';
 import { PanelConsola } from './paneles/PanelConsola.js';
 import { PanelDetalle } from './paneles/PanelDetalle.js';
@@ -22,42 +22,6 @@ import { Resizer } from './Resizer.js';
 import { Toaster } from './Toaster.js';
 import './styles/v2.css';
 
-interface LayoutGuardado {
-  anchoDetalle: number;
-  anchoLista: number;
-  altoConsola: number;
-}
-
-const CLAVE_LAYOUT = 'workspaceManager:layout';
-const LAYOUT_DEFECTO: LayoutGuardado = { anchoDetalle: 300, anchoLista: 260, altoConsola: 200 };
-
-const MIN_ANCHO = 160;
-const MAX_ANCHO = 600;
-const MIN_ALTO = 120;
-const MAX_ALTO = 500;
-
-function layoutGuardado(): LayoutGuardado {
-  try {
-    const raw = localStorage.getItem(CLAVE_LAYOUT);
-    if (!raw) return LAYOUT_DEFECTO;
-    const d = JSON.parse(raw) as Partial<LayoutGuardado>;
-    if (
-      typeof d.anchoDetalle !== 'number' ||
-      typeof d.anchoLista !== 'number' ||
-      typeof d.altoConsola !== 'number'
-    ) {
-      return LAYOUT_DEFECTO;
-    }
-    return { anchoDetalle: d.anchoDetalle, anchoLista: d.anchoLista, altoConsola: d.altoConsola };
-  } catch (err) {
-    logger.warn('no se pudo leer el layout guardado:', err);
-    return LAYOUT_DEFECTO;
-  }
-}
-
-/* Leido una sola vez por carga de pagina para inicializar el layout. */
-const layoutInicial = layoutGuardado();
-
 export function AppV2() {
   const cargar = useWorkspaceStore((s) => s.cargar);
   const cargarAnalisis = useWorkspaceStore((s) => s.cargarAnalisis);
@@ -69,9 +33,8 @@ export function AppV2() {
   const panelCentral = useWorkspaceStore((s) => s.panelCentral);
   const visibles = useWorkspaceStore((s) => s.visibles);
 
-  const [anchoDetalle, setAnchoDetalle] = useState(layoutInicial.anchoDetalle);
-  const [anchoLista, setAnchoLista] = useState(layoutInicial.anchoLista);
-  const [altoConsola, setAltoConsola] = useState(layoutInicial.altoConsola);
+  const { anchoDetalle, setAnchoDetalle, anchoLista, setAnchoLista, altoConsola, setAltoConsola } =
+    useLayoutV2();
 
   useEffect(() => {
     void cargar();
@@ -80,18 +43,6 @@ export function AppV2() {
     void cargarAnalisis();
     void cargarVulnerabilidades();
   }, [cargar, cargarAnalisis, cargarVulnerabilidades]);
-
-  /* Persiste el layout en cada cambio para sobrevivir a recargas. */
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        CLAVE_LAYOUT,
-        JSON.stringify({ anchoDetalle, anchoLista, altoConsola } satisfies LayoutGuardado),
-      );
-    } catch (err) {
-      logger.warn('no se pudo guardar el layout:', err);
-    }
-  }, [anchoDetalle, anchoLista, altoConsola]);
 
   const conDetalle = seleccionadoId !== null && snapshot !== null && visibles.detalle;
 
