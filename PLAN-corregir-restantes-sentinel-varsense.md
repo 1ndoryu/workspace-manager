@@ -2061,13 +2061,24 @@ coinciden exactas con el harness fijado `38889aa`).
 
 **Resultado:** 0 colapsables, 5 excepciones documentadas; área 9/9 en MANTENIMIENTO con runtime `38889aa`.
 
-Decisión por par (todos same-file, coincidencia de valor, dominios semánticos independientes):
-1. `modalEditorArbol.css:158-163` — `--pixel-editor-sep`/`--pixel-editor-guia` = `--pixel-editor-iconoBorde` (= `--dashboard-bordePrincipal`), `--pixel-editor-relleno` = `--pixel-editor-iconoActivo` (= `--dashboard-textoActivo`). Bridge agnóstico del editor pixel: cada knob se consume por separado en `glory-core/components/pixelart/editorPixelArt.css:47-92` (ícono → color/borde, sep → fondo, guia → grilla, relleno → relleno). Colapsar acoplaría el mapeo agnóstico→tema.
-2. `pullToRefresh.css:8,11` — `--ptr-contenido-translateY` vs `--ptr-translateY`: fallbacks 0; runtime inyecta **valores distintos** (`usePullToRefresh.ts:115-117`, arrastre−40 vs arrastre). Colapsar rompería el offset del indicador.
-3. `resizeHandleColumna.css:120-121` — `--col2-fr` = `--col1-fr` (35fr): fallback estático; runtime inyecta cada columna por separado (`useDashboardGrid.ts:98-100`). Patrón ya documentado en `Agente/lecciones/lecciones-aprendidas.md:34` (default en CSS para tokens inyectados inline en TSX).
+Fuente única de la decisión (formato v2, migrada en 318A-7V16): `scripts/quality/excepciones.json` → proyecto `PROYECTO TASKS` → `pares` (los 5 pares con `tokenA`/`tokenB`/`archivo`/`lineas`/`categoria`/`evidencia`). Sin tablas duplicadas aquí. Deriva de registro por categoría: 3 `bridge-agnostico` (editor pixel, knobs independientes en editorPixelArt.css:47-92) + 2 `fallback-inyectado` (runtime inyecta valores: usePullToRefresh.ts:115-117, useDashboardGrid.ts:98-100; patrón en lecciones-aprendidas.md:34). El harness las verifica 1:1 por par de tokens.
 
-Registro: `scripts/quality/excepciones.json` (PT token-duplicate, marcas `--pixel-editor-sep/guia/relleno`, `--ptr-contenido-translateY`, `--col2-fr`) + conteos V14 actualizados (AGAPE claseHuerfana 38→25, WANDORIUS 10→6, coolify 12→8, PT 429→261).
+Conteos V14 actualizados en el registro (mismo movimiento que en completados): AGAPE claseHuerfana 38→25, WANDORIUS 10→6, coolify 12→8, PT 429→261.
 
 Área 9/9 (harness `38889aa`, 0 hallazgos fuera del registro): workspace-manager 47 · RESTAURANTE 141 · AGAPE 103 · WANDORIUS 149 · coolify 26 · gloryapi 76 (sentinel) · Laminal 42 · GLORYPORT 0 · PT 536.
 
 Verificación PT: tsc --noEmit exit 0, `npm run build` verde (11.3 s), sentinel 0e/82w/10h (1w menos que baseline 83w: restos de VAR-3, sin regresión), WIP del usuario intacto (Cargo.toml/lock, ai.rs, variables.css, data/, test_prueba.md sin stage). Commits locales sin push: PT `891871b` (docs), WM `c5b57ce` (excepciones.json + plan).
+
+### J-11V16 — HECHO 2026-09-02 (bloque 318A-7V16) — registro verificable por máquina + harness regla-por-regla
+
+**Objetivo (auditoría post-V15):** la decisión de los 5 pares vivía en 4 copias en prosa y el harness solo verificaba cobertura de familias, no pares ni conteos → el registro se desincronizaba silenciosamente.
+
+**Cambios:**
+1. `scripts/quality/excepciones.json` migrado a formato v2 verificable: entradas estructuradas por proyecto con `pares` tipados para token-duplicate (`tokenA`/`tokenB`/`archivo`/`lineas`/`categoria`: same-scope-colapsable | cross-dominio | runtime | bridge-agnostico | fallback-inyectado / `evidencia`) y `familias` (claseHuerfana y resto) con conteo esperado por regla por archivo. Los 5 pares de V15 migrados SIN re-clasificar (extraídos de las entradas existentes) + drift V14 (AGAPE 38→25, WANDORIUS 10→6, coolify 12→8, PT 429→261) + familia WIP `variables.css` de PT (175 pares, WIP del usuario, gated).
+2. `scripts/quality/analyze-blocks.mjs` ahora verifica regla-por-regla: para cada hallazgo `token-duplicate` casa (archivo, par de tokens) contra el registro y reporta descubiertos; para el resto de reglas compara conteos por (regla, archivo) entre baseline y registro → detecta drift. Veredicto MANTENIMIENTO solo con 0 descubiertos y 0 drift.
+3. **Corrección de verificación falsa:** el harness anterior reportaba PT «MANTENIMIENTO 536/536» cuando los 175 pares de `variables.css` (WIP) quedaban fuera de las marcas. Con el matcher de pares, PT salía `enMantenimiento:false` con 175 descubiertos → se registró la familia WIP con conteo → vuelve a MANTENIMIENTO con cobertura REAL 536/536.
+4. Fuente única consolidada: plan/completados/roadmap ya no duplican tablas; enlazan a `excepciones.json`.
+
+**Verificación:** harness nuevo: PT MANTENIMIENTO 536/536, 5 pares casados, 0 descubiertos, 0 drift; área 9/9 MANTENIMIENTO con conteos verificados contra el registro (WM 47 · RESTAURANTE 141 · AGAPE 103 · WANDORIUS 149 · coolify 26 · gloryapi 76 · Laminal 42 · GLORYPORT 0 · PT 536). JSON parsea OK, `node --check` OK. Ningún repo de producción cambió (solo docs PT + harness/registro/plan WM).
+
+Commits locales sin push: WM (registro v2 + harness + plan + roadmap) y PT (completados + roadmap, docs deduplicadas).
