@@ -232,9 +232,16 @@ function main() {
     }
   }
   // Drift: familia con `conteo` esperado que no coincide con lo medido.
+  // Nota: se recorren TODAS las entradas del registro con `conteo`, no solo las
+  // que recibieron hallazgos medidos — si una familia cae a 0 hallazgos sin
+  // registrar (fix de detector o borrado de CSS), debe marcar DRIFT igual que
+  // un aumento. Antes de 318A-7V20 solo se miraba `porEntrada`, y una caída a 0
+  // pasaba silenciosa (p. ej. coolify claseHuerfana 5→0 sin detectar).
   const drift = [];
-  for (const [entrada, hallazgos] of porEntrada) {
-    if (typeof entrada.conteo === 'number' && hallazgos.length !== entrada.conteo) {
+  const conConteo = proyReg ? (proyReg.familias || []).filter((f) => typeof f.conteo === 'number') : [];
+  for (const entrada of conConteo) {
+    const hallazgos = porEntrada.get(entrada) || [];
+    if (hallazgos.length !== entrada.conteo) {
       drift.push({
         regla: entrada.regla,
         archivo: Array.isArray(entrada.archivos) ? entrada.archivos.join(',') : undefined,

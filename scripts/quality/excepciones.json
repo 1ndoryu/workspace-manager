@@ -22,9 +22,9 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-2/§J-11V13 — construcción dinámica verificada línea a línea: isoTile--${estado} (IsoMap.tsx:60), badge--${estado} (Badge.tsx:17), boton--${variante} (Boton.tsx:15), v2Resizer--${orientacion} (Resizer.tsx:43), estadoMarcador--${estado} (PanelLista.tsx:44), consolaFilaBadge${severidadBadge}/consolaMotivo--/consolaSeveridad-- (PanelConsola.tsx:332-363), syncBadge--${}/syncMeta--${} (PanelConfig.tsx:577-589)",
+          "evidencia": "§J-2/§J-11V13 — construcción dinámica verificada línea a línea: isoTile--${estado} (IsoMap.tsx:60), badge--${estado} (Badge.tsx:17), boton--${variante} (Boton.tsx:15), v2Resizer--${orientacion} (Resizer.tsx:43), estadoMarcador--${estado} (PanelLista.tsx:44), consolaFilaBadge${severidadBadge}/consolaMotivo--/consolaSeveridad-- (PanelConsola.tsx:332-363), syncBadge--${}/syncMeta--${} (PanelConfig.tsx:577-589). **318A-7V20: conteo 3→0** — medido 0 (absorbidas por V14/V18 contexto className + templates); el conteo 3 quedó stale desde V18 y el drift nuevo lo detectó (era invisible con la lógica vieja: familia con 0 hallazgos no se comparaba)",
           "nota": "V13 borró 7 muertas reales de paneles.css (ejRutaLabel, ejDefault x4, scanCfgCabecera/scanCfgTitulo) — no re-registrarlas",
-          "conteo": 3
+          "conteo": 0
         },
         {
           "regla": "valorHardcoded",
@@ -166,8 +166,8 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V12 — 8/8 FPs verificados línea a línea: vpsStatusBar${index+1} (VistaPortalVisual.tsx:26 con portal.css:620-622), ternarios VistaSitios/VistaPortalVisual, variantes Button.tsx (12→8 por absorción V14/38889aa: 4 familias template-literal; →5 por 318A-7V18 contexto className)",
-          "conteo": 5
+          "evidencia": "§J-11V12 — 8/8 FPs verificados línea a línea: vpsStatusBar${index+1} (VistaPortalVisual.tsx:26 con portal.css:620-622), ternarios VistaSitios/VistaPortalVisual, variantes Button.tsx (12→8 por absorción V14/38889aa: 4 familias template-literal; →5 por 318A-7V18 contexto className). **318A-7V20: 5→0** — productores dinámicos fuera de atributo resueltos por el core V20 (escáner de templates anidados + mapeadores/ternarios/asignaciones compuestas); medido 0 con el dist V20, sin cambios de código en coolify (caída del detector verificada)",
+          "conteo": 0
         },
         {
           "regla": "valorHardcoded",
@@ -252,9 +252,9 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-corregido-core",
-          "evidencia": "318A-7V3 (50913d2) empty-string-literal; V14 (38889aa) familias template-literal 429→305→261; **318A-7V17 (PARSER_VERSION 4)** — escáner balanceado de declaraciones + submódulos excluidos + rechazo de prefijos de prosa + caso multi-clase (BadgeInfo) → **261→224**; **318A-7V18** — escáner balanceado de templates en contexto className/claseAdicional (templates anidados + .trim()) → **224→199** (−25: SelectorNivel/ModalExperimentos/AccionesItem/TarjetaEscenario/ListaTareasCompacta/mensaje${...} verificados; 0 FN en auditoría old→new). Restantes = construcción dinámica verificada (VAR-4: badgeInfo/ui/ui-formulario/selectorNivel) + muertas reales re-reportadas (precisión ganada)",
-          "nota": "Requiere dist con PARSER_VERSION 4 (V17); con dist viejo el scanner reporta FPs por millar",
-          "conteo": 199
+          "evidencia": "318A-7V3 (50913d2) empty-string-literal; V14 (38889aa) familias template-literal 429→305→261; **318A-7V17 (PARSER_VERSION 4)** — escáner balanceado de declaraciones + submódulos excluidos + rechazo de prefijos de prosa + caso multi-clase (BadgeInfo) → **261→224**; **318A-7V18** — escáner balanceado de templates en contexto className/claseAdicional (templates anidados + .trim()) → **224→199** (−25: SelectorNivel/ModalExperimentos/AccionesItem/TarjetaEscenario/ListaTareasCompacta/mensaje${...} verificados; 0 FN en auditoría old→new). **318A-7V20** — productores de clase FUERA de atributo (asignación compuesta `clase +=`, variables transportadoras `clase*` consumidas cross-file, resolución de funciones mapeadoras en atributos de clase) → **199→164** (−35: pullToRefresh×8, modalNotasExpandidoContenedor×4, selectorFechaCalendario×3, swipeableItem×2, etiquetaAlta/Media/Baja×3, whatsappStatusHealthDot×4, mapaCalorHabitoCelda×4, resizeHandleColumna×3, indicadorPlan×4; auditoría old→new: 35 desaparecidos verificados línea a línea con productor vivo, 0 aparecidos, 0 FN). Restantes = construcción dinámica verificada (VAR-4) + muertas reales re-reportadas (precisión ganada)",
+          "nota": "Requiere dist con PARSER_VERSION 4 (V17) + fixes V20 (worktree varsense, commit local 318A-7V20 sin publicar a consumidores — decisión del usuario); con dist pre-V17 el scanner reporta FPs por millar",
+          "conteo": 164
         },
         {
           "regla": "token-duplicate",
@@ -298,9 +298,9 @@
         },
         {
           "regla": "menu-contextual",
-          "categoria": "fp-analizador",
-          "evidencia": "318A-7V1 — 3 warnings FPs: bug self-closing-tag del analizador con línea de prueba documentada",
-          "conteo": 3
+          "categoria": "fuera-de-scope-harness",
+          "evidencia": "318A-7V1 — 3 warnings de regla SENTINEL `menu-contextual-override-diseno` (no varsense): el harness es varsense-only y nunca las mide. Re-verificado fresco con sentinel 0.7.7 (0559576) el 2026-09-02: 3 warnings en EncabezadoPerfil.tsx (className=inputOculto) y MenuContextual.tsx:68/74 (menuContextualSeparador); 0 errores. Sin `conteo` a propósito (fuera de la verificación de drift del harness)",
+          "archivos": ["EncabezadoPerfil.tsx", "MenuContextual.tsx"]
         }
       ],
       "pares": [
