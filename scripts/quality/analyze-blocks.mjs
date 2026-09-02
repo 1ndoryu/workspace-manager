@@ -13,9 +13,15 @@
  *   2. Resume: total por severidad + desglose por regla y por archivo.
  *   3. Clasifica cada hallazgo contra el registro estructurado de excepciones
  *      (`scripts/quality/excepciones.json`), sembrado con las familias ya
- *      verificadas en 318A-7V2..V12 (evidencia en el plan §J-11).
+ *      verificadas en 318A-7V2..V12 (evidencia en el plan §J-11). Formato v2
+ *      (318A-7V16): entradas por proyecto con `familias` (reglas amplias con
+ *      archivos/marcas y `conteo` esperado) y `pares` (hallazgos
+ *      token-duplicate verificados 1:1 por archivo + par de tokens).
  *   4. Veredicto de convergencia: si TODOS los hallazgos están cubiertos por el
- *      registro, el proyecto entra en modo mantenimiento.
+ *      registro (por familia o por par) y los `conteo` de las familias
+ *      coinciden con lo medido (sin DRIFT), el proyecto entra en modo
+ *      mantenimiento. Un conteo que se mueve sin registrarse (DRIFT) rompe el
+ *      veredicto: nuevo hallazgo absorbido o resuelto sin documentar.
  *
  * Uso con otro runtime: los consumidores del área fijan su propio binario; este
  * harness usa el checkout compartido `.quality-tools/varsense` que es el que el
@@ -56,6 +62,38 @@ function severidadKey(s) {
   if (sev.startsWith('info')) return 'informativos';
   if (sev.startsWith('hint')) return 'hints';
   return 'otros';
+}
+
+/**
+ * Extrae el par de tokens de un hallazgo token-duplicate:
+ * mensaje "Token 'A' repite el valor de 'B'." + metadata.canonical = B.
+ */
+function extraerParToken(mensaje, metadata) {
+  const m = /Token '([^']+)' repite el valor de '([^']+)'\./.exec(mensaje || '');
+  if (!m) return null;
+  return { a: m[1], b: metadata?.canonical || m[2] };
+}
+
+/**
+ * Cubre un hallazgo token-duplicate contra las entradas `pares` del registro:
+ * match 1:1 por regla + archivo (basename) + par de tokens (orden indistinto).
+ * Devuelve la entrada del registro o null si no casa con ningún par.
+ */
+function cubiertoPorPar(c, proyReg) {
+  const pares = proyReg?.pares || [];
+  if (pares.length === 0 || c.regla !== 'token-duplicate') return null;
+  const par = extraerParToken(c.mensaje, c.metadata);
+  if (!par) return null;
+  const basename = c.ruta.split(/[\\/]/).pop();
+  for (const p of pares) {
+    const archivo = String(p.archivo || '').split(/[\\/]/).pop();
+    if (basename !== archivo) continue;
+    const ok =
+      (p.tokenA === par.a && p.tokenB === par.b) ||
+      (p.tokenA === par.b && p.tokenB === par.a);
+    if (ok) return p;
+  }
+  return null;
 }
 
 function cubiertoPorRegistro(regla, ruta, message, proyectos) {
@@ -171,17 +209,42 @@ function main() {
   );
   const descubiertos = new Map();
   let cubiertos = 0;
+  const porEntrada = new Map(); // entrada del registro → hallazgos que cubre
   for (const c of crudos) {
-    const fam = cubiertoPorRegistro(c.regla, c.ruta, c.mensaje, proyReg ? [proyReg] : []);
-    if (fam) {
+    // Orden: pares (preciso 1:1) antes que familias (amplias).
+    let entrada = proyReg ? cubiertoPorPar(c, proyReg) : null;
+    if (!entrada) {
+      entrada = cubiertoPorRegistro(
+        c.regla,
+        c.ruta,
+        c.mensaje,
+        proyReg ? [proyReg] : [],
+      );
+    }
+    if (entrada) {
       cubiertos += 1;
+      const arr = porEntrada.get(entrada) || [];
+      arr.push(c);
+      porEntrada.set(entrada, arr);
     } else {
       const k = `${c.regla}::${c.ruta}::${c.linea}`;
       descubiertos.set(k, c);
     }
   }
+  // Drift: familia con `conteo` esperado que no coincide con lo medido.
+  const drift = [];
+  for (const [entrada, hallazgos] of porEntrada) {
+    if (typeof entrada.conteo === 'number' && hallazgos.length !== entrada.conteo) {
+      drift.push({
+        regla: entrada.regla,
+        archivo: Array.isArray(entrada.archivos) ? entrada.archivos.join(',') : undefined,
+        esperado: entrada.conteo,
+        medido: hallazgos.length,
+      });
+    }
+  }
   const enMantenimiento =
-    proyReg !== undefined && descubiertos.size === 0;
+    proyReg !== undefined && descubiertos.size === 0 && drift.length === 0;
 
   // 3) Salida.
   if (wantsJson) {
@@ -203,7 +266,12 @@ function main() {
               { total: v.total, porRegla: Object.fromEntries(v.porRegla) },
             ]),
           ),
-          cobertura: { cubiertos, descubiertos: descubiertos.size },
+          cobertura: {
+            cubiertos,
+            descubiertos: descubiertos.size,
+            pares: (proyReg?.pares || []).length,
+          },
+          drift,
           enMantenimiento,
         },
         null,
@@ -255,8 +323,17 @@ function main() {
     console.log(
       `Sin entrada en excepciones.json para ${arg} — sembrar el registro o clasificar manualmente.`,
     );
-  } else if (descubiertos.size === 0) {
+  } else if (descubiertos.size === 0 && drift.length === 0) {
     console.log(`MANTENIMIENTO — ${total} hallazgos, todos cubiertos por el registro.`);
+  } else if (descubiertos.size === 0) {
+    console.log(
+      `DRIFT — ${total} hallazgos cubiertos pero con conteos desincronizados:`,
+    );
+    for (const d of drift) {
+      console.log(
+        `  ${d.regla}${d.archivo ? ' (' + d.archivo + ')' : ''}: esperado ${d.esperado}, medido ${d.medido}`,
+      );
+    }
   } else {
     console.log(
       `ACCIONABLE — ${descubiertos.size}/${total} hallazgos fuera del registro:`,
@@ -265,10 +342,19 @@ function main() {
       console.log(`  ${c.regla} ${c.ruta}:${c.linea} — ${c.mensaje}`);
     }
   }
+  if (drift.length > 0 && descubiertos.size > 0) {
+    console.log('\nDRIFT de conteos (registro desincronizado):');
+    for (const d of drift) {
+      console.log(
+        `  ${d.regla}${d.archivo ? ' (' + d.archivo + ')' : ''}: esperado ${d.esperado}, medido ${d.medido}`,
+      );
+    }
+  }
   if (proyReg) {
     console.log(
       `Cobertura del registro: ${cubiertos}/${total} ` +
-        `(familias: ${(proyReg.familias || []).length})`,
+        `(familias: ${(proyReg.familias || []).length}, ` +
+        `pares: ${(proyReg.pares || []).length})`,
     );
   }
 }
