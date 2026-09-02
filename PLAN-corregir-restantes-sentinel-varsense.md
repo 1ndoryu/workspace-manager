@@ -1976,6 +1976,66 @@ Cierre de los gaps de verificación/documentación que la auditoría de 4 dimens
 
 Commit: workspace-manager (mapper `agregado-8787.mjs` + docs §J-11V13C). Push pendiente del usuario.
 
+### J-11V14 — EN CURSO 2026-09-02 (bloque 318A-7V14) — detector claseHuerfana: familias dinámicas por template literal
+
+**Motivación (verificado en VAR-4):** el detector `claseHuerfana` indexa solo
+literales de string; los componentes declarativos emiten clases dinámicas con
+template literals (`` `badgeInfo--${variante}` `` en BadgeInfo.tsx, `` `selectorNivelBoton${claseSufijo}` ``
+en SelectorNivel.tsx, `` `boton--${variante}` `` en Boton.tsx) y el scanner las reporta
+como huérfanas. FPs verificados manualmente en VAR-4: PT 63 (badgeInfo 19 + ui 17 +
+ui-formulario 16 + selectorNivel 11), y la misma familia en AGAPE, workspace-manager,
+coolify, RESTAURANTE, WANDORIUS y GLORYPORT.
+
+**Semántica adoptada (documentada antes de tocar código):**
+- Un **prefijo de familia** es el último token completo de un segmento estático de
+template literal que termina justo donde arranca una interpolación `${...}`:
+  `` `badgeInfo--${variante}` `` → prefijo `badgeInfo--`; `` `selectorNivelBoton${sufijo}` `` →
+  prefijo `selectorNivelBoton`. Solo candidatos con forma de clase (`[a-zA-Z_][\w-]*`,
+  longitud ≥ 3) y solo en contexto portador de clases (className/class/clase*,
+  object factories).
+- Un prefijo marca como **EN-USO toda la familia** de clases definidas cuyo nombre
+  empiece por él. NO marca clases fuera de la familia (uso `startsWith` con el token
+  completo del segmento). Cubre los mapas de sufijos sin resolverlos: el valor
+  interpolado sale de una unión/mapa que indexar literalmente exigiría resolver tipos.
+- Los segmentos estáticos continuan contándose como tokens exactos (comportamiento
+  actual intacto); la familia es ADICIÓN de recall, no sustitución.
+- Regla de oro del bloque: eliminar FPs verificados SIN crear FNs. Cada hallazgo
+  que deje de reportarse se audita (debe tener uso dinámico verificable en código
+  o pariente muerto confirmado — nunca oculto).
+
+**Cambios:** core varsense (`classIndexBuilder.ts`): extracción de prefijos de
+familia en los tres formularios de template (attr/template, object) + cache
+persistido (`consumerFamilyPrefixes`, PARSER_VERSION 2→3 para invalidar entradas
+viejas) + consumo en `scan()`. Tests nuevos del contrato (familia sí/no, sufijo
+camelCase, mixto, sin interpolación). Build dist → release a consumidores (pins +
+locks, WANDORIUS gitlink + dist) → re-medir PT/AGAPE/workspace-manager con audit
+FN = 0 → sweep forzado 8787 → docs.
+
+**Estado:** HECHO 2026-09-02 (bloque 318A-7V14).
+
+**Cierre (evidencia):**
+- Implementación core (`classIndexBuilder.ts` + `persistentIndex.ts`): prefijos de
+  familia extraídos en los 3 formularios de template literal + cache persistido
+  (`consumerFamilyPrefixes`, PARSER_VERSION 3) + consumo en `scan()`. Tests: **74 →
+  78** (4 nuevos de contrato), lint + check:core verdes. Dist reconstruido y
+  verificado por contenido.
+- Release cadena V8: varsense commit **`38889aa`** (rama local); pins
+  `quality-tools.json` + locks `sentinel.lock.json` → `38889aa` en los 8
+  consumidores (PT, RESTAURANTE, AGAPE, WANDORIUS, coolify-manager-rs,
+  Glory-Laminal, GLORYPORT, workspace-manager); WANDORIUS gitlink+submodule dist
+  (commit `b732c215`, sha lock `c57a0d02`). gloryapi no consume varsense.
+- Re-medición con harness fijado: **PT 580 → 536, 0 errores** (`claseHuerfana`
+  305→261), AGAPE 103/0e, workspace-manager 47/0e (ambos en mantenimiento).
+- Auditoría FN sobre PT (dist pre-fix en worktree temporal): **44 desaparecidos, 0
+  aparecidos** → 42 con uso dinámico verificado (mapas de sufijos y template
+  literals reales); **2 FN reales corregidos** borrando reglas muertas (0 usos
+  repo-wide): `.pillOpcion--premium` (adjuntos.css) y `.badgeFiltrosActivos`
+  (encabezado-movil.css). `mensajeExito` auditado NO es FN (mapa
+  `mensaje${'Exito'|'Error'}` en AccionesDatos.tsx:51).
+- Verificación PT: `tsc --noEmit` exit 0, `npm run build` verde, sentinel sin
+  regresión (0e/83w/10h), WIP del usuario intacto.
+- Sweep forzado del 8787: ver sección J-11V14-sweep al final.
+
 ## Gotchas / riesgos
 
 - RESTAURANTE es el frente más profundo; conviene su propio plan o iteración
@@ -1987,3 +2047,12 @@ Commit: workspace-manager (mapper `agregado-8787.mjs` + docs §J-11V13C). Push p
   su piso; no asumir conteos de `_analisis.json` (volcado viejo).
 - No mutar estado ajeno; stage explícito por archivo/hunk; preservar cambios
   de otros threads en el checkout compartido.
+### J-11V14-sweep — sweep forzado del 8787 (cierre V14)
+
+POST /api/gate/analizar-todo `{forzar:true}` el 2026-09-02 (HTTP 200, 43 s):
+**PROYECTO TASKS 536w/0e** (== harness), AGAPE 98w+1i+4h (=103, == harness),
+workspace-manager 43w+4i (=47, == harness), RESTAURANTE 81w+21i+39h,
+coolify 25w+1i, WANDORIUS 60w+89i, Glory-Laminal 5w+23i+14h, gloryapi 37w+1i+38h,
+GLORYPORT 0/0/0, freebuff-bridge/glory-harness/GLORYINSPECTOR 0/0/0.
+El runtime vivo del server corre el dist V14 (las mediciones de PT/AGAPE/WM
+coinciden exactas con el harness fijado `38889aa`).
