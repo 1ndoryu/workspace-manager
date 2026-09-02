@@ -34,11 +34,15 @@ const AREA = resolve(__dirname, '../../..') ;
 const BASE = process.env.AGREGADO_BASE || 'http://127.0.0.1:8787';
 
 // Proyectos que la misión 308A-6/7 sigue (los demás — freebuff-bridge,
-// GLORYINSPECTOR, glory-harness, glory-sentinel, .quality-tools-* — son
-// repos del área fuera del alcance; se listan pero no cuentan para la misión).
+// GLORYINSPECTOR, glory-sentinel, .quality-tools-* — son repos del área fuera
+// del alcance; se listan pero no cuentan para la misión). glory-harness se
+// integró al harness de convergencia varsense el 2026-09-02 (analyze-blocks.mjs,
+// decisión del usuario) aunque sus hallazgos de Sentinel (llm.rs) no forman
+// parte de este agregado de varsense.
 const MISION = new Set([
   'workspace-manager','RESTAURANTE','TRABAJOS CLIENTES/ONG AGAPE','WANDORIUS',
   'coolify-manager-rs','gloryapi','Glory-Laminal','GLORYPORT','PROYECTO TASKS',
+  'glory-harness',
 ]);
 
 function extraerEntradas(shape, nombre) {
