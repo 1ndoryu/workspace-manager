@@ -105,15 +105,15 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V10 — construcción dinámica verificada: tarjetaAgape--${tono}, toast--${tipo}, panelEstadoChip--${status}, panelHistoriaCuadro--color${i}, cuadroAcerca--color${i}, botonEnlace--${variante} (38→25 por absorción V14/38889aa; →18 por 318A-7V18 contexto className). **318A-7V21: 18→0** — 3 fixes del core (dist V21 worktree): (a) walker excluye submódulos con `.git` DIRECTORIO (clon completo, caso glory-rs/tools en AGAPE; V17 solo cubría `.git` archivo) → 12 hallazgos de submódulos eliminados; (b) propiedad `imageClass:` con literales (AgapeLanding.tsx:20/27/34, mismo patrón `clase:` de V18) → 3 FPs; (c) artefacto `.png` extraído de url('/logo-agape.png') como si fuera clase → 1 FP. Medido 0 con dist V21; total AGAPE 96→78",
-          "nota": "V10 borró 10 muertas reales (commit AGAPE 0532a99); V14 absorbió 13 FPs dinámicos; V21 los 12 de submódulos + 4 FPs de detector",
-          "conteo": 0
+          "evidencia": "§J-11V10 — construcción dinámica verificada: tarjetaAgape--${tono}, toast--${tipo}, panelEstadoChip--${status}, panelHistoriaCuadro--color${i}, cuadroAcerca--color${i}, botonEnlace--${variante} (38→25 por absorción V14/38889aa; →18 por 318A-7V18 contexto className). **318A-7V21: 18→0** — 3 fixes del core (dist V21 worktree): (a) walker excluye submódulos con `.git` DIRECTORIO (clon completo, caso glory-rs/tools en AGAPE; V17 solo cubría `.git` archivo) → 12 hallazgos de submódulos eliminados; (b) propiedad `imageClass:` con literales (AgapeLanding.tsx:20/27/34, mismo patrón `clase:` de V18) → 3 FPs; (c) artefacto `.png` extraído de url('/logo-agape.png') como si fuera clase → 1 FP. Medido 0 con dist V21. **308A-7V22: 0→10** — WIP del usuario (15:58) commiteado por decisión explícita en 50f762e; reintroduce el bloque que 0532a99 (308A-6V10) retiró como huérfano (marcaSimbolo/marcaTexto/marcaHoja, panelAviso/panelError/panelAccionesTabla, opcionalDonar, tituloBlog/enlaceInstagram, etiquetaHero). Siguen SIN uso en tsx/ts; deuda registrada hasta conectar o limpiar. Medido 10 con dist V21; total AGAPE 78→91",
+          "nota": "V10 borró 10 muertas reales (commit AGAPE 0532a99); V14 absorbió 13 FPs dinámicos; V21 los 12 de submódulos + 4 FPs de detector; V22 reintroduce 10 por WIP usuario commiteado (decisión), pendiente de conectar/limpiar",
+          "conteo": 10
         },
         {
           "regla": "valorHardcoded",
           "categoria": "one-off-sin-token",
-          "evidencia": "§J-11V10 — 69 sin token exacto en el theme (verificado)",
-          "conteo": 69
+          "evidencia": "§J-11V10 — 69 sin token exacto en el theme (verificado). **308A-7V22: 69→72** — +3 por WIP usuario commiteado en 50f762e (etiquetaHero etiqueta+padding, marcaHoja rotate/14x22px en NavegacionPrincipal.css, hero etc.); deuda registrada hasta tokenizar o limpiar",
+          "conteo": 72
         },
         {
           "regla": "token-duplicate",
@@ -259,10 +259,10 @@
         {
           "regla": "token-duplicate",
           "categoria": "wip-usuario",
-          "evidencia": "318A-7V15/§J-11V15 — pares de variables.css (WIP del usuario: definiciones duplicadas del tema dashboard en :root/scope oscuro); fuera de alcance: WIP sin tocar. Los 5 pares fuera de variables.css están en `pares` (v2). V8 (1a0c588) agrupó same-file: los pares cross-file son coincidencia de valor, no duplicados",
+          "evidencia": "318A-7V15/§J-11V15 — pares de variables.css (WIP del usuario: definiciones duplicadas del tema dashboard en :root/scope oscuro); fuera de alcance: WIP sin tocar. Los 5 pares fuera de variables.css están en `pares` (v2). V8 (1a0c588) agrupó same-file: los pares cross-file son coincidencia de valor, no duplicados. **308A-7V22: 175→178** — variables.css SIN cambios entre V16 (medición del registro) y HEAD (0690c23); el re-pin a varsense V18+ (544e3c8) en V19 detecta +3 pares sobre el mismo archivo WIP (medido 178 en worktree limpio a HEAD)",
           "archivos": ["variables.css"],
-          "nota": "conteo = medido V16 (WIP); si cambia, el harness reporta DRIFT (nuevo par o colapso sin registrar)",
-          "conteo": 175
+          "nota": "conteo = medido V22 (runtime V18+, WIP sin tocar); si cambia, el harness reporta DRIFT (nuevo par o colapso sin registrar)",
+          "conteo": 178
         },
         {
           "regla": "cssInlineReact",
@@ -287,9 +287,9 @@
         {
           "regla": "token-unused",
           "categoria": "wip-usuario",
-          "evidencia": "§J-11V5/V8 — tokens del dashboard (variables.css del usuario, sin tocar; definidos en :root y scope oscuro = definición duplicada en WIP, no accionable por el bloque); V16 conteo 20",
+          "evidencia": "§J-11V5/V8 — tokens del dashboard (variables.css del usuario, sin tocar; definidos en :root y scope oscuro = definición duplicada en WIP, no accionable por el bloque); V16 conteo 20. **308A-7V22: 20→24** — variables.css SIN cambios desde V16; re-pin a varsense V18+ (544e3c8) en V19 detecta +4 tokens unused sobre el mismo archivo WIP (medido 24 en worktree limpio a HEAD)",
           "archivos": ["variables.css"],
-          "conteo": 20
+          "conteo": 24
         },
         {
           "regla": "variableNoDefinida",
