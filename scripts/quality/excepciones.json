@@ -15,15 +15,8 @@
         {
           "regla": "claseHuerfana",
           "categoria": "borde-analizador",
-          "evidencia": "§J-11V13 — configBadge--sin (paneles.css:825): mismatch code/CSS (PanelConfig.tsx:80-85 construye 'badge--sin', el selector nunca matchea; estilo no aplicado preexistente). **318A-7V21: conteo 2→1** — mapaV2Etiqueta re-clasificada (0 usos repo-wide en ts/tsx/js/html; la evidencia V13 quedó stale: MapaV2.tsx:174-175 usa mapaV2ParedDer/ParedIzq/Piso, no Etiqueta)",
+          "evidencia": "§J-11V13 — configBadge--sin (paneles.css:825): mismatch code/CSS (PanelConfig.tsx:80-85 construye 'badge--sin', el selector nunca matchea; estilo no aplicado preexistente). **318A-7V21: conteo 2→1** — mapaV2Etiqueta re-clasificada (0 usos repo-wide en ts/tsx/js/html; la evidencia V13 quedó stale: MapaV2.tsx:174-175 usa mapaV2ParedDer/ParedIzq/Piso, no Etiqueta). **308A-7V22 (F2): mapaV2Etiqueta borrada de mapaV2.css (selector compartido + regla propia)** — queda solo configBadge--sin",
           "marcas": ["configBadge--sin"],
-          "conteo": 1
-        },
-        {
-          "regla": "claseHuerfana",
-          "categoria": "muerta-real-pendiente-F2",
-          "evidencia": "318A-7V21 — mapaV2Etiqueta (mapaV2.css:104,111): 0 usos en código ts/tsx/js/jsx/html repo-wide; solo definiciones CSS. Borrado programado en F2 (PLAN-cero-deuda-2026-09-02.md), no antes",
-          "marcas": ["mapaV2Etiqueta"],
           "conteo": 1
         },
         {
