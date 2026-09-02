@@ -100,19 +100,7 @@
 }
 
 .mapaV2ParedIzq,
-.mapaV2ParedDer,
-.mapaV2Etiqueta {
-    pointer-events: none;
-}
-
-/* Seleccion: sin cambio visual en la caja. [por que] El usuario pidio que al
- * seleccionar NO aparezca un "cuadro" sobre la caja; la seleccion se muestra
- * en el panel lateral de detalle y en la fila resaltada de la lista. */
-.mapaV2Etiqueta {
-    font-family: var(--v2-font);
-    font-size: var(--v2-textXs);
-    fill: var(--v2-texto);
-    font-weight: normal;
+.mapaV2ParedDer {
     pointer-events: none;
 }
 
