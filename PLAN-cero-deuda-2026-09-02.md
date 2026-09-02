@@ -88,7 +88,63 @@ ronda final uno-a-uno hasta 0.
   verificados (12 submódulos + 4 FPs + 2 dinámicos absorbidos), 0 aparecidos en ningún proyecto.
 - **F2 hereda:** mapaV2Etiqueta (WM, mapaV2.css:104/111) como primera muerta confirmada.
 
-### F2 (308A-7V22) — Borrado de CSS muerta real confirmada
+### V22 (308A-7V22) — CORREGIR DETECTOR (FPs runtime) ANTES de F2 — ✅ CERRADO (2026-09-02, M1-M5 verdes 53/53, PT 163→151, 0 FNs)
+
+> **Decisión del usuario (2026-09-02):** al presentar la auditoría F2-PT (123 muertas reales +
+> 13 VIVAS o FPs del detector + 25-27 zona gris vs las ~154 muertas que el plan esperaba), eligió
+> **«Primero corregir detector»**: atacar la raíz (que VarSense no reporte FPs por construcción
+> runtime) antes de borrar nada. Este bloque de CORE es previo y bloquea F2.
+
+- **Contexto / estado:** detector V21 limpio en `.quality-tools/varsense` (HEAD `64a25f0`, rama
+  `fix/318A-7V2-falsos-positivos`). Incidente "deshacer" resuelto (working tree degradado
+  restaurado a HEAD; el dist de las mediciones YA era V21 → baseline 163 claseHuerfana en PT
+  verificado con dist reconstruido). Lección → skill `build-artefactos`.
+- **Auditoría (subagente solo lectura, 13 ítems / 17 clases):** ninguno es dato externo sin ancla.
+  Mecanismos por categoría: B (mapa/literal local) 6 · E+union 5 · D (rango numérico) 3 · C 1 ·
+  F (base BEM) 1 · G (literal en template HTML) 1. Ningún mapa usa `as const`.
+- **Alcance V22 (4 mecanismos genéricos, SIN type-awareness, reteniendo lo dudoso):**
+  1. **[M1] Indexar valores de mapas/objetos literales usados por indirección `MAPA[clave]` en
+     contexto de atributo de clase** → absorbe `recordatoriosTexto--pequeno/grande`
+     (PanelRecordatorios.tsx:19-21 `CLASES_FUENTE: Record<Tipo,string>` indexado :91). Guard: solo
+     en attr className/claseAdicional/`*clase`; solo valores con forma de clase no vacíos.
+  2. **[M2] Resolver interpolaciones de templates en DECLARACIONES contra variables locales
+     literales (flujo intra-archivo, incluido prefijo pegado)** → absorbe `itemNotificacion--leida`
+     (ItemNotificacion.tsx:77 `claseBase='itemNotificacion'` + `\`${claseBase}--leida\``).
+  3. **[M3] Literales de `return` en callback local (useMemo/flecha/función) asignado a variable
+     usada en className** → absorbe `barraRellenoUrgente/Advertencia/UrgenteCritico/Completado`
+     (FilaSubHabito.tsx:51-55 duplica el bloque if localmente; FilaHabito vía hook = límite
+     cross-file documentado, pero el duplicado local ya basta para marcar vivas las 4).
+  4. **[M4] Clases literal dentro de templates HTML de construcción (`class="..."` en strings
+     HTML con `<tag`, p.ej. `html += \`<h${n} class=...\``)** → absorbe
+     `scratchpadVistaPreviaTitulo` (base) + `--h4/--h5` (familia pegada `--h`) +
+     `scratchpadVistaPreviaChecklist` (useScratchpad.ts:82/94).
+  5. **[M5] Fix de `removeComments` con regex literales** (BUG PREEXISTENTE grave que degradaba la
+     medición real): removeComments no reconocía regex literales → un regex con comillas/backticks
+     (`/[&<>"]/g`, `` /`([^`]+)`/g `` en useScratchpad.ts:28/41) corrompía el estado de strings y
+     TODO el texto posterior del archivo quedaba "dentro de string" → los `html +=` con clases
+     reales se saltaban por `isCodeMatch`. Era la CAUSA RAÍZ de que M4 no resolviera en PT real
+     (el fixture aislado pasaba pero el archivo real no). Fix en dos partes: (1) estado regex en
+     removeComments con detección por **whitelist** de `prevSig` (`[=(,:;!?&|[+*%~^{]`) — un
+     blacklist era insuficiente (el self-closing JSX `<Tag "x" />` va tras comilla de cierre y
+     disparaba un falso regex que se tragaba el archivo: medición PT explotó 156→419, corregido
+     con whitelist); (2) neutralizar comillas/backticks internos del regex EN LA SALIDA (emitidas
+     como espacio, misma longitud → índices intactos) para que `isInsideString`/`escanear*`
+     posteriores no se corrompan.
+- **FUERA de V22 (zona gris, retener; se decide en FASE FINAL):** `premium/free/trial/expirada` +
+  `noViable` (requieren type-awareness cross-file: expansión de union type; el contrato V18
+  documenta `premium` como zona gris reportada con fundamento) y `seccionModerna` (base de familia
+  BEM; eximir bases automáticamente arriesga FN; requiere matiz de selector compuesto).
+- **Verificación del bloque core:** tests de contrato nuevos por mecanismo + suite completa verde
+  (53/53: 48 previos + M1/M2/M3/M4/M5) + lint 0 errores + `check:core` OK + rebuild dist (hash
+  `28BB2B87...`) + re-medida PT **163 (V21) → 151 (V22)** = 12 resueltas (las 11 VIVAS esperadas +
+  `scratchpadTextoTitulo` destapada por M5 en useScratchpad.ts:54 `class="scratchpadTextoTitulo"`,
+  FP real que antes quedaba oculto por la corrupción del regex) + **auditoría FN: 0 NUEVAS**
+  (ninguna de las ~123 muertas reales deja de reportarse) + harness 9/9 (por re-ejecutar en el
+  commit de cierre). Commit local en la rama `fix/318A-7V2-falsos-positivos` (sin push).
+- **Tras V22:** re-clasificar en `excepciones.json` lo absorbido como `fp-dinamico` y proceder a F2
+  (borrado de las ~123 muertas con disciplina VAR-3/4).
+
+### F2 (308A-7V22) — Borrado de CSS muerta real confirmada (tras V22)
 - Objetivo: cero `claseHuerfana` real en el área. PT ~154 (desglose exacto en V21: el detector
   ya separó lo dinámico; queda verificar 0-uso de cada clase) + WM par borde-analizador + lo que
   F1 declare muerto.
