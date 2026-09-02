@@ -82,8 +82,8 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V10 — 10/10 con uso real: template dinámico PlanoOcupacion.tsx:191 + descriptor same-file; resto en glory-rs (submódulo) o fixtures tools/ (incluidos en el scan)",
-          "conteo": 10
+          "evidencia": "§J-11V10 — restantes con uso real: template dinámico PlanoOcupacion.tsx:191 + descriptor same-file. 318A-7V17 (dist PARSER_VERSION 4): glory-rs excluido como submódulo + familias template-literal resueltas → 10→6",
+          "conteo": 6
         },
         {
           "regla": "cssInlineReact",
@@ -252,9 +252,9 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-corregido-core",
-          "evidencia": "318A-7V3 (dist 50913d2) — detector corregido (empty-string-literal); 318A-7V14 (38889aa) absorbió familias de template-literal: 429→305→**261**; restantes = construcción dinámica verificada (VAR-4: badgeInfo/ui/ui-formulario/selectorNivel 63/63 vivos)",
-          "nota": "Requiere dist fijado ≥ 38889aa; con dist viejo el scanner reporta FPs por millar",
-          "conteo": 261
+          "evidencia": "318A-7V3 (50913d2) empty-string-literal; V14 (38889aa) familias template-literal 429→305→261; **318A-7V17 (PARSER_VERSION 4)** — escáner balanceado de declaraciones + submódulos excluidos + rechazo de prefijos de prosa + caso multi-clase (BadgeInfo) → **261→224**. Restantes = construcción dinámica verificada (VAR-4: badgeInfo/ui/ui-formulario/selectorNivel) + ~9 muertas reales re-reportadas (precisión ganada, 0 FN en auditoría old→new)",
+          "nota": "Requiere dist con PARSER_VERSION 4 (V17); con dist viejo el scanner reporta FPs por millar",
+          "conteo": 224
         },
         {
           "regla": "token-duplicate",

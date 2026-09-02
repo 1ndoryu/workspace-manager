@@ -2082,3 +2082,20 @@ Verificación PT: tsc --noEmit exit 0, `npm run build` verde (11.3 s), sentinel 
 **Verificación:** harness nuevo: PT MANTENIMIENTO 536/536, 5 pares casados, 0 descubiertos, 0 drift; área 9/9 MANTENIMIENTO con conteos verificados contra el registro (WM 47 · RESTAURANTE 141 · AGAPE 103 · WANDORIUS 149 · coolify 26 · gloryapi 76 · Laminal 42 · GLORYPORT 0 · PT 536). JSON parsea OK, `node --check` OK. Ningún repo de producción cambió (solo docs PT + harness/registro/plan WM).
 
 Commits locales sin push: WM (registro v2 + harness + plan + roadmap) y PT (completados + roadmap, docs deduplicadas).
+
+### J-11V17 — HECHO 2026-09-02 (bloque 318A-7V17) — fixes de detección: submódulos excluidos, escáner balanceado, prefijos de familia sin prosa
+
+**Objetivo (pedido del usuario):** (1) los submódulos (glory-rs) no deben reportar hallazgos — si hay que arreglar algo, es directo en el repo; (2) si `claseHuerfana` es FP, arreglar el detector, no suprimirlos a mano.
+
+**Causas raíz (3) y fixes en core de varsense:**
+1. **Walker descendía a submódulos** (`nodeProviders.ts`): directorios cuyo `.git` es archivo (glory-rs, tools/) se recorren como parte del workspace. Fix: detección `.git` archivo → no descender (exclusión por diseño, no por patrón).
+2. **`REGEX_VAR_CLASS_DECLARATION` no-greedy se tragaba `const clases = [...]`** dentro del closure del componente (Boton.tsx): el array de template literals nunca indexaba familias. Fix: escáner balanceado de declaraciones (`recopilarDeclaraciones`) en `classIndexBuilder.ts` → familias `boton--`, `checkbox--`, `radio--`, `select--`, `textarea--`, `input--` se registran.
+3. **Prefijos de familia extraídos de prosa** (segmentos de template literal con espacio inicial: `` ` archivo${x}` ``, `` ` adjunto${x}` ``, `` `recordatorio...` `` de `titulo={...}`/`mostrarExito(...)`): registraban familias espurias que absorbían huérfanas reales (`adjuntosAreaCarga--bloqueado`, `recordatorioCardAcciones`). Fix: el prefijo debe ser el token pegado a `${` con forma de clase (termina en `--` o tiene mayúscula/dígito) — `badgeInfo--`, `boton--` pasan; `adjunto`/`archivo`/`recordatorio` no. Preserva el caso multi-clase legítimo `badgeInfo badgeInfo--${variante}` (BadgeInfo.tsx:34).
+
+**Tests:** 3 de regresión nuevos (walker-submódulo, declaración balanceada dentro de closure, multi-clase BadgeInfo + rechazo de prosa) → **82/82 passing**, `npm test` completo verde (compile + lint + check:core + mocha + smoke).
+
+**Auditoría FN old→new (como en V3/V4/V8):** 46 desaparecidos en PT — todos justificados (familias dinámicas verificadas: Checkbox.tsx:16, Radio.tsx:24, Select.tsx:24, Textarea.tsx:37, Input.tsx:44, Boton.tsx:51-52; + glory-rs submódulo excluido) — **0 FN**. 9 aparecidos: muertas reales que el detector viejo ocultaba (escenarioPesimista/Optimista, badgeEncabezado--*, tipo-*, mensajeExito) → precisión ganada, re-reportadas honestamente.
+
+**Resultado (harness, dist PARSER_VERSION 4):** PT varsense **536 → 499** (claseHuerfana **261 → 224**), 0 errores; RESTAURANTE **141 → 137** (claseHuerfana 10 → 6); resto del área invariante (WM 47 · AGAPE 103 · WANDORIUS 149 · coolify 26 · gloryapi 76 · Laminal 42 · GLORYPORT 0). Registro sincronizado (familias claseHuerfana PT 224 / REST 6 con evidencia) → harness **9/9 MANTENIMIENTO, 0 descubiertos, 0 drift**. 0 errores en los 9 proyectos.
+
+**Pendiente del usuario (no bloqueado):** push de varsense + consumidores, y re-alineación del runtime del servidor 8787 al nuevo dist.
