@@ -247,6 +247,11 @@
       "nota": "Sin hallazgos varsense accionables; el único hallazgo conocido es sentinel popup.rs (ver plan §J-9)"
     },
     {
+      "proyecto": "glory-harness",
+      "familias": [],
+      "nota": "Rust puro (core/ + cli/, 20 archivos .rs, sin CSS/TS): varsense escanea 0 archivos → 0 hallazgos. Único hallazgo conocido = sentinel llm.rs (limite-lineas + nivel-2 + funcion-larga-rs, 1028 líneas, documentado V13C en roadmap WM). Integrado al harness 2026-09-02 (10/10) por decisión del usuario; antes estaba en la exclusión deliberada de agregado-8787.mjs como repo del área fuera del alcance de la misión 308A-6/7"
+    },
+    {
       "proyecto": "PROYECTO TASKS",
       "familias": [
         {

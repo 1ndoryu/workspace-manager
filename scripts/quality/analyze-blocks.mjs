@@ -46,6 +46,7 @@ const PROYECTOS = {
   gloryapi: 'gloryapi',
   'Glory-Laminal': 'Glory-Laminal',
   GLORYPORT: 'GLORYPORT',
+  'glory-harness': 'glory-harness',
   'PROYECTO TASKS': 'PROYECTO TASKS',
 };
 
