@@ -93,8 +93,8 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V10 — 38 restantes son construcción dinámica verificada: tarjetaAgape--${tono}, toast--${tipo}, panelEstadoChip--${status}, panelHistoriaCuadro--color${i}, cuadroAcerca--color${i}, botonEnlace--${variante}",
-          "nota": "V10 borró 10 muertas reales (commit AGAPE 0532a99)"
+          "evidencia": "§J-11V10 — 25 restantes son construcción dinámica verificada: tarjetaAgape--${tono}, toast--${tipo}, panelEstadoChip--${status}, panelHistoriaCuadro--color${i}, cuadroAcerca--color${i}, botonEnlace--${variante} (38→25 por absorción V14/38889aa de familias template-literal)",
+          "nota": "V10 borró 10 muertas reales (commit AGAPE 0532a99); V14 absorbió 13 FPs dinámicos"
         },
         {
           "regla": "valorHardcoded",
@@ -131,7 +131,7 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V11 — 10/10 FPs: tag-estado--${item.status}, media-library__badge--${item.asset_state}, movilLauncher__tema literal, tiptap/ProseMirror DOM inyectado"
+          "evidencia": "§J-11V11 — 6 restantes: tag-estado--${item.status}, media-library__badge--${item.asset_state}, movilLauncher__tema literal, tiptap/ProseMirror DOM inyectado (10→6 por absorción V14/38889aa: 4 familias template-literal)"
         },
         {
           "regla": "cssInlineScript",
@@ -146,7 +146,7 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V12 — 12/12 FPs verificados línea a línea: vpsStatusBar${index+1} (VistaPortalVisual.tsx:26 con portal.css:620-622), ternarios VistaSitios/VistaPortalVisual, variantes Button.tsx"
+          "evidencia": "§J-11V12 — 8/8 FPs verificados línea a línea: vpsStatusBar${index+1} (VistaPortalVisual.tsx:26 con portal.css:620-622), ternarios VistaSitios/VistaPortalVisual, variantes Button.tsx (12→8 por absorción V14/38889aa: 4 familias template-literal)"
         },
         {
           "regla": "valorHardcoded",
@@ -221,13 +221,15 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-corregido-core",
-          "evidencia": "318A-7V3 (dist 50913d2) — detector corregido (empty-string-literal); con runtime fijado post-V3 el conteo real es ~429 y los restantes son construcción dinámica verificada",
-          "nota": "Requiere dist fijado ≥ 50913d2; con dist viejo el scanner reporta FPs por millar"
+          "evidencia": "318A-7V3 (dist 50913d2) — detector corregido (empty-string-literal); 318A-7V14 (38889aa) absorbió familias de template-literal: 429→305→**261**; restantes = construcción dinámica verificada (VAR-4: badgeInfo/ui/ui-formulario/selectorNivel 63/63 vivos)",
+          "nota": "Requiere dist fijado ≥ 38889aa; con dist viejo el scanner reporta FPs por millar"
         },
         {
           "regla": "token-duplicate",
           "categoria": "corregido-core",
-          "evidencia": "318A-7V8 (1a0c588) — agrupación same-file; los pares cross-file son coincidencia de valor, no duplicados (--ptr-translateY/--radioMinimo, --space-xs/--scrollbarAncho, --arbol-color/--iconoActivo, --panelHeaderBorde/--iconoBorde, --space-sm/--espacioTactil)"
+          "evidencia": "318A-7V8 (1a0c588) — agrupación same-file; los pares cross-file son coincidencia de valor, no duplicados (--ptr-translateY/--radioMinimo, --space-xs/--scrollbarAncho, --arbol-color/--iconoActivo, --panelHeaderBorde/--iconoBorde, --space-sm/--espacioTactil)",
+          "nota": "318A-7V15 (38889aa): 5 restantes same-file verificados 1:1 — pixelEditorArbol.css sep/guia/relleno vs iconoBorde/iconoActivo = bridge agnóstico del editor (3 knobs independientes consumidos por glory-core/editorPixelArt.css:47-92; colapsar acoplaría el mapeo); pullToRefresh.css --ptr-contenido-translateY/--ptr-translateY = fallbacks, inyectados con VALORES DISTINTOS en runtime (usePullToRefresh.ts:115-117); resizeHandleColumna.css --col1-fr/--col2-fr fallback estático, inyectados en runtime (useDashboardGrid.ts:98-100; lección lecciones-aprendidas.md:34)",
+          "marcas": ["--pixel-editor-sep", "--pixel-editor-guia", "--pixel-editor-relleno", "--ptr-contenido-translateY", "--col2-fr"]
         },
         {
           "regla": "cssInlineReact",

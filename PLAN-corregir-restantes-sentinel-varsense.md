@@ -2056,3 +2056,18 @@ coolify 25w+1i, WANDORIUS 60w+89i, Glory-Laminal 5w+23i+14h, gloryapi 37w+1i+38h
 GLORYPORT 0/0/0, freebuff-bridge/glory-harness/GLORYINSPECTOR 0/0/0.
 El runtime vivo del server corre el dist V14 (las mediciones de PT/AGAPE/WM
 coinciden exactas con el harness fijado `38889aa`).
+
+### J-11V15 — HECHO 2026-09-02 (bloque 318A-7V15) — token-duplicate de PT fuera de variables.css + re-verificación área 9/9 con runtime V14
+
+**Resultado:** 0 colapsables, 5 excepciones documentadas; área 9/9 en MANTENIMIENTO con runtime `38889aa`.
+
+Decisión por par (todos same-file, coincidencia de valor, dominios semánticos independientes):
+1. `modalEditorArbol.css:158-163` — `--pixel-editor-sep`/`--pixel-editor-guia` = `--pixel-editor-iconoBorde` (= `--dashboard-bordePrincipal`), `--pixel-editor-relleno` = `--pixel-editor-iconoActivo` (= `--dashboard-textoActivo`). Bridge agnóstico del editor pixel: cada knob se consume por separado en `glory-core/components/pixelart/editorPixelArt.css:47-92` (ícono → color/borde, sep → fondo, guia → grilla, relleno → relleno). Colapsar acoplaría el mapeo agnóstico→tema.
+2. `pullToRefresh.css:8,11` — `--ptr-contenido-translateY` vs `--ptr-translateY`: fallbacks 0; runtime inyecta **valores distintos** (`usePullToRefresh.ts:115-117`, arrastre−40 vs arrastre). Colapsar rompería el offset del indicador.
+3. `resizeHandleColumna.css:120-121` — `--col2-fr` = `--col1-fr` (35fr): fallback estático; runtime inyecta cada columna por separado (`useDashboardGrid.ts:98-100`). Patrón ya documentado en `Agente/lecciones/lecciones-aprendidas.md:34` (default en CSS para tokens inyectados inline en TSX).
+
+Registro: `scripts/quality/excepciones.json` (PT token-duplicate, marcas `--pixel-editor-sep/guia/relleno`, `--ptr-contenido-translateY`, `--col2-fr`) + conteos V14 actualizados (AGAPE claseHuerfana 38→25, WANDORIUS 10→6, coolify 12→8, PT 429→261).
+
+Área 9/9 (harness `38889aa`, 0 hallazgos fuera del registro): workspace-manager 47 · RESTAURANTE 141 · AGAPE 103 · WANDORIUS 149 · coolify 26 · gloryapi 76 (sentinel) · Laminal 42 · GLORYPORT 0 · PT 536.
+
+Verificación PT: tsc --noEmit exit 0, `npm run build` verde (11.3 s), sentinel 0e/82w/10h (1w menos que baseline 83w: restos de VAR-3, sin regresión), WIP del usuario intacto (Cargo.toml/lock, ai.rs, variables.css, data/, test_prueba.md sin stage). Commits locales sin push: PT `891871b` (docs), WM `c5b57ce` (excepciones.json + plan).
