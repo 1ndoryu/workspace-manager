@@ -2099,3 +2099,22 @@ Commits locales sin push: WM (registro v2 + harness + plan + roadmap) y PT (comp
 **Resultado (harness, dist PARSER_VERSION 4):** PT varsense **536 → 499** (claseHuerfana **261 → 224**), 0 errores; RESTAURANTE **141 → 137** (claseHuerfana 10 → 6); resto del área invariante (WM 47 · AGAPE 103 · WANDORIUS 149 · coolify 26 · gloryapi 76 · Laminal 42 · GLORYPORT 0). Registro sincronizado (familias claseHuerfana PT 224 / REST 6 con evidencia) → harness **9/9 MANTENIMIENTO, 0 descubiertos, 0 drift**. 0 errores en los 9 proyectos.
 
 **Pendiente del usuario (no bloqueado):** push de varsense + consumidores, y re-alineación del runtime del servidor 8787 al nuevo dist.
+
+### J-11V18 — HECHO 2026-09-02 (bloque 318A-7V18) — contexto `className` para familias dinámicas + escáner balanceado de templates
+
+**Objetivo (pedido del usuario: los ~70 FPs restantes de `claseHuerfana` en PT se arreglan en el detector):** root-cause del índice de literales + regla de familia por contexto de atributo.
+
+**Root-cause (lo que parecía «bug del índice de literales» era mayormente espejismo):** (1) `removeComments` sí borra el bloque de feature deshabilitado que contiene `encabezadoContador` (el detector tenía razón); (2) los selectores compuestos (`.proyectoTareas .inputNuevaTarea`) reportan el **otro** miembro del compuesto: la huérfana real era `panelContenido`/`inputNuevaTarea` (muertas reales), no la clase usada; (3) el bug REAL era `REGEX_CLASS_TEMPLATE`: no soportaba templates anidados (`SelectorNivel.tsx:39`, `ModalExperimentos.tsx:63`) ni postfijos (`.trim()` en `AccionesItem.tsx:65`) → `+" "+`-concatenaciones y ternarios escapaban al índice.
+
+**Fixes en core (`classIndexBuilder.ts`):**
+1. **Escáner balanceado de templates** reemplaza `REGEX_CLASS_TEMPLATE`: recorre templates con anidamiento correcto (llaves balanceadas con soporte de strings/escapes) y tolera postfijos `.trim()`/declaración `let x = \`...\`;` — recupera `selectorNivelBoton--${tipo}`, `modalExperimentosTipo--${tipo}`, `tarjetaEscenario--${tipo}`, `notaTarea--${estado}`, `mensaje${tipoMensaje}` + `.trim()` (AccionesItem).
+2. **`descomponerTemplate`** (extracción anidada de `${...}` con balance de llaves) sustituye la regex ingenua `\$\{[^}]*\}` que se cortaba en la primera `}` interna.
+3. **`contextoAttr`**: la guarda anti-prosa de V17 se aplica SOLO fuera de atributos `className`/`claseAdicional`; dentro de atributo, el segmento estático SIEMPRE es base de clase real → cubre `detallePlan ${plan}` (DetalleUsuario.tsx:79/83), `estadoViabilidad` (CabeceraArbitraje.tsx:28), `mensajeEstadoDatos mensaje${...}` (AccionesDatos.tsx:51).
+
+**Tests:** 2 de regresión nuevos (fixtures espejando SelectorNivel.tsx:39 — template anidado + contexto attr; DetalleUsuario.tsx:79 — base + interpolación sin `--`) → **84/84 passing**, `npm test` completo verde (compile + lint + check:core + mocha).
+
+**Auditoría FN old→new (dist OLD = V17 reconstruido, par validado: reproduce 224/499 exactos):** 25 desaparecidos en PT — todos justificados (SelectorNivel:39, ModalExperimentos:63, AccionesItem:65, TarjetaEscenario:12, ListaTareasCompacta:102, `mensaje${...}` AccionesDatos.tsx:51, `badgeEncabezado--usuario` EncabezadoPerfil.tsx:104) — **0 FN**. 0 aparecidas (sin ruido nuevo).
+
+**Resultado (harness, dist V18): 9/9 MANTENIMIENTO, 0 descubiertos, 0 drift, 0 errores.** PT varsense **499 → 474** (claseHuerfana **224 → 199**); AGAPE **103 → 96** (ch 25→18); coolify **26 → 23** (ch 8→5); RESTAURANTE 137 (ch 6) y WANDORIUS 149 (ch 6) aprovechan la regla pero sus familias ya cubrían; WM 47→44 (ch 2); gloryapi 76 · Laminal 42 · GLORYPORT 0 invariantes. Registro `excepciones.json` sincronizado (conteos PT 199 / AGAPE 18 / coolify 5 con evidencia V18). Restantes honestos de PT: ~154 CSS muerta real (decisión del usuario borrar o no) + ~4 zona gris retenidas (premium/free/trial/expirada) + ~24 límite real del scanner (mapas de sufijos entre archivos, dataflow vía índice).
+
+**Pendiente del usuario (no bloqueado):** push de varsense + consumidores, re-alineación del runtime del servidor 8787, y borrado (o no) de las ~154 muertas reales de PT.
