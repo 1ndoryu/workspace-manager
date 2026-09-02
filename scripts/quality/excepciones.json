@@ -15,9 +15,16 @@
         {
           "regla": "claseHuerfana",
           "categoria": "borde-analizador",
-          "evidencia": "§J-11V13 — configBadge--sin (paneles.css:825): mismatch code/CSS (PanelConfig.tsx:80-85 construye 'badge--sin', el selector nunca matchea; estilo no aplicado preexistente); mapaV2Etiqueta: miembro de compuesto .mapaV2ParedIzq/ParedDer/Etiqueta usado por MapaV2.tsx:174-175",
-          "marcas": ["configBadge--sin", "mapaV2Etiqueta"],
-          "conteo": 2
+          "evidencia": "§J-11V13 — configBadge--sin (paneles.css:825): mismatch code/CSS (PanelConfig.tsx:80-85 construye 'badge--sin', el selector nunca matchea; estilo no aplicado preexistente). **318A-7V21: conteo 2→1** — mapaV2Etiqueta re-clasificada (0 usos repo-wide en ts/tsx/js/html; la evidencia V13 quedó stale: MapaV2.tsx:174-175 usa mapaV2ParedDer/ParedIzq/Piso, no Etiqueta)",
+          "marcas": ["configBadge--sin"],
+          "conteo": 1
+        },
+        {
+          "regla": "claseHuerfana",
+          "categoria": "muerta-real-pendiente-F2",
+          "evidencia": "318A-7V21 — mapaV2Etiqueta (mapaV2.css:104,111): 0 usos en código ts/tsx/js/jsx/html repo-wide; solo definiciones CSS. Borrado programado en F2 (PLAN-cero-deuda-2026-09-02.md), no antes",
+          "marcas": ["mapaV2Etiqueta"],
+          "conteo": 1
         },
         {
           "regla": "claseHuerfana",
@@ -82,7 +89,7 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V10 — restantes con uso real: template dinámico PlanoOcupacion.tsx:191 + descriptor same-file. 318A-7V17 (dist PARSER_VERSION 4): glory-rs excluido como submódulo + familias template-literal resueltas → 10→6",
+          "evidencia": "§J-11V10 — restantes con uso real: template dinámico PlanoOcupacion.tsx:191 + descriptor same-file. 318A-7V17 (dist PARSER_VERSION 4): glory-rs excluido como submódulo + familias template-literal resueltas → 10→6. **318A-7V21: re-verificados línea a línea (conteo 6 invariante)** — los 6 tienen productores vivos: estadoMesa() retorna 'libre'|'ocupada'|'no_show' y mesa.forma la unión 'cuadrada'|'redonda'|'rectangular', ambos interpolados en PlanoOcupacion.tsx:191 (`mesaOcupacion ${estado} ${mesa.forma}`); no borrables",
           "conteo": 6
         },
         {
@@ -105,9 +112,9 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V10 — construcción dinámica verificada: tarjetaAgape--${tono}, toast--${tipo}, panelEstadoChip--${status}, panelHistoriaCuadro--color${i}, cuadroAcerca--color${i}, botonEnlace--${variante} (38→25 por absorción V14/38889aa; →18 por 318A-7V18 contexto className)",
-          "nota": "V10 borró 10 muertas reales (commit AGAPE 0532a99); V14 absorbió 13 FPs dinámicos",
-          "conteo": 18
+          "evidencia": "§J-11V10 — construcción dinámica verificada: tarjetaAgape--${tono}, toast--${tipo}, panelEstadoChip--${status}, panelHistoriaCuadro--color${i}, cuadroAcerca--color${i}, botonEnlace--${variante} (38→25 por absorción V14/38889aa; →18 por 318A-7V18 contexto className). **318A-7V21: 18→0** — 3 fixes del core (dist V21 worktree): (a) walker excluye submódulos con `.git` DIRECTORIO (clon completo, caso glory-rs/tools en AGAPE; V17 solo cubría `.git` archivo) → 12 hallazgos de submódulos eliminados; (b) propiedad `imageClass:` con literales (AgapeLanding.tsx:20/27/34, mismo patrón `clase:` de V18) → 3 FPs; (c) artefacto `.png` extraído de url('/logo-agape.png') como si fuera clase → 1 FP. Medido 0 con dist V21; total AGAPE 96→78",
+          "nota": "V10 borró 10 muertas reales (commit AGAPE 0532a99); V14 absorbió 13 FPs dinámicos; V21 los 12 de submódulos + 4 FPs de detector",
+          "conteo": 0
         },
         {
           "regla": "valorHardcoded",
@@ -149,8 +156,8 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V11 — tag-estado--${item.status}, media-library__badge--${item.asset_state}, movilLauncher__tema literal, tiptap/ProseMirror DOM inyectado (10→6 por absorción V14/38889aa: 4 familias template-literal)",
-          "conteo": 6
+          "evidencia": "§J-11V11 — tag-estado--${item.status}, media-library__badge--${item.asset_state}, movilLauncher__tema literal, tiptap/ProseMirror DOM inyectado (10→6 por absorción V14/38889aa: 4 familias template-literal). **318A-7V21: 6→3** — RC-4 del core (`.push()` sobre transportadoras: notificacionesPopover__item/--leida/--noLeida en NotificationCenter.tsx:80-82) absorbió 3 FPs. Restantes (3): tiptap/ProseMirror (desktop-article-editor.css:21, DOM inyectado por la librería TipTap en runtime) y movilLauncher__tema (mobile-prototype.css:120, literal pasado a createThemeToggleButton() en factory — límite del scanner, vivo verificado)",
+          "conteo": 3
         },
         {
           "regla": "cssInlineScript",
@@ -252,9 +259,9 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-corregido-core",
-          "evidencia": "318A-7V3 (50913d2) empty-string-literal; V14 (38889aa) familias template-literal 429→305→261; **318A-7V17 (PARSER_VERSION 4)** — escáner balanceado de declaraciones + submódulos excluidos + rechazo de prefijos de prosa + caso multi-clase (BadgeInfo) → **261→224**; **318A-7V18** — escáner balanceado de templates en contexto className/claseAdicional (templates anidados + .trim()) → **224→199** (−25: SelectorNivel/ModalExperimentos/AccionesItem/TarjetaEscenario/ListaTareasCompacta/mensaje${...} verificados; 0 FN en auditoría old→new). **318A-7V20** — productores de clase FUERA de atributo (asignación compuesta `clase +=`, variables transportadoras `clase*` consumidas cross-file, resolución de funciones mapeadoras en atributos de clase) → **199→164** (−35: pullToRefresh×8, modalNotasExpandidoContenedor×4, selectorFechaCalendario×3, swipeableItem×2, etiquetaAlta/Media/Baja×3, whatsappStatusHealthDot×4, mapaCalorHabitoCelda×4, resizeHandleColumna×3, indicadorPlan×4; auditoría old→new: 35 desaparecidos verificados línea a línea con productor vivo, 0 aparecidos, 0 FN). Restantes = construcción dinámica verificada (VAR-4) + muertas reales re-reportadas (precisión ganada)",
+          "evidencia": "318A-7V3 (50913d2) empty-string-literal; V14 (38889aa) familias template-literal 429→305→261; **318A-7V17 (PARSER_VERSION 4)** — escáner balanceado de declaraciones + submódulos excluidos + rechazo de prefijos de prosa + caso multi-clase (BadgeInfo) → **261→224**; **318A-7V18** — escáner balanceado de templates en contexto className/claseAdicional (templates anidados + .trim()) → **224→199** (−25: SelectorNivel/ModalExperimentos/AccionesItem/TarjetaEscenario/ListaTareasCompacta/mensaje${...} verificados; 0 FN en auditoría old→new). **318A-7V20** — productores de clase FUERA de atributo (asignación compuesta `clase +=`, variables transportadoras `clase*` consumidas cross-file, resolución de funciones mapeadoras en atributos de clase) → **199→164** (−35: pullToRefresh×8, modalNotasExpandidoContenedor×4, selectorFechaCalendario×3, swipeableItem×2, etiquetaAlta/Media/Baja×3, whatsappStatusHealthDot×4, mapaCalorHabitoCelda×4, resizeHandleColumna×3, indicadorPlan×4; auditoría old→new: 35 desaparecidos verificados línea a línea con productor vivo, 0 aparecidos, 0 FN). **318A-7V21: 164→163** — el fix V21 de `url(...)` (neutraliza el segmento url con extensión de archivo) eliminó la clase fantasma `woff2` de @font-face (index.css:218-219/landing.css:10: `url('...woff2')`/`format('woff2')` casaban como clase); FP del scanner, 0 FN. Restantes = construcción dinámica verificada (VAR-4) + muertas reales re-reportadas (precisión ganada)",
           "nota": "Requiere dist con PARSER_VERSION 4 (V17) + fixes V20 (worktree varsense, commit local 318A-7V20 sin publicar a consumidores — decisión del usuario); con dist pre-V17 el scanner reporta FPs por millar",
-          "conteo": 164
+          "conteo": 163
         },
         {
           "regla": "token-duplicate",

@@ -11,33 +11,33 @@
 - Detector saneado (V17→V20: −380 FPs verificados, 0 FN en auditorías). Lo que queda es deuda **real y categorizada** o decisiones pendientes.
 - Reglas de bloque heredadas: FPs se arreglan en el detector (no a mano); sin disables para bajar conteo (salvo decisión explícita en la fase final); visual-neutral; WIP del usuario intacto; auditoría FN old→new en cada cambio de core; scratch `C:/tmp` limpio; commits locales sin push (el push sigue siendo decisión del usuario).
 
-## 2. Inventario por proyecto (conteo medido V20 · naturaleza del registro)
+## 2. Inventario por proyecto (conteo medido V21 · naturaleza del registro)
 
 | Proyecto | Total | Familia | Conteo | Naturaleza | Tratamiento |
 |---|---|---|---|---|---|
-| PROYECTO TASKS | 439 | claseHuerfana | 164 | ≈154 CSS muerta real + ~24 límite scanner + ~4 zona gris (premium/free/trial/expirada) | F2 borrar muertas (con desglose exacto en V21) · zona gris/limite → FASE FINAL |
+| PROYECTO TASKS | 438 | claseHuerfana | 163 | ≈154 CSS muerta real + ~24 límite scanner + ~4 zona gris (premium/free/trial/expirada) | F2 borrar muertas (con desglose exacto en V22) · zona gris/limite → FASE FINAL |
 | | | token-duplicate | 175 | variables.css = WIP del usuario | F5 (gated: cuando el usuario commitee su WIP) |
 | | | token-duplicate | 5 | pares cross-dominio/fallback (pixel-editor ×3, ptr ×2) | FASE FINAL |
 | | | token-unused | 20 | variables.css = WIP del usuario | F5 (gated) |
 | | | cssInlineReact / cssInlineScript | 29 / 32 | runtime dinámico | F4 seams donde existan · resto FASE FINAL |
 | | | valorHardcoded | 14 | one-off sin token | F3 re-auditoría exacta · resto FASE FINAL |
 | | | variableNoDefinida + menu-contextual | 1 + 3 | WIP del usuario / regla sentinel fuera de scope harness | gated / fuera de scope |
-| WANDORIUS | 149 | token-duplicate | 54 | cross-scope inversión de tema oscuro (intencional) | FASE FINAL |
+| WANDORIUS | 146 | token-duplicate | 54 | cross-scope inversión de tema oscuro (intencional) | FASE FINAL |
 | | | cssInlineScript | 89 | runtime desktop | F4 seams · resto FASE FINAL |
-| | | claseHuerfana | 6 | dinámicas (tag-estado--${status}, Tiptap DOM) | F1 re-clasificar con V20 (patrón coolify 5→0) |
+| | | claseHuerfana | 3 | dinámicas (tiptap/ProseMirror DOM librería, movilLauncher__tema factory — límite scanner, vivos) | FASE FINAL (límite scanner) |
 | RESTAURANTE | 137 | token-duplicate / token-unused | 49 / 39 | puente @theme Tailwind v4 + aliasing shadcn (generado) | FASE FINAL (decisión por token) |
 | | | cssInlineReact | 21 | runtime dinámico | F4 seams · resto FASE FINAL |
 | | | valorHardcoded | 15 | one-off canvas (radios/fonts geometría) | F3 re-auditoría · resto FASE FINAL |
 | | | claseHuerfana | 6 | dinámicas | F1 re-clasificar |
 | | | propiedadProhibida | 7 | no aplicable (schema) | FASE FINAL |
-| ONG AGAPE | 96 | valorHardcoded | 69 | one-off sin token | F3 re-auditoría (patrón J-3: 10 exactos) · resto FASE FINAL |
-| | | claseHuerfana | 18 | dinámicas (tarjetaAgape--${tono}, toast--${tipo}…) | F1 re-clasificar (patrón coolify) |
+| ONG AGAPE | 78 | valorHardcoded | 69 | one-off sin token | F3 re-auditoría (patrón J-3: 10 exactos) · resto FASE FINAL |
+| | | claseHuerfana | 0 | — (V21: submódulos excluidos + FPs imageClass/url corregidos en core) | — |
 | | | token-unused / token-duplicate | 4 / 4 | puente generado | FASE FINAL |
 | | | cssInlineReact | 1 | runtime datos | FASE FINAL |
 | gloryapi | 76 | token-unused / token-duplicate | 38 / 37 | puente @theme + aliasing shadcn | FASE FINAL |
 | | | cssInlineReact | 1 | runtime dnd-kit | FASE FINAL |
 | workspace-manager | 44 | valorHardcoded | 34 | one-off sin token (auditada V9: 6 reales ya colapsados) | F3 re-auditoría · resto FASE FINAL |
-| | | claseHuerfana | 2 | par borde-analizador (reales) | F2 borrar si 0-uso confirmado |
+| | | claseHuerfana | 2 | configBadge--sin (borde-analizador, vivo) + mapaV2Etiqueta (MUERTA confirmada V21) | F2 borrar mapaV2Etiqueta (mapaV2.css:104/111) |
 | | | cruce-dominio / runtime-posicion / monolito | 4 / 4 / 1 | intencionales / runtime / monolito | FASE FINAL |
 | Glory-Laminal | 42 | token-unused | 14 | API pública del tema (consumo externo) | FASE FINAL |
 | | | cssInlineScript | 23 | runtime editor | F4 seams · resto FASE FINAL |
@@ -56,14 +56,37 @@ ronda final uno-a-uno hasta 0.
 
 ## 3. Fases de ejecución
 
-### F1 (bloque 308A-7V21) — Re-clasificación post-V20 de familias dinámicas
+### F1 (bloque 308A-7V21) — Re-clasificación post-V20 de familias dinámicas — ✅ CERRADO (2026-09-02)
 - Objetivo: aplicar la lección de coolify (ch 5→0 con V20) a las familias dinámicas que quedan
   en el registro: AGAPE ch 18, RESTAURANTE ch 6, WANDORIUS ch 6, WM ch 2, Laminal límite 1.
 - Método: baseline harness fresco → desglose por archivo/línea → verificar productor dinámico
   real (template `${}`, mapa de sufijos, mapper) → las cubiertas salen del registro; las que no
   tengan productor = muertas reales → F2.
-- Verificación: harness 9/9, 0 descubiertos, 0 drift (registro sincronizado), 0 errores.
-- Esperado: ch del área ~28 → ~2 (solo muertas reales pendientes de borrar).
+- **Resultado (3 fixes del core varsense, tests 92/92):**
+  1. **Walker de submódulos (nodeProviders.ts):** V17 solo excluía `.git` ARCHIVO; AGAPE tenía
+     glory-rs/tools con `.git` DIRECTORIO (clon completo) → 12 hallazgos de submódulos
+     eliminados (AGAPE ch 18→4).
+  2. **Propiedad `imageClass:` (classIndexBuilder.ts):** claves camelCase que terminan en
+     Class/clase como carrier (AGAPE AgapeLanding.tsx:20/27/34) → 3 FPs (ch 4→1).
+  3. **Artefacto `url(...)`:** la extensión de archivo casaba como clase fantasma (`png` en
+     AGAPE, `woff2` en PT @font-face) → neutralizado el segmento url → AGAPE ch 1→0,
+     PT ch 164→163.
+  4. **RC-4 `.push()` + propiedad-objeto con variable (classIndexBuilder.ts):** `clases.push('x')`
+     sobre carriers y `clase: clases.join(' ')` (WANDORIUS notifications-popover.ts:80-83) →
+     WANDORIUS ch 6→3.
+- **Clasificación final por proyecto:** AGAPE ch 18→**0** (total 96→**78**); RESTAURANTE ch 6
+  invariante pero re-verificados vivos línea a línea (estadoMesa() → 'libre'|'ocupada'|'no_show',
+  mesa.forma → 'cuadrada'|'redonda'|'rectangular', template PlanoOcupacion.tsx:191 — no
+  borrables); WANDORIUS ch 6→**3** (tiptap/ProseMirror DOM de librería + movilLauncher__tema vía
+  factory = límite del scanner, vivos); WM ch 2 → configBadge--sin (borde-analizador, vivo) +
+  **mapaV2Etiqueta confirmada MUERTA real (0 usos repo-wide; evidencia V13 stale: MapaV2.tsx
+  174-175 usa mapaV2ParedDer/ParedIzq/Piso) → lista F2**.
+- Verificación: harness **9/9 MANTENIMIENTO, 0 descubiertos, 0 drift** (registro sincronizado:
+  AGAPE 78, RESTAURANTE 137, WANDORIUS 146, WM 44, PT 438, resto invariante), 0 errores.
+- **Auditoría FN:** PT ch 164→163 (−1 = clase fantasma `woff2` de @font-face, FP del scanner,
+  0 FN); WANDORIUS −3 verificados con productor vivo (notificacionesPopover push); AGAPE −18
+  verificados (12 submódulos + 4 FPs + 2 dinámicos absorbidos), 0 aparecidos en ningún proyecto.
+- **F2 hereda:** mapaV2Etiqueta (WM, mapaV2.css:104/111) como primera muerta confirmada.
 
 ### F2 (308A-7V22) — Borrado de CSS muerta real confirmada
 - Objetivo: cero `claseHuerfana` real en el área. PT ~154 (desglose exacto en V21: el detector
