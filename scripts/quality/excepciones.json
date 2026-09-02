@@ -105,9 +105,9 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V10 — construcción dinámica verificada: tarjetaAgape--${tono}, toast--${tipo}, panelEstadoChip--${status}, panelHistoriaCuadro--color${i}, cuadroAcerca--color${i}, botonEnlace--${variante} (38→25 por absorción V14/38889aa de familias template-literal)",
+          "evidencia": "§J-11V10 — construcción dinámica verificada: tarjetaAgape--${tono}, toast--${tipo}, panelEstadoChip--${status}, panelHistoriaCuadro--color${i}, cuadroAcerca--color${i}, botonEnlace--${variante} (38→25 por absorción V14/38889aa; →18 por 318A-7V18 contexto className)",
           "nota": "V10 borró 10 muertas reales (commit AGAPE 0532a99); V14 absorbió 13 FPs dinámicos",
-          "conteo": 25
+          "conteo": 18
         },
         {
           "regla": "valorHardcoded",
@@ -166,8 +166,8 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-dinamico",
-          "evidencia": "§J-11V12 — 8/8 FPs verificados línea a línea: vpsStatusBar${index+1} (VistaPortalVisual.tsx:26 con portal.css:620-622), ternarios VistaSitios/VistaPortalVisual, variantes Button.tsx (12→8 por absorción V14/38889aa: 4 familias template-literal)",
-          "conteo": 8
+          "evidencia": "§J-11V12 — 8/8 FPs verificados línea a línea: vpsStatusBar${index+1} (VistaPortalVisual.tsx:26 con portal.css:620-622), ternarios VistaSitios/VistaPortalVisual, variantes Button.tsx (12→8 por absorción V14/38889aa: 4 familias template-literal; →5 por 318A-7V18 contexto className)",
+          "conteo": 5
         },
         {
           "regla": "valorHardcoded",
@@ -252,9 +252,9 @@
         {
           "regla": "claseHuerfana",
           "categoria": "fp-corregido-core",
-          "evidencia": "318A-7V3 (50913d2) empty-string-literal; V14 (38889aa) familias template-literal 429→305→261; **318A-7V17 (PARSER_VERSION 4)** — escáner balanceado de declaraciones + submódulos excluidos + rechazo de prefijos de prosa + caso multi-clase (BadgeInfo) → **261→224**. Restantes = construcción dinámica verificada (VAR-4: badgeInfo/ui/ui-formulario/selectorNivel) + ~9 muertas reales re-reportadas (precisión ganada, 0 FN en auditoría old→new)",
+          "evidencia": "318A-7V3 (50913d2) empty-string-literal; V14 (38889aa) familias template-literal 429→305→261; **318A-7V17 (PARSER_VERSION 4)** — escáner balanceado de declaraciones + submódulos excluidos + rechazo de prefijos de prosa + caso multi-clase (BadgeInfo) → **261→224**; **318A-7V18** — escáner balanceado de templates en contexto className/claseAdicional (templates anidados + .trim()) → **224→199** (−25: SelectorNivel/ModalExperimentos/AccionesItem/TarjetaEscenario/ListaTareasCompacta/mensaje${...} verificados; 0 FN en auditoría old→new). Restantes = construcción dinámica verificada (VAR-4: badgeInfo/ui/ui-formulario/selectorNivel) + muertas reales re-reportadas (precisión ganada)",
           "nota": "Requiere dist con PARSER_VERSION 4 (V17); con dist viejo el scanner reporta FPs por millar",
-          "conteo": 224
+          "conteo": 199
         },
         {
           "regla": "token-duplicate",
