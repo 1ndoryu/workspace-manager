@@ -7,7 +7,7 @@
 > (308A-5 → ciclos 308A-6/318A-7V1..V20) y `PLAN-cero-deuda-2026-09-02.md` (308A-7V21/V22, cuyo
 > contenido vivo pasa intacto a §2). Esos 4 archivos quedaron **eliminados**; su evidencia persiste en
 > el roadmap.md de este repo (entradas históricas 1408/308A-2, 308A-3, 308A-5/308A-6/318A-7V1..V22),
-> en `Agente/completados/`, en el registro estructurado `scripts/quality/excepciones.json` y en el
+> en git (los cuerpos completos de los 4 planes absorbidos persisten en el commit `f1e2535^`, padre de esta consolidación), en el registro estructurado `scripts/quality/excepciones.json` y en el
 > harness `scripts/quality/analyze-blocks.mjs` (ver §4). No borrar evidencia ni re-crear planes
 > duplicados: cualquier campaña nueva edita este archivo.
 
@@ -15,8 +15,8 @@
 
 | Plan original (eliminado) | Campaña | Qué hizo | Resultado / piso | Dónde queda la evidencia |
 |---|---|---|---|---|
-| `PLAN-corregir-1408.md` | 1408 (2026-08-30/31) | Frentes por proyecto a piso honesto con refactors verificados (sin disables para bajar conteo; excepciones legítimas documentadas) | Glory-Laminal 12→0 · gloryapi 8→0 (315/315) · RESTAURANTE piso **120** (pusheado) · PROYECTO TASKS 500→**23** (console-production 86→0 con logger central; resto excepciones) · WANDORIUS 410→**0** (0/481) | roadmap.md entrada 308A-2/S2-12 (RESUELTO) + completados |
-| `PLAN-corregir-hallazgos-post-gate.md` | 308A-3 (2026-08-31) | Analizador 0.7.4 sobre los proyectos sin gate con la misma disciplina | GLORYPORT 14→**1** (`85a022b`) · workspace-manager 100→**86** (`80db0db`) · coolify-manager-rs 145→**123** (`5ddc908`+`b01f0e0`) | roadmap.md entrada 308A-3 (COMPLETO) + completados |
+| `PLAN-corregir-1408.md` | 1408 (2026-08-30/31) | Frentes por proyecto a piso honesto con refactors verificados (sin disables para bajar conteo; excepciones legítimas documentadas) | Glory-Laminal 12→0 · gloryapi 8→0 (315/315) · RESTAURANTE piso **120** (pusheado) · PROYECTO TASKS 500→**23** (console-production 86→0 con logger central; resto excepciones) · WANDORIUS 410→**0** (0/481) | roadmap.md entrada 308A-2/S2-12 (RESUELTO) + git `f1e2535^` |
+| `PLAN-corregir-hallazgos-post-gate.md` | 308A-3 (2026-08-31) | Analizador 0.7.4 sobre los proyectos sin gate con la misma disciplina | GLORYPORT 14→**1** (`85a022b`) · workspace-manager 100→**86** (`80db0db`) · coolify-manager-rs 145→**123** (`5ddc908`+`b01f0e0`) | roadmap.md entrada 308A-3 (COMPLETO) + git `f1e2535^` |
 | `PLAN-corregir-restantes-sentinel-varsense.md` | 308A-5 → 308A-6 → 318A-7V1..V20 (2026-08-31 → 09-02) | Fases A→G (destrabe, wins rápidos, pisos por repo, VarSense expuesto y fusionado en el manager, excepciones E/F re-verificadas) + ciclos I/J (estrategia por familia, V13 harness + registro v2, V16 formato verificable, V17-V20 fixes de core claseHuerfana/valorHardcoded) | 308A-5 A→G completo; agregado vivo 1830→**1797**; varsense del área con 0 errores; detector saneado (V17→V20: −380 FPs, 0 FN en auditorías) | roadmap.md entrada 308A-5 (COMPLETO) + entradas 318A-7V13..V20 + excepciones.json + harness |
 | `PLAN-cero-deuda-2026-09-02.md` | 308A-7V21/V22 (2026-09-02) | Campaña a CERO de la deuda real confirmada: F1 re-clasificación de familias dinámicas (CERRADO) + V22 corregir detector antes de F2 (CERRADO, M1-M5) | Inventario 1.001 (0 errores) clasificado; F1 y V22 cerrados; fases F2–F5 + FASE FINAL **abiertas** | **Este plan §2 (contenido vivo heredado intacto)** + roadmap.md entrada PLAN-CERO-DEUDA |
 
@@ -234,7 +234,7 @@ uno-a-uno hasta 0.
 - Cada decisión se registra en `excepciones.json` con categoría + evidencia, y el harness pasa a
   verificar el **estado decidido** como cobertura. **Meta: 0 hallazgos sin decisión.**
 - Cierre de la campaña: tabla final por proyecto = 0 pendientes, resumen consolidado en este plan y
-  en completados, y el harness como guarda permanente (0 descubiertos/0 drift).
+  en el roadmap, y el harness como guarda permanente (0 descubiertos/0 drift).
 
 ### 2.4 Verificación transversal (cada fase)
 
@@ -257,8 +257,7 @@ uno-a-uno hasta 0.
 4. WIP de PT procesado cuando el usuario lo commitee (F5).
 5. **Fase final: cada ítem de la lista decidido y registrado** → total del área = 0 pendientes sin
    decisión; harness 9/9 verde con el registro decidido como única cobertura.
-6. Docs únicas actualizadas: este plan como fuente, roadmap con entrada de cierre, completados con
-   evidencia por bloque.
+6. Docs únicas actualizadas: este plan como fuente, roadmap con entrada de cierre, con evidencia por bloque registrada en git.
 
 ### 2.6 Riesgos y reglas inviolables
 
@@ -277,10 +276,10 @@ uno-a-uno hasta 0.
   FINAL (≈700 ítems) requiere la ronda uno-a-uno con el usuario.
 - Push y re-alineación del runtime 8787 (dist V18 vs core V20) siguen siendo decisión del usuario.
 
-## 4. Registro estructurado de excepciones (excepciones.json — home del §J-11 histórico)
+## 4. Registro estructurado de excepciones (excepciones.json — fuente operativa; el detalle histórico vive en git `f1e2535^`, ver §1)
 
 - **Fuente única de las excepciones verificadas:** `scripts/quality/excepciones.json` (formato v2,
-  318A-7V13..V16). Este plan y los completados solo ENLAZAN aquí, sin tablas duplicadas (V16 eliminó
+  318A-7V13..V16). Este plan solo ENLAZA aquí, sin tablas duplicadas (V16 eliminó
   las copias tras la auditoría post-V15).
 - **Formato v2:** entradas por proyecto con (a) `familias` — reglas amplias cubiertas por
   archivos/marcas (claseHuerfana, valorHardcoded, etc.) — y (b) `pares` — hallazgos token-duplicate
