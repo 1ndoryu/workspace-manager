@@ -77,12 +77,12 @@ function prepararEditor(data: GateRespuesta): EditorPreparado {
 
 /* Formatea el estado del gate en etiquetas legibles. */
 function badgesDe(estado: EstadoGate | null): { texto: string; clave: string }[] {
-  if (!estado) return [{ texto: 'gate: no', clave: 'badge--sin' }];
+  if (!estado) return [{ texto: 'gate: no', clave: 'configBadge--sin' }];
   const b: { texto: string; clave: string }[] = [];
-  b.push({ texto: `gate: ${estado.declarado ? 'sí' : 'no'}`, clave: estado.declarado ? 'badge' : 'badge--sin' });
-  b.push({ texto: `sentinel: ${estado.sentinel}`, clave: estado.sentinel === 'none' ? 'badge--sin' : 'badge' });
-  b.push({ texto: `varsense: ${estado.varsense ? 'sí' : 'no'}`, clave: estado.varsense ? 'badge' : 'badge--sin' });
-  b.push({ texto: `puerta: ${estado.puerta}`, clave: estado.puerta === 'none' ? 'badge--sin' : 'badge' });
+  b.push({ texto: `gate: ${estado.declarado ? 'sí' : 'no'}`, clave: estado.declarado ? 'badge' : 'configBadge--sin' });
+  b.push({ texto: `sentinel: ${estado.sentinel}`, clave: estado.sentinel === 'none' ? 'configBadge--sin' : 'badge' });
+  b.push({ texto: `varsense: ${estado.varsense ? 'sí' : 'no'}`, clave: estado.varsense ? 'badge' : 'configBadge--sin' });
+  b.push({ texto: `puerta: ${estado.puerta}`, clave: estado.puerta === 'none' ? 'configBadge--sin' : 'badge' });
   return b;
 }
 
