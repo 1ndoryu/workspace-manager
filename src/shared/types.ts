@@ -133,6 +133,11 @@ export type NombreSeveridad = Record<SeveridadSentinel, number>;
 export interface AnalisisSentinel {
   clave: string;
   version: string;
+  /* Commit corto del binario que produjo el análisis: el declarado en el
+   * `quality-tools.json` del proyecto cuando fija su propio `provisionPath`
+   * (039A-4). Ausente en análisis con el checkout compartido/instalado y en
+   * caché persistida vieja: el panel solo lo muestra si viene. */
+  commitCli?: string;
   fuente: 'runtime' | 'estatico' | null;
   estado: 'ok' | 'conHallazgos' | 'error';
   analizadoEn: string;
