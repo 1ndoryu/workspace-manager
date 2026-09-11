@@ -10,7 +10,8 @@
  * poder colgarlo de CI/guard. NUNCA modifica la curacion ni el JSON de ningun
  * proyecto: solo reporta; el alineado manual queda documentado.
  *
- * Uso:  pnpm sync:gate            (corre contra la version instalada)
+ * Uso:  pnpm sync:gate            (corre contra el runtime EN USO: checkout
+ *                                  compartido del area > versiones instaladas)
  *       pnpm sync:gate --json
  *       pnpm sync:gate --dts <archivo>  (comparar contra un .d.ts especifico;
  *                                        util en CI/tests; ignora la version
@@ -23,7 +24,7 @@
  *   2  variacion de version del runtime respecto de la curacion */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { RAIZ_VERSIONS, versionRuntime, VERSION_CURACION_SENTINEL } from '../src/server/gate/proveedor.js';
+import { RAIZ_VERSIONS, checkoutSentinel, versionRuntime, versionSentinel, VERSION_CURACION_SENTINEL } from '../src/server/gate/proveedor.js';
 import { ESQUEMA_SENTINEL } from '../src/shared/gate/sentinel.js';
 
 /* ------------------------------------------------------------------ *
@@ -228,8 +229,21 @@ function main() {
   const useJson = process.argv.includes('--json');
   const idxDts = process.argv.indexOf('--dts');
   const dtsArg = idxDts >= 0 ? process.argv[idxDts + 1] : null;
-  const version = dtsArg ? '—' : versionRuntime();
-  const dtsPath = dtsArg || (version ? join(RAIZ_VERSIONS, version, 'out', 'core', 'config.d.ts') : null);
+  /* Runtime EN USO: el checkout compartido del area (el mismo artefacto que
+   * ejecuta el analisis del panel y el gate de los proyectos) y, si no esta
+   * provisionado, la version instalada mas alta. [por que] 2026-09-10: el
+   * script resolvia solo `RAIZ_VERSIONS`, que tenia 0.7.4 mientras el runtime
+   * en uso era 0.7.8: la guarda comparaba la curacion contra un `config.d.ts`
+   * que ya no se ejecuta. Con `--dts` explicito se respeta lo pedido. */
+  const enUso = (() => {
+    const base = checkoutSentinel();
+    if (!base) return null;
+    const dts = join(base, 'out', 'core', 'config.d.ts');
+    if (!existsSync(dts)) return null;
+    return { version: versionSentinel() ?? '—', dts };
+  })();
+  const version = dtsArg ? '—' : enUso?.version ?? versionRuntime();
+  const dtsPath = dtsArg || enUso?.dts || (version ? join(RAIZ_VERSIONS, version, 'out', 'core', 'config.d.ts') : null);
 
   const reporte = { versionRuntime: version, versionCuracion: VERSION_CURACION_SENTINEL, problemas: [] };
 

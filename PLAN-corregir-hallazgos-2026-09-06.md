@@ -1,8 +1,18 @@
 # Plan ÚNICO: corregir hallazgos de Sentinel y VarSense en los proyectos del área (2026-09-06)
 
+> **⚠️ CERRADO como frente vivo (2026-09-10) — puntero, no borrar.** El frente VarSense de §2 se
+> consolidó en el plan maestro del área `PROYECTO TASKS/Agente/planes/plan-cero-deuda-todos-proyectos-2026-09-03.md`
+> (`039A-1`: 10 proyectos, Sentinel+VarSense), que es desde ahora la **fuente única** de la campaña
+> cero-deuda (estado vivo de F2–F5 y fase final, inventario por tratamiento, medición y DoD → allí §9).
+> Este archivo se conserva **íntegro como evidencia histórica del frente VarSense** (2026-09-02 →
+> 09-10): historial de las 4 campañas que absorbió, auditorías V20/V21/V22 y clasificación F1 línea a
+> línea. No se edita para campañas nuevas. Los artefactos operativos siguen viviendo en este repo
+> (`scripts/quality/excepciones.json` y `scripts/quality/analyze-blocks.mjs`, v. §4) porque son los que
+> consume el harness: el plan maestro los enlaza, no los mueve.
+
 > Consolidación (2026-09-06, decisión del usuario «había varios planes de esos, elimínalos y haz uno
-> nuevo»): este plan es la **fuente única** del frente de corrección de hallazgos de Sentinel/VarSense
-> del área. Absorbe como historial los planes `PLAN-corregir-1408.md` (1408), 
+> nuevo»): este plan fue la **fuente única** del frente de corrección de hallazgos de Sentinel/VarSense
+> del área **hasta el 10-09** (desde entonces lo es `039A-1`, ver aviso de arriba). Absorbe como historial los planes `PLAN-corregir-1408.md` (1408), 
 > `PLAN-corregir-hallazgos-post-gate.md` (308A-3), `PLAN-corregir-restantes-sentinel-varsense.md`
 > (308A-5 → ciclos 308A-6/318A-7V1..V20) y `PLAN-cero-deuda-2026-09-02.md` (308A-7V21/V22, cuyo
 > contenido vivo pasa intacto a §2). Esos 4 archivos quedaron **eliminados**; su evidencia persiste en
