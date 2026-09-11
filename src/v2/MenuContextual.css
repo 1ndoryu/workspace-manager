@@ -23,7 +23,7 @@
   border: none;
   border-radius: 0;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--v2-textSm);
   color: var(--v2-texto);
   text-align: left;
   padding: 5px 10px;

@@ -95,13 +95,13 @@
 .botonV2.fjSwitch--on .fjSwitchPalo { left: 21px; background: var(--v2-fondo); }
 
 .botonV2.fjTagQuitar {
-  font-family: inherit; font-size: 13px; width: 18px; height: 18px; line-height: 1;
+  font-family: inherit; font-size: var(--v2-textMd); width: 18px; height: 18px; line-height: 1;
   border: none; background: transparent; color: var(--v2-texto); cursor: pointer;
   border-radius: 2px; flex-shrink: 0;
 }
 
 .botonV2.ejQuitar {
-  font-family: inherit; font-size: 11px; letter-spacing: .05em; padding: 2px 8px;
+  font-family: inherit; font-size: var(--v2-textSm); letter-spacing: .05em; padding: 2px 8px;
   border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-texto);
   cursor: pointer; border-radius: 3px;
 }
