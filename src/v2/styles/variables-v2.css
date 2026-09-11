@@ -26,7 +26,15 @@
     /* Tipografia: Departure Mono (misma fuente del proyecto), sin bold */
     --v2-font: 'Departure Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
 
-    /* Espaciado (sin radios ni sombras por regla) */
+    /* Radios (decision del usuario en fase final 11-09): la regla v2 sigue
+     * siendo «sin radios» y `.v2App *{border-radius:0!important}` (v2.css) los
+     * neutraliza dentro del shell; estos tokens documentan el valor historico
+     * y aplican fuera de .v2App o si la regla se levanta. */
+    --v2-radioMini: 2px;
+    --v2-radioChico: 3px;
+    --v2-radioPildora: 11px;
+
+    /* Espaciado */
     --v2-spaceXs: 6px;
     --v2-spaceSm: 10px;
     --v2-spaceMd: 16px;
@@ -36,6 +44,9 @@
      * 0.72rem ~= 9.4px, 0.85rem ~= 11.1px, 1rem = 13px, 1.15rem ~= 15px) */
     --v2-textXs: 0.72rem;
     --v2-textSm: 0.85rem;
+    /* [por que] Fantasma del editor por esquema (decision del usuario en fase
+     * final 11-09): 12px cae entre textSm (~11.1) y textMd (13); 0.92rem ≈ 12px. */
+    --v2-textFantasma: 0.92rem;
     --v2-textMd: 1rem;
     --v2-textLg: 1.15rem;
 

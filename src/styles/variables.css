@@ -41,6 +41,9 @@
     --spaceLg: 20px;
     --radiusSm: 8px;
     --radiusMd: 12px;
+    /* [por que] Pildora del Badge atomico (decision del usuario en fase
+     * final 11-09): el unico radio gigante del v1. */
+    --radioPildora: 999px;
 
     /* Escala tipografica (Departure Mono es condensada) */
     --textXs: 0.72rem;

@@ -4,7 +4,7 @@
     align-items: center;
     gap: 4px;
     padding: 2px 8px;
-    border-radius: 999px;
+    border-radius: var(--radioPildora);
     font-size: var(--textXs);
     font-family: var(--font);
     line-height: 1.4;
