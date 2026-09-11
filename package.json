@@ -17,7 +17,10 @@
     "quality:doctor": "sentinel doctor --json",
     "quality:setup": "node scripts/quality/quality-setup.mjs",
     "quality:lock": "node scripts/quality/lock-generator.mjs",
-    "quality:lock:check": "node scripts/quality/lock-generator.mjs"
+    "quality:lock:check": "node scripts/quality/lock-generator.mjs",
+    "quality:bump": "node scripts/quality/bump.mjs",
+    "quality:bump:test": "node --test scripts/quality/bump.test.mjs",
+    "quality:cert:test": "node --test scripts/quality/certificacion.test.mjs"
   },
   "dependencies": {
     "axios": "^1.7.0",
