@@ -892,7 +892,7 @@
   /* Fuente más chica que la base (13px) y padding para que las opciones
    * respiren. [por que] El editor de reglas es denso: se baja la fuente a
    * 11px y se separan las filas para que no se vea abarrotado. */
-  font-size: 11px;
+  font-size: var(--v2-textSm);
   padding: 2px 0 10px;
 }
 .fjFila {
@@ -953,7 +953,7 @@
  * input estuviera lleno); solo se marca el contorno en negro. */
 .fjTagInput:focus { outline: 1px solid var(--v2-borde); background: transparent; }
 .fjTagQuitar {
-  font-family: inherit; font-size: 13px; width: 18px; height: 18px; line-height: 1;
+  font-family: inherit; font-size: var(--v2-textMd); width: 18px; height: 18px; line-height: 1;
   border: none; background: transparent; color: var(--v2-texto); cursor: pointer;
   border-radius: 2px; flex-shrink: 0;
 }
@@ -993,15 +993,15 @@
   z-index: 1000;
   max-width: 340px;
   min-width: 200px;
-  background: #000;
-  color: #fff;
+  background: var(--v2-texto);
+  color: var(--v2-invertido);
   border: 1px solid var(--v2-invertido);
   padding: 9px 11px;
   /* [por que] El tooltip se pinta por portal en document.body, fuera del
    * arbol .v2App, asi que NO hereda la fuente del shell; hay que declararla
    * aqui o cae a la fuente por defecto del navegador. */
   font-family: var(--v2-font);
-  font-size: 11px;
+  font-size: var(--v2-textSm);
   line-height: 1.5;
   text-align: left;
   pointer-events: none;
@@ -1011,15 +1011,15 @@
   opacity: .9;
 }
 .ejMarca { flex-shrink: 0; opacity: .85; display: inline-flex; }
-.ejMarcaTexto { font-style: italic; opacity: .6; font-size: 11px; flex-shrink: 0; }
+.ejMarcaTexto { font-style: italic; opacity: .6; font-size: var(--v2-textSm); flex-shrink: 0; }
 .ejControl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .ejValorTexto { font-size: var(--v2-font); color: var(--v2-texto); opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.ejSugerencia { font-size: 11px; font-style: italic; opacity: .6; }
-.ejAgregar { font-family: inherit; font-size: 11px; letter-spacing: .05em; margin-top: 2px; padding: 3px 8px; width: max-content; border: 1px dashed var(--v2-borde); background: transparent; color: var(--v2-texto); cursor: pointer; border-radius: 3px; }
+.ejSugerencia { font-size: var(--v2-textSm); font-style: italic; opacity: .6; }
+.ejAgregar { font-family: inherit; font-size: var(--v2-textSm); letter-spacing: .05em; margin-top: 2px; padding: 3px 8px; width: max-content; border: 1px dashed var(--v2-borde); background: transparent; color: var(--v2-texto); cursor: pointer; border-radius: 3px; }
 /* Mini-form del default de una opcion faltante (ver/editar antes de agregar).
  * Monocromo y alineado al diseno plano; cada sub-valor es una fila con su
  * etiqueta corta y el mismo Control de las opciones presentes. */
-.ejQuitar { font-family: inherit; font-size: 11px; letter-spacing: .05em; padding: 2px 8px; border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-texto); cursor: pointer; border-radius: 3px; }
+.ejQuitar { font-family: inherit; font-size: var(--v2-textSm); letter-spacing: .05em; padding: 2px 8px; border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-texto); cursor: pointer; border-radius: 3px; }
 /* ---- Seccion de reglas (EditorEsquema): todas las reglas del catalogo,
  * cada una con switch (habilitada) y select de severidad. [por que] El
  * usuario pidio que las reglas aparezcan en una sesion aparte, todas
@@ -1032,11 +1032,11 @@
 }
 .ejReglasCabecera { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .ejReglasTitulo { font-size: var(--v2-font); color: var(--v2-texto); letter-spacing: .02em; }
-.ejReglasMeta { font-size: 11px; font-style: italic; opacity: .55; }
+.ejReglasMeta { font-size: var(--v2-textSm); font-style: italic; opacity: .55; }
 /* Tabs por categoria de regla (sin :hover, regla global del editor). */
 .ejTabs { display: flex; flex-wrap: wrap; gap: 3px; }
 .ejTab {
-  font-family: inherit; font-size: 11px; color: var(--v2-texto);
+  font-family: inherit; font-size: var(--v2-textSm); color: var(--v2-texto);
   background: transparent; border: 1px solid var(--v2-borde); border-radius: 3px;
   padding: 3px 8px; cursor: default;
 }
@@ -1056,7 +1056,7 @@
 .ejReglaSwitch { flex-shrink: 0; display: inline-flex; align-items: center; }
 .ejReglaInfo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ejReglaNotas { display: flex; gap: 6px; flex-wrap: wrap; }
-.ejReglaPorDefecto { font-size: 11px; font-style: italic; opacity: .5; }
+.ejReglaPorDefecto { font-size: var(--v2-textSm); font-style: italic; opacity: .5; }
 .ejReglaSev { flex-shrink: 0; display: inline-flex; align-items: center; }
 .ejReglaSev .fjSelect { max-width: 120px; }
 .fjFila--mal .fjControl { border-left: 2px solid var(--v2-invertido); padding-left: 8px; }
