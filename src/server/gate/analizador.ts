@@ -23,7 +23,8 @@ import type {
   Proyecto,
   SeveridadSentinel,
 } from '../../shared/types.js';
-import { RAIZ_VERSIONS, versionRuntime } from './proveedor.js';
+import { RAIZ_VERSIONS, checkoutSentinel, cliSentinelParaProyecto, versionRuntime, versionSentinel } from './proveedor.js';
+import type { ResolucionCli } from './proveedor.js';
 
 /* Tipos del JSON real que devuelve `sentinel analyze --format json`. No se
  * importa nada del runtime: se normaliza aqui para aislar el formato. */
@@ -111,15 +112,18 @@ function persistir(): void {
  * varsense}) justo ANTES de lanzar sentinel por proyecto, para que cada
  * invocacion apunte al checkout compartido. Nunca pisa una env que el usuario
  * ya haya definido: el override manual gana. */
-function entornoGate(): NodeJS.ProcessEnv {
+function entornoGate(rutaProyecto?: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
-  const derivar = (nombre: string, sub: string): void => {
-    if (process.env[nombre] === undefined) {
-      env[nombre] = join(RAÍZ_AREA, '.quality-tools', sub);
-    }
-  };
-  derivar('GLORY_SENTINEL_SOURCE_PATH', 'sentinel');
-  derivar('GLORY_VARSENSE_SOURCE_PATH', 'varsense');
+  /* [por que] 039A-4: si el proyecto declara su propio `provisionPath`, el
+   * análisis debe correr contra ESE checkout (es el que ejecuta su gate), no
+   * contra el compartido. El override manual del usuario sigue ganando. */
+  if (process.env.GLORY_SENTINEL_SOURCE_PATH === undefined) {
+    const propio = rutaProyecto ? cliSentinelParaProyecto(rutaProyecto) : null;
+    env.GLORY_SENTINEL_SOURCE_PATH = propio?.base ?? join(RAÍZ_AREA, '.quality-tools', 'sentinel');
+  }
+  if (process.env.GLORY_VARSENSE_SOURCE_PATH === undefined) {
+    env.GLORY_VARSENSE_SOURCE_PATH = join(RAÍZ_AREA, '.quality-tools', 'varsense');
+  }
   return env;
 }
 
@@ -152,10 +156,10 @@ function hashArtefacto(ruta: string): string {
 function frescoDe(p: Proyecto): string {
   const rama = p.git?.rama ?? '?';
   const head = p.git?.ultimoCommit?.hash ?? '?sin-commits';
-  const v = versionRuntime() ?? '?';
-  const cli = cliRuntime();
+  const res = cliRuntime(p.ruta);
+  const v = res?.version ?? '?';
   const vs = checkoutVarsense();
-  const rSent = cli ? hashArtefacto(cli) : '?sin-runtime';
+  const rSent = res ? hashArtefacto(res.cli) : '?sin-runtime';
   const rVs = vs ? hashArtefacto(join(vs, 'dist', 'cli', 'index.js')) : 'sin-varsense';
   const vr = varsenseRuntime();
   const cfg = varsenseConfigHash(p.ruta);
@@ -196,15 +200,31 @@ function varsenseConfigHash(ruta: string): string | null {
   }
 }
 
-/* Ruta del bin real del runtime: node out/cli/index.js. [por que] El shim
+/* Resolución del bin real del runtime: node out/cli/index.js. [por que] El shim
  * `sentinel` .cmd requiere shell; usar el entry node del runtime permite
  * execFileSync sin shell (seguridad: args como array, nunca un string de
- * shell). */
-function cliRuntime(): string | null {
+ * shell). Orden de prioridad (039A-4): el `provisionPath` propio del proyecto
+ * si lo declara (es el que ejecuta su gate canónico) > checkout COMPARTIDO
+ * (el que fijan los demás) > versión instalada. Devuelve también la versión
+ * y el commit del artefacto que va a ejecutar, para registrarlos en el
+ * análisis (el panel debe mostrar con qué binario se midió). */
+function cliRuntime(rutaProyecto?: string): ResolucionCli | null {
+  if (rutaProyecto) {
+    const propio = cliSentinelParaProyecto(rutaProyecto);
+    if (propio) return propio;
+  }
+  const base = checkoutSentinel();
+  if (base) {
+    const cliCompartido = join(base, 'out', 'cli', 'index.js');
+    if (existsSync(cliCompartido)) {
+      return { base, cli: cliCompartido, version: versionSentinel() ?? '?', commit: null };
+    }
+  }
   const v = versionRuntime();
   if (!v) return null;
   const cli = join(RAIZ_VERSIONS, v, 'out', 'cli', 'index.js');
-  return existsSync(cli) ? cli : null;
+  if (!existsSync(cli)) return null;
+  return { base: join(RAIZ_VERSIONS, v), cli, version: v, commit: null };
 }
 
 /* [por que] Ejecutar N repos en serie no satura CPU; el detalle esta en las
@@ -238,6 +258,7 @@ function normalizar(
   version: string,
   raiz: string,
   fuenteHallazgo: 'sentinel' | 'varsense' = 'sentinel',
+  commitCli: string | null = null,
 ): AnalisisSentinel {
   const sc = dato.severityCounts ?? {};
   const resumen = {
@@ -268,6 +289,9 @@ function normalizar(
   return {
     clave,
     version,
+    /* [por que] 039A-4: commit del binario que midió (solo cuando el proyecto
+     * declara provisionPath propio; null = compartido/instalado o caché vieja). */
+    commitCli: commitCli ?? undefined,
     fuente: 'runtime',
     estado: total > 0 ? 'conHallazgos' : 'ok',
     analizadoEn: new Date().toISOString(),
@@ -293,6 +317,7 @@ function sumarResumen(a: NombreSeveridad, b: NombreSeveridad): NombreSeveridad {
 
 interface ResultadoSpawn {
   version: string;
+  commit: string | null;
   dato: ReporteJson;
 }
 
@@ -320,29 +345,33 @@ function parsearReporte(stdout: string | undefined): ReporteJson | null {
  * parseable (fallo real de runtime/spawn: el llamador marca 'error'). */
 const execFileAsync = promisify(execFile);
 async function correrSentinel(ruta: string): Promise<ResultadoSpawn | null> {
-  const cli = cliRuntime();
-  if (!cli) return null;
-  const version = versionRuntime() ?? '?';
+  const res = cliRuntime(ruta);
+  if (!res) return null;
+  /* Versión y commit que se REGISTRAN en el análisis: los del runtime que
+   * realmente ejecuta (provisionPath propio > compartido > instaladas).
+   * [por que] 2026-09-10: `cliRuntime()` ya resolvía el checkout 0.7.8 pero
+   * aquí se anotaba `versionRuntime()` (0.7.4), así que el panel decía medir
+   * con una herramienta que no era la que corría. 039A-4 añade el commit. */
   const opciones = {
     encoding: 'utf8' as const,
     windowsHide: true,
     timeout: 60000,
-    env: { ...process.env, ...entornoGate() },
+    env: { ...process.env, ...entornoGate(ruta) },
   };
   try {
     const { stdout } = await execFileAsync(
       process.execPath,
-      [cli, 'analyze', '--workspace', ruta, '--format', 'json'],
+      [res.cli, 'analyze', '--workspace', ruta, '--format', 'json'],
       opciones,
     );
     const dato = parsearReporte(stdout);
     if (!dato) return null;
-    return { version, dato };
+    return { version: res.version, commit: res.commit, dato };
   } catch (err) {
     const e = err as { stdout?: string };
     const dato = parsearReporte(e.stdout);
     if (!dato) return null;
-    return { version, dato };
+    return { version: res.version, commit: res.commit, dato };
   }
 }
 
@@ -370,12 +399,12 @@ async function correrVarsense(ruta: string): Promise<ResultadoSpawn | null> {
     );
     const dato = parsearReporte(stdout);
     if (!dato) return null;
-    return { version: vs.version, dato };
+    return { version: vs.version, commit: null, dato };
   } catch (err) {
     const e = err as { stdout?: string };
     const dato = parsearReporte(e.stdout);
     if (!dato) return null;
-    return { version: vs.version, dato };
+    return { version: vs.version, commit: null, dato };
   }
 }
 
@@ -417,7 +446,7 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
         dato.varsense = { version: resVs.version, resumen: vs.resumen };
       }
     } else {
-      dato = normalizar(res.dato, clave, res.version, p.ruta, 'sentinel');
+      dato = normalizar(res.dato, clave, res.version, p.ruta, 'sentinel', res.commit);
       if (resVs) {
         const vs = normalizar(resVs.dato, clave, resVs.version, p.ruta, 'varsense');
         dato.resumen = sumarResumen(dato.resumen, vs.resumen);

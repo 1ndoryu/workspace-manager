@@ -85,19 +85,22 @@ function resumenAnalisis(a: AnalisisSentinel | undefined): string | null {
   const sInfo = s.filter((h) => h.severidad === 'information').length;
   const sHint = s.filter((h) => h.severidad === 'hint').length;
   const partes: string[] = [];
+  /* [por que] 039A-4: el conteo solo acredita si dice con qué binario se
+   * midió (versión + commit del provisionPath propio cuando lo hay). */
+  const etiqueta = `sentinel v${a.version}${a.commitCli ? `@${a.commitCli}` : ''}`;
   if (a.estado === 'ok') {
-    partes.push('sentinel sin hallazgos');
+    partes.push(`${etiqueta} sin hallazgos`);
   } else if (s.length > 0) {
     const sev: string[] = [];
     if (sError) sev.push(`${sError} error${sError === 1 ? '' : 'es'}`);
     if (sWarning) sev.push(`${sWarning} warning${sWarning === 1 ? '' : 's'}`);
     if (sInfo) sev.push(`${sInfo} info`);
     if (sHint) sev.push(`${sHint} hint${sHint === 1 ? '' : 's'}`);
-    partes.push(`sentinel: ${sev.join(' · ') || 'sin detalle'}`);
+    partes.push(`${etiqueta}: ${sev.join(' · ') || 'sin detalle'}`);
   } else if (a.varsense && s.length === 0) {
     /* Solo hallazgos de varsense: no decir 'sentinel sin hallazgos' como si
      * el analisis entero estuviera limpio. */
-    partes.push('sentinel sin hallazgos');
+    partes.push(`${etiqueta} sin hallazgos`);
   }
   if (a.varsense) {
     const r = a.varsense.resumen;
