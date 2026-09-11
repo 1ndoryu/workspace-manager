@@ -74,7 +74,7 @@
     background: transparent;
     color: var(--v2-texto);
     cursor: pointer;
-    border-radius: 3px;
+    border-radius: var(--v2-radioChico);
     flex-shrink: 0;
 }
 
@@ -84,7 +84,7 @@
  * gane la cascada sobre la base .botonV2. */
 .botonV2.fjSwitch {
   position: relative; width: 40px; height: 22px; flex-shrink: 0;
-  border: 1px solid var(--v2-borde); border-radius: 11px;
+  border: 1px solid var(--v2-borde); border-radius: var(--v2-radioPildora);
   background: transparent; cursor: pointer; padding: 0;
 }
 .fjSwitchPalo {
@@ -97,13 +97,13 @@
 .botonV2.fjTagQuitar {
   font-family: inherit; font-size: var(--v2-textMd); width: 18px; height: 18px; line-height: 1;
   border: none; background: transparent; color: var(--v2-texto); cursor: pointer;
-  border-radius: 2px; flex-shrink: 0;
+  border-radius: var(--v2-radioMini); flex-shrink: 0;
 }
 
 .botonV2.ejQuitar {
   font-family: inherit; font-size: var(--v2-textSm); letter-spacing: .05em; padding: 2px 8px;
   border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-texto);
-  cursor: pointer; border-radius: 3px;
+  cursor: pointer; border-radius: var(--v2-radioChico);
 }
 
 /* Navegador de archivos (PanelNavegador): chips de breadcrumb, boton subir
