@@ -4,7 +4,7 @@
  * la navegacion de carpetas separada de la vista de archivos. La lista
  * cambia de directorio al entrar/salir de carpetas; el visor muestra el
  * archivo seleccionado (texto; los binarios se marcan como no visibles). */
-import { Button } from '../Button.js';
+import { Button } from '../ui/Button.js';
 import { usePanelNavegador } from '../../hooks/usePanelNavegador.js';
 import './paneles.css';
 

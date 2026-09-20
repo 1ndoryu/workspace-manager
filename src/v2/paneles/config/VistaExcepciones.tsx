@@ -1,7 +1,7 @@
 /* Vista 'excepciones' del PanelConfig: proyectos ignorados con boton quitar.
  * [por que] Salio de PanelConfig.tsx para que el componente quede bajo el
  * limite-lineas (300): recibe el paquete `datos` del hook, sin logica propia. */
-import { Button } from '../../Button.js';
+import { Button } from '../../ui/Button.js';
 import type { DatosPanelConfig } from './usePanelConfig.js';
 
 export function VistaExcepciones({ datos }: { datos: DatosPanelConfig }) {

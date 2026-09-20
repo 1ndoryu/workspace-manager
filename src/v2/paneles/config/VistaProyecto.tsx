@@ -2,8 +2,8 @@
  * JSON (dirigidos por esquema cuando hay, genericos si no).
  * [por que] Salio de PanelConfig.tsx para que el componente quede bajo el
  * limite-lineas (300): recibe el paquete `datos` del hook, sin logica propia. */
-import { Button } from '../../Button.js';
-import { EditorJson } from '../../EditorJson.js';
+import { Button } from '../../ui/Button.js';
+import { EditorJson } from '../../ui/EditorJson.js';
 import { EditorEsquema } from '../../EditorEsquema.js';
 import { ARCHIVO_A_TOOL, badgesDe, type DatosPanelConfig } from './usePanelConfig.js';
 
@@ -73,7 +73,7 @@ export function VistaProyecto({ datos }: { datos: DatosPanelConfig }) {
             }
             const tool = ARCHIVO_A_TOOL[a.nombre];
             const esquema = tool ? esquemas[tool] : undefined;
-            const valor = (editado[a.nombre] ?? null) as import('../../EditorJson.js').JsonValue;
+            const valor = (editado[a.nombre] ?? null) as import('../../ui/EditorJson.js').JsonValue;
             return (
               <section key={a.nombre} className="gateEditor">
                 <header className="gateEditorCabecera">

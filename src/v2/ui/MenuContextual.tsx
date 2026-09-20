@@ -4,13 +4,13 @@
  * configurar (ir a la pagina 'config' con ese proyecto) o ignorar. */
 import { useEffect } from 'react';
 import type { CSSProperties } from 'react';
-import { useWorkspaceStore } from '../hooks/useWorkspace.js';
+import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import {
   bajarDocumento,
   bajarVentana,
   suscribirDocumento,
   suscribirVentana,
-} from '../shared/platform/plataforma.js';
+} from '../../shared/platform/plataforma.js';
 import './MenuContextual.css';
 
 export function MenuContextual() {

@@ -1,0 +1,184 @@
+/* Consola de problemas (panel inferior): misma estetica de caja, con
+ * cabecera de filtros y lista de filas. El alto viene de la variable
+ * --alto-consola (persistida) y el contenido hace scroll fino. */
+.panelConsola {
+    flex: none;
+    height: var(--alto-consola);
+    display: flex;
+    flex-direction: column;
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+}
+
+.panelConsolaCabecera {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.panelConsolaTitulo {
+    flex: 1;
+    font-size: var(--v2-textSm);
+}
+
+.panelConsolaFiltro {
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    padding: 2px var(--v2-spaceSm);
+    cursor: pointer;
+}
+
+.panelConsolaFiltro--activo {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.panelConsolaContenido {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.consolaVacio {
+    padding: var(--v2-spaceMd);
+    font-size: var(--v2-textSm);
+}
+
+/* Grupo de problemas por proyecto: cabecera (nombre + badges) con los
+ * motivos debajo, indentados con un borde izquierdo que anida visualmente
+ * cada problema bajo su proyecto. */
+.consolaGrupo {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.consolaFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border: none;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    text-align: left;
+    cursor: pointer;
+}
+
+.consolaFila--seleccionada {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.consolaFilaNombre {
+    flex: none;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.consolaFilaBadge {
+    flex: none;
+    border: 1px solid currentColor;
+    padding: 0 4px;
+}
+
+/* Badge de severidad de la categoria 'config' (monocromo, sin hover).
+ * error -> relleno de la tinta; advertencia -> borde hueco punteado. [por que]
+ * La UI es monocroma; la severidad se distingue por forma/relleno, no color. */
+.consolaFilaBadge--error {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.consolaFilaBadge--warn {
+    border-style: dashed;
+}
+
+.consolaMotivo--error {
+    /* [por que] Punto de erro en la excusa: pequena mancha que marca el
+     * problema mas grave sin depender del color. */
+    border-left: 2px solid var(--v2-texto);
+}
+
+.consolaMotivo--warn {
+    border-left-style: dashed;
+}
+
+.consolaMotivos {
+    margin: 0;
+    padding: 0 0 var(--v2-spaceXs) var(--v2-spaceLg);
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--v2-textXs);
+}
+
+.consolaMotivo {
+    /* [por que] Borde izquierdo + indentado: el arbol de anidado marca que
+     * cada linea pertenece a la cabecera del grupo (su proyecto). */
+    margin-left: var(--v2-spaceSm);
+    padding-left: var(--v2-spaceSm);
+    border-left: 1px solid var(--v2-borde);
+}
+
+/* Badge de severidad de CATEGORIA 'sentinel' (hallazgo de analyze), en linea
+ * con el motivo. Monocromo igual que el resto: error = relleno solido,
+ * warning = borde discontinuo, info/hint = tamano/forma menor. [por que] El
+ * usuario pidio una UI sin color; la gravedad se distingue por forma. */
+.consolaSeveridad {
+    flex: none;
+    margin-right: var(--v2-spaceSm);
+    padding: 0 4px;
+    border: 1px solid currentColor;
+    font-size: 0.85em;
+}
+
+.consolaSeveridad--error {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.consolaSeveridad--warning {
+    border-style: dashed;
+}
+
+.consolaSeveridad--information,
+.consolaSeveridad--hint {
+    border-style: dotted;
+    opacity: 0.7;
+}
+
+/* Severidades de vulnerabilidades (308A-4): critical/high con borde doble
+ * (urgencia), moderate/low discretos, reusando la paleta de la consola. */
+.consolaSeveridad--critical {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    border-style: double;
+}
+
+.consolaSeveridad--high {
+    border-style: double;
+}
+
+.consolaSeveridad--moderate {
+    border-style: dashed;
+    opacity: 0.9;
+}
+
+.consolaSeveridad--low {
+    border-style: dotted;
+    opacity: 0.7;
+}

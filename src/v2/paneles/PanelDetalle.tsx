@@ -6,9 +6,9 @@ import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../..
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import { estadoProyecto } from '../estado.js';
 import { verticesParedDer, verticesParedIzq, verticesTecho } from '../mapa/tiles.js';
-import { Button } from '../Button.js';
+import { Button } from '../ui/Button.js';
 import { usePanelDetalle } from '../../hooks/usePanelDetalle.js';
-import './paneles.css';
+import './detalle.css';
 
 /* Cubo decorativo de la cabecera: la MISMA caja iso del mapa (mismas
  * funciones de vertices) en una celda cualquiera. Asi el panel \"es una caja\n * igual que el mapa\". */

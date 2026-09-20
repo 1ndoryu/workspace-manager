@@ -14,7 +14,7 @@ import {
   verticesTecho,
 } from './tiles.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
-import { Button } from '../Button.js';
+import { Button } from '../ui/Button.js';
 import { useMapaV2 } from './useMapaV2.js';
 import { anchoVentana } from '../../shared/platform/plataforma.js';
 import './mapaV2.css';

@@ -1,0 +1,106 @@
+/* Estilos de los paneles v2 (detalle y lista): misma estetica de caja del
+ * mapa (wireframe monocromo), sin radios, sin sombras, sin bold. */
+.panelCaja {
+    width: 300px;
+    min-height: 0;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+    overflow-y: auto;
+}
+
+/* Cabecera del detalle: cubo iso (la misma caja del mapa), nombre y boton de
+ * cierre. */
+.panelCajaCabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    flex: none;
+}
+
+.panelCajaCubo {
+    width: 34px;
+    height: 28px;
+    flex: none;
+}
+
+.panelCajaCubo polygon {
+    fill: var(--v2-fondo);
+    stroke: var(--v2-borde);
+    stroke-width: 1;
+}
+
+.panelCajaTitulo {
+    flex: 1;
+    min-width: 0;
+}
+
+.panelCajaNombre {
+    font-size: var(--v2-textMd);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.panelCajaSubtitulo {
+    font-size: var(--v2-textXs);
+}
+
+.panelCajaCerrar {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    font-size: var(--v2-textMd);
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* Filas de detalle: label encima de valor, separadas por linea. */
+.panelDetalleFilas {
+    margin: 0;
+    padding: var(--v2-spaceMd);
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceSm);
+    font-size: var(--v2-textSm);
+}
+
+.panelDetalleFila {
+    padding-bottom: var(--v2-spaceXs);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.panelDetalleFila dt {
+    font-size: var(--v2-textXs);
+}
+
+.panelDetalleFila dd {
+    margin: 0;
+    word-break: break-word;
+}
+
+/* Analisis real de sentinel en el detalle de un proyecto (plan A2). */
+.panelDetalleScan {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceSm);
+    margin: var(--v2-spaceMd);
+    padding: var(--v2-spaceMd);
+    border: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+}
+
+.panelDetalleScanMeta {
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    opacity: 0.8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

@@ -9,17 +9,17 @@ import { useEffect, type CSSProperties } from 'react';
 import { useWorkspaceStore } from '../hooks/useWorkspace.js';
 import { MapaV2 } from './mapa/MapaV2.js';
 import { useLayoutV2, MAX_ANCHO, MAX_ALTO, MIN_ANCHO, MIN_ALTO } from './useLayoutV2.js';
-import { NavBar } from './NavBar.js';
+import { NavBar } from './ui/NavBar.js';
 import { PanelConsola } from './paneles/consola/PanelConsola.js';
 import { PanelDetalle } from './paneles/PanelDetalle.js';
 import { PanelDocs } from './paneles/PanelDocs.js';
 import { PanelConfig } from './paneles/config/PanelConfig.js';
 import { PanelLista } from './paneles/PanelLista.js';
 import { PanelNavegador } from './paneles/PanelNavegador.js';
-import { MenuContextual } from './MenuContextual.js';
+import { MenuContextual } from './ui/MenuContextual.js';
 import { PanelRepos } from './paneles/PanelRepos.js';
-import { Resizer } from './Resizer.js';
-import { Toaster } from './Toaster.js';
+import { Resizer } from './ui/Resizer.js';
+import { Toaster } from './ui/Toaster.js';
 import './styles/v2.css';
 
 export function AppV2() {
