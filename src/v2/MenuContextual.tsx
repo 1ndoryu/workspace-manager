@@ -3,7 +3,14 @@
  * clic derecho en la lista, las cajas del mapa o la consola aparece para
  * configurar (ir a la pagina 'config' con ese proyecto) o ignorar. */
 import { useEffect } from 'react';
+import type { CSSProperties } from 'react';
 import { useWorkspaceStore } from '../hooks/useWorkspace.js';
+import {
+  bajarDocumento,
+  bajarVentana,
+  suscribirDocumento,
+  suscribirVentana,
+} from '../shared/platform/plataforma.js';
 import './MenuContextual.css';
 
 export function MenuContextual() {
@@ -20,15 +27,15 @@ export function MenuContextual() {
     const escape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') cerrar();
     };
-    document.addEventListener('pointerdown', cerrarFuera);
-    window.addEventListener('scroll', cerrarFuera, true);
-    window.addEventListener('resize', cerrarFuera);
-    document.addEventListener('keydown', escape);
+    suscribirDocumento('pointerdown', cerrarFuera);
+    suscribirVentana('scroll', cerrarFuera, { capture: true });
+    suscribirVentana('resize', cerrarFuera);
+    suscribirDocumento('keydown', escape);
     return () => {
-      document.removeEventListener('pointerdown', cerrarFuera);
-      window.removeEventListener('scroll', cerrarFuera, true);
-      window.removeEventListener('resize', cerrarFuera);
-      document.removeEventListener('keydown', escape);
+      bajarDocumento('pointerdown', cerrarFuera);
+      bajarVentana('scroll', cerrarFuera, { capture: true });
+      bajarVentana('resize', cerrarFuera);
+      bajarDocumento('keydown', escape);
     };
   }, [menu, cerrar]);
 
@@ -39,7 +46,7 @@ export function MenuContextual() {
   return (
     <div
       className="menuContextual"
-      style={{ left: menu.x, top: menu.y }}
+      style={{ '--menu-x': `${menu.x}px`, '--menu-y': `${menu.y}px` } as CSSProperties}
       onPointerDown={(e) => e.stopPropagation()}
       role="menu"
       aria-label="Menú del proyecto"

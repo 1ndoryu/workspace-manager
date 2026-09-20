@@ -11,6 +11,7 @@
  * intactas las claves desconocidas no tocadas al guardar. Mantiene el diseno
  * plano aprobado (una fila por ruta, 11px, sin :hover). */
 import { useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Check, X } from 'lucide-react';
 import type { NodoEsquema, OpcionValor, ValorJson } from '../shared/gate/esquema.js';
@@ -26,6 +27,7 @@ import {
 import { infoSegmento } from '../shared/gate/etiquetas.js';
 import { REGLAS as REGLAS_ESTATICAS, type ReglaCatalogo } from '../shared/gate/reglas.js';
 import { Button } from './Button.js';
+import { altoVentana, anchoVentana, cuerpoDocumento } from '../shared/platform/plataforma.js';
 import { toastInfo } from './toast.js';
 
 interface Props {
@@ -459,8 +461,8 @@ function EtiquetaDeRuta({ ruta, texto }: { ruta: Ruta; texto?: string }) {
     if (!r) return;
     const ANCHO = 340;
     let x = r.left;
-    if (x + ANCHO > window.innerWidth - 8) x = Math.max(8, window.innerWidth - ANCHO - 8);
-    const y = Math.min(r.bottom + 6, Math.max(8, window.innerHeight - 180));
+    if (x + ANCHO > anchoVentana() - 8) x = Math.max(8, anchoVentana() - ANCHO - 8);
+    const y = Math.min(r.bottom + 6, Math.max(8, altoVentana() - 180));
     setPos({ x, y });
   }
 
@@ -475,10 +477,14 @@ function EtiquetaDeRuta({ ruta, texto }: { ruta: Ruta; texto?: string }) {
       {pos &&
         detalle &&
         createPortal(
-          <div className="ejTooltip" style={{ left: pos.x, top: pos.y }} role="tooltip">
+          <div
+            className="ejTooltip"
+            style={{ '--tooltip-x': `${pos.x}px`, '--tooltip-y': `${pos.y}px` } as CSSProperties}
+            role="tooltip"
+          >
             <span className="ejTooltipDetalle">{detalle}</span>
           </div>,
-          document.body,
+          cuerpoDocumento(),
         )}
     </span>
   );

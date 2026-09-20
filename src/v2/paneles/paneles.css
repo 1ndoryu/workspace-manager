@@ -990,6 +990,14 @@
  * cada configuracion; el title nativo no daba formato ni espacio. */
 .ejTooltip {
   position: fixed;
+  /* [por que] La posicion la publica el componente como CSS vars (patron
+   * permitido por inline-style-prohibido): el tooltip sigue al cursor con
+   * geometria runtime sin estilos inline reales. Valores por defecto para
+   * que la var exista aunque el componente aun no la publique. */
+  --tooltip-x: 0px;
+  --tooltip-y: 0px;
+  left: var(--tooltip-x);
+  top: var(--tooltip-y);
   z-index: 1000;
   max-width: 340px;
   min-width: 200px;

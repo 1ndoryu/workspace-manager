@@ -3,6 +3,7 @@
  * se diferencian con patrones de relleno/borde, no con color. La logica de
  * interaccion (zoom, pan, arrastre, hover, tooltip) vive en useMapaV2. */
 import { useMemo } from 'react';
+import type { CSSProperties } from 'react';
 import type { Proyecto } from '../../shared/types.js';
 import { estadoProyecto, PESO_ESTADO } from '../estado.js';
 import {
@@ -15,6 +16,7 @@ import {
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import { Button } from '../Button.js';
 import { useMapaV2 } from './useMapaV2.js';
+import { anchoVentana } from '../../shared/platform/plataforma.js';
 import './mapaV2.css';
 
 export function MapaV2() {
@@ -221,10 +223,12 @@ export function MapaV2() {
       {hover && tooltipPos && (
         <div
           className="mapaV2Tooltip"
-          style={{
-            left: Math.min(tooltipPos.x + 14, window.innerWidth - 240),
-            top: tooltipPos.y + 14,
-          }}
+          style={
+            {
+              '--mapa-tip-x': `${Math.min(tooltipPos.x + 14, anchoVentana() - 240)}px`,
+              '--mapa-tip-y': `${tooltipPos.y + 14}px`,
+            } as CSSProperties
+          }
         >
           <div className="mapaV2TooltipTitulo">{hover.id}</div>
           {hover.esGit && hover.git ? (
