@@ -104,11 +104,16 @@
     pointer-events: none;
 }
 
-/* Tooltip monocromo: caja negra con borde y texto blanco. La posicion se
- * pone inline desde el componente (sigue al cursor) para no tapar los
- * paneles laterales. */
+/* Tooltip monocromo: caja negra con borde y texto blanco. La posicion la
+ * publica el componente como CSS vars (sigue al cursor) para no tapar los
+ * paneles laterales, sin estilos inline reales. */
 .mapaV2Tooltip {
     position: fixed;
+    /* Valores por defecto: la var la publica el componente por instancia. */
+    --mapa-tip-x: 0px;
+    --mapa-tip-y: 0px;
+    left: var(--mapa-tip-x);
+    top: var(--mapa-tip-y);
     background: var(--v2-texto);
     color: var(--v2-invertido);
     border: 1px solid var(--v2-borde);

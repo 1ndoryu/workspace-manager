@@ -3,6 +3,12 @@
  * abre en la posicion del cursor y se cierra con clic fuera / Escape. */
 .menuContextual {
   position: fixed;
+  /* [por que] La posicion del cursor la publica el componente como CSS vars,
+   * sin estilos inline reales. Valores por defecto para que la var exista. */
+  --menu-x: 0px;
+  --menu-y: 0px;
+  left: var(--menu-x);
+  top: var(--menu-y);
   z-index: 1000;
   min-width: 150px;
   background: var(--v2-fondo);
