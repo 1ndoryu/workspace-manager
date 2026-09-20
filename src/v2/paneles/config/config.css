@@ -1,0 +1,547 @@
+/* --- Configuracion por proyecto (PanelConfig) --- */
+.excFila {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceXs);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.excFilaNombre {
+    flex: 1;
+    min-width: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+    font: inherit;
+    font-size: var(--v2-textSm);
+    color: var(--v2-texto);
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    padding: 2px 0;
+}
+
+/* .excBoton se movio a Button.css (compuesto .botonV2.excBoton): el archivo
+ * Button.css es el unico lugar permitido para estilos de boton. */
+
+.docsVisorCabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.docsVisorTitulo {
+    font-size: var(--v2-textSm);
+    font-weight: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.configMeta {
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.configBadges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.configBadge {
+    border: 1px solid var(--v2-borde);
+    padding: 1px 7px;
+    font-size: var(--v2-textXs);
+    line-height: 1.6;
+}
+
+.configBadge--sin {
+    opacity: 0.45;
+}
+
+.gateEditores {
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceMd);
+    overflow: auto;
+}
+
+.gateEditor {
+    border: 1px solid var(--v2-borde);
+    display: flex;
+    flex-direction: column;
+}
+
+.gateEditorCabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceSm);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.gateEditorNombre {
+    font-size: var(--v2-textXs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gateEditorTexto {
+    border: none;
+}
+
+/* Lista de excepciones abierta en el contenido (ya no en el lateral): filas
+ * con la clave y el boton 'quitar' a la derecha, dentro de la caja del visor. */
+.excListaContenido {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.excListaContenido .excFila {
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+/* En el contenido la clave de una excepcion es una etiqueta (no boton): sin
+ * cursor de mano ni subrayado. */
+.excListaContenido .excFilaNombre {
+    cursor: default;
+}
+
+/* Formulario JSON (EditorJson.tsx): opciones PLANAS, cada una separada.
+ * Se aplana todo el JSON en una lista de filas: una opción por fila, con su
+ * ruta como etiqueta (p.ej. `sentinel › config › portableBoundaries › dom ›
+ * enabled`), el control debajo (switch, input o tags). Sin secciones ni
+ * objetos anidados. [por que] El usuario pidio que las opciones NO esten
+ * anidadas y que cada una este separada; las versiones con secciones se
+ * veian raras o dejaban hueco. Generico (ninguna clave hardcodeada). */
+.fjPlano {
+  display: flex; flex-direction: column; min-width: 0;
+  /* Fuente más chica que la base (13px) y padding para que las opciones
+   * respiren. [por que] El editor de reglas es denso: se baja la fuente a
+   * 11px y se separan las filas para que no se vea abarrotado. */
+  font-size: var(--v2-textSm);
+  padding: 2px 0 10px;
+}
+.fjFila {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--v2-borde);
+}
+.fjFila:last-child { border-bottom: none; }
+.fjEtiqueta {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: var(--v2-font); color: var(--v2-texto); letter-spacing: .02em;
+  overflow: hidden; margin-bottom: 8px;
+}
+.fjControl { display: flex; align-items: center; min-width: 0; width: 100%; }
+/* [por que] El control de tags debe ocupar todo el ancho de la fila para
+ * que el texto no se corte: sin esto el span flex se encoge al contenido. */
+.fjControl > .fjTags { width: 100%; }
+.fjVacio { font-size: var(--v2-font); color: var(--v2-texto); opacity: .55; font-style: italic; }
+/* Switch (booleano). Monocromo: OFF = contorno negro con palo negro; ON =
+ * relleno negro con palo blanco. [por que] Antes el borde usaba
+ * --v2-invertido (blanco) y el palo --v2-oscuro (variable inexistente):
+ * el switch quedaba invisible sobre fondo blanco en ambos estados. */
+.fjSwitch {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+  border: 1px solid var(--v2-borde); border-radius: var(--v2-radioPildora);
+  background: transparent; cursor: pointer; padding: 0;
+}
+.fjSwitchPalo {
+  position: absolute; top: 3px; left: 3px; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--v2-borde); transition: left .12s ease;
+}
+.fjSwitch--on { background: var(--v2-borde); }
+.fjSwitch--on .fjSwitchPalo { left: 21px; background: var(--v2-fondo); }
+.fjInput {
+  font-family: inherit; font-size: var(--v2-font); color: var(--v2-texto);
+  background: transparent; border: 1px solid var(--v2-borde); padding: 3px 8px;
+  border-radius: var(--v2-radioChico); width: 100%; min-width: 0; line-height: 1.4; box-sizing: border-box;
+}
+.fjInput:focus { outline: 1px solid var(--v2-invertido); }
+.fjInput--num { width: 90px; }
+/* Tags editables para una lista de valores simples (una columna). */
+.fjTags { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; min-width: 0; }
+.fjTagsLista { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* [por que] El tag ocupa el 100% del ancho disponible para que el texto no
+ * se corte: antes se encogia al contenido y el input se truncaba. */
+.fjTag {
+  display: flex; align-items: center; gap: 2px; width: 100%; min-width: 0;
+  border: 1px solid var(--v2-invertido); border-radius: var(--v2-radioChico);
+  background: transparent; box-sizing: border-box;
+}
+.fjTag .fjTagInput { flex: 1 1 auto; }
+.fjTagInput {
+  font-family: inherit; font-size: var(--v2-font); color: var(--v2-texto);
+  background: transparent; border: none; padding: 2px 4px; min-width: 0; flex: 1 1 auto;
+  box-sizing: border-box; width: 100%;
+}
+/* [por que] El focus no debe pintar el fondo de negro (se ve como si el
+ * input estuviera lleno); solo se marca el contorno en negro. */
+.fjTagInput:focus { outline: 1px solid var(--v2-borde); background: transparent; }
+.fjTagQuitar {
+  font-family: inherit; font-size: var(--v2-textMd); width: 18px; height: 18px; line-height: 1;
+  border: none; background: transparent; color: var(--v2-texto); cursor: pointer;
+  border-radius: var(--v2-radioMini); flex-shrink: 0;
+}
+/* Fila para agregar valores. */
+.fjAgregar { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.fjAgregar .fjInput--nuevo { flex: 0 1 220px; }
+/* .fjBoton se movio a Button.css (compuesto .botonV2.fjBoton). */
+
+/* ---- Editor por esquema (EditorEsquema): indicadores de estado ---- */
+.ejEstado { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 7px 10px; border-bottom: 1px solid var(--v2-borde); }
+.ejEstado--falte { opacity: .72; }
+.ejEstado--falte .ejEtiqueta::after { content: ' · falta'; font-style: italic; }
+/* Valor por defecto en la columna de valor, como si ya estuviera puesto.
+ * [por que] El usuario pidio que aparezca como valor ya puesto (no en el
+ * titulo) y que quite el mini-form. Sin transparencia extra: la fila faltante
+ * ya hereda la opacidad propia de .ejEstado--falte. Se distingue del valor
+ * real por el borde punteado y la marca ＋ (al hacer clic se inserta). */
+.ejDefaultGhost {
+  font-family: inherit; font-size: var(--v2-textFantasma); color: var(--v2-texto);
+  background: transparent; border: 1px dashed var(--v2-borde); border-radius: var(--v2-radioChico);
+  padding: 3px 8px; cursor: pointer; width: 100%; max-width: 100%;
+  text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ejDefaultGhost .ejAgregarMini { margin-left: 8px; font-size: var(--v2-textFantasma); opacity: .7; }
+.ejEtiqueta { display: flex; align-items: flex-start; gap: 6px; font-size: var(--v2-font); color: var(--v2-texto); letter-spacing: .02em; min-width: 0; }
+/* Nombre legible + descripcion de una ruta (EditorEsquema). El nombre no se
+ * trunca en exceso; la descripcion va debajo en italica opaca (monocromo). */
+.ejRutaTexto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ejRutaNombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Tooltip monocromo del editor por esquema (EditorEsquema): caja negra sobre
+ * fondo blanco, sin sombra ni redondeo. Muestra el nombre legible, la ruta
+ * tecnica original y el detalle explicativo. [por que] El usuario pidio un
+ * tooltip al pasar el cursor con una descripcion breve, clara y detallada de
+ * cada configuracion; el title nativo no daba formato ni espacio. */
+.ejTooltip {
+  position: fixed;
+  /* [por que] La posicion la publica el componente como CSS vars (patron
+   * permitido por inline-style-prohibido): el tooltip sigue al cursor con
+   * geometria runtime sin estilos inline reales. Valores por defecto para
+   * que la var exista aunque el componente aun no la publique. */
+  --tooltip-x: 0px;
+  --tooltip-y: 0px;
+  left: var(--tooltip-x);
+  top: var(--tooltip-y);
+  z-index: 1000;
+  max-width: 340px;
+  min-width: 200px;
+  background: var(--v2-texto);
+  color: var(--v2-invertido);
+  border: 1px solid var(--v2-invertido);
+  padding: 9px 11px;
+  /* [por que] El tooltip se pinta por portal en document.body, fuera del
+   * arbol .v2App, asi que NO hereda la fuente del shell; hay que declararla
+   * aqui o cae a la fuente por defecto del navegador. */
+  font-family: var(--v2-font);
+  font-size: var(--v2-textSm);
+  line-height: 1.5;
+  text-align: left;
+  pointer-events: none;
+}
+.ejTooltipDetalle {
+  display: block;
+  opacity: .9;
+}
+.ejMarca { flex-shrink: 0; opacity: .85; display: inline-flex; }
+.ejMarcaTexto { font-style: italic; opacity: .6; font-size: var(--v2-textSm); flex-shrink: 0; }
+.ejControl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ejValorTexto { font-size: var(--v2-font); color: var(--v2-texto); opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ejSugerencia { font-size: var(--v2-textSm); font-style: italic; opacity: .6; }
+.ejAgregar { font-family: inherit; font-size: var(--v2-textSm); letter-spacing: .05em; margin-top: 2px; padding: 3px 8px; width: max-content; border: 1px dashed var(--v2-borde); background: transparent; color: var(--v2-texto); cursor: pointer; border-radius: var(--v2-radioChico); }
+/* Mini-form del default de una opcion faltante (ver/editar antes de agregar).
+ * Monocromo y alineado al diseno plano; cada sub-valor es una fila con su
+ * etiqueta corta y el mismo Control de las opciones presentes. */
+.ejQuitar { font-family: inherit; font-size: var(--v2-textSm); letter-spacing: .05em; padding: 2px 8px; border: 1px solid var(--v2-borde); background: transparent; color: var(--v2-texto); cursor: pointer; border-radius: var(--v2-radioChico); }
+/* ---- Seccion de reglas (EditorEsquema): todas las reglas del catalogo,
+ * cada una con switch (habilitada) y select de severidad. [por que] El
+ * usuario pidio que las reglas aparezcan en una sesion aparte, todas
+ * visibles, para activarlas/desactivarlas de un vistazo; si una regla no
+ * tiene valor definido se muestra el default del esquema marcada como
+ * "por defecto". Monocromo, sin :hover (regla global del editor). */
+.ejReglas {
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  padding: 7px 10px 10px; border-bottom: 1px solid var(--v2-borde);
+}
+.ejReglasCabecera { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ejReglasTitulo { font-size: var(--v2-font); color: var(--v2-texto); letter-spacing: .02em; }
+.ejReglasMeta { font-size: var(--v2-textSm); font-style: italic; opacity: .55; }
+/* Tabs por categoria de regla (sin :hover, regla global del editor). */
+.ejTabs { display: flex; flex-wrap: wrap; gap: 3px; }
+.ejTab {
+  font-family: inherit; font-size: var(--v2-textSm); color: var(--v2-texto);
+  background: transparent; border: 1px solid var(--v2-borde); border-radius: var(--v2-radioChico);
+  padding: 3px 8px; cursor: default;
+}
+.ejTab--activo { background: var(--v2-texto); color: var(--v2-invertido); border-color: var(--v2-texto); }
+.ejReglasLista { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ejRegla {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 3px 7px; border: 1px solid var(--v2-borde); border-radius: var(--v2-radioChico);
+}
+/* Regla sin valor definido en el JSON: borde punteado y opacidad, mostrando
+ * el default del esquema. Al tocar su switch/select se inserta. */
+.ejRegla--ausente { border-style: dashed; opacity: .72; }
+/* Regla presente pero fuera del catalogo (la escribio el agente): se resalta
+ * el borde en negro para no perderla de vista. */
+.ejRegla--desconocida { border-color: var(--v2-invertido); }
+.ejRegla--off .ejRutaNombre { opacity: .5; }
+.ejReglaSwitch { flex-shrink: 0; display: inline-flex; align-items: center; }
+.ejReglaInfo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ejReglaNotas { display: flex; gap: 6px; flex-wrap: wrap; }
+.ejReglaPorDefecto { font-size: var(--v2-textSm); font-style: italic; opacity: .5; }
+.ejReglaSev { flex-shrink: 0; display: inline-flex; align-items: center; }
+.ejReglaSev .fjSelect { max-width: 120px; }
+.fjFila--mal .fjControl { border-left: 2px solid var(--v2-invertido); padding-left: 8px; }
+.fjSelect { font-family: inherit; font-size: var(--v2-font); color: var(--v2-texto); background: var(--v2-fondo); border: 1px solid var(--v2-borde); padding: 3px 6px; border-radius: var(--v2-radioChico); }
+.fjTag--ro { padding: 2px 6px; }
+
+/* Escaneo real de sentinel por proyecto (config. escaneo del panel config).
+ * [por que] Mismo lenguaje visual del resto del panel docs: monocromo,
+ * wireframe, pequeno; una tarjeta que agrupa el auto-escaneo y el boton. */
+.scanCfg {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceSm);
+    margin: var(--v2-spaceMd);
+    padding: var(--v2-spaceMd);
+    border: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+}
+
+.scanCfgFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    font-size: var(--v2-textXs);
+}
+
+.scanCfgEtiqueta {
+    color: var(--v2-texto);
+}
+
+.scanCfgCheck {
+    accent-color: currentColor;
+    cursor: pointer;
+}
+
+.scanCfgIntervalo {
+    color: var(--v2-texto);
+    opacity: 0.72;
+}
+
+.scanCfgNum {
+    width: 64px;
+    font: inherit;
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+    padding: 2px 6px;
+}
+
+.scanCfgAcciones {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceSm);
+}
+
+.scanCfgMeta {
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    opacity: 0.72;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Centralizacion del gate (plan 308A-1 F7): filas de consumidores.
+ * Misma estructura que excepciones: el contenedor (.syncVista) aporta
+ * scroll y un padding base pequeno, pero cada fila queda a TODO el ancho
+ * del visor (como excFila), no insertada en un recuadro estilo scanCfg. */
+.syncVista {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.syncVista .scanCfgAcciones {
+    justify-content: space-between;
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+.syncLista {
+    display: flex;
+    flex-direction: column;
+    margin-top: var(--v2-spaceXs);
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.syncCheckout {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+    border: 1px solid var(--v2-borde);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    margin: var(--v2-spaceXs) 0;
+}
+
+.syncTitulo {
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    opacity: 0.72;
+}
+
+.syncMeta {
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    opacity: 0.72;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.syncFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.syncFila:last-child {
+    border-bottom: none;
+}
+
+.syncBadge {
+    flex: none;
+    width: 1.2em;
+    text-align: center;
+    font-size: var(--v2-textXs);
+    line-height: 1.3;
+    border: 1px solid var(--v2-borde);
+    padding: 1px 2px;
+    color: var(--v2-texto);
+}
+
+.syncBadge--ok {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.syncBadge--warn {
+    color: var(--v2-texto);
+}
+
+.syncNombre {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: var(--v2-textSm);
+    color: var(--v2-texto);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.syncMeta--ok {
+    opacity: 0.72;
+}
+
+.syncMeta--warn {
+    opacity: 1;
+    border: 1px solid var(--v2-borde);
+    padding: 1px 4px;
+}
+
+.scanCfgResumen {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    flex-wrap: wrap;
+    border: 1px solid var(--v2-borde);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+/* Dentro del cuadro del resumen los badges no llevan recuadro propio:
+ * el contenedor ya los agrupa; solo se distingue la variante por color. */
+.scanCfgResumen .scanCfgBadge {
+    border: none;
+    padding: 0;
+}
+
+.scanCfgBadge {
+    font-size: var(--v2-textXs);
+    padding: 2px 8px;
+    border: 1px solid var(--v2-borde);
+}
+
+.scanCfgBadge--error {
+    border-color: var(--v2-invertido);
+    color: var(--v2-texto);
+}
+
+.scanCfgBadge--warn {
+    color: var(--v2-texto);
+}
+
+.scanCfgAviso {
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    opacity: 0.9;
+    padding: var(--v2-spaceSm);
+    border-left: 2px solid var(--v2-borde);
+}
+
+/* Separador de seccion dentro de la vista 'scan' (analisis vs vulnerabil-idades).
+ * [por que] La separacion entre hijos la gobierna el gap del contenedor
+ * (.scanCfg), igual que en el resto de bloques; aqui solo se dibuja la linea
+ * superior con su padding interno, sin margin extra que rompa la coherencia. */
+.scanCfgSeparador {
+    padding-top: var(--v2-spaceMd);
+    border-top: 1px solid var(--v2-borde);
+    font-size: var(--v2-textXs);
+    text-transform: none;
+    color: var(--v2-texto);
+}
+
+/* Badges de severidad de vulnerabilidades (critical/high/moderate/low).
+ * Color fotbordes para no asumir la paleta; recuerda al esquema de audit. */
+.scanCfgBadge--crit {
+    border-color: var(--v2-invertido);
+    border-style: double;
+    color: var(--v2-texto);
+}
+.scanCfgBadge--high {
+    border-color: var(--v2-invertido);
+    color: var(--v2-texto);
+}
+.scanCfgBadge--mod {
+    color: var(--v2-texto);
+}
+.scanCfgBadge--low {
+    color: var(--v2-texto);
+    opacity: 0.8;
+}

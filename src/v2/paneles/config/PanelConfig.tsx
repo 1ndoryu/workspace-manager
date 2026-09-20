@@ -12,6 +12,7 @@ import { VistaScan } from './VistaScan.js';
 import { VistaGate } from './VistaGate.js';
 import { VistaProyecto } from './VistaProyecto.js';
 import '../paneles.css';
+import './config.css';
 
 export function PanelConfig() {
   const datos = usePanelConfig();

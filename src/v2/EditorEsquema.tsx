@@ -26,7 +26,7 @@ import {
 } from '../shared/gate/esquema.js';
 import { infoSegmento } from '../shared/gate/etiquetas.js';
 import { REGLAS as REGLAS_ESTATICAS, type ReglaCatalogo } from '../shared/gate/reglas.js';
-import { Button } from './Button.js';
+import { Button } from './ui/Button.js';
 import { altoVentana, anchoVentana, cuerpoDocumento } from '../shared/platform/plataforma.js';
 import { toastInfo } from './toast.js';
 

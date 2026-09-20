@@ -11,7 +11,7 @@ import {
   type Problema,
   type SeveridadSentinel,
 } from './clasificacionConsola.js';
-import '../paneles.css';
+import './consola.css';
 
 const SEV_ETIQUETA: Record<SeveridadSentinel, string> = {
   error: 'error',

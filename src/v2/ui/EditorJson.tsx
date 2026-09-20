@@ -15,7 +15,7 @@
  *                                con la ruta como etiqueta. */
 import { useState } from 'react';
 import { Button } from './Button.js';
-import { toastInfo } from './toast.js';
+import { toastInfo } from '../toast.js';
 
 export type JsonValue = boolean | number | string | null | JsonValue[] | { [k: string]: JsonValue };
 

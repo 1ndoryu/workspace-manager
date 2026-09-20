@@ -4,7 +4,7 @@
  * 'verificar' para refrescarlo. Reusa la validacion de quality-sync (el server
  * la expone por GET, no duplica logica).
  * Salio de PanelConfig.tsx para el limite-lineas (300): recibe `datos`. */
-import { Button } from '../../Button.js';
+import { Button } from '../../ui/Button.js';
 import type { DatosPanelConfig } from './usePanelConfig.js';
 
 export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
