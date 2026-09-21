@@ -333,7 +333,7 @@ function objetivoDelRelease(tool, { commit, version, source }) {
 
 /* ------------------------------------------------------------- pasos por consumidor */
 
-function pasosDe(consumidor, config) {
+function pasosDe(consumidor, config, configSentinel) {
   const propios = archivo => path.join(consumidor.dir, 'scripts', 'quality', archivo);
   const lock = fs.existsSync(propios('lock-generator.mjs')) ? propios('lock-generator.mjs') : path.join(AQUI, 'lock-generator.mjs');
   const setupPropio = [propios('quality-setup.mjs'), propios('setup.mjs')].find(archivo => fs.existsSync(archivo));
@@ -343,8 +343,12 @@ function pasosDe(consumidor, config) {
   if (pkg?.scripts?.['quality:doctor']) {
     doctor = 'npm run quality:doctor --silent';
   } else {
-    const provision = path.resolve(consumidor.dir, config?.provisionPath ?? '.quality-tools');
-    const cli = typeof config?.cli === 'string' && config.cli ? path.join(provision, config.cli) : null;
+    /* [219A-2] El doctor siempre es `sentinel doctor`, aunque se este
+     * propagando otra tool: el CLI de varsense no tiene subcomando doctor
+     * y el fallback imprimia "Uso:" (fallo falso en GLORYINSPECTOR/PORT). */
+    const cfgDoctor = configSentinel ?? config;
+    const provision = path.resolve(consumidor.dir, cfgDoctor?.provisionPath ?? '.quality-tools');
+    const cli = typeof cfgDoctor?.cli === 'string' && cfgDoctor.cli ? path.join(provision, cfgDoctor.cli) : null;
     doctor = cli && fs.existsSync(cli) ? comando(process.execPath, [cli, 'doctor', '--json']) : null;
   }
   return {
@@ -437,7 +441,7 @@ function propagarConsumidor(consumidor, tool, destino) {
 
   if (!conPasos || !escribir) return fila;
 
-  const pasos = pasosDe(consumidor, config);
+  const pasos = pasosDe(consumidor, config, manifiesto.tools?.sentinel);
   const lock = ejecutar(pasos.lock, consumidor.dir, 300_000);
   fila.lock = lock.status === 0 ? 'ok' : 'fallo';
   if (lock.status !== 0) {
