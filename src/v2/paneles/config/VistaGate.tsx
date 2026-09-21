@@ -14,7 +14,7 @@ function corto(h: string | null): string {
 }
 
 export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
-  const { sincronizacion, cargarSincronizacion } = datos;
+  const { sincronizacion, errorSincronizacion, cargarSincronizacion } = datos;
 
   return (
     <>
@@ -32,7 +32,7 @@ export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
           <span className="scanCfgMeta">
             {sincronizacion
               ? `${sincronizacion.consumidores.length} consumidores · ${sincronizacion.problemas} desync`
-              : 'pulsá verificar para comprobar el checkout compartido'}
+              : (errorSincronizacion ?? 'pulsá verificar para comprobar el checkout compartido')}
           </span>
         </div>
         {sincronizacion && (

@@ -52,6 +52,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   reglasCatalogo: { version: '—', fuente: 'estatica', reglas: REGLAS_ESTATICAS },
   esquemas: {},
   sincronizacion: null,
+  errorSincronizacion: null,
   analisis: {},
   analizando: false,
   vulnerabilidades: {},
