@@ -28,7 +28,7 @@
  *      no provisto)
  *   2  error de entorno/data (no se pudo leer algo, area no hallada) */
 import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 /* Raiz del area (misma fuente del server: WS_AREA_ROOT o el default real). */
@@ -129,7 +129,7 @@ function corto(h) {
 
 /* Compara el commit de una herramienta declarada por el consumidor contra el
  * HEAD real del checkout compartido. Devuelve { estado, detalle }. */
-function compararTool(manifest, tool, headCompartido, resaltar) {
+function compararTool(manifest, dirRepo, tool, headCompartido, resaltar) {
   const t = manifest?.tools?.[tool];
   if (!t) return { estado: 'ausente', detalle: `sin tool '${tool}' en el manifest` };
   const commitDe = t.commit ?? null;
@@ -141,9 +141,15 @@ function compararTool(manifest, tool, headCompartido, resaltar) {
       `commit ${commitDe ? corto(commitDe) : 'sin-commit'} <> compartido ${headCompartido ? corto(headCompartido) : 'n/a'}`,
     );
   }
-  const ruta = t.sourcePath ?? t.sourcePathEnv ?? null;
-  if (esCompartido(ruta, tool)) {
-    mismatches.push('ruta no apunta al checkout compartido');
+  /* Solo un sourcePath directo es verificable como ruta (219A-1): se resuelve
+   * contra el repo (cubre rutas relativas como ../.quality-tools/sentinel y
+   * absolutas) y se exige que caiga dentro del checkout compartido.
+   * sourcePathEnv es un NOMBRE de variable, no una ruta: no se evalua aqui.
+   * [por que] La condicion anterior marcaba desync cuando la ruta SI apuntaba
+   * al compartido (invertida) y era vacua con rutas relativas/env. */
+  const rutaDirecta = typeof t.sourcePath === 'string' && t.sourcePath.length ? t.sourcePath : null;
+  if (rutaDirecta && !esCompartido(resolve(dirRepo, rutaDirecta), tool)) {
+    mismatches.push(`ruta ${rutaDirecta} no apunta al checkout compartido`);
   }
   const env = t.sourcePathEnv ? ` (sourcePathEnv=${t.sourcePathEnv})` : '';
   return {
@@ -208,7 +214,7 @@ function main() {
 
     entry.headShared = {};
     for (const [tool] of Object.entries(HERRAMIENTAS)) {
-      const r = compararTool(manifest, tool, cabeceras[tool], true);
+      const r = compararTool(manifest, dir, tool, cabeceras[tool], true);
       entry[tool] = { estado: r.estado, detalle: r.detalle };
       if (r.estado === 'desync') {
         problemas++;

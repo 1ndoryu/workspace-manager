@@ -1,11 +1,17 @@
 /* Vista 'gate' del PanelConfig: estado del checkout compartido del runtime
- * (plan 308A-1 F7). [por que] Muestra en la UI que cada consumidor apunta al
- * checkout compartido con el MISMO commit, con badges verde/desync y boton
- * 'verificar' para refrescarlo. Reusa la validacion de quality-sync (el server
- * la expone por GET, no duplica logica).
+ * (plan 308A-1 F7) + alineacion pin/runtime/publicado por consumidor y vigencia
+ * upstream (219A-1, script 308A-7V19 cableado). [por que] F7 solo valida
+ * consistencia interna (manifest<>checkout); la vigencia (pin<>binario real y
+ * checkout<>upstream) la mide V19 y el panel la muestra con el mismo boton
+ * 'verificar'. Reusa la validacion del server por GET, no duplica logica.
  * Salio de PanelConfig.tsx para el limite-lineas (300): recibe `datos`. */
 import { Button } from '../../ui/Button.js';
 import type { DatosPanelConfig } from './usePanelConfig.js';
+
+/* Acorta un hash para display, igual que corto() de los scripts. */
+function corto(h: string | null): string {
+  return h ? h.slice(0, 9) : '--';
+}
 
 export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
   const { sincronizacion, cargarSincronizacion } = datos;
@@ -69,6 +75,54 @@ export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
                 )}
               </div>
             ))}
+            {/* Alineacion pin/runtime/publicado + vigencia upstream (219A-1).
+             * [por que] Mismas clases sync* del bloque F7: sin CSS nuevo. Solo
+             * filas con tool (las notas '(sin quality-tools.json)' ya las cubre
+             * el bloque F7 de arriba). */}
+            {sincronizacion.alineacion && (
+              <div className="syncCheckout">
+                <span className="syncTitulo">
+                  alineación pin/runtime{' '}
+                  {sincronizacion.alineacion.ok
+                    ? '✓'
+                    : `${sincronizacion.alineacion.desalineados}/${sincronizacion.alineacion.total} desalineado`}
+                </span>
+                {sincronizacion.alineacion.remotos
+                  .filter((r) => r.desactualizado === true)
+                  .map((r) => (
+                    <span
+                      key={r.dir}
+                      className="syncMeta syncMeta--warn"
+                      title={`${r.tool ?? '?'}: local ${r.headLocal} <> remoto ${r.headRemoto} (${r.url ?? 'sin remoto'})`}
+                    >
+                      {r.tool ?? '?'}: hay actualización ({corto(r.headLocal)}→{corto(r.headRemoto)}
+                      {r.tags.length ? ` · ${r.tags.map((t) => t.tag).join(',')}` : ''})
+                    </span>
+                  ))}
+              </div>
+            )}
+            {sincronizacion.alineacion?.filas
+              .filter((f) => f.tool)
+              .map((f, i) => {
+                const bien = f.estado === 'ALINEADO' || f.estado === 'SIN-PROVISION';
+                return (
+                  <div key={`${f.proyecto}-${f.tool}-${i}`} className="syncFila">
+                    <span
+                      className={`syncBadge syncBadge--${bien ? 'ok' : 'warn'}`}
+                      title={(f.problemas ?? []).join('; ') || f.estado}
+                    >
+                      {bien ? '✓' : f.estado}
+                    </span>
+                    <span className="syncNombre">
+                      {f.proyecto} · {f.tool}
+                    </span>
+                    <span className="syncMeta">
+                      pin={corto(f.pin)} runtime={corto(f.runtime)}
+                      {f.publicado === true ? ' publicado' : f.publicado === false ? ' NO-publicado' : ''}
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         )}
       </section>

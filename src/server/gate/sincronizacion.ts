@@ -9,6 +9,7 @@
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { logger } from '../../shared/logger.js';
 
 /* Raiz del area (misma fuente del server). */
 const RAIZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
@@ -49,6 +50,46 @@ export interface ReporteSincronizacion {
   problemas: number;
   checkout_sentinel?: { head: string | null; sucio: number };
   checkout_varsense?: { head: string | null; sucio: number };
+  /* Alineacion pin/runtime/publicado por consumidor + vigencia upstream
+   * (219A-1, script 308A-7V19 cableado al panel). Null si el script fallo:
+   * nunca rompe el reporte F7, que sigue siendo la guarda fail-closed. */
+  alineacion: ReporteAlineacion | null;
+}
+
+/* Fila de verificar-alineacion.mjs --json (shape del script, authoritative). */
+export interface FilaAlineacion {
+  proyecto: string;
+  herramienta?: string;
+  tool?: string;
+  estado: string;
+  problemas?: string[];
+  pin: string | null;
+  runtime: string | null;
+  publicado: boolean | null;
+  modo?: string;
+  dir?: string;
+}
+
+/* Vigencia upstream por checkout (ls-remote, sin fetch; fail-open). */
+export interface RemotoUpstream {
+  dir: string;
+  tool: string | null;
+  url: string | null;
+  headLocal: string | null;
+  headRemoto: string | null;
+  tags: { tag: string; commit: string }[];
+  /* true = el remoto va por otro commit; false = al dia; null = desconocido
+   * (sin remoto o sin red: no es un problema, es falta de dato). */
+  desactualizado: boolean | null;
+}
+
+export interface ReporteAlineacion {
+  filas: FilaAlineacion[];
+  alineados: number;
+  total: number;
+  desalineados: number;
+  ok: boolean;
+  remotos: RemotoUpstream[];
 }
 
 /* Ejecuta quality-sync --json y parsea su stdout.
@@ -83,5 +124,43 @@ export async function correrSincronizacion(): Promise<ReporteSincronizacion> {
   // [por que] El script con --json siempre imprime el JSON en stdout; si no,
   // falla claro (nunca se fabrica un reporte parcial ni se depende del exit).
   const obj = JSON.parse(texto) as ReporteSincronizacion;
+  /* Alineacion V19 (219A-1): best-effort, nunca rompe el reporte F7. Si el
+   * script falla o su red (ls-remote) no responde, alineacion=null y el panel
+   * muestra solo el bloque F7. */
+  try {
+    obj.alineacion = await correrAlineacion();
+  } catch (err) {
+    logger.warn('alineacion pin/runtime no disponible:', err);
+    obj.alineacion = null;
+  }
   return obj;
+}
+
+/* Ejecuta verificar-alineacion.mjs --json (308A-7V19) y devuelve su reporte.
+ * [por que] Mismo patron que correrSincronizacion: el script sale con 1 ante
+ * desalineamiento real (hoy 7/17 filas varsense), asi que se lee stdout hasta
+ * 'close' sin depender del codigo. Solo lanza si el stdout no es JSON. */
+export async function correrAlineacion(): Promise<ReporteAlineacion> {
+  const script = join(RAIZ_REPO, 'scripts', 'quality', 'verificar-alineacion.mjs');
+  const hijo = spawn(process.execPath, [script, '--json'], {
+    cwd: RAIZ_REPO,
+    windowsHide: true,
+    env: { ...process.env },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const chunks: Buffer[] = [];
+  let stderr = '';
+  hijo.stdout.on('data', (c: Buffer) => chunks.push(c));
+  hijo.stderr.on('data', (c: Buffer) => {
+    stderr += c.toString();
+  });
+  const codigo = await new Promise<number | null>((resolve, reject) => {
+    hijo.once('error', reject);
+    hijo.once('close', resolve);
+  });
+  if (codigo === null) {
+    throw new Error(`verificar-alineacion no llego a ejecutarse: ${stderr.trim()}`);
+  }
+  const texto = Buffer.concat(chunks).toString('utf8').trim();
+  return JSON.parse(texto) as ReporteAlineacion;
 }
