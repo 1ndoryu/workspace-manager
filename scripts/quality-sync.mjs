@@ -141,15 +141,31 @@ function compararTool(manifest, dirRepo, tool, headCompartido, resaltar) {
       `commit ${commitDe ? corto(commitDe) : 'sin-commit'} <> compartido ${headCompartido ? corto(headCompartido) : 'n/a'}`,
     );
   }
-  /* Solo un sourcePath directo es verificable como ruta (219A-1): se resuelve
-   * contra el repo (cubre rutas relativas como ../.quality-tools/sentinel y
-   * absolutas) y se exige que caiga dentro del checkout compartido.
+  /* Ruta del runtime (219A-2): tres casos. (1) Dentro del checkout compartido:
+   * caso normal, nada que anadir (el commit ya se comparo arriba). (2) Dentro
+   * del propio repo (familia B, submodulo versionado como WANDORIUS/RESTAURANTE
+   * tools/*): legitimo por diseno — se valida pin contra el HEAD del submodulo
+   * en vez de exigir la ruta compartida. (3) Fuera de ambos: drift real.
    * sourcePathEnv es un NOMBRE de variable, no una ruta: no se evalua aqui.
-   * [por que] La condicion anterior marcaba desync cuando la ruta SI apuntaba
-   * al compartido (invertida) y era vacua con rutas relativas/env. */
+   * [por que] 219A-1 exigia la ruta compartida a todos y marcaba desync a dos
+   * consumidores coherentes (RESTAURANTE tenia submodulos en el mismo pin);
+   * la guarda debe validar consistencia interna, no imponer centralizacion
+   * (esa migracion es decision aparte, no un drift). */
   const rutaDirecta = typeof t.sourcePath === 'string' && t.sourcePath.length ? t.sourcePath : null;
-  if (rutaDirecta && !esCompartido(resolve(dirRepo, rutaDirecta), tool)) {
-    mismatches.push(`ruta ${rutaDirecta} no apunta al checkout compartido`);
+  if (rutaDirecta) {
+    const abs = resolve(dirRepo, rutaDirecta);
+    if (esCompartido(abs, tool)) {
+      /* caso 1: ok, sin chequeo extra */
+    } else if (keyRuta(abs) === keyRuta(dirRepo) || keyRuta(abs).startsWith(keyRuta(dirRepo) + '\\')) {
+      const headSub = gitHead(abs);
+      if (!headSub) {
+        mismatches.push(`ruta ${rutaDirecta} no es un checkout git legible`);
+      } else if (commitDe && corto(commitDe) !== corto(headSub)) {
+        mismatches.push(`submodulo ${rutaDirecta} en ${corto(headSub)} <> pin ${corto(commitDe)}`);
+      }
+    } else {
+      mismatches.push(`ruta ${rutaDirecta} no apunta al checkout compartido`);
+    }
   }
   const env = t.sourcePathEnv ? ` (sourcePathEnv=${t.sourcePathEnv})` : '';
   return {
