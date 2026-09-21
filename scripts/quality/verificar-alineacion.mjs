@@ -138,7 +138,50 @@ function analizarTool(repoDir, tool, cfg) {
     else if (publicado === null) estado = 'INDETERMINADO';
   }
   if (!estado) estado = problemas.length ? 'DESALINEADO' : 'ALINEADO';
-  return { tool, estado, problemas, pin, runtime: rt.commit, publicado: publicado === true, modo: rt.modo, releaseRefs: cfg.releaseRefs };
+  return { tool, estado, problemas, pin, runtime: rt.commit, publicado: publicado === true, modo: rt.modo, releaseRefs: cfg.releaseRefs, dir: rt.dir };
+}
+
+/* Compara versiones semver con o sin 'v' (para ordenar tags remotos). */
+function cmpSemver(a, b) {
+  const pa = a.replace(/^v/, '').split('.').map(Number);
+  const pb = b.replace(/^v/, '').split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+  }
+  return 0;
+}
+
+/* ¿El checkout va por detras de su origin? (219A-1)
+ * [por que] V19 comparaba pin vs runtime vs publicado local, pero un pin y un
+ * runtime ALINEADOS pueden estar ambos obsoletos (caso 0.7.10 vs tags
+ * v0.7.11/v0.7.12). Se pregunta al remoto por HEAD y tags con ls-remote
+ * (sin fetch, sin mutar nada). Fail-open: sin remoto o sin red el resultado es
+ * desactualizado=null (desconocido), nunca un desalineamiento. No toca el exit
+ * del script: es informacion para el panel, no guarda de CI. */
+function remotoUpstream(dir, tool) {
+  const base = { dir, tool, url: null, headLocal: null, headRemoto: null, tags: [], desactualizado: null };
+  if (!dir || !existsSync(dir)) return base;
+  base.headLocal = git(dir, 'rev-parse', 'HEAD');
+  const url = git(dir, 'remote', 'get-url', 'origin');
+  if (!url) return base;
+  base.url = url;
+  const headOut = git(dir, 'ls-remote', url, 'HEAD');
+  if (headOut) base.headRemoto = headOut.split(/\s/)[0] || null;
+  const tagsOut = git(dir, 'ls-remote', '--tags', url);
+  if (tagsOut) {
+    for (const ln of tagsOut.split('\n')) {
+      const m = /^([0-9a-f]{40})\s+refs\/tags\/(.+)$/.exec(ln.trim());
+      if (m && !m[2].endsWith('^{}') && /^v?\d+\.\d+\.\d+$/.test(m[2])) {
+        base.tags.push({ tag: m[2], commit: m[1] });
+      }
+    }
+    base.tags.sort((a, b) => cmpSemver(b.tag, a.tag));
+    base.tags = base.tags.slice(0, 5);
+  }
+  if (base.headRemoto && base.headLocal) {
+    base.desactualizado = base.headRemoto.toLowerCase() !== base.headLocal.toLowerCase();
+  }
+  return base;
 }
 
 function main() {
@@ -175,8 +218,20 @@ function main() {
   }
 
   const desalineados = filas.filter((f) => !['ALINEADO', 'SIN-PROVISION'].includes(f.estado));
+
+  /* Chequeo upstream por checkout distinto (219A-1): un dir = un runtime.
+   * [por que] Deduplicado por dir para no repetir ls-remote cuando varios
+   * consumidores comparten el mismo checkout (caso comun del area). */
+  const remotos = [];
+  const vistos = new Map();
+  for (const f of filas) {
+    if (!f.dir || vistos.has(f.dir)) continue;
+    vistos.set(f.dir, true);
+    remotos.push(remotoUpstream(f.dir, f.tool || null));
+  }
+
   if (json) {
-    console.log(JSON.stringify({ filas, alineados: filas.length - desalineados.length, total: filas.length, desalineados: desalineados.length, ok: desalineados.length === 0 }, null, 2));
+    console.log(JSON.stringify({ filas, alineados: filas.length - desalineados.length, total: filas.length, desalineados: desalineados.length, ok: desalineados.length === 0, remotos }, null, 2));
   } else {
     console.log('Alineación sentinel/varsense por consumidor (pin | runtime | publicado):');
     console.log('-'.repeat(120));
@@ -190,6 +245,11 @@ function main() {
     console.log('-'.repeat(120));
     if (desalineados.length === 0) console.log(`OK: ${filas.length} filas, todo ALINEADO.`);
     else console.log(`DESALINEADO: ${desalineados.length}/${filas.length} filas requieren acción (exit 1).`);
+    console.log('Upstream por checkout (ls-remote, sin fetch):');
+    for (const r of remotos) {
+      const marca = r.desactualizado === true ? 'DESACTUALIZADO' : r.desactualizado === false ? 'al día' : 'desconocido';
+      console.log(`  ${(r.tool || '?').padEnd(10)} ${marca} local=${corto(r.headLocal)} remoto=${corto(r.headRemoto)}${r.tags.length ? ` tags=${r.tags.map((t) => t.tag).join(',')}` : ''}`);
+    }
   }
   process.exit(desalineados.length === 0 ? 0 : 1);
 }
