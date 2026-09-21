@@ -63,8 +63,14 @@ export function crearAccionesConfig(set: Set): AccionesConfig {
     cargarSincronizacion: async () => {
       try {
         const { data } = await axios.get<{ reporte: ReporteSincronizacion }>('/api/gate/sincronizacion');
-        if (data && data.reporte) set({ sincronizacion: data.reporte });
+        if (data && data.reporte) set({ sincronizacion: data.reporte, errorSincronizacion: null });
       } catch (err) {
+        /* [por que] Antes solo se logueaba y la vista seguia mostrando el hint
+         * inicial ('pulsa verificar') aunque ya se habia intentado: el usuario
+         * no distinguia 'sin pedir' de 'fallo'. Se guarda el motivo para
+         * mostrarlo en VistaGate sin inventar datos. */
+        const motivo = (err as { message?: string })?.message ?? 'error desconocido';
+        set({ errorSincronizacion: `no se pudo verificar el gate: ${motivo}` });
         logger.warn('no se pudo verificar la sincronizacion del gate:', err);
       }
     },

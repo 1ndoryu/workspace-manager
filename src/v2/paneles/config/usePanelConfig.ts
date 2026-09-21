@@ -101,6 +101,7 @@ export function usePanelConfig() {
   const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
   /* Estado del checkout compartido del gate (plan 308A-1 F7). */
   const sincronizacion = useWorkspaceStore((s) => s.sincronizacion);
+  const errorSincronizacion = useWorkspaceStore((s) => s.errorSincronizacion);
   const cargarSincronizacion = useWorkspaceStore((s) => s.cargarSincronizacion);
 
   /* Esquemas por herramienta ya rehidratados desde la API (cache local a la
@@ -342,7 +343,7 @@ export function usePanelConfig() {
     cargandoGate, guardando,
     auto, setAuto, intervalo, setIntervalo, escaneando, scanAviso, auditando, auditAviso,
     ignorados, proyectos, proyectoVisor, visorIgnorado,
-    analisis, vulnerabilidades, sincronizacion, cargarSincronizacion,
+    analisis, vulnerabilidades, sincronizacion, errorSincronizacion, cargarSincronizacion,
     totales, tVuln, tieneVuln, ultimaActualizacion,
     esquemas, reglasCatalogo,
     abrirProyecto, alternarIgnorado, guardar, guardarScan, escanearAhora, auditarAhora,

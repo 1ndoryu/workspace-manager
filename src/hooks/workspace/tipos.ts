@@ -74,6 +74,10 @@ export interface DatosGate {
    * quality-sync (aligned/desync por consumidor). Se cachea en el store y se
    * refresca a demanda (boton 'Verificar' en el panel). */
   sincronizacion: ReporteSincronizacion | null;
+  /* Ultimo error al pedir /api/gate/sincronizacion (219A-1): el catch de la
+   * accion solo logueaba y la vista quedaba en el hint inicial sin explicar
+   * por que no hay datos; con esto VistaGate lo muestra en vez de callar. */
+  errorSincronizacion: string | null;
 }
 
 /* Caches de analisis: sentinel por proyecto y vulnerabilidades de
