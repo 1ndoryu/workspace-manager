@@ -4,6 +4,7 @@ data/cache
 data/*
 !data/cache/
 *.log
+.log-*.txt
 *.tsbuildinfo
 .DS_Store
 .sentinel/
