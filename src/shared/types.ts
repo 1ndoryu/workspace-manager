@@ -31,9 +31,19 @@ export interface EstadoGate {
   declarado: boolean;
   sentinel: 'config' | 'lock' | 'none';
   varsense: boolean;
+  /* Varsense declarado opcional por config del area: el proyecto lleva
+   * sentinel pero se exime de varsense (p. ej. Tailwind v4 sin tokens, donde
+   * varsense no aporta). La consola no genera "varsense ausente". */
+  varsenseOpcional?: boolean;
   doctor: string | null;
   gateDisponible: boolean;
   puerta: 'sentinel' | 'cargo' | 'none';
+  /* Exencion explicita del gate por config del area (sinGate): el proyecto
+   * sigue visible pero la consola no genera "sin gate". [por que] Sin este
+   * flag, un exento es indistinguible de un proyecto sin gate (ambos tienen
+   * declarado:false + puerta:'none') y la consola reportaba un falso
+   * positivo. */
+  exentoGate?: boolean;
 }
 
 export interface ResumenRoadmap {
@@ -103,6 +113,10 @@ export interface ConfigWorkspace {
    * 'glory-sentinel' (el propio repo del runtime; instalarle gate seria
    * autorreferencial). */
   sinGate?: string[];
+  /* Claves de proyectos con sentinel declarado pero exentos de varsense: la
+   * consola no genera "varsense ausente" y el analisis no exige varsense.
+   * Opt-in por excepcion explicita en data/workspace.config.json (v4). */
+  varsenseOpcional?: string[];
   /* Analisis automatico de sentinel por proyecto (ausente => apagado). */
   scan?: ConfigScan;
 }
