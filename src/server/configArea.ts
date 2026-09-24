@@ -11,11 +11,13 @@ export const NOMBRE_CONFIG = 'workspace.config.json';
 /* [por que] v2: agrega la seccion 'scan' (analisis automatico de sentinel,
  * opt-in y apagado por defecto). Una config v1 (ignorados a secas) sigue
  * valid siendo leida, se normaliza al default de scan. v3 (308A-1): agrega
- * 'sinGate' (proyectos del gate exentos de llevar gate, solo glory-sentinel). */
+ * 'sinGate' (proyectos del gate exentos de llevar gate, solo glory-sentinel).
+ * v4: agrega 'varsenseOpcional' (proyectos con sentinel exentos de varsense). */
 export const CONFIG_DEFECTO: ConfigWorkspace = {
-  version: 3,
+  version: 4,
   ignorados: [],
   sinGate: [],
+  varsenseOpcional: [],
   scan: { automatico: false, intervaloMin: 30 },
 };
 
@@ -50,10 +52,16 @@ export function leerConfigArea(raiz: string): ConfigWorkspace {
       version: typeof d.version === 'number' ? d.version : CONFIG_DEFECTO.version,
       /* Normaliza: solo strings no vacios, unicos, sin duplicados. */
       ignorados: [...new Set(d.ignorados.filter((x) => typeof x === 'string' && x.length > 0))],
-      /* [por que] sinGate es opt-in por excepcion explicita (Solo glory-sentinel);
+      /* [por que] sinGate es opt-in por excepcion explicita (solo glory-sentinel);
        * normaliza igual que ignorados para no aceptar basura. */
       sinGate: Array.isArray(d.sinGate)
         ? [...new Set(d.sinGate.filter((x) => typeof x === 'string' && x.length > 0))]
+        : [],
+      /* [por que] varsenseOpcional (v4) es opt-in por excepcion explicita
+       * (proyectos con sentinel donde varsense no aporta, p. ej. Tailwind
+       * sin tokens); ausente => lista vacia, sin cambiar conducta. */
+      varsenseOpcional: Array.isArray(d.varsenseOpcional)
+        ? [...new Set(d.varsenseOpcional.filter((x) => typeof x === 'string' && x.length > 0))]
         : [],
       scan: normalizarScan(d),
     };
@@ -92,7 +100,20 @@ export function cambiarSinGate(raiz: string, clave: string, eximir: boolean): Co
   const config = leerConfigArea(raiz);
   const sinDuplicados = (config.sinGate ?? []).filter((c) => c !== clave);
   config.sinGate = eximir ? [...sinDuplicados, clave] : sinDuplicados;
-  config.version = 3;
+  config.version = 4;
+  guardarConfigArea(raiz, config);
+  return config;
+}
+
+/* Alterna la clave de un proyecto en la lista varsenseOpcional (exencion de
+ * varsense con sentinel declarado) y persiste. [por que] Espejo de sinGate
+ * para el caso Tailwind-sin-tokens: el proyecto conserva su gate sentinel y
+ * solo se silencia "varsense ausente". */
+export function cambiarVarsenseOpcional(raiz: string, clave: string, eximir: boolean): ConfigWorkspace {
+  const config = leerConfigArea(raiz);
+  const sinDuplicados = (config.varsenseOpcional ?? []).filter((c) => c !== clave);
+  config.varsenseOpcional = eximir ? [...sinDuplicados, clave] : sinDuplicados;
+  config.version = 4;
   guardarConfigArea(raiz, config);
   return config;
 }

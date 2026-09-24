@@ -76,13 +76,15 @@ export function problemasDe(p: Proyecto): Problema | null {
   }
 
   const g = p.gate;
-  if (!g?.declarado) {
+  /* [por que] Los exentos (sinGate) siguen visibles pero no generan "sin
+   * gate": sin el flag serian indistinguibles de proyectos sin gate. */
+  if (!g?.declarado && !g?.exentoGate) {
     entradas.push({ categoria: 'gate', motivo: 'sin sentinel/varsense declarado', seriedad: null });
-  } else {
+  } else if (g?.declarado) {
     if (g.sentinel === 'lock') {
       entradas.push({ categoria: 'gate', motivo: 'sentinel: solo lock, sin config', seriedad: null });
     }
-    if (!g.varsense) {
+    if (!g.varsense && !g.varsenseOpcional) {
       entradas.push({ categoria: 'gate', motivo: 'varsense ausente', seriedad: null });
     }
   }

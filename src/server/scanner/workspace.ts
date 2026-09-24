@@ -63,6 +63,7 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
 
   const config = leerConfigArea(opts.raiz);
   const sinGate = new Set(config.sinGate ?? []);
+  const varsenseOpcional = new Set(config.varsenseOpcional ?? []);
 
   for (const nombre of entradas) {
     const ruta = join(opts.raiz, nombre);
@@ -70,7 +71,7 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
     const info = detectarGit(ruta);
 
     if (info.esRepo) {
-      proyectos.push(proyectoCompleto(opts.raiz, ruta, nombre, info.esWorktree ? 'worktree' : 'repo', info.padre, sinGate));
+      proyectos.push(proyectoCompleto(opts.raiz, ruta, nombre, info.esWorktree ? 'worktree' : 'repo', info.padre, sinGate, varsenseOpcional));
     } else if (RECURSIVAS.has(nombre)) {
       /* bajar un nivel: ONG AGAPE dentro de TRABAJOS CLIENTES */
       const internos = leerEntradas(ruta);
@@ -79,7 +80,7 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
         if (IGNORADAS.has(interno)) continue;
         const infoInterno = detectarGit(rutaInterna);
         if (infoInterno.esRepo) {
-          proyectos.push(proyectoCompleto(opts.raiz, rutaInterna, interno, infoInterno.esWorktree ? 'worktree' : 'repo', infoInterno.padre, sinGate));
+          proyectos.push(proyectoCompleto(opts.raiz, rutaInterna, interno, infoInterno.esWorktree ? 'worktree' : 'repo', infoInterno.padre, sinGate, varsenseOpcional));
         } else {
           proyectos.push({ id: interno, clave: claveDe(rutaInterna, opts.raiz), ruta: rutaInterna, esGit: false, tipo: 'carpeta', padre: nombre });
         }
@@ -119,6 +120,7 @@ function proyectoCompleto(
   tipo: 'repo' | 'worktree',
   padre: string | null,
   sinGate: Set<string> = new Set(),
+  varsenseOpcional: Set<string> = new Set(),
 ): Proyecto {
   const clave = claveDe(ruta, raiz);
   const gate = estadoGate(ruta);
@@ -127,8 +129,14 @@ function proyectoCompleto(
    * mapa/lista (a diferencia de ignorados) y no genera problema "sin gate"
    * en la consola: la puerta se fuerza a 'none' y gateDisponible a false. */
   const gateReal: EstadoGate | undefined = sinGate.has(clave)
-    ? { ...gate, declarado: false, puerta: 'none', gateDisponible: false }
-    : gate;
+    ? { ...gate, declarado: false, puerta: 'none', gateDisponible: false, exentoGate: true }
+    /* [por que] Exencion fina de varsense (v4): el proyecto conserva su gate
+     * sentinel declarado y solo se marca varsense como opcional para que la
+     * consola no genere "varsense ausente". Solo aplica con gate declarado;
+     * sin gate sigue el problema "sin sentinel/varsense declarado". */
+    : gate?.declarado && varsenseOpcional.has(clave)
+      ? { ...gate, varsenseOpcional: true }
+      : gate;
   return {
     id,
     clave,
