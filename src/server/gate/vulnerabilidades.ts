@@ -163,23 +163,50 @@ function parsearAudit(g: LockDetectado['gestor'], crudo: JsonAudit): {
   };
 
   if (g === 'cargo') {
-    /* cargo reporta en `vulnerabilities` un mapa id -> { ... } y usa un count
-     * aparte; la severidad no siempre esta (depende de CVSS). Se agrega con
-     * severidad 'low' si no hay dato. */
+    /* cargo-audit 0.22 emite `vulnerabilities` como {found,count,list} con
+     * `list` = array de {advisory, versions, affected}; versiones viejas
+     * emitian un mapa id -> objeto. [25-09-2026] El parser trataba
+     * found/count/list como paquetes (3 falsos positivos low por proyecto).
+     * Se detecta la forma por la presencia del array `list`. */
     if (vulns && typeof vulns === 'object') {
-      for (const [id, v] of Object.entries(vulns as Record<string, unknown>)) {
-        const o = (v ?? {}) as Record<string, unknown>;
-        const severityRaw =
-          o['severity'] ??
-          (o['cvss'] as { severity?: unknown } | undefined)?.severity ??
-          (o['advisory'] as { severity?: unknown } | undefined)?.severity;
-        agregar(
-          String(o['package'] ?? id),
-          severityRaw,
-          String(o['vulnerable_versions'] ?? o['range'] ?? ''),
-        );
+      const mapa = vulns as Record<string, unknown>;
+      const lista = Array.isArray(mapa['list'])
+        ? (mapa['list'] as Array<Record<string, unknown>>)
+        : null;
+      if (lista) {
+        for (const item of lista) {
+          const adv = (item['advisory'] ?? {}) as Record<string, unknown>;
+          const vers = (item['versions'] ?? {}) as Record<string, unknown>;
+          const parcheadas = Array.isArray(vers['patched'])
+            ? (vers['patched'] as unknown[]).map(String).join(', ')
+            : '';
+          const severityRaw =
+            adv['severity'] ??
+            (item['cvss'] as { severity?: unknown } | undefined)?.severity ??
+            (adv['cvss'] as { severity?: unknown } | undefined)?.severity;
+          agregar(
+            String(adv['package'] ?? item['package'] ?? '?'),
+            severityRaw,
+            parcheadas,
+          );
+        }
+      } else {
+        for (const [id, v] of Object.entries(mapa)) {
+          const o = (v ?? {}) as Record<string, unknown>;
+          const severityRaw =
+            o['severity'] ??
+            (o['cvss'] as { severity?: unknown } | undefined)?.severity ??
+            (o['advisory'] as { severity?: unknown } | undefined)?.severity;
+          agregar(
+            String(o['package'] ?? id),
+            severityRaw,
+            String(o['vulnerable_versions'] ?? o['range'] ?? ''),
+          );
+        }
       }
     }
+    /* cargo no trae metadata de conteo: el resumen se deriva de lo hallado. */
+    for (const h of hallazgos) resumen[h.severidad]++;
     return { resumen, hallazgos };
   }
 
