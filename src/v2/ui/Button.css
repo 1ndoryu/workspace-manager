@@ -147,3 +147,21 @@
     text-align: left;
     cursor: pointer;
 }
+
+/* Selector desplegable (ui/Selector): trigger y opciones. [por que]
+ * css-especificacion-diseno-local prohibe especificacion visual en el CSS
+ * contextual del Selector; Button.css es el unico lugar permitido para
+ * estilos de boton, como el resto de compuestos de este archivo. */
+.botonV2.v2SelectorTrigger {
+    font-family: inherit;
+    font-size: var(--v2-font);
+    padding: 3px 6px;
+    border-radius: var(--v2-radioChico);
+}
+.botonV2.v2SelectorOpcion {
+    justify-content: flex-start;
+    font-family: inherit;
+    font-size: var(--v2-font);
+    padding: 3px 8px;
+    border-radius: var(--v2-radioChico);
+}
