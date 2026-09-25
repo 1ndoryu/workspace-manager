@@ -53,6 +53,9 @@ const CONSUMIDORES = [
   { nombre: 'GLORYINSPECTOR', ruta: 'GLORYINSPECTOR', fase: 'F1' },
   { nombre: 'GLORYPORT', ruta: 'GLORYPORT', fase: 'F1' },
   { nombre: 'workspace-manager', ruta: 'workspace-manager', fase: 'F1' },
+  /* NAKOMI onboard 2026-09-25: bootstrap del gate moderno (sentinel 0.7.13 +
+   * varsense 2.2.4, checkout compartido del área); rama primaria glory-rust-nakomi. */
+  { nombre: 'NAKOMI', ruta: 'NAKOMI', fase: 'F1' },
 ];
 
 /* Herramientas del checkout compartido y su subcarpeta. */
