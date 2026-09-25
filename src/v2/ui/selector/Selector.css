@@ -1,0 +1,20 @@
+/* Selector desplegable del shell v2: SOLO layout contextual. [por que]
+ * css-especificacion-diseno-local prohibe especificacion visual local: los
+ * estilos visuales de trigger y opciones viven en Button.css (compuestos
+ * .botonV2, unico lugar permitido para estilos de boton). La lista no lleva
+ * superficie propia: cada opcion es un Button con su superficie. */
+.v2Selector {
+  position: relative;
+  display: inline-block;
+}
+
+.v2SelectorLista {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}

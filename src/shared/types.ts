@@ -59,7 +59,9 @@ export interface ResumenAgents {
   skills: string[];
 }
 
-export interface Proyecto {
+/* Identidad estable de un proyecto (quien es y donde esta). Subinterface de
+ * Proyecto: ISP cohesiva sin cambiar el contrato (Proyecto la extiende). */
+export interface IdentidadProyecto {
   id: string;
   /* Clave unica: ruta relativa al area, separador '/'. [por que] El id (nombre
    * de carpeta) es ambiguo (p. ej. '01' puede ser 3D/01 u otro); para ignorar
@@ -69,6 +71,12 @@ export interface Proyecto {
   ruta: string;
   esGit: boolean;
   tipo: TipoProyecto;
+  padre?: string;
+}
+
+/* Estado observable de un proyecto (gate, git, resumenes). Subinterface de
+ * Proyecto: lo que cambia entre escaneos, separado de la identidad. */
+export interface EstadoProyecto {
   git?: EstadoGit;
   gate?: EstadoGate;
   /* Problemas de la config del gate (sentinel.config.json / varsense.config.json)
@@ -78,8 +86,9 @@ export interface Proyecto {
   gateProblemas?: ProblemaGate[];
   roadmap?: ResumenRoadmap;
   agents?: ResumenAgents;
-  padre?: string;
 }
+
+export interface Proyecto extends IdentidadProyecto, EstadoProyecto {}
 
 export interface ProblemaGate {
   archivo: string;
@@ -140,11 +149,9 @@ export interface HallazgoSentinel {
 export type SeveridadSentinel = 'error' | 'warning' | 'information' | 'hint';
 export type NombreSeveridad = Record<SeveridadSentinel, number>;
 
-/* Resultado del analisis real de sentinel sobre un proyecto. Nunca anida el
- * formato de sentinel (entries[]): va desnormalizado y plano. Los hallazgos
- * van COMPLETOS (sin cap): el render del cliente es acotado, pero los conteos
- * del agregado deben coincidir con el CLI directo (308A-6J11). */
-export interface AnalisisSentinel {
+/* Cabecera de un analisis: que proyecto, con que runtime y en que estado quedo.
+ * Subinterface de AnalisisSentinel (ISP cohesiva, contrato intacto). */
+export interface CabeceraAnalisis {
   clave: string;
   version: string;
   /* Commit corto del binario que produjo el análisis: el declarado en el
@@ -155,18 +162,30 @@ export interface AnalisisSentinel {
   fuente: 'runtime' | 'estatico' | null;
   estado: 'ok' | 'conHallazgos' | 'error';
   analizadoEn: string;
-  resumen: NombreSeveridad;
-  hallazgos: HallazgoSentinel[];
   /* Detalle del error si estado === 'error'. */
   error?: string;
-  /* Estado de VarSense fusionado al analisis (fase G): version del runtime
-   * y conteos de sus hallazgos (ya incluidos en `resumen`/`hallazgos`, con
-   * `fuente: 'varsense'`). Ausente => varsense no declarado o no corrido. */
-  varsense?: {
-    version: string;
-    resumen: NombreSeveridad;
-  };
 }
+
+/* Estado de VarSense fusionado al analisis (fase G): version del runtime
+ * y conteos de sus hallazgos (ya incluidos en `resumen`/`hallazgos`, con
+ * `fuente: 'varsense'`). Ausente => varsense no declarado o no corrido. */
+export interface DetalleVarsense {
+  version: string;
+  resumen: NombreSeveridad;
+}
+
+/* Cuerpo de un analisis: conteos, hallazgos y detalle VarSense. */
+export interface CuerpoAnalisis {
+  resumen: NombreSeveridad;
+  hallazgos: HallazgoSentinel[];
+  varsense?: DetalleVarsense;
+}
+
+/* Resultado del analisis real de sentinel sobre un proyecto. Nunca anida el
+ * formato de sentinel (entries[]): va desnormalizado y plano. Los hallazgos
+ * van COMPLETOS (sin cap): el render del cliente es acotado, pero los conteos
+ * del agregado deben coincidir con el CLI directo (308A-6J11). */
+export interface AnalisisSentinel extends CabeceraAnalisis, CuerpoAnalisis {}
 
 /* Conteo por severidad de la auditoria de dependencias. [por que] Separado del
  * resto de la consola igual que el analisis: critical/high/moderate/low son la
@@ -218,27 +237,37 @@ export interface AgentesInfo {
   skills: SkillGlobal[];
 }
 
-export interface SnapshotWorkspace {
+/* Cabecera del snapshot: cuando se escaneo y cual es la raiz del area. */
+export interface CabeceraSnapshot {
   escaneadoEn: string;
   /* Raiz del area: permite al cliente convertir rutas absolutas de proyectos
    * en rutas relativas para el navegador de archivos. */
   raiz: string;
+}
+
+/* Agregado numerico del snapshot (conteos por tipo/estado). */
+export interface ResumenSnapshot {
+  total: number;
+  repos: number;
+  worktrees: number;
+  carpetas: number;
+  dirty: number;
+  conGate: number;
+  pendientesRoadmap: number;
+}
+
+/* Cuerpo del snapshot: proyectos, agentes, config y resumen. */
+export interface CuerpoSnapshot {
   proyectos: Proyecto[];
   agentes: AgentesInfo;
   /* Config persistente del area (ignorados, overrides por proyecto).
    * [por que] El escaner la lee para filtrar y el cliente la muestra en la
    * pagina de excepciones/configuracion. */
   config: ConfigWorkspace;
-  resumen: {
-    total: number;
-    repos: number;
-    worktrees: number;
-    carpetas: number;
-    dirty: number;
-    conGate: number;
-    pendientesRoadmap: number;
-  };
+  resumen: ResumenSnapshot;
 }
+
+export interface SnapshotWorkspace extends CabeceraSnapshot, CuerpoSnapshot {}
 
 /* Entrada del navegador de archivos: carpeta o archivo dentro del area. */
 export interface EntradaArchivo {

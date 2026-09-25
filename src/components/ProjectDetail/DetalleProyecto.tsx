@@ -64,13 +64,14 @@ export function DetalleProyecto({ proyecto }: { proyecto: Proyecto }) {
     >
       <div className="detallePestanas">
         {PESTANAS.map((t) => (
-          <button
+          <Boton
             key={t.id}
+            variante="secundario"
             className={`detallePestana ${pestana === t.id ? 'detallePestana--activa' : ''}`}
             onClick={() => setPestana(t.id)}
           >
             {t.etiqueta}
-          </button>
+          </Boton>
         ))}
       </div>
 

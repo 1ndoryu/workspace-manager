@@ -2,6 +2,7 @@
  * [por que] Vista rapida del estado global; los filtros viven en el store. */
 import { useWorkspaceStore, proyectosFiltrados } from '../../hooks/useWorkspace.js';
 import { Badge, type EstadoBadge } from '../ui/Badge.js';
+import { Boton } from '../ui/Boton.js';
 import './lista.css';
 
 function estadoBadge(p: { esGit: boolean; git?: { dirty: boolean }; gate?: { declarado: boolean } }): { estado: EstadoBadge; texto: string } {
@@ -32,13 +33,14 @@ export function ListaProyectos() {
         />
         <div className="listaFiltros">
           {(['todos', 'repos', 'dirty', 'conGate'] as const).map((f) => (
-            <button
+            <Boton
               key={f}
+              variante="secundario"
               className={`listaFiltro ${filtro === f ? 'listaFiltro--activo' : ''}`}
               onClick={() => setFiltro(f)}
             >
               {f}
-            </button>
+            </Boton>
           ))}
         </div>
       </div>
