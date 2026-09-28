@@ -5,6 +5,7 @@
  * al server. El filtro es un Selector del sistema (no botones sueltos). */
 import { useState } from 'react';
 import { usePanelConsola } from './usePanelConsola.js';
+import { Button } from '../../ui/Button.js';
 import { Selector } from '../../ui/selector/Selector.js';
 import {
   type Categoria,
@@ -56,6 +57,10 @@ export function PanelConsola() {
       return next;
     });
   };
+  /* Plegar/desplegar todo lo visible de una vez (botones junto al filtro).
+   * [por que] Con 12+ grupos, plegarlos uno a uno no es viable. */
+  const plegarTodo = () => setColapsados(new Set(visibles.map((pr) => pr.p.id)));
+  const desplegarTodo = () => setColapsados(new Set());
 
   if (!snapshot) return null;
 
@@ -66,6 +71,12 @@ export function PanelConsola() {
     <aside className="panelConsola" aria-label="Consola de problemas">
       <header className="panelConsolaCabecera">
         <span className="panelConsolaTitulo">problemas ({contar('todos')})</span>
+        <Button cuadrado pequeno onClick={plegarTodo} title="Plegar todos los grupos">
+          −
+        </Button>
+        <Button cuadrado pequeno onClick={desplegarTodo} title="Desplegar todos los grupos">
+          +
+        </Button>
         <Selector
           valor={`${actual.etiqueta} (${contar(actual.clave)})`}
           opciones={etiquetas}

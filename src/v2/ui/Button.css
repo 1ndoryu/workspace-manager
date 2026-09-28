@@ -168,9 +168,11 @@
     font-family: inherit;
     /* [por que] El trigger mide como un boton del nav (base .botonV2):
      * textXs y el mismo padding; las opciones de la lista siguen el
-     * diseno del menu contextual. */
+     * diseno del menu contextual. Altura fija 20px: igual que los
+     * botones cuadrado+pequeno que lo acompanan en la cabecera. */
     font-size: var(--v2-textXs);
-    padding: 4px var(--v2-spaceSm);
+    height: 20px;
+    padding: 0 var(--v2-spaceSm);
     border-radius: 0;
 }
 .botonV2.v2SelectorOpcion {
