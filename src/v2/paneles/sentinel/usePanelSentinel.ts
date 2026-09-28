@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useWorkspaceStore } from '../../../hooks/useWorkspace.js';
 import type { EstadoGate } from '../../../shared/types.js';
-import { mensajeDeError, toastError, toastOk } from '../../toast.js';
+import { mensajeDeError, toastError, toastInfo, toastOk } from '../../toast.js';
 import type { NodoEsquema } from '../../../shared/gate/esquema.js';
 import type { TipoGate } from '../../../shared/gate/proveedores.js';
 
@@ -31,6 +31,16 @@ export interface GateRespuesta {
   estado: EstadoGate | null;
   archivos: { nombre: (typeof ARCHIVOS)[number]; existe: boolean }[];
   contenidos: Partial<Record<(typeof ARCHIVOS)[number], string | null>>;
+}
+
+/* Respuesta del POST de guardado: ok + avisos de esquema no bloqueantes
+ * (el server diagnostica sentinel/varsense.config.json contra su esquema
+ * curado; guardar con avisos es legítimo a mitad de edición). */
+export interface GuardadoGate {
+  ok: boolean;
+  avisos?: { ruta: string; severidad: string }[];
+  totalErrores?: number;
+  totalAdvertencias?: number;
 }
 
 /* Resultado del parseo de los archivos de gate del proyecto abierto. */
@@ -101,6 +111,12 @@ export function usePanelSentinel() {
 
   /* Clave del proyecto abierto en el visor derecho. */
   const [claveVisor, setClaveVisor] = useState<string | null>(null);
+  /* Secuencia de recarga del gate: `guardar` la incrementa para releer
+   * del server lo recién escrito (el efecto depende de ella además de la
+   * clave). [por que] Tras guardar, el server re-escanea el snapshot pero
+   * el visor seguía mostrando el texto anterior (stale) hasta cambiar de
+   * proyecto y volver. */
+  const [seqGate, setSeqGate] = useState(0);
   const [gate, setGate] = useState<GateRespuesta | null>(null);
   /* Valores editados por el EditorJson (parsed por archivo). */
   const [editado, setEditado] = useState<Record<string, unknown>>({});
@@ -148,7 +164,7 @@ export function usePanelSentinel() {
     return () => {
       viva = false;
     };
-  }, [claveVisor]);
+  }, [claveVisor, seqGate]);
 
   /* Carga por API el esquema de las herramientas cuyo archivo declara el
    * proyecto abierto. [por que] El esquema se sirve serializado por
@@ -193,20 +209,34 @@ export function usePanelSentinel() {
     }
   }
 
-  /* Guarda el JSON editado de un archivo de gate del proyecto del visor. */
+  /* Guarda el JSON editado de un archivo de gate del proyecto del visor
+   * y recarga el visor con lo que quedó escrito. */
   async function guardar(a: string) {
     if (!claveVisor) return;
     setGuardando(a);
     try {
       /* Serializa el valor editado (indent 2) y lo envia; el server valida
-       * JSON de nuevo antes de escribir. */
+       * JSON de nuevo antes de escribir y devuelve avisos de esquema. */
       const contenido = JSON.stringify(editado[a] ?? null, null, 2);
-      await axios.post(
+      const { data } = await axios.post<GuardadoGate>(
         `/api/proyecto/gate?clave=${encodeURIComponent(claveVisor)}`,
         { nombre: a, contenido },
       );
       toastOk(`${a} guardado ✓`);
+      const errores = data.totalErrores ?? 0;
+      const advertencias = data.totalAdvertencias ?? 0;
+      if (errores > 0 || advertencias > 0) {
+        const primero = data.avisos?.[0];
+        toastInfo(
+          `esquema: ${errores} errores, ${advertencias} advertencias` +
+          (primero ? ` (p.ej. ${primero.ruta})` : '') +
+          ' — ver consola',
+        );
+      }
       await cargar(true);
+      /* Relee el gate del server: sin esto el visor muestra el texto
+       * anterior (stale) hasta cambiar de proyecto y volver. */
+      setSeqGate((s) => s + 1);
     } catch (err) {
       toastError(`no se pudo guardar: ${mensajeDeError(err)}`);
     } finally {

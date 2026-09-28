@@ -56,9 +56,15 @@ export function checkoutSentinel(): string | null {
  * mientras glory-harness fija 1587c59 (dos días más nuevo, con
  * unwrap-produccion-rs y axum-ruta-sintaxis-rs ya corregidos): la consola le
  * contaba 49 errores inexistentes que su gate no ve. Solo se acepta si está
- * provisionado (existe el entry del CLI) y su versión coincide con
- * VERSION_CURACION_SENTINEL; si no, null y el llamador cae al compartido
- * (nunca se rompe el árbol por un manifest ajeno). */
+ * provisionado (existe el entry del CLI) y su versión coincide con la
+ * declarada en su propio manifest; si no, null y el llamador cae al
+ * compartido (nunca se rompe el árbol por un manifest ajeno). [por que]
+ * 2026-09-28: la condición anterior exigía ADEMÁS que la versión coincidiera
+ * con VERSION_CURACION_SENTINEL (0.7.8→0.7.15), así que TODO pin propio
+ * (harness 0.7.12@66a2113) se rechazaba y la consola lo medía con el
+ * compartido 0.7.15 —un binario que no es el de su gate—. La curación es la
+ * versión contra la que se verificó el ESQUEMA (sync:gate), no una condición
+ * de ejecución: aquí manda el pin del manifest. */
 export interface ResolucionCli {
   base: string;
   cli: string;
@@ -68,7 +74,7 @@ export interface ResolucionCli {
 export function cliSentinelParaProyecto(rutaProyecto: string): ResolucionCli | null {
   try {
     const manifest = JSON.parse(readFileSync(join(rutaProyecto, 'quality-tools.json'), 'utf8')) as {
-      tools?: { sentinel?: { provisionPath?: unknown; cli?: unknown; commit?: unknown } };
+      tools?: { sentinel?: { provisionPath?: unknown; cli?: unknown; commit?: unknown; version?: unknown } };
     };
     const decl = manifest.tools?.sentinel;
     if (typeof decl?.provisionPath !== 'string' || !decl.provisionPath) return null;
@@ -77,7 +83,11 @@ export function cliSentinelParaProyecto(rutaProyecto: string): ResolucionCli | n
     const cli = join(base, entry);
     if (!existsSync(cli)) return null;
     const pkg = JSON.parse(readFileSync(join(base, 'package.json'), 'utf8')) as { version?: unknown };
-    if (typeof pkg.version !== 'string' || pkg.version !== VERSION_CURACION_SENTINEL) return null;
+    if (typeof pkg.version !== 'string') return null;
+    /* El pin del manifest manda: si declara versión y el checkout trae otra,
+     * ese checkout no es el artefacto fijado (p.ej. manifest stale) y se
+     * rechaza para que el llamador caiga al compartido. */
+    if (typeof decl.version === 'string' && decl.version && decl.version !== pkg.version) return null;
     return {
       base,
       cli,
@@ -209,15 +219,17 @@ function localizarOut(): { ruta: string; mtime: number } | null {
 }
 
 /* Version de referencia de la curacion actual del esquema sentinel: es la
- * version del runtime EN USO (checkout compartido del area, 0.7.8) contra la
+ * version del runtime EN USO (checkout compartido del area, 0.7.15) contra la
  * que se verifico `ESQUEMA_SENTINEL`. [por que] 2026-09-10: antes decia 0.7.4
  * (la unica instalada en %LOCALAPPDATA%) mientras el gate de los proyectos ya
  * fijaba 0.7.8, asi que el panel reportaba un drift inexistente y comparaba
  * contra el esquema de una version que no se ejecuta. `sync:gate` la valida
- * contra el `config.d.ts` del mismo runtime; si el runtime vuelve a subir, se
- * revisa la curacion y se actualiza aqui. Exportada para que el script de sync
- * (E2) compare contra la MISMA fuente de verdad. */
-export const VERSION_CURACION_SENTINEL = '0.7.8';
+ * contra el `config.d.ts` del mismo runtime (2026-09-28: 0 problemas contra
+ * 0.7.15, exit 0); si el runtime vuelve a subir, se revisa la curacion y se
+ * actualiza aqui. Exportada para que el script de sync (E2) compare contra la
+ * MISMA fuente de verdad. NO es condicion de ejecucion: `cliSentinelParaProyecto`
+ * resuelve por el pin del manifest de cada proyecto. */
+export const VERSION_CURACION_SENTINEL = '0.7.15';
 
 /* Catalogo de reglas del gate: vive en el runtime si esta disponible, con
  * cache por version+mtime. Devuelve tambien la version y la fuente para que

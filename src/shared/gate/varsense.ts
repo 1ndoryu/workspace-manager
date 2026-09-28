@@ -6,7 +6,12 @@
  *   - nucleo (presente en los 3)          -> 'requerida'
  *   - recomendadas (presente en 2 de 3)   -> 'recomendada'
  *   - extensiones nuevas / opcionales     -> 'opcional'
- * La severidad cuando falta una opcion sigue la misma convencion que sentinel:
+ * Excepcion: `hardcodedDetection.allowedValues` es 'opcional' aunque el
+ * nucleo sea requerido —el runtime la suple con su default interno
+ * (`buildAnalysisConfig`: `allowedValues ?? DEFAULT_ALLOWED_VALUES` en
+ * varsense/src/core/config.ts), asi que exigirla marcaba error en proyectos
+ * sanos (NAKOMI 2026-09-28). La severidad cuando falta una opcion sigue la
+ * misma convencion que sentinel:
  * requerida->error, recomendada->advertencia, opcional->silencio en la consola. */
 import type { NodoEsquema, Necesidad, OpcionValor } from './esquema.js';
 
@@ -47,7 +52,7 @@ export function ESQUEMA_VARSENSE(): NodoEsquema {
         enabled: bool(true, 'requerida'),
         severity: enumX('warning', 'requerida'),
         properties: { mapa: bool(false), necesidad: 'opcional' },
-        allowedValues: strArr('requerida'),
+        allowedValues: strArr('opcional'),
       },
       necesidad: 'requerida',
     },

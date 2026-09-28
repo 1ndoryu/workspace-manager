@@ -11,6 +11,9 @@ import { json, leerArchivo, leerBody } from './http.js';
 import { snapshotArea } from './snapshot.js';
 import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
 import { esquemaGate, reglasGate } from './gate/proveedor.js';
+import { ESQUEMA_SENTINEL } from '../shared/gate/sentinel.js';
+import { ESQUEMA_VARSENSE } from '../shared/gate/varsense.js';
+import { diagnosticar, rutaEtiqueta, severidadDe } from '../shared/gate/esquema.js';
 import { correrSincronizacion } from './gate/sincronizacion.js';
 import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from './gate/analizador.js';
 import {
@@ -65,13 +68,28 @@ export async function manejarRutasGate(
       }
       /* [por que] Validar JSON antes de escribir: no se permite romper
        * el gate de un proyecto con JSON inválido. Solo se exige
-       * parseable (no se re-serializa, para no reformatear). */
+       * parseable (no se re-serializa, para no reformatear). Si el archivo
+       * tiene esquema curado (sentinel/varsense.config.json), se devuelve
+       * ADEMÁS el diagnóstico contra el esquema como avisos NO bloqueantes:
+       * guardar con un error de esquema es legítimo a mitad de edición y
+       * la consola ya lo reporta; aquí solo se avisa en la respuesta. */
+      let valor: unknown = null;
       try {
-        JSON.parse(contenido);
+        valor = JSON.parse(contenido) as unknown;
       } catch {
         json(res, 422, { error: 'JSON invalido', detalle: 'el contenido no es JSON valido' });
         return true;
       }
+      const esquema = nombre === 'sentinel.config.json'
+        ? ESQUEMA_SENTINEL()
+        : nombre === 'varsense.config.json'
+          ? ESQUEMA_VARSENSE()
+          : null;
+      const avisos = esquema
+        ? diagnosticar(esquema, valor)
+          .map((f) => ({ ruta: rutaEtiqueta(f.ruta), severidad: severidadDe(f) }))
+          .filter((a) => a.severidad !== null)
+        : [];
       const rutaArchivo = join(proyecto.ruta, nombre);
       try {
         writeFileSync(rutaArchivo, contenido, 'utf8');
@@ -80,7 +98,15 @@ export async function manejarRutasGate(
         } catch (err) {
           logger.warn('re-escaneo tras guardar [gate] fallo:', err);
         }
-        json(res, 200, { ok: true, clave, nombre, ruta: rutaArchivo });
+        json(res, 200, {
+          ok: true,
+          clave,
+          nombre,
+          ruta: rutaArchivo,
+          avisos: avisos.slice(0, 10),
+          totalErrores: avisos.filter((a) => a.severidad === 'error').length,
+          totalAdvertencias: avisos.filter((a) => a.severidad === 'advertencia').length,
+        });
       } catch (err) {
         json(res, 500, { error: 'No se pudo escribir', detalle: String(err) });
       }
