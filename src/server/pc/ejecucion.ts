@@ -188,15 +188,31 @@ function normalizar(fase: FasePc, crudo: unknown): { entradas: EntradaPc[]; tota
   return { entradas, totalBytes: total };
 }
 
-function correrBinario(bin: string, args: string[]): Promise<string> {
+/* Ejecuta un *-clean tolerando el éxito parcial: el limpiador devuelve 0
+ * (todo borrado), 1 (algunas entradas rechazadas o con fallo, el resto
+ * borradas) o 2 (fatal, sin JSON). Con 1 el stdout trae el JSON con el
+ * estado de cada acción y se aprovecha; solo 2 o un stdout inservible
+ * son error.
+ * [por que] Antes cualquier código != 0 tiraba un 500 que descartaba el
+ * JSON: lo ya borrado no se podaba del reporte y la UI mostraba el
+ * comando en vez del estado por fila («borrada» frente a «rechazada» o
+ * «fallo» con su motivo). */
+function correrClean(bin: string, args: string[]): Promise<{ salida: string }> {
   return encolar(async () => {
-    const { stdout } = await execFileAsync(bin, args, {
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 300000,
-      maxBuffer: 64 * 1024 * 1024,
-    });
-    return String(stdout);
+    try {
+      const { stdout } = await execFileAsync(bin, args, {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 300000,
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      return { salida: String(stdout) };
+    } catch (err) {
+      const e = err as { code?: unknown; stdout?: unknown };
+      const salida = String((e.stdout as string) ?? '');
+      if (e.code === 1 && salida.trim().length > 0) return { salida };
+      throw err;
+    }
   });
 }
 
@@ -492,7 +508,9 @@ export async function limpiarPc(seleccionRaw: unknown): Promise<ResultadoLimpiez
     const flag = fase === 'area' ? '--solo-ruta' : '--solo';
     const args = [meta.clean, '--reporte', crudo, '--json', '--ejecutar'];
     for (const s of solo) args.push(flag, s);
-    const salida = await correrBinario(bin, args);
+    /* Sigue con las demás fases aunque esta quede parcial: cada fila trae
+     * su estado y la poda solo retira lo realmente borrado. */
+    const { salida } = await correrClean(bin, args);
     let dato: { acciones?: unknown; liberados_gb?: unknown };
     try {
       dato = JSON.parse(salida) as typeof dato;
@@ -511,12 +529,14 @@ export async function limpiarPc(seleccionRaw: unknown): Promise<ResultadoLimpiez
     }
     liberadosGb += Number(dato.liberados_gb ?? 0);
   }
-  /* Poda del reporte unido: quita lo seleccionado de las fases limpiadas
-   * (en el área por ruta suelta, en el resto por clave). */
+  /* Poda del reporte unido: solo retira lo realmente borrado (estado
+   * «borrada» en la salida del limpiador), nunca lo seleccionado a ciegas.
+   * [por que] Con éxito parcial, podar la selección entera hacía
+   * desaparecer de la tab entradas que siguen en disco. */
   const previas = leerReporte();
   if (previas) {
     const borradas = new Set(
-      seleccion.map((s) => (s.fase === 'area' ? `area::${s.ruta ?? ''}` : `${s.fase}::${s.clave}`)),
+      acciones.filter((a) => a.estado === 'borrada').map((a) => `${a.fase}::${a.clave}`),
     );
     const entradas = previas.entradas.filter(
       (e) => !borradas.has(e.fase === 'area' ? `area::${e.ruta}` : `${e.fase}::${e.clave}`),
