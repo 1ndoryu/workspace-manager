@@ -479,6 +479,76 @@
     padding: 1px 4px;
 }
 
+/* Gate centralizado compacto: veredicto + herramienta con chips por
+ * proyecto. [por que] El banner responde "todo bien?" sin leer filas; el
+ * chip verde (invertido, como syncBadge--ok) es "alineado", el rojo con "!"
+ * se clica para ver el detalle; el punteado es "sin datos". */
+.syncVeredicto {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.syncTool {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.syncToolCabecera {
+    display: flex;
+    align-items: baseline;
+    gap: var(--v2-spaceSm);
+}
+
+.syncChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.syncChip {
+    font-size: var(--v2-textXs);
+    font-family: inherit;
+    color: var(--v2-texto);
+    background: none;
+    border: 1px solid var(--v2-borde);
+    border-radius: var(--v2-radioChico);
+    padding: 1px 6px;
+}
+
+button.syncChip {
+    cursor: pointer;
+}
+
+.syncChip--ok {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    border-color: var(--v2-texto);
+}
+
+.syncChip--warn {
+    border-color: var(--v2-texto);
+}
+
+.syncChip--vacio {
+    opacity: .45;
+    border-style: dashed;
+}
+
+.syncDetalle {
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    border-left: 2px solid var(--v2-texto);
+    padding-left: 8px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .scanCfgResumen {
     display: flex;
     align-items: center;
