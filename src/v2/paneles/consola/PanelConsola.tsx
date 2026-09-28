@@ -3,10 +3,10 @@
  * todos, sin git, sin push, sin sentinel o con sentinel/varsense
  * desactualizado. La clasificacion se deriva del snapshot, sin llamada extra
  * al server. El filtro es un Selector del sistema (no botones sueltos). */
+import { useState } from 'react';
 import { usePanelConsola } from './usePanelConsola.js';
 import { Selector } from '../../ui/selector/Selector.js';
 import {
-  rutaRelativa,
   type Categoria,
   type Problema,
   type SeveridadSentinel,
@@ -41,9 +41,21 @@ export function PanelConsola() {
     contar,
     seleccionadoId,
     seleccionar,
-    irAArchivos,
     abrirMenuContextual,
   } = usePanelConsola();
+
+  /* Grupos plegados por id de proyecto: el clic pliega/despliega los
+   * motivos sin navegar a archivos. [por que] Estado local de UI; por
+   * defecto todo expandido como antes. */
+  const [colapsados, setColapsados] = useState<ReadonlySet<string>>(new Set());
+  const alternarColapso = (id: string) => {
+    setColapsados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   if (!snapshot) return null;
 
@@ -76,11 +88,11 @@ export function PanelConsola() {
             <div className="consolaGrupo" key={pr.p.id}>
               <button
                 type="button"
-                className={`consolaFila${pr.p.id === seleccionadoId ? ' consolaFila--seleccionada' : ''}`}
+                className={`consolaFila${pr.p.id === seleccionadoId ? ' consolaFila--seleccionada' : ''}${colapsados.has(pr.p.id) ? ' consolaFila--colapsado' : ''}`}
+                aria-expanded={!colapsados.has(pr.p.id)}
                 onClick={() => {
                   seleccionar(pr.p.id);
-                  /* Abrir la carpeta del proyecto en el navegador de archivos. */
-                  irAArchivos(rutaRelativa(snapshot?.raiz, pr.p.ruta));
+                  alternarColapso(pr.p.id);
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -93,6 +105,7 @@ export function PanelConsola() {
                   * los motivos de abajo. */}
                 {pr.p.id} ({pr.entradas.length})
               </button>
+              {colapsados.has(pr.p.id) ? null : (
               <ul className="consolaMotivos">
                 {pr.entradas.map((e, i) => (
                   <li
@@ -113,6 +126,7 @@ export function PanelConsola() {
                   </li>
                 ))}
               </ul>
+              )}
             </div>
           ))
         )}
