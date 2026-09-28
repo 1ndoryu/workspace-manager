@@ -48,6 +48,15 @@ export function EditorEsquema({ esquema, value, onChange, readOnly, reglas }: Pr
    * hardcodeadas. */
   const catalogo = buscarCatalogo(esquema);
   const filasPlanas = catalogo ? filas.filter((f) => f.ruta[0] !== catalogo.clave) : filas;
+  /* H1: los ERRORES dentro de la clave catalogo (typos bajo `rules`, regla
+   * con mal tipo) no tienen fila en SeccionReglas y antes se filtraban en
+   * silencio (0 visibles de N). Se renderizan como filas de error encima de
+   * la seccion, reutilizando Fila (desconocida trae quitar, malTipo su
+   * control de correccion). Los 'faltante' del catalogo se siguen ocultando:
+   * la seccion ya cubre lo ausente con defaults. */
+  const erroresCatalogo = catalogo
+    ? filas.filter((f) => f.ruta[0] === catalogo.clave && f.tipo !== 'faltante')
+    : [];
   if (filas.length === 0 && !catalogo) {
     return <div className="fjVacio">sin opciones</div>;
   }
@@ -59,6 +68,9 @@ export function EditorEsquema({ esquema, value, onChange, readOnly, reglas }: Pr
 
   return (
     <div className="fjPlano">
+      {erroresCatalogo.map((f) => (
+        <Fila key={f.ruta.join('/')} fila={f} setEn={setEn} quitar={readOnly ? undefined : (r) => onChange(borrarRuta(value, r))} readOnly={readOnly} />
+      ))}
       {catalogo && (
       <SeccionReglas
         clave={catalogo.clave}

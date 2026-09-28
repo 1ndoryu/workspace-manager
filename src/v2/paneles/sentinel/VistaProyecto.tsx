@@ -9,10 +9,43 @@ import { ARCHIVO_A_TOOL, badgesDe, type DatosPanelSentinel } from './usePanelSen
 
 export function VistaProyecto({ datos }: { datos: DatosPanelSentinel }) {
   const {
-    claveVisor, gate, contenidos, setContenidos, editado, setEditado, parseErrores,
+    claveVisor, gate, contenidos, setContenidos, editado, setEditado, editadoInicial, parseErrores, setParseErrores,
     cargandoGate, guardando, proyectoVisor, visorIgnorado,
-    esquemas, reglasCatalogo, alternarIgnorado, guardar,
+    esquemas, esquemasFuente, reglasCatalogo, alternarIgnorado, guardar,
   } = datos;
+
+  /* H3: re-parseo en vivo del textarea de reparacion. [por que] Antes el
+   * error solo se calculaba en la carga: se podia escribir sin saber si el
+   * JSON ya era valido, y no habia forma de guardar. Al validar, la rama
+   * normal (editor + guardar) aparece sola. */
+  const reparsear = (nombre: string, texto: string) => {
+    setContenidos((c) => ({ ...c, [nombre]: texto }));
+    if (!texto.trim()) {
+      setParseErrores((e) => {
+        const n = { ...e };
+        delete n[nombre];
+        return n;
+      });
+      return;
+    }
+    try {
+      const v = JSON.parse(texto) as unknown;
+      setEditado((e) => ({ ...e, [nombre]: v }));
+      setParseErrores((e) => {
+        const n = { ...e };
+        delete n[nombre];
+        return n;
+      });
+    } catch (err) {
+      setParseErrores((e) => ({ ...e, [nombre]: err instanceof Error ? err.message : 'JSON inválido' }));
+    }
+  };
+
+  /* H4: sin cambios no se guarda. [por que] guardar normaliza (indent 2 sin
+   * newline final) y reescribia bytes en todos los configs aunque el
+   * contenido fuera identico. */
+  const sinCambios = (nombre: string): boolean =>
+    JSON.stringify(editado[nombre]) === JSON.stringify(editadoInicial[nombre]);
 
   if (!claveVisor) {
     return <div className="docsVacio">elige un proyecto de la lista</div>;
@@ -57,32 +90,52 @@ export function VistaProyecto({ datos }: { datos: DatosPanelSentinel }) {
                 <section key={a.nombre} className="gateEditor">
                   <header className="gateEditorCabecera">
                     <span className="gateEditorNombre">{a.nombre}</span>
+                    <button
+                      type="button"
+                      className="docsGuardar"
+                      disabled
+                      title="corrige el JSON para poder guardar"
+                    >
+                      guardar
+                    </button>
                   </header>
                   <div className="ejError">JSON inválido: {parseErrores[a.nombre]}</div>
                   <textarea
                     className="panelDocsTexto gateEditorTexto"
                     value={contenidos[a.nombre] ?? ''}
-                    onChange={(ev) =>
-                      setContenidos((c) => ({ ...c, [a.nombre]: ev.target.value }))
-                    }
+                    onChange={(ev) => reparsear(a.nombre, ev.target.value)}
                     spellCheck={false}
                     aria-label={`Contenido de ${a.nombre} (inválido)`}
                   />
+                  <div className="configMeta">edita hasta que el error desaparezca para guardar</div>
                 </section>
               );
             }
             const tool = ARCHIVO_A_TOOL[a.nombre];
             const esquema = tool ? esquemas[tool] : undefined;
+            /* H2: si el esquema es el estatico embebido (fallo la API), se
+             * indica en vez de validar en silencio contra reglas viejas. */
+            const fuenteEsquema = tool ? esquemasFuente[tool] : undefined;
             const valor = (editado[a.nombre] ?? null) as import('../../ui/EditorJson.js').JsonValue;
+            const deshabilitado = guardando === a.nombre || sinCambios(a.nombre);
             return (
               <section key={a.nombre} className="gateEditor">
                 <header className="gateEditorCabecera">
                   <span className="gateEditorNombre">{a.nombre}</span>
+                  {fuenteEsquema === 'estatico' && (
+                    <span
+                      className="configBadge configBadge--sin"
+                      title="no se pudo pedir el esquema vivo al server; se valida contra el estatico del bundle"
+                    >
+                      esquema local
+                    </span>
+                  )}
                   <button
                     type="button"
                     className="docsGuardar"
                     onClick={() => void guardar(a.nombre)}
-                    disabled={guardando === a.nombre}
+                    disabled={deshabilitado}
+                    title={sinCambios(a.nombre) ? 'sin cambios' : 'guardar cambios'}
                   >
                     {guardando === a.nombre ? 'guardando…' : 'guardar'}
                   </button>

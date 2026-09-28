@@ -70,6 +70,11 @@ export interface DatosGate {
    * API /gate/dinamico (E1 gate-dinamico). El cliente deja de importar los
    * ESQUEMA_* estaticos en el bundle; el server resuelve y aqui se cachea. */
   esquemas: Partial<Record<TipoGate, NodoEsquema>>;
+  /* Origen del esquema cacheado por herramienta: 'vivo' (API /gate/dinamico)
+   * o 'estatico' (fallback embebido tras fallo). [por que] H2 auditoria
+   * sentinel: el fallback era silencioso y la vista no podia indicar si el
+   * editor valida contra el esquema curado del runtime o contra el estatico. */
+  esquemasFuente: Partial<Record<TipoGate, 'vivo' | 'estatico'>>;
   /* Estado de centralizacion del gate (plan 308A-1 F7): reporte de
    * quality-sync (aligned/desync por consumidor). Se cachea en el store y se
    * refresca a demanda (boton 'Verificar' en el panel). */

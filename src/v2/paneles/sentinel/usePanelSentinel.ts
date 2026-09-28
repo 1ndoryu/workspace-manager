@@ -8,6 +8,7 @@ import axios from 'axios';
 import { useWorkspaceStore } from '../../../hooks/useWorkspace.js';
 import type { EstadoGate } from '../../../shared/types.js';
 import { mensajeDeError, toastError, toastInfo, toastOk } from '../../toast.js';
+import { logger } from '../../../shared/logger.js';
 import type { NodoEsquema } from '../../../shared/gate/esquema.js';
 import type { TipoGate } from '../../../shared/gate/proveedores.js';
 
@@ -98,6 +99,9 @@ export function usePanelSentinel() {
   const reglasCatalogo = useWorkspaceStore((s) => s.reglasCatalogo);
   const cargarReglas = useWorkspaceStore((s) => s.cargarReglas);
   const cargarEsquema = useWorkspaceStore((s) => s.cargarEsquema);
+  /* Origen del esquema por herramienta (H2: avisar si se valida contra el
+   * estatico embebido en vez del vivo del runtime). */
+  const esquemasFuente = useWorkspaceStore((s) => s.esquemasFuente);
 
   /* Esquemas por herramienta ya rehidratados desde la API (cache local a la
    * vista; el store cachea a nivel global). */
@@ -120,6 +124,10 @@ export function usePanelSentinel() {
   const [gate, setGate] = useState<GateRespuesta | null>(null);
   /* Valores editados por el EditorJson (parsed por archivo). */
   const [editado, setEditado] = useState<Record<string, unknown>>({});
+  /* Foto del parseo en el momento de la carga (H4: detectar "sin cambios"
+   * para no ofrecer guardar — guardar reescribe bytes aunque el contenido
+   * sea identico porque normaliza indent-2 sin newline final). */
+  const [editadoInicial, setEditadoInicial] = useState<Record<string, unknown>>({});
   const [contenidos, setContenidos] = useState<Record<string, string>>({});
   /* Errores de parseo si el JSON de un archivo no es valido. */
   const [parseErrores, setParseErrores] = useState<Record<string, string>>({});
@@ -151,6 +159,7 @@ export function usePanelSentinel() {
         const { inicial, editado, errores } = prepararEditor(data);
         setContenidos(inicial);
         setEditado(editado);
+        setEditadoInicial(editado);
         setParseErrores(errores);
       })
       .catch((err) => {
@@ -180,10 +189,13 @@ export function usePanelSentinel() {
         .then((nodo) => {
           if (viva && nodo) setEsquemas((e) => ({ ...e, [tool]: nodo }));
         })
-        /* [por que] Pre-carga de cache; si la API falla, el bundle sigue usando
-         * el esquema embebido, asi que un rechazo aqui es tolerante y no debe
-         * convertirse en unhandled rejection. */
-        .catch(() => {});
+        /* [por que] Pre-carga de cache; si la API falla, el store cae al
+         * esquema estatico embebido y lo marca en esquemasFuente (H2: la
+         * vista lo indica en vez de callar). El warn evita el catch
+         * silencioso: un rechazo aqui ya no pasa desapercibido. */
+        .catch((err) => {
+          logger.warn(`pre-carga de esquema ${tool} fallo, se usara el estatico:`, err);
+        });
     }
     return () => {
       viva = false;
@@ -216,8 +228,13 @@ export function usePanelSentinel() {
     setGuardando(a);
     try {
       /* Serializa el valor editado (indent 2) y lo envia; el server valida
-       * JSON de nuevo antes de escribir y devuelve avisos de esquema. */
-      const contenido = JSON.stringify(editado[a] ?? null, null, 2);
+       * JSON de nuevo antes de escribir y devuelve avisos de esquema.
+       * [por que] H4: casi todos los configs terminan en newline y
+       * stringify no lo emite — sin esto, guardar-sin-cambios reescribia
+       * bytes (ruido en git). Se conserva el newline final del original. */
+      let contenido = JSON.stringify(editado[a] ?? null, null, 2);
+      const original = contenidos[a] ?? '';
+      if (original.endsWith('\n') && !contenido.endsWith('\n')) contenido += '\n';
       const { data } = await axios.post<GuardadoGate>(
         `/api/proyecto/gate?clave=${encodeURIComponent(claveVisor)}`,
         { nombre: a, contenido },
@@ -252,10 +269,10 @@ export function usePanelSentinel() {
   return {
     snapshot,
     claveVisor, setClaveVisor,
-    gate, contenidos, setContenidos, editado, setEditado, parseErrores,
+    gate, contenidos, setContenidos, editado, setEditado, editadoInicial, parseErrores, setParseErrores,
     cargandoGate, guardando,
     proyectos, proyectoVisor, visorIgnorado,
-    esquemas, reglasCatalogo,
+    esquemas, esquemasFuente, reglasCatalogo,
     abrirProyecto, alternarIgnorado, guardar,
   };
 }
