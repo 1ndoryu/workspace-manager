@@ -28,13 +28,37 @@
     margin-left: 0;
 }
 
-.panelPcFases {
+/* Analizar es la acción principal: centrado y grande (usa Button `grande`). */
+.panelPcAnalizar {
     display: flex;
-    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.panelPcContenido .panelPcMeta {
+    margin-left: 0;
+}
+
+/* Grupo plegable: cabecera con toggle + checkbox + conteo, lista dentro. */
+.panelPcGrupo {
+    border: 1px solid var(--v2-borde);
+}
+
+.panelPcGrupoCabecera {
+    display: flex;
+    align-items: center;
     gap: var(--v2-spaceXs);
-    padding: var(--v2-spaceSm) var(--v2-spaceMd);
-    border-bottom: 1px solid var(--v2-borde);
-    flex: none;
+    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    font-size: var(--v2-textSm);
+}
+
+.panelPcGrupoCabecera .panelPcCheck {
+    flex: 1;
+    min-width: 0;
+}
+
+.panelPcGrupo .panelPcLista {
+    border: none;
+    border-top: 1px solid var(--v2-borde);
 }
 
 .panelPcContenido {
@@ -111,6 +135,12 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* La ruta cede el espacio para que el ellipsis funcione en la fila flex. */
+.panelPcCheck .panelPcRuta {
+    flex: 1;
+    min-width: 0;
 }
 
 .panelPcEstado {

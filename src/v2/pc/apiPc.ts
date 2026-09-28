@@ -1,27 +1,37 @@
 /* Cliente HTTP de la tab PC: habla con /api/pc/* (el server es dueño del
  * binario limpiador-pc). [por que] Capa fina sobre axios como el resto de
- * acciones del store; el estado vive en el componente del panel. */
+ * acciones del store; el análisis global llega por SSE (EventSource) para
+ * pintar cada fase en vivo, el resto es axios normal. */
 import axios from 'axios';
 
 export type FasePc = 'area' | 'caches' | 'extern' | 'vscode' | 'chrome';
 
 export interface EntradaPc {
+  fase: FasePc;
   clave: string;
   ruta: string;
   bytes: number;
   detalle: string;
 }
 
-export interface MetaFase {
+export interface ReportePc {
+  entradas: EntradaPc[];
+  totalBytes: number;
+  medidoEn: string;
+  versionBinario: string | null;
+}
+
+/* Foto del análisis en curso (para reengancharse al recargar). */
+export interface AvanceScan {
+  enCurso: boolean;
+  preparando: boolean;
   fase: FasePc;
   etiqueta: string;
-  descripcion: string;
-  meta: {
-    medidoEn: string | null;
-    versionBinario: string | null;
-    totalBytes: number;
-    n: number;
-  } | null;
+  indice: number;
+  total: number;
+  dir: string;
+  dirs: number;
+  halladas: number;
 }
 
 export interface EstadoPc {
@@ -30,18 +40,12 @@ export interface EstadoPc {
   versionFuente: string | null;
   actualizado: boolean;
   reconstruyendo: boolean;
-  fases: MetaFase[];
-}
-
-export interface ResultadoScan {
-  fase: FasePc;
-  entradas: EntradaPc[];
-  totalBytes: number;
-  medidoEn: string;
-  versionBinario: string | null;
+  reporte: ReportePc | null;
+  scan: AvanceScan | null;
 }
 
 export interface AccionPc {
+  fase: FasePc;
   clave: string;
   gb: number;
   estado: string;
@@ -49,32 +53,64 @@ export interface AccionPc {
 }
 
 export interface ResultadoLimpieza {
-  fase: FasePc;
-  ejecutar: boolean;
   acciones: AccionPc[];
   liberadosGb: number;
 }
+
+export interface SeleccionPc {
+  fase: FasePc;
+  clave: string;
+  /* Solo en el área: ruta suelta elegida (el resto filtra por clave). */
+  ruta?: string;
+}
+
+export type EventoScan =
+  | { tipo: 'inicio'; fase: FasePc; etiqueta: string; indice: number; total: number }
+  | { tipo: 'preparando'; detalle: string }
+  | { tipo: 'avance'; fase: FasePc; etiqueta: string; dir: string; dirs: number; halladas: number }
+  | { tipo: 'fase'; fase: FasePc; etiqueta: string; entradas: EntradaPc[]; totalBytes: number }
+  | { tipo: 'fin'; totalBytes: number; n: number; medidoEn: string; versionBinario: string | null }
+  | { tipo: 'error'; fase: FasePc; etiqueta: string; detalle: string };
 
 export async function estadoPc(): Promise<EstadoPc> {
   const { data } = await axios.get<EstadoPc>('/api/pc/estado');
   return data;
 }
 
-export async function escanearPc(fase: FasePc): Promise<ResultadoScan> {
-  const { data } = await axios.post<ResultadoScan>('/api/pc/escanear', { fase });
-  return data;
+/* Abre el análisis global por SSE; devuelve el cierre. [por que] El escaneo
+ * tarda minutos: cada fase se pinta al terminar vía onEvento en vez de
+ * bloquear hasta el total. */
+export function escanearPcTodo(
+  onEvento: (ev: EventoScan) => void,
+  onError: (mensaje: string) => void,
+): () => void {
+  const fuente = new EventSource('/api/pc/escanear');
+  fuente.addEventListener('inicio', (e) => onEvento(JSON.parse((e as MessageEvent).data) as EventoScan));
+  fuente.addEventListener('preparando', (e) => onEvento(JSON.parse((e as MessageEvent).data) as EventoScan));
+  fuente.addEventListener('avance', (e) => onEvento(JSON.parse((e as MessageEvent).data) as EventoScan));
+  fuente.addEventListener('fase', (e) => onEvento(JSON.parse((e as MessageEvent).data) as EventoScan));
+  fuente.addEventListener('fin', (e) => {
+    onEvento(JSON.parse((e as MessageEvent).data) as EventoScan);
+    fuente.close();
+  });
+  /* El evento 'error' sirve para dos casos: el evento tipado del server
+   * (trae data) y el corte de conexión (sin data). */
+  fuente.addEventListener('error', (e) => {
+    const datos = (e as MessageEvent).data;
+    if (typeof datos === 'string' && datos.length > 0) {
+      onEvento(JSON.parse(datos) as EventoScan);
+    } else {
+      onError('se cortó el análisis');
+    }
+    fuente.close();
+  });
+  return () => fuente.close();
 }
 
-export async function limpiarPc(
-  fase: FasePc,
-  ejecutar: boolean,
-  solo: string[],
-): Promise<ResultadoLimpieza> {
+export async function limpiarPc(seleccion: SeleccionPc[]): Promise<ResultadoLimpieza> {
   const { data } = await axios.post<ResultadoLimpieza>('/api/pc/limpiar', {
-    fase,
-    ejecutar,
-    solo,
-    ...(ejecutar ? { confirmacion: 'BORRAR' } : {}),
+    seleccion,
+    confirmacion: 'BORRAR',
   });
   return data;
 }
