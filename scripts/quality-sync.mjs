@@ -56,6 +56,10 @@ const CONSUMIDORES = [
   /* NAKOMI onboard 2026-09-25: bootstrap del gate moderno (sentinel 0.7.13 +
    * varsense 2.2.4, checkout compartido del área); rama primaria glory-rust-nakomi. */
   { nombre: 'NAKOMI', ruta: 'NAKOMI', fase: 'F1' },
+  /* limpiador-pc onboard 2026-09-28 (289A-4/289A-5): gate declarado desde el
+   * init pero nunca registrado; solo sentinel (sin varsense), checkout
+   * compartido del área. */
+  { nombre: 'limpiador-pc', ruta: 'limpiador-pc', fase: 'F1' },
 ];
 
 /* Herramientas del checkout compartido y su subcarpeta. */
