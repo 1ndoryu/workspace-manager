@@ -76,24 +76,40 @@ se retira con paridad demostrada y compatibilidad de config.
 - VarSense: `compile` + `compile:tests` + `lint` + `check:core` + `smoke:lsp` +
   suite (`125/125` ajustada) + rebuild `dist`.
 
-## Estado (2026-09-28, fin de sesión)
+## Estado (2026-09-28, CIERRE 289A-1)
 
-- Sentinel 0.7.15 HECHO (certificado): `compile` TSC-EXIT 0, `check:core` OK,
-  `smoke:lsp` OK, `lint` 0 errors, suite específica 17/17, suite completa
-  717 passing 1 pending. Cambios en working tree de `glory-sentinel` sin
-  commitear (commit + tag `v0.7.15` pendientes del paso §Release).
-- VarSense 2.2.5 HECHO (certificado): rama `289A-1-retiro-todo-prosa` sobre
-  `origin/release/2.2.4`, commit local `eeb036f` (7 archivos, +53/−242).
-  `compile:tests` EXIT 0, `eslint` EXIT 0, `check-core-no-vscode` OK,
-  `smoke-lsp-stdio` OK, suite headless 99/99, sunset funcional 15 archivos →
-  0 hallazgos con `todoProseDetection.enabled:true` (2.2.4 daba 5).
-- Paridad 15/15 VERIFICADA (mismos 5 archivos, línea/columna/severidad).
-- Pendiente GATED: push rama+tags, `bump.mjs --write` 11 consumidores,
-  setups/locks/doctors, gitlinks familia B, `sync:quality` verde. Decisión
-  abierta: `main` varsense (2.2.2) también trae F3.13 — aplicar retirada allí
-  o registrar divergencia.
+- Sentinel 0.7.15 PUBLICADO: commit `8f56ca8` + tag `v0.7.15` en `main`,
+  push a GitHub OK (rama + tag). Suite 17/17 + 717 passing 1 pending.
+- VarSense 2.2.5 PUBLICADO: commit `eeb036f` + tag `v2.2.5` en rama
+  `289A-1-retiro-todo-prosa`, push a GitHub OK (rama + tag). Suite 99/99,
+  sunset 15→0, paridad 15/15.
+- Propagación COMPLETA: familia A (9 con sentinel incl. ONG AGAPE; 8 con
+  varsense — gloryapi sin varsense) vía `bump.mjs --write` con evidencias OK;
+  familia B con gitlinks commiteados (WANDORIUS `d08d49f5`+`f127ec85`,
+  RESTAURANTE `77f3364`+`f7c1631`, sin push) + setups/locks/doctors propios
+  verdes (WANDORIUS `readyForGate:true` issues 0; RESTAURANTE doctor
+  `blocked:false`, lock con pins nuevos, evidencias OK).
+- Guard de sync: `sync:quality` 12/12 alineados;
+  `verificar-alineacion.mjs` 17 filas ALINEADO; upstream sentinel al día con
+  tags `v0.7.15` publicados; varsense tags `v2.2.5` publicados.
+- Lecciones del lote: (a) los setups de familia B NO los corre el bump
+  compartido (usa `setup.mjs` propio del consumidor con su cwd); el setup
+  compartido ignora `--only`. (b) El lock compartido no sirve para familia B
+  (resuelve `cli` contra `.quality-tools/` sin el nombre de herramienta);
+  usar el `lock-generator.mjs` propio. (c) El setup con certificación
+  reutilizada OMITE el provisioning (copia a `.quality-tools/`): pre-copiar
+  `node_modules`+artefactos+`package.json` desde el submódulo construido.
+  (d) Las llamadas largas mueren con el timeout del turno: setup de familia B
+  (~15 min) en una sola llamada de 30 min con log a fichero. (e) `Start-Job` y
+  `launcher.cjs` no sobreviven entre turnos en este entorno (jobs por-sesión,
+  `cmd.exe` bloqueado).
+- Divergencia REGISTRADA (no bloqueante): varsense `main` local sigue en
+  2.2.2 con F3.13; el release vive en rama `289A-1-retiro-todo-prosa` + tag
+  `v2.2.5` (publicados, `publicado=SI` en las 17 filas). Aplicar la retirada
+  en `main` (merge/PR) es decisión separada. Igual: pushes de los 4 commits
+  de familia B quedan pendientes del mecanismo de cada repo.
 
-## Release y propagación (GATED — requiere autorización)
+## Release y propagación (COMPLETADO 2026-09-28 con autorización «release completo»)
 
 1. Commit + tag local en cada herramienta (`v0.7.15`, `v2.2.5`); comparar working tree
    con HEAD antes de commitear (gotcha deshacer del editor).
@@ -106,5 +122,5 @@ se retira con paridad demostrada y compatibilidad de config.
 
 - `sentinel analyze` sobre fixture reporta `todo-prosa-sin-marcador` warning;
   `varsense scan/all` ya no conoce la regla y no rompe con `todoProseDetection` en config.
-- Suites verdes + lint 0 en ambos repos; commits locales hechos; paso §6 pendiente
-  de autorización explícita registrado en roadmap.
+- Suites verdes + lint 0 en ambos repos; commits + tags publicados; §Release
+  ejecutado y verificado (sync 12/12, alineación 17/17).
