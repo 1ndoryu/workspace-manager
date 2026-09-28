@@ -2,10 +2,10 @@
  * [por que] El usuario pidio una consola para ver problemas con filtros:
  * todos, sin git, sin push, sin sentinel o con sentinel/varsense
  * desactualizado. La clasificacion se deriva del snapshot, sin llamada extra
- * al server. */
+ * al server. El filtro es un Selector del sistema (no botones sueltos). */
 import { usePanelConsola } from './usePanelConsola.js';
+import { Selector } from '../../ui/selector/Selector.js';
 import {
-  categoriasDe,
   rutaRelativa,
   type Categoria,
   type Problema,
@@ -32,29 +32,6 @@ const FILTROS: { clave: 'todos' | Categoria; etiqueta: string }[] = [
   { clave: 'huerfano', etiqueta: 'huérfanos' },
 ];
 
-const ETIQUETA_CATEGORIA: Record<Categoria, string> = {
-  sinGit: 'sin git',
-  sinCommit: 'sin commit',
-  sinPush: 'sin push',
-  gate: 'sentinel',
-  config: 'config',
-  sentinel: 'análisis',
-  vulnerabilidad: 'vulnerabilidades',
-  huerfano: 'huérfano',
-};
-
-/* Severidad que pinta el badge del proyecto en la categoria 'sentinel':
- * error si algun hallazgo es error; si no, advertencia (warning/info/hint). */
-const severidadProyectoSentinel = (pr: Problema): 'error' | 'warn' =>
-  pr.entradas.some((e) => e.sentinelSeveridad === 'error') ? 'error' : 'warn';
-
-/* Badge del proyecto en la categoria 'vulnerabilidad': error si hay algun
- * paquete critical/high; si no, advertencia (moderate/low). */
-const severidadProyectoVuln = (pr: Problema): 'error' | 'warn' =>
-  pr.entradas.some((e) => e.vulnSeveridad === 'critical' || e.vulnSeveridad === 'high')
-    ? 'error'
-    : 'warn';
-
 export function PanelConsola() {
   const {
     snapshot,
@@ -70,21 +47,22 @@ export function PanelConsola() {
 
   if (!snapshot) return null;
 
+  const etiquetas = FILTROS.map((f) => `${f.etiqueta} (${contar(f.clave)})`);
+  const actual = FILTROS.find((f) => f.clave === filtro) ?? FILTROS[0];
+
   return (
     <aside className="panelConsola" aria-label="Consola de problemas">
       <header className="panelConsolaCabecera">
         <span className="panelConsolaTitulo">problemas ({contar('todos')})</span>
-        {FILTROS.map((f) => (
-          <button
-            key={f.clave}
-            type="button"
-            className={`panelConsolaFiltro${filtro === f.clave ? ' panelConsolaFiltro--activo' : ''}`}
-            onClick={() => setFiltro(f.clave)}
-            aria-pressed={filtro === f.clave}
-          >
-            {f.etiqueta} ({contar(f.clave)})
-          </button>
-        ))}
+        <Selector
+          valor={`${actual.etiqueta} (${contar(actual.clave)})`}
+          opciones={etiquetas}
+          onChange={(v) => {
+            const i = etiquetas.indexOf(v);
+            if (i >= 0) setFiltro(FILTROS[i].clave);
+          }}
+          titulo="Filtro de problemas"
+        />
       </header>
       <div className="panelConsolaContenido">
         {visibles.length === 0 ? (
@@ -110,26 +88,10 @@ export function PanelConsola() {
                 }}
                 title={pr.p.ruta}
               >
-                <span className="consolaFilaNombre">{pr.p.id}</span>
-                {categoriasDe(pr).map((c) => {
-                  let severidadBadge = '';
-                  if (c === 'config') {
-                    severidadBadge = pr.entradas.some(
-                      (e) => e.categoria === 'config' && e.seriedad === 'error',
-                    )
-                      ? '--error'
-                      : '--warn';
-                  } else if (c === 'sentinel') {
-                    severidadBadge = `--${severidadProyectoSentinel(pr)}`;
-                  } else if (c === 'vulnerabilidad') {
-                    severidadBadge = `--${severidadProyectoVuln(pr)}`;
-                  }
-                  return (
-                    <span key={c} className={`consolaFilaBadge${severidadBadge}`}>
-                      {ETIQUETA_CATEGORIA[c]}
-                    </span>
-                  );
-                })}
+                {/* [por que] Sin spans ni badges: la cabecera solo dice el
+                  * total de problemas del proyecto; el detalle ya vive en
+                  * los motivos de abajo. */}
+                {pr.p.id} ({pr.entradas.length})
               </button>
               <ul className="consolaMotivos">
                 {pr.entradas.map((e, i) => (
