@@ -75,6 +75,18 @@
     color: var(--v2-invertido);
 }
 
+/* Marcador de plegado sin spans extra: el boton ya es texto plano con el
+ * total. [por que] La fila solo dice "id (N)"; el estado se anuncia con el
+ * signo y con aria-expanded, sin reintroducir badges. */
+.consolaFila::before {
+    content: '–';
+    flex: none;
+}
+
+.consolaFila--colapsado::before {
+    content: '+';
+}
+
 .consolaMotivo--error {
     /* [por que] Punto de erro en la excusa: pequena mancha que marca el
      * problema mas grave sin depender del color. */
