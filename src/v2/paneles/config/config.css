@@ -305,6 +305,9 @@
 /* Regla presente pero fuera del catalogo (la escribio el agente): se resalta
  * el borde en negro para no perderla de vista. */
 .ejRegla--desconocida { border-color: var(--v2-invertido); }
+/* Regla presente pero malformada (no-objeto o tipos rotos): mismo patron de
+ * error que .fjFila--mal para marcarla sin inventar un lenguaje nuevo. */
+.ejRegla--mal { border-left: 2px solid var(--v2-invertido); }
 .ejRegla--off .ejRutaNombre { opacity: .5; }
 .ejReglaSwitch { flex-shrink: 0; display: inline-flex; align-items: center; }
 .ejReglaInfo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }

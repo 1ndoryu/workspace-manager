@@ -66,7 +66,6 @@ export function SeccionReglas({
     if (activa !== '__desconocidas' && activa !== '' && !categorias.includes(activa)) {
       setActiva(categorias[0] ?? '');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reglas]);
 
   const enCatalogo = ids.filter((id) => Object.prototype.hasOwnProperty.call(presente, id)).length;
