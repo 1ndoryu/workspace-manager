@@ -34,6 +34,13 @@ export interface AvanceScan {
   halladas: number;
 }
 
+/* Foto del borrado en curso (para reengancharse al recargar). */
+export interface AvanceLimpieza {
+  enCurso: boolean;
+  hechas: number;
+  total: number;
+}
+
 export interface EstadoPc {
   existe: boolean;
   versionBinario: string | null;
@@ -42,6 +49,7 @@ export interface EstadoPc {
   reconstruyendo: boolean;
   reporte: ReportePc | null;
   scan: AvanceScan | null;
+  limpieza: AvanceLimpieza | null;
 }
 
 export interface AccionPc {
@@ -70,6 +78,13 @@ export type EventoScan =
   | { tipo: 'avance'; fase: FasePc; etiqueta: string; dir: string; dirs: number; halladas: number }
   | { tipo: 'fase'; fase: FasePc; etiqueta: string; entradas: EntradaPc[]; totalBytes: number }
   | { tipo: 'fin'; totalBytes: number; n: number; medidoEn: string; versionBinario: string | null }
+  | { tipo: 'error'; fase: FasePc; etiqueta: string; detalle: string };
+
+export type EventoLimpieza =
+  | { tipo: 'inicio'; total: number }
+  | { tipo: 'fase'; fase: FasePc; etiqueta: string; actual: number; total: number }
+  | { tipo: 'fila'; fase: FasePc; clave: string; ruta: string; gb: number; estado: string; detalle: string }
+  | { tipo: 'fin'; liberadosGb: number; eliminadas: number; fallos: number }
   | { tipo: 'error'; fase: FasePc; etiqueta: string; detalle: string };
 
 export async function estadoPc(): Promise<EstadoPc> {
@@ -101,6 +116,44 @@ export function escanearPcTodo(
       onEvento(JSON.parse(datos) as EventoScan);
     } else {
       onError('se cortó el análisis');
+    }
+    fuente.close();
+  });
+  return () => fuente.close();
+}
+
+/* Abre el borrado con progreso en vivo por SSE; devuelve el cierre. Sin
+ * selección se adjunta al borrado en curso (recarga a mitad). [por que]
+ * EventSource solo hace GET: la selección viaja en la query como base64url
+ * del JSON (las rutas traen acentos y barras que btoa pelado no acepta). */
+export function limpiarPcStream(
+  seleccion: SeleccionPc[] | null,
+  onEvento: (ev: EventoLimpieza) => void,
+  onError: (mensaje: string) => void,
+): () => void {
+  let url = '/api/pc/limpiar-stream?confirmacion=BORRAR';
+  if (seleccion !== null) {
+    const crudo = JSON.stringify(seleccion);
+    const b64 = btoa(unescape(encodeURIComponent(crudo)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    url += `&sel=${b64}`;
+  }
+  const fuente = new EventSource(url);
+  const tipos = ['inicio', 'fase', 'fila', 'fin'] as const;
+  for (const t of tipos) {
+    fuente.addEventListener(t, (e) => onEvento(JSON.parse((e as MessageEvent).data) as EventoLimpieza));
+  }
+  fuente.addEventListener('fin', () => fuente.close());
+  /* El evento 'error' sirve para dos casos: el evento tipado del server
+   * (trae data con el detalle) y el corte de conexión (sin data). */
+  fuente.addEventListener('error', (e) => {
+    const datos = (e as MessageEvent).data;
+    if (typeof datos === 'string' && datos.length > 0) {
+      onEvento(JSON.parse(datos) as EventoLimpieza);
+    } else {
+      onError('se cortó el borrado');
     }
     fuente.close();
   });

@@ -8,8 +8,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json, leerBody } from './http.js';
 import { estadoBinario, reconstruirBinario } from './pc/binario.js';
-import { escanearTodo, estadoScan, leerReporte, limpiarPc } from './pc/ejecucion.js';
-import type { EventoScan } from './pc/ejecucion.js';
+import { adjuntarLimpieza, escanearTodo, estadoLimpieza, estadoScan, leerReporte, limpiarPc, limpiarTodo } from './pc/ejecucion.js';
+import type { EventoLimpieza, EventoScan } from './pc/ejecucion.js';
 
 export async function manejarRutasPc(
   req: IncomingMessage,
@@ -25,7 +25,7 @@ export async function manejarRutasPc(
     }
     try {
       const bin = await estadoBinario();
-      json(res, 200, { ...bin, reporte: leerReporte(), scan: estadoScan() });
+      json(res, 200, { ...bin, reporte: leerReporte(), scan: estadoScan(), limpieza: estadoLimpieza() });
     } catch (err) {
       json(res, 500, { error: 'No se pudo leer el estado', detalle: String(err) });
     }
@@ -87,10 +87,74 @@ export async function manejarRutasPc(
       json(res, 200, await limpiarPc(body.seleccion));
     } catch (err) {
       const detalle = String(err);
-      /* 409 si hay un análisis en curso (reintentable); 500 para lo demás.
+      /* 409 si hay un trabajo en curso (reintentable); 500 para lo demás.
        * El detalle viaja siempre para que la UI muestre la causa real. */
-      json(res, detalle.includes('análisis en curso') ? 409 : 500, { error: 'Falló la limpieza', detalle });
+      json(res, detalle.includes('en curso') ? 409 : 500, { error: 'Falló la limpieza', detalle });
     }
+    return true;
+  }
+
+  /* Borrado con progreso en vivo por SSE: inicio → fase → fila (cada
+   * objetivo al completarse) → fin. La selección viaja en la query
+   * (base64url del JSON) porque EventSource solo hace GET. Sin selección
+   * se adjunta al borrado en curso (recarga a mitad).
+   * [por que] El borrado de GB tarda minutos en silencio: la UI muestra
+   * en vivo qué se está borrando en vez de esperar al total. */
+  if (ruta === '/api/pc/limpiar-stream') {
+    if (req.method !== 'GET') {
+      json(res, 405, { error: 'Método no permitido' });
+      return true;
+    }
+    const confirmacion = url.searchParams.get('confirmacion');
+    if (confirmacion !== 'BORRAR') {
+      json(res, 400, { error: 'falta la confirmación de borrado' });
+      return true;
+    }
+    const selParam = url.searchParams.get('sel');
+    let seleccion: unknown = null;
+    if (selParam !== null) {
+      try {
+        seleccion = JSON.parse(Buffer.from(selParam, 'base64url').toString('utf8')) as unknown;
+      } catch {
+        json(res, 400, { error: 'selección inválida', detalle: 'no se pudo decodificar la selección' });
+        return true;
+      }
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    /* El borrado completo roza los minutos: sin timeout de socket. */
+    try {
+      res.socket?.setTimeout(0);
+    } catch {
+      /* best-effort */
+    }
+    const enviar = (ev: EventoLimpieza): void => {
+      try {
+        res.write(`event: ${ev.tipo}\ndata: ${JSON.stringify(ev)}\n\n`);
+      } catch {
+        /* cliente desconectado: el borrado termina igual en background */
+      }
+    };
+    try {
+      if (seleccion === null) {
+        /* Sin selección: adjunta al borrado en curso (recarga a mitad). */
+        const enCurso = adjuntarLimpieza(enviar);
+        if (!enCurso) {
+          enviar({ tipo: 'error', fase: 'area', etiqueta: '', detalle: 'sin borrado en curso' });
+        } else {
+          await enCurso;
+        }
+      } else {
+        await limpiarTodo(seleccion, enviar);
+      }
+    } catch (err) {
+      enviar({ tipo: 'error', fase: 'area', etiqueta: '', detalle: String(err) });
+    }
+    res.end();
     return true;
   }
 

@@ -11,12 +11,13 @@ import { Button } from '../ui/Button.js';
 import {
   escanearPcTodo,
   estadoPc,
-  limpiarPc,
+  limpiarPcStream,
   reconstruirPc,
   gb,
   type AccionPc,
   type EntradaPc,
   type EstadoPc,
+  type EventoLimpieza,
   type EventoScan,
   type ResultadoLimpieza,
   type SeleccionPc,
@@ -34,6 +35,10 @@ const TITULO_FASE: Record<EntradaPc['fase'], string> = {
 };
 
 const ORDEN_FASE: EntradaPc['fase'][] = ['area', 'caches', 'extern', 'vscode', 'chrome'];
+
+/* Estados que liberan espacio (el resto —fallo, rechazada— no suma al
+ * total en vivo aunque aparezca en la lista). */
+const ELIMINADA = new Set(['borrada', 'vaciada', 'limpiada']);
 
 interface Fila {
   id: string;
@@ -119,7 +124,12 @@ export function PanelPc() {
       const est = await estadoPc();
       setEstado(est);
       /* Rehidrata el último análisis persistido (no se pierde al recargar). */
-      if (est.scan?.enCurso) {
+      if (est.limpieza?.enCurso) {
+        /* Recarga con borrado en marcha: se adjunta al trabajo del server
+         * (reenvía lo borrado + sigue en vivo) en vez de quedarse ciego. */
+        setProgreso(`retomando el borrado… (${est.limpieza.hechas}/${est.limpieza.total})`);
+        conectarLimpieza(null);
+      } else if (est.scan?.enCurso) {
         /* Recarga con análisis en marcha: reengancha al trabajo del server
          * (reenvía lo completado + sigue en vivo) en vez de quedarse ciego. */
         setEntradas([]);
@@ -213,11 +223,13 @@ export function PanelPc() {
     conectar();
   }
 
-  /* Borrado real en dos pasos: el primer clic arma, el segundo ejecuta.
+  /* Borrado real en dos pasos con progreso en vivo: el primer clic arma,
+   * el segundo ejecuta y cada objetivo aparece en la lista al completarse.
    * [por que] El borrado no se puede deshacer; la etiqueta dice qué y
    * cuánto se borra y el doble clic lo confirma (el server además exige
-   * la palabra BORRAR). */
-  async function borrar() {
+   * la palabra BORRAR). El SSE muestra en vivo qué se está borrando
+   * porque borrar GB tarda minutos en silencio. */
+  function borrar() {
     if (filasElegidas.length === 0) return;
     if (!armado) {
       setArmado(true);
@@ -226,16 +238,47 @@ export function PanelPc() {
     const sel: SeleccionPc[] = filasElegidas.map((f) =>
       f.fase === 'area' ? { fase: f.fase, clave: f.clave, ruta: f.ruta } : { fase: f.fase, clave: f.clave },
     );
-    setTrabajo('limpiando');
+    setLimpieza(null);
+    setArmado(false);
     setError(null);
-    try {
-      setLimpieza(await limpiarPc(sel));
+    setProgreso('arrancando el borrado…');
+    conectarLimpieza(sel);
+  }
+
+  /* Conecta el SSE al borrado del server (nuevo o adjuntado a uno en
+   * curso tras recargar). Devuelve el cierre. */
+  function conectarLimpieza(sel: SeleccionPc[] | null) {
+    cerrarRef.current?.();
+    setTrabajo('limpiando');
+    cerrarRef.current = limpiarPcStream(sel, alEventoLimpieza, (mensaje) => {
+      setError(mensaje);
+      setProgreso(null);
+      setTrabajo('idle');
+    });
+  }
+
+  function alEventoLimpieza(ev: EventoLimpieza) {
+    if (ev.tipo === 'inicio') {
+      setProgreso(`borrando 0/${ev.total}…`);
+    } else if (ev.tipo === 'fase') {
+      setProgreso(`borrando ${ev.etiqueta}… (${ev.actual}/${ev.total})`);
+    } else if (ev.tipo === 'fila') {
+      /* En vivo qué se acaba de borrar (o por qué falló esa fila). */
+      const donde = ev.ruta !== '' ? rutaCorta(ev.ruta) : ev.clave;
+      setProgreso(`borrado ${donde} · ${ev.estado}`);
+      const accion: AccionPc = { fase: ev.fase, clave: ev.clave, gb: ev.gb, estado: ev.estado, detalle: ev.detalle };
+      setLimpieza((prev) => ({
+        acciones: [...(prev?.acciones ?? []), accion],
+        liberadosGb: (prev?.liberadosGb ?? 0) + (ELIMINADA.has(ev.estado) ? ev.gb : 0),
+      }));
+    } else if (ev.tipo === 'fin') {
+      setProgreso(null);
+      setTrabajo('idle');
       setSeleccion([]);
-      setArmado(false);
-      await cargarEstado();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'falló el borrado');
-    } finally {
+      void cargarEstado();
+    } else {
+      setError(`falló ${ev.etiqueta || 'el borrado'}: ${ev.detalle}`);
+      setProgreso(null);
       setTrabajo('idle');
     }
   }
