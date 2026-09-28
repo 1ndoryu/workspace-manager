@@ -1,0 +1,135 @@
+/* Panel central PC: análisis y limpieza del limpiador-pc.
+ * [por que] Identidad v2 estricta: solo tokens --v2-*, sin radios, sin
+ * sombras, sin bold. Misma estructura cabecera/contenido que repos y docs. */
+.panelPc {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+}
+
+.panelPcCabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+    flex: none;
+}
+
+.panelPcMeta {
+    font-size: var(--v2-textXs);
+    margin-left: auto;
+}
+
+.panelPcCabecera .panelPcMeta {
+    margin-left: 0;
+}
+
+.panelPcFases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--v2-spaceXs);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    flex: none;
+}
+
+.panelPcContenido {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--v2-spaceMd);
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceSm);
+}
+
+.panelPcDescripcion {
+    font-size: var(--v2-textXs);
+}
+
+.panelPcAcciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--v2-spaceXs);
+}
+
+/* Error con borde doble: los estados se diferencian por patrón, no por
+ * color (regla monocromo del v2). */
+.panelPcError {
+    font-size: var(--v2-textSm);
+    border: 3px double var(--v2-borde);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+.panelPcVacio {
+    font-size: var(--v2-textSm);
+    padding: var(--v2-spaceMd);
+    text-align: center;
+}
+
+.panelPcLista {
+    list-style: none;
+    border: 1px solid var(--v2-borde);
+}
+
+.panelPcFila {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+}
+
+.panelPcFila:last-child {
+    border-bottom: none;
+}
+
+.panelPcCheck {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    cursor: pointer;
+}
+
+.panelPcClave {
+    flex: none;
+}
+
+.panelPcGb {
+    margin-left: auto;
+    font-size: var(--v2-textXs);
+    white-space: nowrap;
+}
+
+.panelPcRuta {
+    font-size: var(--v2-textXs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.panelPcEstado {
+    flex: none;
+    border: 1px solid var(--v2-borde);
+    padding: 0 var(--v2-spaceXs);
+    font-size: var(--v2-textXs);
+}
+
+.panelPcResultado {
+    border: 1px solid var(--v2-borde);
+}
+
+.panelPcResultadoCabecera {
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+}
+
+.panelPcResultado .panelPcLista {
+    border: none;
+}
