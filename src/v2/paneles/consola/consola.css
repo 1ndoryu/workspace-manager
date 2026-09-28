@@ -24,19 +24,14 @@
     font-size: var(--v2-textSm);
 }
 
-.panelConsolaFiltro {
-    background: var(--v2-fondo);
-    color: var(--v2-texto);
-    border: 1px solid var(--v2-borde);
-    font-family: inherit;
-    font-size: var(--v2-textXs);
-    padding: 2px var(--v2-spaceSm);
-    cursor: pointer;
-}
-
-.panelConsolaFiltro--activo {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
+/* El desplegable abre pegado al borde derecho del trigger: el trigger
+ * vive al borde derecho de la cabecera y la lista (min-width 100%) se
+ * saldria de la pantalla hacia la derecha. [por que] Colocacion
+ * contextual del panel; el componente Selector sigue abriendo a la
+ * izquierda por defecto. */
+.panelConsolaCabecera .v2SelectorLista {
+    left: auto;
+    right: 0;
 }
 
 .panelConsolaContenido {
@@ -78,32 +73,6 @@
 .consolaFila--seleccionada {
     background: var(--v2-texto);
     color: var(--v2-invertido);
-}
-
-.consolaFilaNombre {
-    flex: none;
-    max-width: 200px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.consolaFilaBadge {
-    flex: none;
-    border: 1px solid currentColor;
-    padding: 0 4px;
-}
-
-/* Badge de severidad de la categoria 'config' (monocromo, sin hover).
- * error -> relleno de la tinta; advertencia -> borde hueco punteado. [por que]
- * La UI es monocroma; la severidad se distingue por forma/relleno, no color. */
-.consolaFilaBadge--error {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
-.consolaFilaBadge--warn {
-    border-style: dashed;
 }
 
 .consolaMotivo--error {

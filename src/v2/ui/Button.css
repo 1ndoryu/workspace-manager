@@ -157,20 +157,33 @@
     cursor: pointer;
 }
 
-/* Selector desplegable (ui/Selector): trigger y opciones. [por que]
- * css-especificacion-diseno-local prohibe especificacion visual en el CSS
- * contextual del Selector; Button.css es el unico lugar permitido para
- * estilos de boton, como el resto de compuestos de este archivo. */
+/* Selector desplegable (ui/Selector): trigger y opciones con el diseno
+ * del menu contextual (misma letra textSm, items sin borde a la izquierda,
+ * lista con superficie propia). [por que] font-size llevaba var(--v2-font),
+ * que es una FAMILIA, no un tamano: la declaracion se descartaba y heredaba
+ * un tamano grande. css-especificacion-diseno-local prohibe especificacion
+ * visual en el CSS contextual del Selector; Button.css es el unico lugar
+ * permitido para estilos de boton, como el resto de compuestos. */
 .botonV2.v2SelectorTrigger {
     font-family: inherit;
-    font-size: var(--v2-font);
+    font-size: var(--v2-textSm);
     padding: 3px 6px;
-    border-radius: var(--v2-radioChico);
+    border-radius: 0;
 }
 .botonV2.v2SelectorOpcion {
     justify-content: flex-start;
+    text-align: left;
     font-family: inherit;
-    font-size: var(--v2-font);
-    padding: 3px 8px;
-    border-radius: var(--v2-radioChico);
+    font-size: var(--v2-textSm);
+    padding: 5px 10px;
+    border: none;
+    border-radius: 0;
+    background: none;
+}
+/* [por que] Sin esto el resaltado de teclado seria invisible: el compuesto
+ * de opcion (0,2,0) va despues en el archivo y empataria en especificidad
+ * con .botonV2--activo, ganando su `background: none`. */
+.botonV2.v2SelectorOpcion.botonV2--activo {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
 }
