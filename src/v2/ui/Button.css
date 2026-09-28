@@ -157,19 +157,20 @@
     cursor: pointer;
 }
 
-/* Selector desplegable (ui/Selector): trigger y opciones con el diseno
- * del menu contextual (misma letra textSm, items sin borde a la izquierda,
- * lista con superficie propia). [por que] font-size llevaba var(--v2-font),
+/* Selector desplegable (ui/Selector): trigger con medidas del nav y
+ * opciones con el diseno del menu contextual (misma letra textSm, items
+ * sin borde a la izquierda, lista con superficie propia). [por que] font-size llevaba var(--v2-font),
  * que es una FAMILIA, no un tamano: la declaracion se descartaba y heredaba
  * un tamano grande. css-especificacion-diseno-local prohibe especificacion
  * visual en el CSS contextual del Selector; Button.css es el unico lugar
  * permitido para estilos de boton, como el resto de compuestos. */
 .botonV2.v2SelectorTrigger {
     font-family: inherit;
-    font-size: var(--v2-textSm);
-    /* [por que] Mismo padding que .menuContextualItem: el trigger es la
-     * puerta del desplegable y debe medir igual que sus opciones. */
-    padding: 5px 10px;
+    /* [por que] El trigger mide como un boton del nav (base .botonV2):
+     * textXs y el mismo padding; las opciones de la lista siguen el
+     * diseno del menu contextual. */
+    font-size: var(--v2-textXs);
+    padding: 4px var(--v2-spaceSm);
     border-radius: 0;
 }
 .botonV2.v2SelectorOpcion {
