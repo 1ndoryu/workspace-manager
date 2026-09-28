@@ -73,18 +73,16 @@ export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
     <>
       <header className="panelDocsVisorCabecera">
         <span className="panelDocsVisorTitulo">gate centralizado</span>
+        <Button
+          pequeno
+          className="excBoton"
+          onClick={() => void cargarSincronizacion()}
+        >
+          verificar alineación
+        </Button>
       </header>
       <section className="syncVista" aria-label="Centralización del gate">
-        <div className="syncTitulo" style={{ padding: '0 var(--v2-spaceMd)' }}>
-          ¿todos los proyectos usan el mismo sentinel/varsense?
-        </div>
         <div className="scanCfgAcciones">
-          <Button
-            className="excBoton"
-            onClick={() => void cargarSincronizacion()}
-          >
-            verificar alineación
-          </Button>
           <span className="scanCfgMeta">
             {sincronizacion
               ? `${sincronizacion.consumidores.length} consumidores · ${sincronizacion.problemas} desync`
