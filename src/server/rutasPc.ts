@@ -86,7 +86,10 @@ export async function manejarRutasPc(
     try {
       json(res, 200, await limpiarPc(body.seleccion));
     } catch (err) {
-      json(res, 500, { error: 'Falló la limpieza', detalle: String(err) });
+      const detalle = String(err);
+      /* 409 si hay un análisis en curso (reintentable); 500 para lo demás.
+       * El detalle viaja siempre para que la UI muestre la causa real. */
+      json(res, detalle.includes('análisis en curso') ? 409 : 500, { error: 'Falló la limpieza', detalle });
     }
     return true;
   }
