@@ -52,7 +52,8 @@ function uiGuardada(): { panelCentral: PanelCentral; visibles: VisibilidadPanele
       d.panelCentral === 'docs' ||
       d.panelCentral === 'repos' ||
       d.panelCentral === 'navegador' ||
-      d.panelCentral === 'config'
+      d.panelCentral === 'config' ||
+      d.panelCentral === 'pc'
         ? d.panelCentral
         : 'mapa';
     const visibles: VisibilidadPaneles = { ...UI_DEFECTO.visibles, ...(d.visibles ?? {}) };

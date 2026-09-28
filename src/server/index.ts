@@ -10,6 +10,7 @@ import { manejarRutasGate } from './rutasGate.js';
 import { manejarRutasConfig } from './rutasConfig.js';
 import { manejarRutasDocumentos } from './rutasDocumentos.js';
 import { manejarRutasArchivos } from './rutasArchivos.js';
+import { manejarRutasPc } from './rutasPc.js';
 import { logger } from '../shared/logger.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
@@ -134,6 +135,10 @@ export function crearServidor() {
         /* Rutas del navegador de archivos (/api/archivos*): viven en
          * rutasArchivos.ts. */
         if (await manejarRutasArchivos(req, res, url, ruta)) {
+          return;
+        }
+        /* Rutas de la tab PC (/api/pc/*): viven en rutasPc.ts. */
+        if (await manejarRutasPc(req, res, url, ruta)) {
           return;
         }
         json(res, 404, { error: 'Ruta no encontrada', ruta });
