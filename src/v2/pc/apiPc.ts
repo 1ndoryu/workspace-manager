@@ -108,11 +108,20 @@ export function escanearPcTodo(
 }
 
 export async function limpiarPc(seleccion: SeleccionPc[]): Promise<ResultadoLimpieza> {
-  const { data } = await axios.post<ResultadoLimpieza>('/api/pc/limpiar', {
-    seleccion,
-    confirmacion: 'BORRAR',
-  });
-  return data;
+  /* [por que] Antes el error de axios llegaba pelado a la UI ("Request
+   * failed with status code 500") y ocultaba el detalle que el server sí
+   * devuelve (qué validación falló, si hay análisis en curso, etc.). */
+  try {
+    const { data } = await axios.post<ResultadoLimpieza>('/api/pc/limpiar', {
+      seleccion,
+      confirmacion: 'BORRAR',
+    });
+    return data;
+  } catch (err) {
+    const detalle = (err as { response?: { data?: { detalle?: unknown; error?: unknown } } })?.response?.data
+      ?.detalle;
+    throw new Error(typeof detalle === 'string' && detalle.length > 0 ? detalle : 'falló el borrado (500)');
+  }
 }
 
 export async function reconstruirPc(): Promise<EstadoPc> {

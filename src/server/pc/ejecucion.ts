@@ -11,7 +11,7 @@
  * input libre). */
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RAIZ_AREA } from '../http.js';
 import { asegurarBinario, estadoBinario } from './binario.js';
@@ -145,6 +145,17 @@ function rutaMeta(): string {
  * --reporte, así que se guarda aparte del reporte unido de la UI. */
 function rutaCrudo(fase: FasePc): string {
   return join(dirPc(), `crudo-${fase}.json`);
+}
+
+/* Escritura atómica (tmp + rename): un lector concurrente (p. ej. validar
+ * la selección de un borrado mientras el análisis reescribe los crudos)
+ * nunca ve un JSON truncado a medias.
+ * [por que] writeFileSync directo dejaba una ventana donde leerReporte o
+ * rutasVistasEnCrudo parseaban medio fichero y el borrado fallaba con 500. */
+function escribirAtomico(ruta: string, contenido: string): void {
+  const tmp = `${ruta}.tmp`;
+  writeFileSync(tmp, contenido);
+  renameSync(tmp, ruta);
 }
 
 /* Normaliza el JSON crudo de una fase al shape comun del panel. */
@@ -352,7 +363,7 @@ async function cuerpoScan(): Promise<void> {
         } catch {
           throw new Error('el limpiador no devolvió JSON válido');
         }
-        writeFileSync(rutaCrudo(fase), JSON.stringify(crudo));
+        escribirAtomico(rutaCrudo(fase), JSON.stringify(crudo));
         const { entradas, totalBytes } = normalizar(fase, crudo);
         todas.push(...entradas);
         const ev: Extract<EventoScan, { tipo: 'fase' }> = { tipo: 'fase', fase, etiqueta: meta.etiqueta, entradas, totalBytes };
@@ -365,8 +376,8 @@ async function cuerpoScan(): Promise<void> {
     const totalBytes = todas.reduce((a, e) => a + e.bytes, 0);
     const medidoEn = new Date().toISOString();
     const reporte: ReportePc = { entradas: todas, totalBytes, medidoEn, versionBinario: version };
-    writeFileSync(rutaReporte(), JSON.stringify(reporte));
-    writeFileSync(
+    escribirAtomico(rutaReporte(), JSON.stringify(reporte));
+    escribirAtomico(
       rutaMeta(),
       JSON.stringify({ medidoEn, versionBinario: version, totalBytes, n: todas.length }),
     );
@@ -454,6 +465,11 @@ function validarSeleccion(sel: unknown): SeleccionPc[] {
  * *-clean por fase con sus filtros. Al terminar poda del reporte unido las
  * entradas borradas para que la tab refleje lo que queda sin re-escanear. */
 export async function limpiarPc(seleccionRaw: unknown): Promise<ResultadoLimpieza> {
+  /* Exclusión con el análisis: mientras el scan reescribe crudos y reporte,
+   * validar o podar contra esos ficheros mezcla parejas inconsistentes
+   * (reporte viejo + crudo nuevo) y el borrado falla o actúa sobre datos
+   * que la UI ya no muestra. El 409 de la ruta lo explica al usuario. */
+  if (trabajo) throw new Error('hay un análisis en curso: espera a que termine y reintenta el borrado');
   const seleccion = validarSeleccion(seleccionRaw);
   if (!existsSync(rutaReporte())) throw new Error('sin análisis previo: analiza primero');
   const { bin } = await asegurarBinario();
@@ -506,8 +522,8 @@ export async function limpiarPc(seleccionRaw: unknown): Promise<ResultadoLimpiez
       (e) => !borradas.has(e.fase === 'area' ? `area::${e.ruta}` : `${e.fase}::${e.clave}`),
     );
     const totalBytes = entradas.reduce((a, e) => a + e.bytes, 0);
-    writeFileSync(rutaReporte(), JSON.stringify({ ...previas, entradas, totalBytes }));
-    writeFileSync(
+    escribirAtomico(rutaReporte(), JSON.stringify({ ...previas, entradas, totalBytes }));
+    escribirAtomico(
       rutaMeta(),
       JSON.stringify({ medidoEn: previas.medidoEn, versionBinario: previas.versionBinario, totalBytes, n: entradas.length }),
     );
