@@ -2,8 +2,8 @@
  * [por que] El usuario pidió una sola cosa: un botón analiza todo, el
  * progreso muestra lo que va apareciendo en tiempo real (SSE por fase) y el
  * resultado persiste en el server (rehidrata al recargar, sin simulación).
- * La selección es por entrada suelta dentro de grupos plegables (el área
- * agrupa por tipo; el resto, un grupo por origen) porque aparecen decenas
+ * La selección es por entrada suelta dentro de grupos plegables (área y
+ * tmp agrupan por tipo; el resto, un grupo por origen) porque aparecen decenas
  * de cosas. El borrado dice en su etiqueta qué y cuánto borra y sigue con
  * doble clic (armar + confirmar); el server exige además la palabra BORRAR. */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -33,9 +33,10 @@ const TITULO_FASE: Record<EntradaPc['fase'], string> = {
   extern: 'herramientas externas',
   vscode: 'VS Code',
   chrome: 'Chrome',
+  tmp: 'temporales del sistema',
 };
 
-const ORDEN_FASE: EntradaPc['fase'][] = ['area', 'caches', 'extern', 'vscode', 'chrome'];
+const ORDEN_FASE: EntradaPc['fase'][] = ['area', 'caches', 'extern', 'vscode', 'chrome', 'tmp'];
 
 /* Estados que liberan espacio (el resto —fallo, rechazada— no suma al
  * total en vivo aunque aparezca en la lista). */
@@ -62,27 +63,31 @@ function rutaCorta(ruta: string): string {
   return ruta.startsWith('\\\\?\\') ? ruta.slice(4) : ruta;
 }
 
-/* Grupos ordenados: el área por tipo (de mayor a menor peso), el resto un
- * grupo por origen en orden de fase. El id de fila del área es su ruta
- * suelta (el filtro `--solo-ruta`); en el resto, fase+clave. */
+/* Grupos ordenados: área y tmp por tipo (de mayor a menor peso), el resto
+ * un grupo por origen en orden de fase. El id de fila de área y tmp es su
+ * ruta suelta (el filtro `--solo-ruta`); en el resto, fase+clave. */
 function aGrupos(entradas: EntradaPc[]): Grupo[] {
   const grupos: Grupo[] = [];
-  const porTipo = new Map<string, Fila[]>();
+  const porTipo = new Map<string, { fase: EntradaPc['fase']; tipo: string; filas: Fila[] }>();
   for (const e of entradas) {
-    if (e.fase !== 'area') continue;
-    const lista = porTipo.get(e.clave) ?? [];
-    lista.push({ id: `area::${e.ruta}`, fase: e.fase, clave: e.clave, ruta: e.ruta, bytes: e.bytes, detalle: e.detalle });
-    porTipo.set(e.clave, lista);
+    if (e.fase !== 'area' && e.fase !== 'tmp') continue;
+    const k = `${e.fase}::${e.clave}`;
+    let g = porTipo.get(k);
+    if (!g) {
+      g = { fase: e.fase, tipo: e.clave, filas: [] };
+      porTipo.set(k, g);
+    }
+    g.filas.push({ id: `${e.fase}::${e.ruta}`, fase: e.fase, clave: e.clave, ruta: e.ruta, bytes: e.bytes, detalle: e.detalle });
   }
-  const tipos = [...porTipo.entries()].sort(
-    (a, b) => b[1].reduce((x, f) => x + f.bytes, 0) - a[1].reduce((x, f) => x + f.bytes, 0),
+  const tipos = [...porTipo.values()].sort(
+    (a, b) => b.filas.reduce((x, f) => x + f.bytes, 0) - a.filas.reduce((x, f) => x + f.bytes, 0),
   );
-  for (const [tipo, filas] of tipos) {
-    filas.sort((a, b) => b.bytes - a.bytes);
-    grupos.push({ id: `area::${tipo}`, titulo: tipo, filas, bytes: filas.reduce((x, f) => x + f.bytes, 0) });
+  for (const g of tipos) {
+    g.filas.sort((a, b) => b.bytes - a.bytes);
+    grupos.push({ id: `${g.fase}::${g.tipo}`, titulo: g.tipo, filas: g.filas, bytes: g.filas.reduce((x, f) => x + f.bytes, 0) });
   }
   for (const fase of ORDEN_FASE) {
-    if (fase === 'area') continue;
+    if (fase === 'area' || fase === 'tmp') continue;
     const filas = entradas
       .filter((e) => e.fase === fase)
       .sort((a, b) => b.bytes - a.bytes)
@@ -237,7 +242,7 @@ export function PanelPc() {
       return;
     }
     const sel: SeleccionPc[] = filasElegidas.map((f) =>
-      f.fase === 'area' ? { fase: f.fase, clave: f.clave, ruta: f.ruta } : { fase: f.fase, clave: f.clave },
+      f.fase === 'area' || f.fase === 'tmp' ? { fase: f.fase, clave: f.clave, ruta: f.ruta } : { fase: f.fase, clave: f.clave },
     );
     setLimpieza(null);
     setArmado(false);

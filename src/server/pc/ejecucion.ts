@@ -1,6 +1,6 @@
 /* Ejecucion de limpiador-pc: un solo analisis global con progreso en vivo.
  * [por que] La tab PC es una sola cosa (un boton analiza todo): el server
- * recorre las 5 fases en serie y emite cada resultado parcial para que la UI
+ * recorre las 6 fases en serie y emite cada resultado parcial para que la UI
  * muestre lo encontrado en tiempo real (incluido que carpeta se esta
  * midiendo: el binario avisa por stderr desde 0.3.0). El reporte unido se
  * persiste en data/pc/ (gitignored): rehidrata la tab al recargar y es la
@@ -18,7 +18,7 @@ import { asegurarBinario, estadoBinario } from './binario.js';
 
 const execFileAsync = promisify(execFile);
 
-export type FasePc = 'area' | 'caches' | 'extern' | 'vscode' | 'chrome';
+export type FasePc = 'area' | 'caches' | 'extern' | 'vscode' | 'chrome' | 'tmp';
 
 export const FASES_PC: Record<
   FasePc,
@@ -59,12 +59,27 @@ export const FASES_PC: Record<
     descripcion: 'caches de Chrome, nunca toca logins',
     filtro: 'solo',
   },
+  tmp: {
+    scan: 'tmp-scan',
+    clean: 'tmp-clean',
+    etiqueta: 'temporales del sistema',
+    descripcion: 'C:\\tmp y %TEMP%: targets quietos y sueltos viejos',
+    filtro: 'solo_tipo',
+  },
 };
 
-export const ORDEN_FASES_PC: FasePc[] = ['area', 'caches', 'extern', 'vscode', 'chrome'];
+export const ORDEN_FASES_PC: FasePc[] = ['area', 'caches', 'extern', 'vscode', 'chrome', 'tmp'];
 
 export function esFasePc(f: unknown): f is FasePc {
   return typeof f === 'string' && (Object.keys(FASES_PC) as string[]).includes(f);
+}
+
+/* Fases con selección por ruta suelta (`--solo-ruta`, validada contra su
+ * crudo): el área y tmp. El resto filtra por clave (`--solo`).
+ * [por que] tmp trae rutas heterogéneas (targets por rama, sueltos, TEMP)
+ * que solo tienen sentido elegidas una a una, igual que el área. */
+export function esPorRuta(fase: FasePc): boolean {
+  return fase === 'area' || fase === 'tmp';
 }
 
 export interface EntradaPc {
@@ -163,7 +178,7 @@ function normalizar(fase: FasePc, crudo: unknown): { entradas: EntradaPc[]; tota
   const obj = (crudo ?? {}) as { entradas?: unknown; total_bytes?: unknown };
   const lista = Array.isArray(obj.entradas) ? (obj.entradas as Record<string, unknown>[]) : [];
   const entradas: EntradaPc[] = lista.map((e) => {
-    if (fase === 'area') {
+    if (esPorRuta(fase)) {
       return {
         fase,
         clave: String(e.tipo ?? '?'),
@@ -441,10 +456,10 @@ export function leerReporte(): ReportePc | null {
   }
 }
 
-/* Selección del cliente: en el área se eligen rutas sueltas (el CLI trae
- * `--solo-ruta` desde 0.2.0); en el resto, claves por objetivo. La ruta del
- * área se valida contra las vistas en su reporte: solo se puede pedir lo
- * que el análisis encontró, nada arbitrario. */
+/* Selección del cliente: en el área y tmp se eligen rutas sueltas (el CLI trae
+ * `--solo-ruta`); en el resto, claves por objetivo. La ruta se valida contra
+ * las vistas en su reporte: solo se puede pedir lo que el análisis encontró,
+ * nada arbitrario. */
 export interface SeleccionPc {
   fase: FasePc;
   clave: string;
@@ -467,14 +482,17 @@ function validarSeleccion(sel: unknown): SeleccionPc[] {
   if (!Array.isArray(sel) || sel.length === 0 || sel.length > 200) {
     throw new Error('selección vacía o excesiva (máx 200)');
   }
-  const vistasArea = rutasVistasEnCrudo('area');
+  const vistasPorRuta = new Map<FasePc, Set<string>>([
+    ['area', rutasVistasEnCrudo('area')],
+    ['tmp', rutasVistasEnCrudo('tmp')],
+  ]);
   return sel.map((s) => {
     const o = (s ?? {}) as { fase?: unknown; clave?: unknown; ruta?: unknown };
     if (!esFasePc(o.fase)) throw new Error('fase inválida en la selección');
-    if (o.fase === 'area') {
-      /* Ruta suelta: debe ser una de las vistas en el reporte del área. */
-      if (typeof o.ruta !== 'string' || !vistasArea.has(o.ruta)) {
-        throw new Error('ruta no vista en el análisis del área');
+    if (esPorRuta(o.fase)) {
+      /* Ruta suelta: debe ser una de las vistas en el reporte de su fase. */
+      if (typeof o.ruta !== 'string' || !vistasPorRuta.get(o.fase)?.has(o.ruta)) {
+        throw new Error('ruta no vista en el análisis de su fase');
       }
       return { fase: o.fase, clave: typeof o.clave === 'string' ? o.clave : '', ruta: o.ruta };
     }
@@ -505,7 +523,7 @@ export async function limpiarPc(seleccionRaw: unknown): Promise<ResultadoLimpiez
     const solo = porFase.get(fase);
     if (!solo || solo.length === 0) continue;
     const meta = FASES_PC[fase];
-    const flag = fase === 'area' ? '--solo-ruta' : '--solo';
+    const flag = esPorRuta(fase) ? '--solo-ruta' : '--solo';
     const args = [meta.clean, '--reporte', rutaCrudo(fase), '--json', '--ejecutar'];
     for (const s of solo) args.push(flag, s);
     /* Sigue con las demás fases aunque esta quede parcial: cada fila trae
@@ -553,8 +571,8 @@ function parsearSalidaLimpieza(fase: FasePc, salida: string): { filas: FilaLimpi
 function agruparSeleccion(seleccion: SeleccionPc[]): Map<FasePc, string[]> {
   const porFase = new Map<FasePc, string[]>();
   for (const s of seleccion) {
-    /* En el área el filtro es la ruta suelta; en el resto, la clave. */
-    const valor = s.fase === 'area' ? (s.ruta ?? '') : s.clave;
+    /* En área y tmp el filtro es la ruta suelta; en el resto, la clave. */
+    const valor = esPorRuta(s.fase) ? (s.ruta ?? '') : s.clave;
     const lista = porFase.get(s.fase) ?? [];
     if (valor !== '' && !lista.includes(valor)) lista.push(valor);
     porFase.set(s.fase, lista);
@@ -563,7 +581,7 @@ function agruparSeleccion(seleccion: SeleccionPc[]): Map<FasePc, string[]> {
 }
 
 /* Poda del reporte unido: solo retira lo realmente eliminado (estados
- * «borrada» en area, «vaciada» en caches/vscode/chrome, «limpiada» en
+ * «borrada» en area y tmp, «vaciada» en caches/vscode/chrome, «limpiada» en
  * extern), nunca lo seleccionado a ciegas.
  * [por que] Con éxito parcial, podar la selección entera hacía
  * desaparecer de la tab entradas que siguen en disco. */
@@ -574,7 +592,7 @@ function podarReporte(acciones: AccionPc[]): void {
     acciones.filter((a) => ELIMINADA_LIMPIEZA.has(a.estado)).map((a) => `${a.fase}::${a.clave}`),
   );
   const entradas = previas.entradas.filter(
-    (e) => !borradas.has(e.fase === 'area' ? `area::${e.ruta}` : `${e.fase}::${e.clave}`),
+    (e) => !borradas.has(esPorRuta(e.fase) ? `${e.fase}::${e.ruta}` : `${e.fase}::${e.clave}`),
   );
   const totalBytes = entradas.reduce((a, e) => a + e.bytes, 0);
   escribirAtomico(rutaReporte(), JSON.stringify({ ...previas, entradas, totalBytes }));
@@ -698,9 +716,9 @@ async function cuerpoLimpieza(seleccion: SeleccionPc[]): Promise<void> {
   }
 }
 
-/* Una fase del borrado: el área va ruta a ruta para emitir cada
- * node_modules al completarse; el resto va en una sola llamada con sus
- * claves y se emiten sus filas al terminar. */
+/* Una fase del borrado: área y tmp van ruta a ruta para emitir cada
+ * objetivo al completarse (un target tarda minutos); el resto va en una
+ * sola llamada con sus claves y se emiten sus filas al terminar. */
 async function ejecutarFaseLimpieza(
   bin: string,
   fase: FasePc,
@@ -710,8 +728,8 @@ async function ejecutarFaseLimpieza(
   const meta = FASES_PC[fase];
   const crudo = rutaCrudo(fase);
   if (!existsSync(crudo)) throw new Error(`sin análisis previo de ${meta.etiqueta}: analiza primero`);
-  const flag = fase === 'area' ? '--solo-ruta' : '--solo';
-  const lotes = fase === 'area' ? valores.map((v) => [v]) : [valores];
+  const flag = esPorRuta(fase) ? '--solo-ruta' : '--solo';
+  const lotes = esPorRuta(fase) ? valores.map((v) => [v]) : [valores];
   let liberados = 0;
   for (const lote of lotes) {
     const args = [meta.clean, '--reporte', crudo, '--json', '--ejecutar'];
