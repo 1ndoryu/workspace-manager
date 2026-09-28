@@ -1,20 +1,73 @@
-/* Vista 'gate' del PanelConfig: estado del checkout compartido del runtime
- * (plan 308A-1 F7) + alineacion pin/runtime/publicado por consumidor y vigencia
- * upstream (219A-1, script 308A-7V19 cableado). [por que] F7 solo valida
- * consistencia interna (manifest<>checkout); la vigencia (pin<>binario real y
- * checkout<>upstream) la mide V19 y el panel la muestra con el mismo boton
- * 'verificar'. Reusa la validacion del server por GET, no duplica logica.
- * Salio de PanelConfig.tsx para el limite-lineas (300): recibe `datos`. */
+/* Vista 'gate' del PanelConfig: veredicto + cadena por herramienta + chips.
+ * [por que] Rediseno compacto: antes eran 3 bloques de filas tecnicas con
+ * hashes y estados escondidos en tooltips. Ahora se responde "todo bien?"
+ * con un banner, cada herramienta muestra su cadena (checkout -> pin ->
+ * runtime) resumida en una linea, y cada proyecto es un chip verde/rojo: el
+ * detalle (hashes, motivo) solo se abre al clicar un rojo. */
+import { useState } from 'react';
 import { Button } from '../../ui/Button.js';
 import type { DatosPanelConfig } from './usePanelConfig.js';
+import type { ReporteSincronizacion } from '../../../server/gate/sincronizacion.js';
 
 /* Acorta un hash para display, igual que corto() de los scripts. */
 function corto(h: string | null): string {
   return h ? h.slice(0, 9) : '--';
 }
 
+type Tool = 'sentinel' | 'varsense';
+const TOOLS: Tool[] = ['sentinel', 'varsense'];
+
+interface Punto {
+  proyecto: string;
+  ok: boolean;
+  sinDatos: boolean;
+  detalle: string;
+}
+
+/* Un punto por proyecto+herramienta: cruza F7 (manifest<>checkout) con la
+ * fila de alineacion (pin<>runtime<>publicado). Solo es rojo si hay un
+ * problema concreto; sin datos de esa herramienta queda neutro. */
+function puntosDe(rep: ReporteSincronizacion, tool: Tool): Punto[] {
+  const nombres = new Set<string>();
+  for (const c of rep.consumidores) nombres.add(c.nombre);
+  for (const f of rep.alineacion?.filas ?? []) {
+    if ((f.tool ?? f.herramienta) === tool) nombres.add(f.proyecto);
+  }
+  return [...nombres].sort().map((proyecto) => {
+    const cons = rep.consumidores.find((c) => c.nombre === proyecto);
+    const f7 = cons?.[tool];
+    const fila = rep.alineacion?.filas.find(
+      (f) => f.proyecto === proyecto && (f.tool ?? f.herramienta) === tool,
+    );
+    const prob: string[] = [];
+    if (fila && fila.estado !== 'ALINEADO' && fila.estado !== 'SIN-PROVISION') {
+      prob.push(...(fila.problemas?.length ? fila.problemas : [fila.estado]));
+    }
+    if (f7 && f7.estado !== 'ok') prob.push(f7.detalle);
+    if (!f7 && !fila && cons && cons.estado !== 'ok') prob.push(cons.detalle ?? cons.estado);
+    const partes: string[] = [];
+    if (fila) {
+      partes.push(`pin ${corto(fila.pin)} → runtime ${corto(fila.runtime)}`);
+      if (fila.publicado === false) partes.push('NO publicado');
+    }
+    return {
+      proyecto,
+      ok: prob.length === 0,
+      sinDatos: !f7 && !fila,
+      detalle: [...partes, ...prob].filter(Boolean).join(' · ') || 'sin datos de esta herramienta',
+    };
+  });
+}
+
 export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
   const { sincronizacion, errorSincronizacion, cargarSincronizacion } = datos;
+  /* Un solo detalle abierto (clave herramienta:proyecto); el contenido se
+   * calcula del reporte actual, asi que nunca queda rancio al re-verificar. */
+  const [abierto, setAbierto] = useState<string | null>(null);
+
+  const rojos = sincronizacion
+    ? TOOLS.flatMap((t) => puntosDe(sincronizacion, t)).filter((p) => !p.ok && !p.sinDatos)
+    : [];
 
   return (
     <>
@@ -22,6 +75,9 @@ export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
         <span className="panelDocsVisorTitulo">gate centralizado</span>
       </header>
       <section className="syncVista" aria-label="Centralización del gate">
+        <div className="syncTitulo" style={{ padding: '0 var(--v2-spaceMd)' }}>
+          ¿todos los proyectos usan el mismo sentinel/varsense?
+        </div>
         <div className="scanCfgAcciones">
           <Button
             className="excBoton"
@@ -37,92 +93,74 @@ export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
         </div>
         {sincronizacion && (
           <div className="syncLista">
-            {(sincronizacion.checkout_sentinel || sincronizacion.checkout_varsense) && (
-              <div className="syncCheckout">
-                <span className="syncTitulo">checkout compartido {sincronizacion.checkout}</span>
-                {sincronizacion.checkout_sentinel && (
-                  <span className="syncMeta">
-                    sentinel@{sincronizacion.checkout_sentinel.head ?? 'no-provisto'}
-                    {sincronizacion.checkout_sentinel.sucio ? ` (sucio ${sincronizacion.checkout_sentinel.sucio})` : ''}
-                  </span>
-                )}
-                {sincronizacion.checkout_varsense && (
-                  <span className="syncMeta">
-                    varsense@{sincronizacion.checkout_varsense.head ?? 'no-provisto'}
-                    {sincronizacion.checkout_varsense.sucio ? ` (sucio ${sincronizacion.checkout_varsense.sucio})` : ''}
-                  </span>
-                )}
-              </div>
-            )}
-            {sincronizacion.consumidores.map((c) => (
-              <div key={c.nombre} className="syncFila">
-                <span
-                  className={`syncBadge syncBadge--${c.estado === 'ok' ? 'ok' : 'warn'}`}
-                  title={c.detalle || c.problemas?.join('; ') || c.estado}
-                >
-                  {c.estado === 'ok' ? '✓' : c.estado}
-                </span>
-                <span className="syncNombre">{c.nombre}</span>
-                {c.sentinel && (
-                  <span className={`syncMeta syncMeta--${c.sentinel.estado === 'ok' ? 'ok' : 'warn'}`}>
-                    sentinel={c.sentinel.estado}
-                  </span>
-                )}
-                {c.varsense && (
-                  <span className={`syncMeta syncMeta--${c.varsense.estado === 'ok' ? 'ok' : 'warn'}`}>
-                    varsense={c.varsense.estado}
-                  </span>
-                )}
-              </div>
-            ))}
-            {/* Alineacion pin/runtime/publicado + vigencia upstream (219A-1).
-             * [por que] Mismas clases sync* del bloque F7: sin CSS nuevo. Solo
-             * filas con tool (las notas '(sin quality-tools.json)' ya las cubre
-             * el bloque F7 de arriba). */}
-            {sincronizacion.alineacion && (
-              <div className="syncCheckout">
-                <span className="syncTitulo">
-                  alineación pin/runtime{' '}
-                  {sincronizacion.alineacion.ok
-                    ? '✓'
-                    : `${sincronizacion.alineacion.desalineados}/${sincronizacion.alineacion.total} desalineado`}
-                </span>
-                {sincronizacion.alineacion.remotos
-                  .filter((r) => r.desactualizado === true)
-                  .map((r) => (
+            <div className="syncVeredicto">
+              <span className={`syncBadge syncBadge--${rojos.length === 0 ? 'ok' : 'warn'}`}>
+                {rojos.length === 0 ? '✓' : '!'}
+              </span>
+              <span className="syncNombre">
+                {rojos.length === 0 ? 'todo alineado' : `${rojos.length} problema${rojos.length === 1 ? '' : 's'} (clicá el chip rojo)`}
+              </span>
+            </div>
+            {TOOLS.map((tool) => {
+              /* El head del checkout compartido sale del remoto (headLocal =
+               * rev-parse del checkout; checkout_sentinel/_varsense no los
+               * puebla ningun script). */
+              const remoto = sincronizacion.alineacion?.remotos.filter((r) => r.tool === tool) ?? [];
+              /* Head del checkout compartido (.quality-tools); la vigencia es
+               * agregada: basta UN checkout por detras para avisar update. */
+              const compartido = remoto.find((r) => r.dir.includes('.quality-tools')) ?? remoto[0];
+              const atrasado = remoto.find((r) => r.desactualizado === true);
+              const puntos = puntosDe(sincronizacion, tool);
+              const update = atrasado
+                ? `hay update${atrasado.tags.length ? ` (${atrasado.tags.slice(0, 3).map((t) => t.tag).join(',')})` : ''}`
+                : remoto.length && remoto.every((r) => r.desactualizado === false)
+                  ? 'al día'
+                  : 'sin dato upstream';
+              return (
+                <div key={tool} className="syncTool">
+                  <div className="syncToolCabecera">
+                    <span className="syncNombre">{tool}</span>
+                    <span className="syncMeta" title={compartido?.headLocal ?? ''}>
+                      checkout {corto(compartido?.headLocal ?? null)}
+                    </span>
                     <span
-                      key={r.dir}
-                      className="syncMeta syncMeta--warn"
-                      title={`${r.tool ?? '?'}: local ${r.headLocal} <> remoto ${r.headRemoto} (${r.url ?? 'sin remoto'})`}
+                      className={`syncMeta${atrasado ? ' syncMeta--warn' : ''}`}
+                      title={atrasado?.dir ?? ''}
                     >
-                      {r.tool ?? '?'}: hay actualización ({corto(r.headLocal)}→{corto(r.headRemoto)}
-                      {r.tags.length ? ` · ${r.tags.map((t) => t.tag).join(',')}` : ''})
-                    </span>
-                  ))}
-              </div>
-            )}
-            {sincronizacion.alineacion?.filas
-              .filter((f) => f.tool)
-              .map((f, i) => {
-                const bien = f.estado === 'ALINEADO' || f.estado === 'SIN-PROVISION';
-                return (
-                  <div key={`${f.proyecto}-${f.tool}-${i}`} className="syncFila">
-                    <span
-                      className={`syncBadge syncBadge--${bien ? 'ok' : 'warn'}`}
-                      title={(f.problemas ?? []).join('; ') || f.estado}
-                    >
-                      {bien ? '✓' : f.estado}
-                    </span>
-                    <span className="syncNombre">
-                      {f.proyecto} · {f.tool}
-                    </span>
-                    <span className="syncMeta">
-                      pin={corto(f.pin)} runtime={corto(f.runtime)}
-                      {f.publicado === true ? ' publicado' : f.publicado === false ? ' NO-publicado' : ''}
+                      upstream: {update}
                     </span>
                   </div>
-                );
-              })}
+                  <div className="syncChips">
+                    {puntos.map((p) => (
+                      p.ok && !p.sinDatos ? (
+                        <span key={p.proyecto} className="syncChip syncChip--ok" title={p.detalle}>
+                          {p.proyecto}
+                        </span>
+                      ) : p.sinDatos ? (
+                        <span key={p.proyecto} className="syncChip syncChip--vacio" title={p.detalle}>
+                          {p.proyecto}
+                        </span>
+                      ) : (
+                        <button
+                          key={p.proyecto}
+                          type="button"
+                          className="syncChip syncChip--warn"
+                          aria-expanded={abierto === `${tool}:${p.proyecto}`}
+                          onClick={() => setAbierto((a) => (a === `${tool}:${p.proyecto}` ? null : `${tool}:${p.proyecto}`))}
+                        >
+                          {p.proyecto} !
+                        </button>
+                      )
+                    ))}
+                  </div>
+                  {puntos
+                    .filter((p) => !p.ok && !p.sinDatos && abierto === `${tool}:${p.proyecto}`)
+                    .map((p) => (
+                      <div key={p.proyecto} className="syncDetalle">{p.detalle}</div>
+                    ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
