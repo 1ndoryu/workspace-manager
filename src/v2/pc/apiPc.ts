@@ -4,7 +4,7 @@
  * pintar cada fase en vivo, el resto es axios normal. */
 import axios from 'axios';
 
-export type FasePc = 'area' | 'caches' | 'extern' | 'vscode' | 'chrome';
+export type FasePc = 'area' | 'caches' | 'extern' | 'vscode' | 'chrome' | 'tmp';
 
 export interface EntradaPc {
   fase: FasePc;
