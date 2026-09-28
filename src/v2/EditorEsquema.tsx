@@ -52,10 +52,12 @@ export function EditorEsquema({ esquema, value, onChange, readOnly, reglas }: Pr
    * con mal tipo) no tienen fila en SeccionReglas y antes se filtraban en
    * silencio (0 visibles de N). Se renderizan como filas de error encima de
    * la seccion, reutilizando Fila (desconocida trae quitar, malTipo su
-   * control de correccion). Los 'faltante' del catalogo se siguen ocultando:
-   * la seccion ya cubre lo ausente con defaults. */
+   * control de correccion). Solo errores: las hojas VALIDAS del catalogo se
+   * excluyen porque SeccionReglas ya las muestra (si no, cada regla
+   * declarada saldria duplicada). Los 'faltante' se siguen ocultando: la
+   * seccion ya cubre lo ausente con defaults. */
   const erroresCatalogo = catalogo
-    ? filas.filter((f) => f.ruta[0] === catalogo.clave && f.tipo !== 'faltante')
+    ? filas.filter((f) => f.ruta[0] === catalogo.clave && (f.tipo === 'desconocida' || (f.tipo === 'campo' && f.estado === 'malTipo')))
     : [];
   if (filas.length === 0 && !catalogo) {
     return <div className="fjVacio">sin opciones</div>;
