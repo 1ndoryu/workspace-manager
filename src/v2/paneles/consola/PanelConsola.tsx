@@ -5,6 +5,7 @@
  * al server. El filtro es un Selector del sistema (no botones sueltos). */
 import { useState } from 'react';
 import { usePanelConsola } from './usePanelConsola.js';
+import { useEscanear } from '../../../hooks/useEscanear.js';
 import { Button } from '../../ui/Button.js';
 import { Selector } from '../../ui/selector/Selector.js';
 import {
@@ -45,6 +46,10 @@ export function PanelConsola() {
     abrirMenuContextual,
   } = usePanelConsola();
 
+  /* Acceso rapido al escaneo unificado (el mismo de la configuracion).
+   * [por que] El usuario lo pidio junto al filtro: no ir a config para
+   * re-escanear tras commitear/pushear. */
+  const { ocupado: escaneando, escanearTodoUnificado } = useEscanear();
   /* Grupos plegados por id de proyecto: el clic pliega/despliega los
    * motivos sin navegar a archivos. [por que] Estado local de UI; por
    * defecto todo expandido como antes. */
@@ -76,6 +81,14 @@ export function PanelConsola() {
         </Button>
         <Button cuadrado pequeno onClick={desplegarTodo} title="Desplegar todos los grupos">
           +
+        </Button>
+        <Button
+          pequeno
+          onClick={() => void escanearTodoUnificado()}
+          disabled={escaneando}
+          title="Escanear: análisis + vulnerabilidades (como en configuración)"
+        >
+          {escaneando ? 'escaneando…' : 'escanear'}
         </Button>
         <Selector
           valor={`${actual.etiqueta} (${contar(actual.clave)})`}

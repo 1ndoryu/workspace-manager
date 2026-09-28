@@ -1,5 +1,5 @@
-/* Vista 'scan' del PanelConfig: config del auto-escaneo + 'Escanea todo' +
- * auditoria de vulnerabilidades.
+/* Vista 'scan' del PanelConfig: config del auto-escaneo + un solo boton
+ * 'escanear' (analisis + vulnerabilidades) con sus resumenes.
  * [por que] Salio de PanelConfig.tsx para que el componente quede bajo el
  * limite-lineas (300): recibe el paquete `datos` del hook, sin logica propia. */
 import { Button } from '../../ui/Button.js';
@@ -7,18 +7,18 @@ import type { DatosPanelConfig } from './usePanelConfig.js';
 
 export function VistaScan({ datos }: { datos: DatosPanelConfig }) {
   const {
-    auto, setAuto, intervalo, setIntervalo, escaneando, scanAviso,
-    auditando, auditAviso, analisis, vulnerabilidades,
+    auto, setAuto, intervalo, setIntervalo, scanOcupado, scanAviso,
+    escanearTodoUnificado, analisis, vulnerabilidades,
     totales, tVuln, tieneVuln, ultimaActualizacion,
-    guardarScan, escanearAhora, auditarAhora,
+    guardarScan,
   } = datos;
 
   return (
     <>
       <header className="panelDocsVisorCabecera">
-        <span className="panelDocsVisorTitulo">escaneo de sentinel</span>
+        <span className="panelDocsVisorTitulo">escaneo</span>
       </header>
-      <section className="scanCfg" aria-label="Escaneo de sentinel">
+      <section className="scanCfg" aria-label="Escaneo">
         <div className="scanCfgFila">
           <label className="scanCfgEtiqueta" htmlFor="scan-auto">
             análisis automático
@@ -48,12 +48,15 @@ export function VistaScan({ datos }: { datos: DatosPanelConfig }) {
           <span className="scanCfgIntervalo">min</span>
         </div>
         <div className="scanCfgAcciones">
+          {/* Un solo 'escanear': analisis + vulnerabilidades en secuencia.
+            * [por que] El usuario pidio unificar ambos botones; el detalle
+            * por herramienta sigue abajo en sus resumenes. */}
           <Button
             className="excBoton"
-            onClick={() => void escanearAhora()}
-            disabled={escaneando}
+            onClick={() => void escanearTodoUnificado()}
+            disabled={scanOcupado}
           >
-            {escaneando ? 'analizando…' : 'escaneá ahora'}
+            {scanOcupado ? 'escaneando…' : 'escanear'}
           </Button>
           <span
             className="scanCfgMeta"
@@ -61,7 +64,7 @@ export function VistaScan({ datos }: { datos: DatosPanelConfig }) {
               .map(([k, a]) => `${k}: ${a.estado}`)
               .join('\n')}
           >
-            {Object.keys(analisis).length} proyectos analizados
+            {Object.keys(analisis).length} analizados · {Object.keys(vulnerabilidades).length} auditados
           </span>
         </div>
         {(totales.error > 0 || totales.warning > 0) && (
@@ -75,22 +78,9 @@ export function VistaScan({ datos }: { datos: DatosPanelConfig }) {
         )}
         {scanAviso && <div className="scanCfgAviso">{scanAviso}</div>}
 
-        {/* Vulnerabilidades de dependencias (308A-4 V1): el usuario pidio
-         * que aparezcan solas en la consola, con auditoria por proyecto.
-         * Boton 'Auditar todo' + badges por severidad de la cache. */}
+        {/* Vulnerabilidades de dependencias (308A-4 V1): resumen por
+          * severidad de la cache; el boton unico de arriba las audita. */}
         <div className="scanCfgSeparador">vulnerabilidades</div>
-        <div className="scanCfgAcciones">
-          <Button
-            className="excBoton"
-            onClick={() => void auditarAhora()}
-            disabled={auditando}
-          >
-            {auditando ? 'auditando…' : 'auditá toda la consola'}
-          </Button>
-          <span className="scanCfgMeta">
-            {Object.keys(vulnerabilidades).length} proyectos auditados
-          </span>
-        </div>
         {tieneVuln && (
           <div className="scanCfgResumen">
             <span className="scanCfgBadge scanCfgBadge--crit">{tVuln.critical} crític{tVuln.critical === 1 ? 'a' : 'as'}</span>
@@ -99,7 +89,6 @@ export function VistaScan({ datos }: { datos: DatosPanelConfig }) {
             <span className="scanCfgBadge scanCfgBadge--low">{tVuln.low} baja{tVuln.low === 1 ? '' : 's'}</span>
           </div>
         )}
-        {auditAviso && <div className="scanCfgAviso">{auditAviso}</div>}
       </section>
     </>
   );
