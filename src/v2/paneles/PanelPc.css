@@ -12,6 +12,7 @@
 .panelPcCabecera {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: var(--v2-spaceSm);
     padding: var(--v2-spaceSm) var(--v2-spaceMd);
     border-bottom: 1px solid var(--v2-borde);
@@ -28,10 +29,13 @@
     margin-left: 0;
 }
 
-/* Analizar es la acción principal: centrado y grande (usa Button `grande`). */
-.panelPcAnalizar {
-    display: flex;
-    justify-content: center;
+/* Acciones a la derecha de la cabecera: todos los botones iguales
+ * (mismo Button base) y pegados a la derecha. [por que] Antes analizar
+ * iba centrado y grande abajo y el resto en una fila aparte; el usuario
+ * pidio una sola fila de botones iguales a la derecha, donde reconstruir. */
+.panelPcCabecera .panelPcAcciones {
+    margin-left: auto;
+    justify-content: flex-end;
 }
 
 .panelPcContenido .panelPcMeta {

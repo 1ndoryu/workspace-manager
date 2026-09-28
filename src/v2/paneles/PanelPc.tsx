@@ -337,20 +337,10 @@ export function PanelPc() {
             : '…'}
           {estado?.reconstruyendo ? ' · construyendo…' : ''}
         </span>
-        <Button onClick={reconstruir} disabled={ocupado} title="Reconstruye el binario desde limpiador-pc (flujo de actualización)">
-          {trabajo === 'reconstruyendo' ? '…' : '⟳ reconstruir'}
-        </Button>
-      </header>
-
-      <div className="panelPcContenido">
-        {/* Analizar centrado y grande: es la acción principal de la tab. */}
-        <div className="panelPcAnalizar">
-          <Button grande activo onClick={analizar} disabled={ocupado} title="Mide todo lo limpiable, solo lectura">
+        <div className="panelPcAcciones">
+          <Button onClick={analizar} disabled={ocupado} title="Mide todo lo limpiable, solo lectura">
             {trabajo === 'analizando' ? 'analizando…' : 'analizar'}
           </Button>
-        </div>
-
-        <div className="panelPcAcciones">
           <Button
             onClick={borrar}
             disabled={ocupado || filasElegidas.length === 0}
@@ -385,8 +375,13 @@ export function PanelPc() {
               </Button>
             </>
           )}
+          <Button onClick={reconstruir} disabled={ocupado} title="Reconstruye el binario desde limpiador-pc (flujo de actualización)">
+            {trabajo === 'reconstruyendo' ? '…' : '⟳ reconstruir'}
+          </Button>
         </div>
+      </header>
 
+      <div className="panelPcContenido">
         {progreso && <p className="panelPcMeta">{progreso} · {gb(totalBytes)} GB encontrados</p>}
         {!progreso && entradas.length > 0 && (
           <p className="panelPcMeta">
