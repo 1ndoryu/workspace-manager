@@ -1,42 +1,144 @@
-/* Panel central PC: interfaz del limpiador-pc (análisis + limpieza).
- * [por que] El usuario pidió una tab "pc" con el análisis, el resultado y el
- * borrado siguiendo la identidad v2 (monocromo estricto, sin radios, sin
- * sombras, sin bold). El server ejecuta el binario; aquí solo se pide,
- * se selecciona (filtro `solo`) y se presenta. El borrado real exige
- * simular antes y doble clic (armar + confirmar). */
-import { useCallback, useEffect, useState } from 'react';
+/* Panel central PC: interfaz del limpiador-pc (un análisis, un resultado).
+ * [por que] El usuario pidió una sola cosa: un botón analiza todo, el
+ * progreso muestra lo que va apareciendo en tiempo real (SSE por fase) y el
+ * resultado persiste en el server (rehidrata al recargar, sin simulación).
+ * La selección es por entrada suelta dentro de grupos plegables (el área
+ * agrupa por tipo; el resto, un grupo por origen) porque aparecen decenas
+ * de cosas. El borrado dice en su etiqueta qué y cuánto borra y sigue con
+ * doble clic (armar + confirmar); el server exige además la palabra BORRAR. */
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button.js';
 import {
+  escanearPcTodo,
   estadoPc,
-  escanearPc,
   limpiarPc,
   reconstruirPc,
   gb,
   type AccionPc,
+  type EntradaPc,
   type EstadoPc,
-  type FasePc,
+  type EventoScan,
   type ResultadoLimpieza,
-  type ResultadoScan,
+  type SeleccionPc,
 } from '../pc/apiPc.js';
 import './PanelPc.css';
 
 type Trabajo = 'idle' | 'analizando' | 'limpiando' | 'reconstruyendo';
 
-const ORDEN_FASES: FasePc[] = ['area', 'caches', 'extern', 'vscode', 'chrome'];
+const TITULO_FASE: Record<EntradaPc['fase'], string> = {
+  area: 'área de trabajo',
+  caches: 'caches del perfil',
+  extern: 'herramientas externas',
+  vscode: 'VS Code',
+  chrome: 'Chrome',
+};
+
+const ORDEN_FASE: EntradaPc['fase'][] = ['area', 'caches', 'extern', 'vscode', 'chrome'];
+
+interface Fila {
+  id: string;
+  fase: EntradaPc['fase'];
+  clave: string;
+  ruta: string;
+  bytes: number;
+  detalle: string;
+}
+
+interface Grupo {
+  id: string;
+  titulo: string;
+  filas: Fila[];
+  bytes: number;
+}
+
+/* Quita el prefijo `\\?\` para mostrar rutas legibles. */
+function rutaCorta(ruta: string): string {
+  return ruta.startsWith('\\\\?\\') ? ruta.slice(4) : ruta;
+}
+
+/* Grupos ordenados: el área por tipo (de mayor a menor peso), el resto un
+ * grupo por origen en orden de fase. El id de fila del área es su ruta
+ * suelta (el filtro `--solo-ruta`); en el resto, fase+clave. */
+function aGrupos(entradas: EntradaPc[]): Grupo[] {
+  const grupos: Grupo[] = [];
+  const porTipo = new Map<string, Fila[]>();
+  for (const e of entradas) {
+    if (e.fase !== 'area') continue;
+    const lista = porTipo.get(e.clave) ?? [];
+    lista.push({ id: `area::${e.ruta}`, fase: e.fase, clave: e.clave, ruta: e.ruta, bytes: e.bytes, detalle: e.detalle });
+    porTipo.set(e.clave, lista);
+  }
+  const tipos = [...porTipo.entries()].sort(
+    (a, b) => b[1].reduce((x, f) => x + f.bytes, 0) - a[1].reduce((x, f) => x + f.bytes, 0),
+  );
+  for (const [tipo, filas] of tipos) {
+    filas.sort((a, b) => b.bytes - a.bytes);
+    grupos.push({ id: `area::${tipo}`, titulo: tipo, filas, bytes: filas.reduce((x, f) => x + f.bytes, 0) });
+  }
+  for (const fase of ORDEN_FASE) {
+    if (fase === 'area') continue;
+    const filas = entradas
+      .filter((e) => e.fase === fase)
+      .sort((a, b) => b.bytes - a.bytes)
+      .map((e) => ({
+        id: `${e.fase}::${e.clave}`,
+        fase: e.fase,
+        clave: e.clave,
+        ruta: e.ruta,
+        bytes: e.bytes,
+        detalle: e.detalle,
+      }));
+    if (filas.length > 0) {
+      grupos.push({ id: fase, titulo: TITULO_FASE[fase], filas, bytes: filas.reduce((x, f) => x + f.bytes, 0) });
+    }
+  }
+  return grupos;
+}
+
+/* Grupos grandes plegados por defecto (el usuario los abre si quiere). */
+function plegadoInicial(grupos: Grupo[]): Set<string> {
+  return new Set(grupos.filter((g) => g.filas.length > 8).map((g) => g.id));
+}
 
 export function PanelPc() {
   const [estado, setEstado] = useState<EstadoPc | null>(null);
-  const [fase, setFase] = useState<FasePc>('area');
-  const [scans, setScans] = useState<Partial<Record<FasePc, ResultadoScan>>>({});
+  const [entradas, setEntradas] = useState<EntradaPc[]>([]);
+  const [totalBytes, setTotalBytes] = useState(0);
+  const [medidoEn, setMedidoEn] = useState<string | null>(null);
+  const [progreso, setProgreso] = useState<string | null>(null);
   const [seleccion, setSeleccion] = useState<string[]>([]);
+  const [plegados, setPlegados] = useState<Set<string>>(new Set());
   const [limpieza, setLimpieza] = useState<ResultadoLimpieza | null>(null);
   const [trabajo, setTrabajo] = useState<Trabajo>('idle');
   const [armado, setArmado] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const cerrarRef = useRef<(() => void) | null>(null);
 
   const cargarEstado = useCallback(async () => {
     try {
-      setEstado(await estadoPc());
+      const est = await estadoPc();
+      setEstado(est);
+      /* Rehidrata el último análisis persistido (no se pierde al recargar). */
+      if (est.scan?.enCurso) {
+        /* Recarga con análisis en marcha: reengancha al trabajo del server
+         * (reenvía lo completado + sigue en vivo) en vez de quedarse ciego. */
+        setEntradas([]);
+        setTotalBytes(0);
+        setMedidoEn(null);
+        setSeleccion([]);
+        setPlegados(new Set());
+        setLimpieza(null);
+        setArmado(false);
+        setProgreso(`retomando ${est.scan.etiqueta}… (${est.scan.indice}/${est.scan.total})`);
+        conectar();
+      } else if (est.reporte) {
+        setEntradas(est.reporte.entradas);
+        setTotalBytes(est.reporte.totalBytes);
+        setMedidoEn(est.reporte.medidoEn);
+        const grupos = aGrupos(est.reporte.entradas);
+        setPlegados(plegadoInicial(grupos));
+        setSeleccion(grupos.flatMap((g) => g.filas.map((f) => f.id)));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'no se pudo leer el estado');
     }
@@ -44,85 +146,90 @@ export function PanelPc() {
 
   useEffect(() => {
     void cargarEstado();
+    return () => cerrarRef.current?.();
   }, [cargarEstado]);
 
-  const scan = scans[fase];
+  const grupos = aGrupos(entradas);
   const ocupado = trabajo !== 'idle';
+  const elegidas = new Set(seleccion);
+  const filasElegidas = grupos.flatMap((g) => g.filas).filter((f) => elegidas.has(f.id));
+  const bytesElegidos = filasElegidas.reduce((a, f) => a + f.bytes, 0);
 
-  /* Filas seleccionables: en el área varias rutas comparten tipo y el filtro
-   * del CLI (`--solo-tipo`) opera por tipo, así que se agrupan por tipo con
-   * su conteo; en el resto cada objetivo es único y va por entrada. */
-  const filas: { clave: string; bytes: number; n: number; rutas: string[]; detalle: string }[] =
-    !scan
-      ? []
-      : fase === 'area'
-        ? [...scan.entradas.reduce((m, e) => {
-            const f = m.get(e.clave) ?? { clave: e.clave, bytes: 0, n: 0, rutas: [] as string[], detalle: e.detalle };
-            f.bytes += e.bytes;
-            f.n += 1;
-            if (f.rutas.length < 3) f.rutas.push(e.ruta);
-            return m.set(e.clave, f);
-          }, new Map<string, { clave: string; bytes: number; n: number; rutas: string[]; detalle: string }>()
-          ).values()]
-        : scan.entradas.map((e) => ({ clave: e.clave, bytes: e.bytes, n: 1, rutas: [e.ruta], detalle: e.detalle }));
-  const entradasSeleccionadas = filas.filter((f) => seleccion.includes(f.clave)).reduce((a, f) => a + f.n, 0);
+  /* Conecta el SSE al trabajo del server (nuevo o adjuntado a uno en
+   * curso tras recargar). Devuelve el cierre. */
+  function conectar() {
+    cerrarRef.current?.();
+    setTrabajo('analizando');
+    cerrarRef.current = escanearPcTodo(alEvento, (mensaje) => {
+      setError(mensaje);
+      setProgreso(null);
+      setTrabajo('idle');
+    });
+  }
 
-  function cambiarFase(f: FasePc) {
-    setFase(f);
+  function alEvento(ev: EventoScan) {
+    if (ev.tipo === 'inicio') {
+      setProgreso(`analizando ${ev.etiqueta}… (${ev.indice}/${ev.total})`);
+    } else if (ev.tipo === 'preparando') {
+      setProgreso(ev.detalle);
+    } else if (ev.tipo === 'avance') {
+      /* En vivo qué carpeta se está midiendo (el área tarda en silencio). */
+      const donde = ev.dir !== '' ? ` ${rutaCorta(ev.dir)}` : '';
+      setProgreso(`analizando ${ev.etiqueta}…${donde} · ${ev.halladas} halladas`);
+    } else if (ev.tipo === 'fase') {
+      setEntradas((prev) => {
+        const union = [...prev.filter((e) => e.fase !== ev.fase), ...ev.entradas];
+        setPlegados(plegadoInicial(aGrupos(union)));
+        return union;
+      });
+      setTotalBytes((prev) => prev + ev.totalBytes);
+      setSeleccion((prev) => {
+        const ids = aGrupos(ev.entradas).flatMap((g) => g.filas.map((f) => f.id));
+        return [...prev, ...ids.filter((id) => !prev.includes(id))];
+      });
+    } else if (ev.tipo === 'fin') {
+      setTotalBytes(ev.totalBytes);
+      setMedidoEn(ev.medidoEn);
+      setProgreso(null);
+      setTrabajo('idle');
+      void cargarEstado();
+    } else {
+      setError(`falló ${ev.etiqueta || 'el análisis'}: ${ev.detalle}`);
+      setProgreso(null);
+      setTrabajo('idle');
+    }
+  }
+
+  function analizar() {
+    setEntradas([]);
+    setTotalBytes(0);
+    setMedidoEn(null);
     setSeleccion([]);
+    setPlegados(new Set());
     setLimpieza(null);
     setArmado(false);
     setError(null);
-  }
-
-  async function analizar() {
-    setTrabajo('analizando');
-    setError(null);
-    setArmado(false);
-    try {
-      const r = await escanearPc(fase);
-      setScans((s) => ({ ...s, [fase]: r }));
-      setSeleccion([...new Set(r.entradas.map((e) => e.clave))]);
-      setLimpieza(null);
-      await cargarEstado();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'falló el análisis');
-    } finally {
-      setTrabajo('idle');
-    }
-  }
-
-  /* Simulación (dry-run): nunca borra, muestra lo que haría. */
-  async function simular() {
-    if (!scan || seleccion.length === 0) return;
-    setTrabajo('limpiando');
-    setError(null);
-    try {
-      setLimpieza(await limpiarPc(fase, false, seleccion));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'falló la simulación');
-    } finally {
-      setTrabajo('idle');
-    }
+    setProgreso('arrancando…');
+    conectar();
   }
 
   /* Borrado real en dos pasos: el primer clic arma, el segundo ejecuta.
-   * [por que] El borrado no se puede deshacer; el doble clic + haber
-   * simulado antes es la confirmación visible en la UI (el server además
-   * exige la palabra BORRAR). */
+   * [por que] El borrado no se puede deshacer; la etiqueta dice qué y
+   * cuánto se borra y el doble clic lo confirma (el server además exige
+   * la palabra BORRAR). */
   async function borrar() {
-    if (!scan || seleccion.length === 0) return;
+    if (filasElegidas.length === 0) return;
     if (!armado) {
       setArmado(true);
       return;
     }
+    const sel: SeleccionPc[] = filasElegidas.map((f) =>
+      f.fase === 'area' ? { fase: f.fase, clave: f.clave, ruta: f.ruta } : { fase: f.fase, clave: f.clave },
+    );
     setTrabajo('limpiando');
     setError(null);
     try {
-      const r = await limpiarPc(fase, true, seleccion);
-      setLimpieza(r);
-      /* El reporte queda invalidado tras borrar: obliga a re-analizar. */
-      setScans((s) => ({ ...s, [fase]: undefined }));
+      setLimpieza(await limpiarPc(sel));
       setSeleccion([]);
       setArmado(false);
       await cargarEstado();
@@ -145,13 +252,34 @@ export function PanelPc() {
     }
   }
 
-  function conmutar(clave: string) {
+  function conmutar(id: string) {
     setArmado(false);
-    setSeleccion((sel) => (sel.includes(clave) ? sel.filter((c) => c !== clave) : [...sel, clave]));
+    setSeleccion((sel) => (sel.includes(id) ? sel.filter((c) => c !== id) : [...sel, id]));
   }
 
-  const meta = estado?.fases.find((f) => f.fase === fase);
-  const etiquetaFase = meta?.etiqueta ?? fase;
+  function conmutarGrupo(grupo: Grupo) {
+    setArmado(false);
+    const ids = grupo.filas.map((f) => f.id);
+    setSeleccion((sel) =>
+      ids.every((id) => sel.includes(id)) ? sel.filter((c) => !ids.includes(c)) : [...sel, ...ids.filter((id) => !sel.includes(id))],
+    );
+  }
+
+  function plegar(id: string) {
+    setPlegados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const etiquetaBorrar =
+    filasElegidas.length === 0
+      ? 'borrar'
+      : armado
+        ? `confirma: borrar ${filasElegidas.length} · ${gb(bytesElegidos)} GB`
+        : `borrar ${filasElegidas.length} · ${gb(bytesElegidos)} GB`;
 
   return (
     <div className="panelPc" aria-label="Limpieza del PC">
@@ -170,45 +298,33 @@ export function PanelPc() {
         </Button>
       </header>
 
-      <nav className="panelPcFases" aria-label="Fases del limpiador">
-        {ORDEN_FASES.map((f) => {
-          const m = estado?.fases.find((x) => x.fase === f);
-          return (
-            <Button
-              key={f}
-              activo={fase === f}
-              onClick={() => cambiarFase(f)}
-              title={m?.descripcion ?? f}
-            >
-              {m?.etiqueta ?? f}
-            </Button>
-          );
-        })}
-      </nav>
-
       <div className="panelPcContenido">
-        {meta && <p className="panelPcDescripcion">{meta.descripcion}</p>}
-        <div className="panelPcAcciones">
-          <Button onClick={analizar} disabled={ocupado} activo title={`Mide lo limpiable (${etiquetaFase}), solo lectura`}>
+        {/* Analizar centrado y grande: es la acción principal de la tab. */}
+        <div className="panelPcAnalizar">
+          <Button grande activo onClick={analizar} disabled={ocupado} title="Mide todo lo limpiable, solo lectura">
             {trabajo === 'analizando' ? 'analizando…' : 'analizar'}
           </Button>
-          <Button onClick={simular} disabled={ocupado || !scan || seleccion.length === 0} title="Simula el borrado sin tocar nada">
-            simular
-          </Button>
+        </div>
+
+        <div className="panelPcAcciones">
           <Button
             onClick={borrar}
-            disabled={ocupado || !scan || seleccion.length === 0}
+            disabled={ocupado || filasElegidas.length === 0}
             activo={armado}
-            title="Borra de verdad lo seleccionado (no se puede deshacer)"
+            title={
+              filasElegidas.length === 0
+                ? 'Elige qué borrar en la lista (borra de verdad, no se puede deshacer)'
+                : `Borra de verdad lo elegido (${filasElegidas.length} entradas, ${gb(bytesElegidos)} GB, no se puede deshacer)`
+            }
           >
-            {armado ? 'pulsa otra vez para BORRAR' : 'borrar'}
+            {trabajo === 'limpiando' ? 'borrando…' : etiquetaBorrar}
           </Button>
-          {scan && (
+          {entradas.length > 0 && (
             <>
               <Button
                 onClick={() => {
                   setArmado(false);
-                  setSeleccion(filas.map((f) => f.clave));
+                  setSeleccion(grupos.flatMap((g) => g.filas.map((f) => f.id)));
                 }}
                 title="Selecciona todo"
               >
@@ -227,45 +343,61 @@ export function PanelPc() {
           )}
         </div>
 
-        {meta?.meta && !scan && (
+        {progreso && <p className="panelPcMeta">{progreso} · {gb(totalBytes)} GB encontrados</p>}
+        {!progreso && entradas.length > 0 && (
           <p className="panelPcMeta">
-            último análisis: {meta.meta.n} entradas · {gb(meta.meta.totalBytes)} GB
-          </p>
-        )}
-        {scan && (
-          <p className="panelPcMeta">
-            {scan.entradas.length} entradas · {gb(scan.totalBytes)} GB · {entradasSeleccionadas} seleccionadas
+            {entradas.length} entradas · {gb(totalBytes)} GB · {filasElegidas.length} elegidas ({gb(bytesElegidos)} GB se borrarán)
+            {medidoEn ? ` · medido ${new Date(medidoEn).toLocaleString()}` : ''}
           </p>
         )}
         {error && <p className="panelPcError">{error}</p>}
 
-        {scan && scan.entradas.length === 0 && <p className="panelPcVacio">nada limpiable: todo limpio</p>}
+        {!progreso && entradas.length === 0 && medidoEn && <p className="panelPcVacio">nada limpiable: todo limpio</p>}
 
-        {filas.length > 0 && (
-          <ul className="panelPcLista">
-            {filas.map((f) => (
-              <li key={f.clave} className="panelPcFila">
+        {grupos.map((grupo) => {
+          const plegado = plegados.has(grupo.id);
+          const elegidasGrupo = grupo.filas.filter((f) => elegidas.has(f.id)).length;
+          const todas = elegidasGrupo === grupo.filas.length;
+          return (
+            <section key={grupo.id} className="panelPcGrupo" aria-label={grupo.titulo}>
+              <header className="panelPcGrupoCabecera">
+                <Button cuadrado onClick={() => plegar(grupo.id)} title={plegado ? `Despliega ${grupo.titulo}` : `Pliega ${grupo.titulo}`}>
+                  {plegado ? '+' : '−'}
+                </Button>
                 <label className="panelPcCheck">
                   <input
                     type="checkbox"
-                    checked={seleccion.includes(f.clave)}
-                    onChange={() => conmutar(f.clave)}
+                    ref={(el) => {
+                      if (el) el.indeterminate = elegidasGrupo > 0 && !todas;
+                    }}
+                    checked={todas}
+                    onChange={() => conmutarGrupo(grupo)}
                   />
                   <span className="panelPcClave">
-                    {f.clave}
-                    {f.n > 1 ? ` (${f.n})` : ''}
+                    {grupo.titulo} ({elegidasGrupo}/{grupo.filas.length})
                   </span>
-                  <span className="panelPcGb">{gb(f.bytes)} GB</span>
+                  <span className="panelPcGb">{gb(grupo.bytes)} GB</span>
                 </label>
-                <span className="panelPcRuta" title={f.detalle ? `${f.rutas.join(' · ')} — ${f.detalle}` : f.rutas.join(' · ')}>
-                  {f.rutas[0]}
-                  {f.n > 1 ? ` (+${f.n - 1} más)` : ''}
-                  {f.detalle && fase !== 'area' ? ` — ${f.detalle}` : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+              </header>
+              {!plegado && (
+                <ul className="panelPcLista">
+                  {grupo.filas.map((f) => (
+                    <li key={f.id} className="panelPcFila">
+                      <label className="panelPcCheck">
+                        <input type="checkbox" checked={elegidas.has(f.id)} onChange={() => conmutar(f.id)} />
+                        <span className="panelPcRuta" title={f.ruta}>
+                          {rutaCorta(f.ruta)}
+                        </span>
+                        <span className="panelPcGb">{gb(f.bytes)} GB</span>
+                      </label>
+                      {f.detalle && f.fase !== 'area' && <span className="panelPcRuta">{f.detalle}</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
 
         {limpieza && <ResultadoLimpiezaVista resultado={limpieza} />}
       </div>
@@ -273,20 +405,19 @@ export function PanelPc() {
   );
 }
 
-/* Resultado de simular o borrar: acciones por objetivo + total liberado. */
+/* Resultado del borrado: acciones por objetivo + total liberado. */
 function ResultadoLimpiezaVista({ resultado }: { resultado: ResultadoLimpieza }) {
   return (
-    <section className="panelPcResultado" aria-label={resultado.ejecutar ? 'Resultado del borrado' : 'Simulación'}>
+    <section className="panelPcResultado" aria-label="Resultado del borrado">
       <header className="panelPcResultadoCabecera">
-        {resultado.ejecutar ? 'borrado' : 'simulación'}: {resultado.acciones.length} acciones
-        {resultado.ejecutar ? ` · liberado ${resultado.liberadosGb.toFixed(2)} GB` : ' · nada borrado'}
+        borrado: {resultado.acciones.length} acciones · liberado {resultado.liberadosGb.toFixed(2)} GB
       </header>
       <ul className="panelPcLista">
-        {resultado.acciones.map((a: AccionPc) => (
-          <li key={a.clave} className="panelPcFila">
+        {resultado.acciones.map((a: AccionPc, i: number) => (
+          <li key={`${a.fase}::${a.clave}::${i}`} className="panelPcFila">
             <span className="panelPcCheck">
               <span className="panelPcEstado">{a.estado}</span>
-              <span className="panelPcClave">{a.clave}</span>
+              <span className="panelPcClave">{rutaCorta(a.clave)}</span>
               <span className="panelPcGb">{a.gb.toFixed(2)} GB</span>
             </span>
             {a.detalle && <span className="panelPcRuta">{a.detalle}</span>}
