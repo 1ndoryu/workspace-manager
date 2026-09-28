@@ -167,7 +167,9 @@
 .botonV2.v2SelectorTrigger {
     font-family: inherit;
     font-size: var(--v2-textSm);
-    padding: 3px 6px;
+    /* [por que] Mismo padding que .menuContextualItem: el trigger es la
+     * puerta del desplegable y debe medir igual que sus opciones. */
+    padding: 5px 10px;
     border-radius: 0;
 }
 .botonV2.v2SelectorOpcion {
