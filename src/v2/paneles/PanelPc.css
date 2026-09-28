@@ -95,8 +95,14 @@
     text-align: center;
 }
 
+/* [por que] El ul traia el margen vertical (1em ~13px) de la hoja de
+ * estilo del navegador: al expandir un grupo aparecia un hueco bajo la
+ * cabecera que parecia padding-bottom de esta. La cabecera no cambia
+ * (44px plegada o expandida); el hueco era del ul. */
 .panelPcLista {
     list-style: none;
+    margin: 0;
+    padding: 0;
     border: 1px solid var(--v2-borde);
 }
 
