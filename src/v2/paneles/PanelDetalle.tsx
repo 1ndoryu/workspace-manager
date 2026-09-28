@@ -7,7 +7,7 @@ import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import { estadoProyecto } from '../estado.js';
 import { verticesParedDer, verticesParedIzq, verticesTecho } from '../mapa/tiles.js';
 import { Button } from '../ui/Button.js';
-import { usePanelDetalle } from '../../hooks/usePanelDetalle.js';
+import { useEscanear } from '../../hooks/useEscanear.js';
 import './detalle.css';
 
 /* Cubo decorativo de la cabecera: la MISMA caja iso del mapa (mismas
@@ -135,7 +135,7 @@ export function PanelDetalle() {
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const analisis = useWorkspaceStore((s) => s.analisis);
   const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
-  const { escanneando, auditando, escanearAhora, auditarAhora } = usePanelDetalle();
+  const { ocupado: escaneando, escanearProyecto } = useEscanear();
 
   if (!snapshot || !seleccionadoId) return null;
   const proyecto = snapshot.proyectos.find((p) => p.id === seleccionadoId);
@@ -180,36 +180,21 @@ export function PanelDetalle() {
         ))}
       </dl>
 
-      {/* Analisis real de sentinel (plan A2): solo si el proyecto usa sentinel.
-       * El boton dispara escanearUno(clave); el server rehusa lo fresco por
-       * branch+HEAD+version sin re-spawn. */}
-      {proyecto.gate?.puerta === 'sentinel' && (
-        <div className="panelDetalleScan" aria-label="Análisis de sentinel">
-          <Button
-            className="excBoton"
-            disabled={escanneando}
-            onClick={() => void escanearAhora(proyecto.clave)}
-          >
-            {escanneando ? 'analizando…' : 'escaneá ahora'}
-          </Button>
-          {resumen && (
-            <div className="panelDetalleScanMeta" title={analisisProy?.analizadoEn}>
-              {resumen}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Auditoria de dependencias (plan 308A-4 V1): boton por proyecto.
-       * El server rehusa lo fresco por hash-del-lockfile sin re-auditar. */}
-      <div className="panelDetalleScan" aria-label="Auditoría de dependencias">
+      {/* Un solo 'escanear' por proyecto: analisis (solo con puerta
+        * sentinel) + auditoria de dependencias en secuencia. */}
+      <div className="panelDetalleScan" aria-label="Escaneo del proyecto">
         <Button
           className="excBoton"
-          disabled={auditando}
-          onClick={() => void auditarAhora(proyecto.clave)}
+          disabled={escaneando}
+          onClick={() => void escanearProyecto(proyecto.clave, proyecto.gate?.puerta === 'sentinel')}
         >
-          {auditando ? 'auditando…' : 'auditá ahora'}
+          {escaneando ? 'escaneando…' : 'escanear'}
         </Button>
+        {resumen && (
+          <div className="panelDetalleScanMeta" title={analisisProy?.analizadoEn}>
+            {resumen}
+          </div>
+        )}
         {resumenAudit && (
           <div className="panelDetalleScanMeta" title={auditoriaProy?.analizadoEn}>
             {resumenAudit}

@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useWorkspaceStore } from '../../../hooks/useWorkspace.js';
+import { useEscanear } from '../../../hooks/useEscanear.js';
 import type { EstadoGate } from '../../../shared/types.js';
 import { mensajeDeError, toastError, toastOk } from '../../toast.js';
 import type { NodoEsquema } from '../../../shared/gate/esquema.js';
@@ -92,12 +93,11 @@ export function usePanelConfig() {
   const reglasCatalogo = useWorkspaceStore((s) => s.reglasCatalogo);
   const cargarReglas = useWorkspaceStore((s) => s.cargarReglas);
   const cargarEsquema = useWorkspaceStore((s) => s.cargarEsquema);
-  /* Analisis real de sentinel: config scan + boton 'Escanea todo'. */
+  /* Analisis + vulnerabilidades en un solo 'escanear' (hook compartido
+   * con el acceso rapido de la consola). */
+  const { ocupado: scanOcupado, aviso: scanAviso, escanearTodoUnificado } = useEscanear();
   const configurarScan = useWorkspaceStore((s) => s.configurarScan);
-  const escanearTodo = useWorkspaceStore((s) => s.escanearTodo);
   const analisis = useWorkspaceStore((s) => s.analisis);
-  /* Vulnerabilidades (308A-4 V1): boton 'Auditar todo' + badges por severidad. */
-  const auditarTodo = useWorkspaceStore((s) => s.auditarTodo);
   const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
   /* Estado del checkout compartido del gate (plan 308A-1 F7). */
   const sincronizacion = useWorkspaceStore((s) => s.sincronizacion);
@@ -137,10 +137,6 @@ export function usePanelConfig() {
   /* Config de escaneo (switch + intervalo) editable en este panel. */
   const [auto, setAuto] = useState<boolean>(snapshot?.config?.scan?.automatico ?? false);
   const [intervalo, setIntervalo] = useState<number>(snapshot?.config?.scan?.intervaloMin ?? 30);
-  const [escaneando, setEscaneando] = useState(false);
-  const [scanAviso, setScanAviso] = useState<string | null>(null);
-  const [auditando, setAuditando] = useState(false);
-  const [auditAviso, setAuditAviso] = useState<string | null>(null);
 
   /* [por que] El menu contextual abre la pagina 'config' con un proyecto
    * determinado: inicial/a cada cambio, si llega un proyecto, se muestra su
@@ -265,27 +261,7 @@ export function usePanelConfig() {
    * controles, no en cada teclado de intervalo. */
   function guardarScan(autoNuevo: boolean, intervaloNuevo: number) {
     void configurarScan({ automatico: autoNuevo, intervaloMin: intervaloNuevo })
-      .then(() => setScanAviso('preferencias de escaneo guardadas ✓'))
       .catch((err: unknown) => toastError(`no se pudo guardar el escaneo: ${mensajeDeError(err)}`));
-  }
-
-  /* Boton 'Escanea todo': recorre el workspace con la cola serial del server.
-   * [por que] forzar=true: el usuario quiere un escaneo GENUINO (re-escanea
-   * git/HEAD y re-ejecuta sentinel aunque la frescura no cambio). Si no se
-   * forzara, la cache de analisis del server se serviria sin re-ejecutar y el
-   * contador no reflejaria los fixes aunque esten commiteados. */
-  async function escanearAhora() {
-    setEscaneando(true);
-    setScanAviso(null);
-    try {
-      await escanearTodo(true);
-      setScanAviso('análisis completado ✓');
-    } catch (err) {
-      setScanAviso(null);
-      toastError(`no se pudo analizar: ${mensajeDeError(err)}`);
-    } finally {
-      setEscaneando(false);
-    }
   }
 
   /* Total de hallazgos por severidad de los proyectos analizados (para la
@@ -299,23 +275,6 @@ export function usePanelConfig() {
     }
     return { error, warning };
   }
-  /* Boton 'Auditar todo': recorre el workspace auditando dependencias.
-   * forzar=true para que sea genuino (re-audita aunque la cache de hash-de-
-   * lockfile no cambio); el server single-flight igual evita solaparse. */
-  async function auditarAhora() {
-    setAuditando(true);
-    setAuditAviso(null);
-    try {
-      await auditarTodo(true);
-      setAuditAviso('auditoría completa ✓');
-    } catch (err) {
-      setAuditAviso(null);
-      toastError(`no se pudo auditar: ${mensajeDeError(err)}`);
-    } finally {
-      setAuditando(false);
-    }
-  }
-
   /* Totales de vulnerabilidades por severidad sobre los proyectos auditados. */
   function totalesVuln(): { critical: number; high: number; moderate: number; low: number } {
     const t = { critical: 0, high: 0, moderate: 0, low: 0 };
@@ -341,12 +300,12 @@ export function usePanelConfig() {
     claveVisor, setClaveVisor,
     gate, contenidos, setContenidos, editado, setEditado, parseErrores,
     cargandoGate, guardando,
-    auto, setAuto, intervalo, setIntervalo, escaneando, scanAviso, auditando, auditAviso,
+    auto, setAuto, intervalo, setIntervalo, scanOcupado, scanAviso, escanearTodoUnificado,
     ignorados, proyectos, proyectoVisor, visorIgnorado,
     analisis, vulnerabilidades, sincronizacion, errorSincronizacion, cargarSincronizacion,
     totales, tVuln, tieneVuln, ultimaActualizacion,
     esquemas, reglasCatalogo,
-    abrirProyecto, alternarIgnorado, guardar, guardarScan, escanearAhora, auditarAhora,
+    abrirProyecto, alternarIgnorado, guardar, guardarScan,
   };
 }
 

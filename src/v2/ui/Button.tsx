@@ -2,8 +2,8 @@
  * [por que] En vez de estilos de boton ad-hoc por clase (mapaV2ZoomBoton,
  * mapaV2ManoBoton, v2NavBoton), todos los botones del v2 pasan por este
  * componente monocromo. `cuadrado` es el boton compacto de solo icono
- * (zoom/mover); `pequeno` lo reduce para toggles de fila (grupos del
- * panel pc); `activo` invierte el relleno. El archivo se llama Button
+ * (zoom/mover); `pequeno` es compacto de 20px de alto para filas densas
+ * (solo o con cuadrado); `activo` invierte el relleno. El archivo se llama Button
  * para que html-nativo-en-vez-de-componente no marque su <button> interno. */
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import './Button.css';

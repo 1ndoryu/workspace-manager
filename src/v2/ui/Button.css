@@ -42,12 +42,22 @@
     padding: 0;
 }
 
-/* Pequeno: reduce el cuadrado para toggles de fila (grupos del panel pc).
- * [por que] El cuadrado de 32px es para el mapa; en filas de texto
- * (13px) dominaba la cabecera. Compuesto despues para ganar la cascada. */
+/* Pequeno: compacto de 20px de alto para filas densas (cabecera de la
+ * consola, toggles de fila del panel pc). [por que] Variante canonica para
+ * que un boton de texto mida igual que los cuadrados pequenos sin estilos
+ * ad-hoc por contexto. */
+.botonV2--pequeno {
+    height: 20px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* Pequeno + cuadrado: ademas fija el ancho (toggles de fila). Compuesto
+ * despues para ganar la cascada. */
 .botonV2--cuadrado.botonV2--pequeno {
     width: 20px;
-    height: 20px;
+    padding-left: 0;
+    padding-right: 0;
     font-size: var(--v2-textSm);
 }
 
