@@ -42,6 +42,15 @@
     padding: 0;
 }
 
+/* Pequeno: reduce el cuadrado para toggles de fila (grupos del panel pc).
+ * [por que] El cuadrado de 32px es para el mapa; en filas de texto
+ * (13px) dominaba la cabecera. Compuesto despues para ganar la cascada. */
+.botonV2--cuadrado.botonV2--pequeno {
+    width: 20px;
+    height: 20px;
+    font-size: var(--v2-textSm);
+}
+
 /* Solo gliphos grandes (zoom +/−): conserva el tamano de letra que tenia
  * el boton de zoom ad-hoc (mapaV2ZoomBoton usaba --v2-textLg). */
 .botonV2--grande {

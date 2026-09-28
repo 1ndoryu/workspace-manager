@@ -8,6 +8,7 @@
  * doble clic (armar + confirmar); el server exige además la palabra BORRAR. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button.js';
+import { Casilla } from '../ui/Casilla.js';
 import {
   escanearPcTodo,
   estadoPc,
@@ -404,16 +405,13 @@ export function PanelPc() {
           return (
             <section key={grupo.id} className="panelPcGrupo" aria-label={grupo.titulo}>
               <header className="panelPcGrupoCabecera">
-                <Button cuadrado onClick={() => plegar(grupo.id)} title={plegado ? `Despliega ${grupo.titulo}` : `Pliega ${grupo.titulo}`}>
+                <Button cuadrado pequeno onClick={() => plegar(grupo.id)} title={plegado ? `Despliega ${grupo.titulo}` : `Pliega ${grupo.titulo}`}>
                   {plegado ? '+' : '−'}
                 </Button>
                 <label className="panelPcCheck">
-                  <input
-                    type="checkbox"
-                    ref={(el) => {
-                      if (el) el.indeterminate = elegidasGrupo > 0 && !todas;
-                    }}
+                  <Casilla
                     checked={todas}
+                    indeterminado={elegidasGrupo > 0 && !todas}
                     onChange={() => conmutarGrupo(grupo)}
                   />
                   <span className="panelPcClave">
@@ -427,7 +425,7 @@ export function PanelPc() {
                   {grupo.filas.map((f) => (
                     <li key={f.id} className="panelPcFila">
                       <label className="panelPcCheck">
-                        <input type="checkbox" checked={elegidas.has(f.id)} onChange={() => conmutar(f.id)} />
+                        <Casilla checked={elegidas.has(f.id)} onChange={() => conmutar(f.id)} />
                         <span className="panelPcRuta" title={f.ruta}>
                           {rutaCorta(f.ruta)}
                         </span>

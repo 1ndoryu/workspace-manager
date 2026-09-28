@@ -1,0 +1,61 @@
+/* Casilla canonica del shell v2: caja de 14px con tokens --v2-*.
+ * [por que] Estilos visuales del componente Casilla (par de Casilla.tsx);
+ * como Button.css, este archivo es el unico lugar permitido para la
+ * especificacion visual de la casilla. */
+.casillaV2 {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+/* El input real ocupa la caja: clic, teclado y lector intactos. */
+.casillaV2Entrada {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.casillaV2Caja {
+    flex: none;
+    box-sizing: border-box;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Marcado por inversion de relleno, como botonV2--activo. */
+.casillaV2Entrada:checked + .casillaV2Caja,
+.casillaV2Entrada:indeterminate + .casillaV2Caja {
+    background: var(--v2-texto);
+}
+
+/* ✓ en invertido (glifo de texto, sin color). */
+.casillaV2Entrada:checked + .casillaV2Caja::after {
+    content: '✓';
+    color: var(--v2-invertido);
+    font-size: 11px;
+    line-height: 1;
+}
+
+/* Indeterminado: barra en invertido sobre el relleno. */
+.casillaV2Entrada:indeterminate + .casillaV2Caja::after {
+    content: '';
+    width: 8px;
+    height: 2px;
+    background: var(--v2-invertido);
+}
+
+/* Foco propio monocromo, como el boton (sin anillo del navegador). */
+.casillaV2Entrada:focus-visible + .casillaV2Caja {
+    outline: 1px solid var(--v2-texto);
+    outline-offset: 1px;
+}
