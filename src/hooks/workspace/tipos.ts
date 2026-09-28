@@ -19,7 +19,7 @@ import type { ReporteSincronizacion } from '../../server/gate/sincronizacion.js'
  * layout y la seleccion: sobreviven a recargas. [por que] El usuario pidio
  * un nav para cambiar el panel central (mapa/docs/repos/config) y controlar
  * que paneles laterales/consola estan visibles. */
-export type PanelCentral = 'mapa' | 'docs' | 'repos' | 'navegador' | 'config' | 'pc';
+export type PanelCentral = 'mapa' | 'docs' | 'repos' | 'navegador' | 'config' | 'sentinel' | 'pc';
 
 /* Posicion del menu contextual (clic derecho) sobre un proyecto. La seleccion
  * usa el id (nombre) y la clave (ruta relativa) para ignorar/configurar. */
@@ -56,7 +56,7 @@ export interface DatosUi {
   navegadorRuta: string | null;
   /* Menu contextual (clic derecho) sobre un proyecto: posicion y clave. */
   menuContextual: MenuContextual | null;
-  /* Proyecto que configura la pagina 'config' (se abre desde el menu). */
+  /* Proyecto que configura la pagina 'sentinel' (se abre desde el menu). */
   proyectoAConfigurar: string | null;
 }
 

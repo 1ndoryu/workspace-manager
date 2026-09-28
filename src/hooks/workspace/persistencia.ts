@@ -53,6 +53,7 @@ function uiGuardada(): { panelCentral: PanelCentral; visibles: VisibilidadPanele
       d.panelCentral === 'repos' ||
       d.panelCentral === 'navegador' ||
       d.panelCentral === 'config' ||
+      d.panelCentral === 'sentinel' ||
       d.panelCentral === 'pc'
         ? d.panelCentral
         : 'mapa';
