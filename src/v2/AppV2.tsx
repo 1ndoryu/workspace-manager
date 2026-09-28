@@ -14,6 +14,7 @@ import { PanelConsola } from './paneles/consola/PanelConsola.js';
 import { PanelDetalle } from './paneles/PanelDetalle.js';
 import { PanelDocs } from './paneles/PanelDocs.js';
 import { PanelConfig } from './paneles/config/PanelConfig.js';
+import { PanelSentinel } from './paneles/sentinel/PanelSentinel.js';
 import { PanelLista } from './paneles/PanelLista.js';
 import { PanelNavegador } from './paneles/PanelNavegador.js';
 import { PanelPc } from './paneles/PanelPc.js';
@@ -53,6 +54,7 @@ export function AppV2() {
     repos: <PanelRepos />,
     navegador: <PanelNavegador />,
     config: <PanelConfig />,
+    sentinel: <PanelSentinel />,
     pc: <PanelPc />,
   }[panelCentral];
 

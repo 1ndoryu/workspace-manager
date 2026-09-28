@@ -1,13 +1,13 @@
-/* Vista 'proyecto' del PanelConfig: badges de estado del gate + editores
+/* Vista de proyecto del PanelSentinel: badges de estado del gate + editores
  * JSON (dirigidos por esquema cuando hay, genericos si no).
- * [por que] Salio de PanelConfig.tsx para que el componente quede bajo el
- * limite-lineas (300): recibe el paquete `datos` del hook, sin logica propia. */
+ * [por que] MOVIDA desde config/ sin cambio: recibe el paquete `datos` del
+ * hook, sin logica propia. */
 import { Button } from '../../ui/Button.js';
 import { EditorJson } from '../../ui/EditorJson.js';
 import { EditorEsquema } from '../../EditorEsquema.js';
-import { ARCHIVO_A_TOOL, badgesDe, type DatosPanelConfig } from './usePanelConfig.js';
+import { ARCHIVO_A_TOOL, badgesDe, type DatosPanelSentinel } from './usePanelSentinel.js';
 
-export function VistaProyecto({ datos }: { datos: DatosPanelConfig }) {
+export function VistaProyecto({ datos }: { datos: DatosPanelSentinel }) {
   const {
     claveVisor, gate, contenidos, setContenidos, editado, setEditado, parseErrores,
     cargandoGate, guardando, proyectoVisor, visorIgnorado,

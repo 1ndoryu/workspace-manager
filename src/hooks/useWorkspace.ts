@@ -93,7 +93,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   cerrarMenuContextual: () => set({ menuContextual: null }),
   configurarProyecto: (clave) => {
     set({ menuContextual: null, proyectoAConfigurar: clave });
-    get().setPanelCentral('config');
+    get().setPanelCentral('sentinel');
   },
 }));
 
