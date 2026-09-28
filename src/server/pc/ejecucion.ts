@@ -529,14 +529,17 @@ export async function limpiarPc(seleccionRaw: unknown): Promise<ResultadoLimpiez
     }
     liberadosGb += Number(dato.liberados_gb ?? 0);
   }
-  /* Poda del reporte unido: solo retira lo realmente borrado (estado
-   * «borrada» en la salida del limpiador), nunca lo seleccionado a ciegas.
+  /* Poda del reporte unido: solo retira lo realmente eliminado (estados
+   * «borrada» en area, «vaciada» en caches/vscode/chrome, «limpiada» en
+   * extern), nunca lo seleccionado a ciegas.
    * [por que] Con éxito parcial, podar la selección entera hacía
    * desaparecer de la tab entradas que siguen en disco. */
   const previas = leerReporte();
   if (previas) {
     const borradas = new Set(
-      acciones.filter((a) => a.estado === 'borrada').map((a) => `${a.fase}::${a.clave}`),
+      acciones
+        .filter((a) => a.estado === 'borrada' || a.estado === 'vaciada' || a.estado === 'limpiada')
+        .map((a) => `${a.fase}::${a.clave}`),
     );
     const entradas = previas.entradas.filter(
       (e) => !borradas.has(e.fase === 'area' ? `area::${e.ruta}` : `${e.fase}::${e.clave}`),
