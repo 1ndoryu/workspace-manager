@@ -71,14 +71,20 @@ export function crearAccionesCarga(set: Set, get: Get): AccionesCarga {
         );
         if (data && typeof data.esquema === 'object' && data.esquema !== null) {
           const nodo = deserializarEsquema(JSON.stringify(data.esquema));
-          set((s) => ({ esquemas: { ...s.esquemas, [tool]: nodo } }));
+          set((s) => ({
+            esquemas: { ...s.esquemas, [tool]: nodo },
+            esquemasFuente: { ...s.esquemasFuente, [tool]: 'vivo' },
+          }));
           return nodo;
         }
       } catch (err) {
         logger.warn(`esquema ${tool} vivo no disponible, uso estatico:`, err);
       }
       const fb = estatico(tool);
-      if (fb) set((s) => ({ esquemas: { ...s.esquemas, [tool]: fb } }));
+      if (fb) set((s) => ({
+        esquemas: { ...s.esquemas, [tool]: fb },
+        esquemasFuente: { ...s.esquemasFuente, [tool]: 'estatico' },
+      }));
       return fb;
     },
   };

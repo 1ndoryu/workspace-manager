@@ -1,7 +1,7 @@
 /* Seccion de reglas del EditorEsquema: pestanas por categoria + toggle y
  * severidad por regla. [por que] Vive en modulo propio para que
  * EditorEsquema.tsx no supere el limite de lineas. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { infoSegmento } from '../shared/gate/etiquetas.js';
 import type { NodoEsquema, Ruta, ValorJson } from '../shared/gate/esquema.js';
 import type { ReglaCatalogo } from '../shared/gate/reglas.js';
@@ -58,6 +58,16 @@ export function SeccionReglas({
   const categorias: string[] = [];
   for (const r of reglas) if (!categorias.includes(r.categoria)) categorias.push(r.categoria);
   const [activa, setActiva] = useState<string>(categorias[0] ?? '');
+  /* H5: el catalogo llega en dos tiempos (estatico primero, vivo despues).
+   * Si la categoria activa deja de existir al cambiar el catalogo, se vuelve
+   * a la primera: sin esto el tab queda en una categoria fantasma con la
+   * lista vacia y sin aviso. */
+  useEffect(() => {
+    if (activa !== '__desconocidas' && activa !== '' && !categorias.includes(activa)) {
+      setActiva(categorias[0] ?? '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reglas]);
 
   const enCatalogo = ids.filter((id) => Object.prototype.hasOwnProperty.call(presente, id)).length;
   const activas = [...ids, ...desconocidas].filter((id) => {
@@ -106,12 +116,30 @@ export function SeccionReglas({
       </div>
       <div className="ejReglasLista">
         {(activa === '__desconocidas' ? desconocidas : idsDeCategoria(activa)).map((id) => {
-          const v = presente[id];
+          /* H6b: clave presente pero con valor no-objeto (string, array...)
+           * tambien es malformada, no ausente: obj seria undefined y caia
+           * en "por defecto". Se distingue con hasOwnProperty. */
+          const cruda = Object.prototype.hasOwnProperty.call(presente, id)
+            ? presente[id]
+            : undefined;
+          const v = cruda;
           const obj = v !== null && typeof v === 'object' && !Array.isArray(v)
             ? (v as Record<string, ValorJson>)
             : undefined;
-          const ausente = obj === undefined;
+          const ausente = cruda === undefined;
           const desconocida = !conoce.has(id);
+          /* H6: entrada PRESENTE pero malformada (no-objeto, o habilitada no
+           * booleana / severidad no string). Antes se etiquetaba "por
+           * defecto" igual que la ausente y el toggle la sobrescribia sin
+           * aviso. Se marca como malformada y toggle/severidad la reemplazan
+           * entera (igual que la ausente) en vez de escribir dentro del
+           * valor roto. */
+          const malformada =
+            !ausente &&
+            (obj === undefined ||
+              ('habilitada' in obj && typeof obj['habilitada'] !== 'boolean') ||
+              ('severidad' in obj && typeof obj['severidad'] !== 'string'));
+          const ausenteOReemplazo = ausente || malformada;
           /* Default real por regla del catalogo (habilitada/severidad). [por
            * que] No todas las reglas nacen activas: 2 de las 105 vienen
            * desactivadas por defecto (nomenclatura-css-ingles, default-export),
@@ -127,19 +155,19 @@ export function SeccionReglas({
           const toggle = () => {
             if (readOnly) return;
             const nuevo = !habilitada;
-            if (ausente) setEn([clave, id], { habilitada: nuevo, severidad });
+            if (ausenteOReemplazo) setEn([clave, id], { habilitada: nuevo, severidad });
             else setEn([clave, id, 'habilitada'], nuevo);
           };
           const cambiarSeveridad = (s: string) => {
             if (readOnly) return;
-            if (ausente) setEn([clave, id], { habilitada, severidad: s });
+            if (ausenteOReemplazo) setEn([clave, id], { habilitada, severidad: s });
             else setEn([clave, id, 'severidad'], s);
           };
 
           return (
             <div
               key={id}
-              className={`ejRegla${ausente ? ' ejRegla--ausente' : ''}${desconocida ? ' ejRegla--desconocida' : ''}${!habilitada ? ' ejRegla--off' : ''}`}
+              className={`ejRegla${ausente ? ' ejRegla--ausente' : ''}${desconocida ? ' ejRegla--desconocida' : ''}${!habilitada ? ' ejRegla--off' : ''}${malformada ? ' ejRegla--mal' : ''}`}
             >
               <span className="ejReglaSwitch">
                 {readOnly ? (
@@ -160,6 +188,11 @@ export function SeccionReglas({
                 <EtiquetaDeRuta ruta={[clave, id]} texto={nombreRegla(id, reglas)} />
                 <span className="ejReglaNotas">
                   {ausente && <span className="ejReglaPorDefecto">por defecto</span>}
+                  {malformada && (
+                    <span className="ejMarcaTexto" title="el valor en config no es un objeto valido; activar o cambiar severidad lo reemplaza entero">
+                      malformado
+                    </span>
+                  )}
                   {desconocida && <span className="ejMarcaTexto">desconocida</span>}
                 </span>
               </span>
