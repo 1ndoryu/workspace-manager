@@ -94,28 +94,12 @@
     gap: var(--v2-spaceMd);
 }
 
-/* Lista lateral unica (panel izquierdo del central de docs). */
+/* Lista lateral unica (caja externa izquierda del central de docs).
+ * [299A-6] El borde, la cabecera y el cuerpo los pone la primitiva `Caja`;
+ * aqui solo el tamano. */
 .panelDocsLista {
     width: 340px;
-    min-height: 0;
     flex: none;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--v2-borde);
-}
-
-.panelDocsSeccion {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.panelDocsCabecera {
-    flex: none;
-    padding: var(--v2-spaceSm) var(--v2-spaceMd);
-    border-bottom: 1px solid var(--v2-borde);
-    font-size: var(--v2-textSm);
 }
 
 .panelDocsEntradas {
@@ -212,36 +196,11 @@
     font-size: var(--v2-textXs);
 }
 
-/* Visor abierto a la derecha. */
+/* Visor abierto a la derecha (caja externa). [299A-6] Borde, cabecera
+ * (titulo + boton guardar como accion) y cuerpo en columna los pone `Caja`. */
 .panelDocsContenido {
     flex: 1;
     min-width: 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--v2-borde);
-}
-
-.panelDocsVisorCabecera {
-    flex: none;
-    display: flex;
-    align-items: center;
-    gap: var(--v2-spaceSm);
-    padding: var(--v2-spaceSm) var(--v2-spaceMd);
-    border-bottom: 1px solid var(--v2-borde);
-}
-
-.panelDocsVisorTitulo {
-    flex: 1;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: var(--v2-textSm);
-}
-
-.panelDocsVisorMeta {
-    font-size: var(--v2-textXs);
 }
 
 .docsGuardar {
@@ -771,25 +730,32 @@
     align-self: center;
 }
 
-/* Tab vps: despliegues + estado de la VPS + detalle (299A-5). Tres zonas en
- * grid; filas clicables como reposFila; estados monocromo (running=relleno,
+/* Tab vps: despliegues + estado de la VPS + detalle (299A-5).
+ * [299A-6] La raiz NO es una caja: llena el marco central y contiene tres
+ * CAJAS externas (primitiva `Caja`) en fila + una barra superior sin borde.
+ * Filas clicables como reposFila; estados monocromo (running=relleno,
  * degraded=borde grueso, resto=atenuado); metricas con barra solida. */
 .panelVps {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    background: var(--v2-fondo);
-    border: 1px solid var(--v2-borde);
+    gap: var(--v2-spaceMd);
 }
 
-.vpsCabecera {
+/* Barra superior: meta + recargar + avisos. No es una caja. */
+.panelVpsBarra {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+}
+
+.panelVpsBarraFila {
     display: flex;
     align-items: center;
     gap: var(--v2-spaceSm);
-    padding: var(--v2-spaceSm) var(--v2-spaceMd);
-    border-bottom: 1px solid var(--v2-borde);
     font-size: var(--v2-textSm);
-    flex: none;
 }
 
 .panelVpsMeta {
@@ -801,35 +767,28 @@
 }
 
 .vpsAviso {
-    padding: var(--v2-spaceSm) var(--v2-spaceMd);
-    border-bottom: 1px solid var(--v2-borde);
     font-size: var(--v2-textSm);
 }
 
-.vpsZonas {
+/* Fila de cajas externas: llena todo el alto restante. Al cerrarse el
+ * detalle (no se renderiza), las hermanas se expanden solas por flex. */
+.panelVpsCajas {
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
-    display: grid;
-    grid-template-columns: minmax(220px, 1fr) minmax(200px, 0.9fr) minmax(320px, 1.4fr);
-    align-items: start;
+    display: flex;
+    gap: var(--v2-spaceMd);
 }
 
-.vpsZona {
-    min-width: 0;
-    border-right: 1px solid var(--v2-borde);
+.panelVpsCajaLista {
+    flex: 1 1 0;
 }
 
-.vpsZona:last-child {
-    border-right: none;
+.panelVpsCajaVps {
+    flex: 1 1 0;
 }
 
-.vpsZonaTitulo {
-    margin: 0;
-    padding: var(--v2-spaceSm) var(--v2-spaceMd);
-    border-bottom: 1px solid var(--v2-borde);
-    font-size: var(--v2-textSm);
-    font-weight: inherit;
+.panelVpsCajaDetalle {
+    flex: 1.6 1 0;
 }
 
 .vpsFila {
@@ -940,19 +899,10 @@
     border-left: 4px solid var(--v2-texto);
 }
 
-.vpsPieza {
-    border-bottom: 1px solid var(--v2-borde);
+/* Cuerpo de una pieza del detalle (Seccion interna): el titulillo lo pone
+ * la primitiva; aqui solo el aire del contenido. */
+.vpsPiezaCuerpo {
     padding: var(--v2-spaceSm) var(--v2-spaceMd);
-}
-
-.vpsPiezaTitulo {
-    margin: 0 0 var(--v2-spaceSm) 0;
-    font-size: var(--v2-textSm);
-    font-weight: inherit;
-}
-
-.vpsPieza--fallo .vpsPiezaTitulo {
-    opacity: 0.65;
 }
 
 .vpsPiezaError {

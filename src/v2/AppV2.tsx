@@ -61,9 +61,10 @@ export function AppV2() {
   }[panelCentral];
 
   /* [por que] El marco con borde solo envuelve al mapa (el usuario pidio el
-   * mapa dentro de un cuadro). En docs y repos cada panel interno es su
-   * propia caja (lista y visor en docs; cabecera+contenido en repos), asi
-   * que el contenedor no lleva borde exterior. */
+   * mapa dentro de un cuadro). En docs, repos y vps cada panel es una `Caja`
+   * externa (primitiva central en ui/Caja.tsx; las subdivisiones dentro de
+   * una Caja son `Seccion`, panel interno sin borde), asi que el contenedor
+   * no lleva borde exterior. */
   const claseCentral =
     panelCentral === 'mapa' ? 'v2CentralMarco' : 'v2CentralMarco v2CentralMarco--contenido';
 
