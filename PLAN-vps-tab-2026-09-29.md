@@ -19,10 +19,12 @@ acción: **más adelante** (v1 = 100% lectura).
 
 ## Superficie verificada (2026-09-29, solo `--help`, cero toques remotos)
 
-- Binario: `C:\tmp\bin\coolify-manager.exe`, `--version` = `coolify-manager 1.0.0`
-  (18/09/2026). `config/settings.json` del repo existe. OJO: en `C:\tmp` NO hay
-  target de build del manager (solo `glory_backend_inmobiliaria`); si hay que
-  pedir cambios upstream hay que compilar a `C:\tmp\glory-target\coolify-manager`.
+- Binario duradero: `C:\Users\Owner\bin\coolify-manager.exe` (copia de 23 MB fuera
+  de `C:\tmp`, que se purga cada hora) + `coolify-manager.version` con el commit
+  fuente. Actualización: `scripts/actualizar-coolify-manager.ps1` (compila en
+  `C:\tmp\glory-target\coolify-manager`, publica y verifica). `--version` =
+  `coolify-manager 1.0.0` (18/09/2026, commit `bf672b2`). `config/settings.json`
+  del repo existe. Fallback legacy solo si falta el duradero: `C:\tmp\bin\`.
 - Con `--json`: `container-stats`, `container-inspect`, `container-events`,
   `diagnose`, `db-stats`. SIN json (texto humano): `list` (+`--detailed` trae
   estado real `ESTADO`), `health` (`-n/--all`), `audit` (`--target`), `logs`
@@ -38,7 +40,8 @@ El server de WM invoca el binario por consulta con `execFile` (sin shell, sin
 interpolación): eficiente (sin proceso persistente), escalable (stateless, una
 consulta = un proceso acotado) y seguro (la allowlist vive en el argv
 construido, no hay endpoint genérico que abusar). Ruta del binario por env
-`COOLIFY_MANAGER_BIN` (defecto `C:\tmp\bin\coolify-manager.exe`); config por
+`COOLIFY_MANAGER_BIN` (defecto `C:\Users\Owner\bin\coolify-manager.exe`,
+fallback `C:\tmp\bin\coolify-manager.exe`); config por
 env `COOLIFY_MANAGER_CONFIG` (defecto: la que resuelva el binario); al arrancar
 se verifica `--version` y si falta el binario la tab falla cerrado con mensaje
 visible (nunca datos inventados).

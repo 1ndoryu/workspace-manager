@@ -12,6 +12,7 @@ import { manejarRutasDocumentos } from './rutasDocumentos.js';
 import { manejarRutasArchivos } from './rutasArchivos.js';
 import { manejarRutasPc } from './rutasPc.js';
 import { manejarRutasRepos } from './rutasRepos.js';
+import { manejarRutasVps } from './vps/rutasVps.js';
 import { logger } from '../shared/logger.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
@@ -140,6 +141,11 @@ export function crearServidor() {
         }
         /* Rutas de la tab repos (/api/repos/*): viven en rutasRepos.ts. */
         if (await manejarRutasRepos(req, res, url, ruta)) {
+          return;
+        }
+        /* Rutas de la tab vps (/api/vps/*, 299A-5, solo lectura via
+         * coolify-manager-rs): viven en vps/rutasVps.ts. */
+        if (await manejarRutasVps(req, res, url, ruta)) {
           return;
         }
         /* Rutas de la tab PC (/api/pc/*): viven en rutasPc.ts. */
