@@ -49,7 +49,7 @@ function resumenStat(lado: LadoSync): string {
   return `${lado.commits.length} commits · ${lado.archivos} archivos +${lado.inserciones} −${lado.borrados}`;
 }
 
-function fechaCorta(fecha: string): string {
+export function fechaCorta(fecha: string): string {
   /* "2026-09-28 12:00:00 +0200" -> "28-09". */
   const m = fecha.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[3]}-${m[2]}` : '';

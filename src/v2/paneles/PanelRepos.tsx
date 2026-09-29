@@ -5,10 +5,10 @@
  * commit. El remoto github se enlaza para abrirlo. */
 import { useMemo, useState } from 'react';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
-import type { DetalleRepoSync } from '../../shared/types.js';
+import type { DetalleRepoSync, Proyecto } from '../../shared/types.js';
 import { archivosRepo, detalleRepo, invalidarDetallesRepos } from '../repos/apiRepos.js';
 import { separarEntradas } from '../repos/gitDiff.js';
-import { DetalleRepo, type StatsArchivo } from './DetalleRepo.js';
+import { DetalleRepo, fechaCorta, type StatsArchivo } from './DetalleRepo.js';
 import { PanelCambiosRepo } from './PanelCambiosRepo.js';
 import './paneles.css';
 
@@ -35,11 +35,26 @@ export function PanelRepos() {
   const cargando = useWorkspaceStore((s) => s.cargando);
   const desdeCache = useWorkspaceStore((s) => s.desdeCache);
 
+  /* Orden: primero los que tienen algo (dirty/por subir/por traer), al
+   * final los sin cambios (además atenuados); dentro de cada grupo por
+   * fecha del último commit descendente, sin fecha al final. [por que] Lo
+   * pide el usuario: lo activo arriba, lo quieto abajo. Límite honesto: el
+   * snapshot no trae mtime del árbol de trabajo, así que un repo dirty con
+   * commit viejo no "flota" por ensuciarse. */
+  function conAlgo(p: Proyecto): boolean {
+    const g = p.git;
+    return !!g && (g.dirty || g.ahead > 0 || g.behind > 0);
+  }
   const repos = useMemo(() => {
     if (!snapshot) return [];
-    return [...snapshot.proyectos]
-      .filter((p) => p.esGit && p.git)
-      .sort((a, b) => a.id.localeCompare(b.id));
+    const porFecha = (a: Proyecto, b: Proyecto) => {
+      const fa = a.git?.ultimoCommit?.fecha ?? '';
+      const fb = b.git?.ultimoCommit?.fecha ?? '';
+      if (fa !== fb) return fb.localeCompare(fa);
+      return a.id.localeCompare(b.id);
+    };
+    const git = [...snapshot.proyectos].filter((p) => p.esGit && p.git);
+    return [...git.filter(conAlgo).sort(porFecha), ...git.filter((p) => !conAlgo(p)).sort(porFecha)];
   }, [snapshot]);
 
   /* Acordeon estricto (289A-6): una sola expandida (por id) o ninguna; el
@@ -180,12 +195,16 @@ export function PanelRepos() {
           /* Total sin commitear para el badge ~N de la fila (conteo ya
            * disponible en el snapshot, sin pedir el detalle). */
           const sinCommitear = g.cambios.staged + g.cambios.unstaged + g.cambios.untracked;
+          /* Sin cambios = limpio y al día (nada que subir/traer/commitear):
+           * opacidad reducida para no distraer; la seleccionada se mantiene
+           * plena para que siga legible. */
+          const sinCambios = !g.dirty && g.ahead === 0 && g.behind === 0;
           const detalle = detalles[p.clave];
           return (
             <div key={p.id} className="reposGrupo">
             <button
               type="button"
-              className={`reposFila${seleccionado ? ' reposFila--seleccionada' : ''}${abierta ? ' reposFila--abierta' : ''}`}
+              className={`reposFila${seleccionado ? ' reposFila--seleccionada' : ''}${abierta ? ' reposFila--abierta' : ''}${sinCambios && !seleccionado ? ' reposFila--sin-cambios' : ''}`}
               onClick={() => alternar(p.id, p.clave)}
               title={`${p.ruta} — clic para ${abierta ? 'plegar' : 'ver cambios (si los hay)'}`}
               aria-expanded={abierta}
@@ -203,6 +222,9 @@ export function PanelRepos() {
               </span>
               <span className="reposFilaCommit">
                 {g.ultimoCommit ? g.ultimoCommit.hash.slice(0, 7) : '—'}
+              </span>
+              <span className="reposFilaFecha" title={g.ultimoCommit?.mensaje ?? 'sin commits'}>
+                {g.ultimoCommit ? fechaCorta(g.ultimoCommit.fecha) : '—'}
               </span>
               {g.remoto ? (
                 <a
