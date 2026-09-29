@@ -47,21 +47,36 @@ export function PanelRepos() {
   const [cargandoClave, setCargandoClave] = useState<string | null>(null);
   const [errorClave, setErrorClave] = useState<string | null>(null);
 
+  /* El detalle dice si hay algo que mostrar (289A-6): por subir, por
+   * traer o sin commitear. Vacio = la fila no se expande, ni mensaje. */
+  function tieneContenido(d: DetalleRepoSync): boolean {
+    if (d.locales.archivos.length > 0) return true;
+    if (d.sinUpstream) return false;
+    return d.salientes.commits.length > 0 || d.entrantes.commits.length > 0;
+  }
+
   async function alternar(id: string, clave: string) {
     if (expandida === id) {
       setExpandida(null);
       return;
     }
     seleccionar(id);
-    setExpandida(id);
     setErrorClave(null);
-    if (detalles[clave]) return;
+    const conocido = detalles[clave];
+    if (conocido) {
+      if (tieneContenido(conocido)) setExpandida(id);
+      return;
+    }
+    /* Primero se trae el detalle y solo se expande si hay algo: al día
+     * = no se abre nada. El error sí se muestra (no es "vacío"). */
     setCargandoClave(clave);
     try {
       const d = await detalleRepo(clave);
       setDetalles((prev) => ({ ...prev, [clave]: d }));
+      if (tieneContenido(d)) setExpandida(id);
     } catch {
       setErrorClave(clave);
+      setExpandida(id);
     } finally {
       setCargandoClave(null);
     }
@@ -114,7 +129,7 @@ export function PanelRepos() {
               type="button"
               className={`reposFila${seleccionado ? ' reposFila--seleccionada' : ''}${abierta ? ' reposFila--abierta' : ''}`}
               onClick={() => alternar(p.id, p.clave)}
-              title={`${p.ruta} — clic para ${abierta ? 'plegar' : 'ver cambios por subir/traer'}`}
+              title={`${p.ruta} — clic para ${abierta ? 'plegar' : 'ver cambios (si los hay)'}`}
               aria-expanded={abierta}
             >
               <span className="reposFilaNombre">{p.id}</span>
@@ -123,6 +138,7 @@ export function PanelRepos() {
                 {g.ahead > 0 ? `${g.ahead}↑` : '·'}
                 {g.behind > 0 ? `${g.behind}↓` : ''}
                 {sinCommitear > 0 ? ` ~${sinCommitear}` : ''}
+                {cargandoClave === p.clave ? ' …' : ''}
               </span>
               <span className="reposFilaDirty" aria-label={g.dirty ? 'con cambios' : 'limpio'}>
                 {g.dirty ? 'dirty' : 'limpio'}
