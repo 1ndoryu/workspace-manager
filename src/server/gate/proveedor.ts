@@ -60,7 +60,7 @@ export function checkoutSentinel(): string | null {
  * declarada en su propio manifest; si no, null y el llamador cae al
  * compartido (nunca se rompe el árbol por un manifest ajeno). [por que]
  * 2026-09-28: la condición anterior exigía ADEMÁS que la versión coincidiera
- * con VERSION_CURACION_SENTINEL (0.7.8→0.7.15), así que TODO pin propio
+  * con VERSION_CURACION_SENTINEL (0.7.8→0.7.15), así que cualquier pin propio
  * (harness 0.7.12@66a2113) se rechazaba y la consola lo medía con el
  * compartido 0.7.15 —un binario que no es el de su gate—. La curación es la
  * versión contra la que se verificó el ESQUEMA (sync:gate), no una condición

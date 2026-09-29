@@ -54,7 +54,7 @@ export interface ArchivoLocal {
 
 /* Detalle de sincronizacion de un repo (GET /api/repos/detalle?clave=).
  * salientes = @{upstream}..HEAD (por subir), entrantes = HEAD..@{upstream}
- * (por traer). Todo calculado en local sin fetch (ver pie en el cliente). */
+ * (por traer). Cálculo local sin fetch (ver pie en el cliente). */
 export interface DetalleRepoSync {
   clave: string;
   sinUpstream: boolean;

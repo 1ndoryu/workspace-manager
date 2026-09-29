@@ -1,6 +1,6 @@
 /* Logica del PanelSentinel en hook dedicado.
  * [por que] Regla componente-sin-hook-glory: Componente.tsx (solo JSX) +
- * useComponente.ts (logica). Todo este bloque se MOVIO desde usePanelConfig
+ * useComponente.ts (logica). Este bloque se MOVIO desde usePanelConfig
  * (tab config) sin cambio de comportamiento: la vista de proyecto/gate vivia
  * abajo de config y ahora tiene su propio tab 'sentinel'. */
 import { useEffect, useState } from 'react';

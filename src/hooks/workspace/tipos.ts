@@ -115,7 +115,7 @@ export interface AccionesAnalisis {
    * arrancar, para que al recargar no se pierda la info ya analizada. */
   cargarAnalisis: () => Promise<void>;
   escanearUno: (clave: string, forzar?: boolean) => Promise<AnalisisSentinel>;
-  /* Barrido serial del workspace (auto-timer y boton 'Escanea todo'). */
+  /* Barrido serial del workspace (auto-timer y boton 'Escaneado completo'). */
   escanearTodo: (forzar?: boolean) => Promise<void>;
 }
 

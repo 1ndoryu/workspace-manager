@@ -4,8 +4,7 @@
  * La caja 3D = base (rombo en el suelo, coincide con la celda) + techo (mismo
  * rombo desplazado hacia arriba) + 2 paredes. Las cajas se colocan en celdas
  * pares y dejan una celda vacia entre ellas como separacion. Asi cada rombo de
- * la rejilla es del tamano de la caja, la caja se asienta en su celda y todo
- * escala facil. */
+ * la rejilla es del tamano de la caja, la caja se asienta en su celda y escala sin ajustes. */
 
 export interface PuntoIso {
   x: number;

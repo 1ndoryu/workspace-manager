@@ -1,5 +1,5 @@
 /* Ejecucion de limpiador-pc: un solo analisis global con progreso en vivo.
- * [por que] La tab PC es una sola cosa (un boton analiza todo): el server
+ * [por que] La tab PC es una sola cosa (un boton analiza el conjunto): el server
  * recorre las 6 fases en serie y emite cada resultado parcial para que la UI
  * muestre lo encontrado en tiempo real (incluido que carpeta se esta
  * midiendo: el binario avisa por stderr desde 0.3.0). El reporte unido se
@@ -204,7 +204,7 @@ function normalizar(fase: FasePc, crudo: unknown): { entradas: EntradaPc[]; tota
 }
 
 /* Ejecuta un *-clean tolerando el éxito parcial: el limpiador devuelve 0
- * (todo borrado), 1 (algunas entradas rechazadas o con fallo, el resto
+ * (borrado completo), 1 (algunas entradas rechazadas o con fallo, el resto
  * borradas) o 2 (fatal, sin JSON). Con 1 el stdout trae el JSON con el
  * estado de cada acción y se aprovecha; solo 2 o un stdout inservible
  * son error.

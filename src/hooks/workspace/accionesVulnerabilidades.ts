@@ -45,7 +45,7 @@ export function crearAccionesVulnerabilidades(set: Set, get: Get): AccionesVulne
       return data;
     },
 
-    /* Barrido serial del workspace (boton 'Auditar todo'). El server reusa la
+    /* Barrido serial del workspace (boton 'Auditoria completa'). El server reusa la
      * cache por hash-de-lockfile si nada cambio; el boton manual manda
      * forzar=true para re-auditar de verdad. Single-flight con auditando. */
     auditarTodo: async (forzar = false) => {

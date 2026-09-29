@@ -52,7 +52,7 @@ export function PanelConfig() {
         {/* Vista por defecto: elige una opcion. */}
         {vista === 'excepciones' && <VistaExcepciones datos={datos} />}
 
-        {/* Vista 'scan': config del auto-escaneo + boton 'Escanea todo'.
+        {/* Vista 'scan': config del auto-escaneo + boton 'Escaneado completo'.
          * [por que] El usuario pidio que el escaneo tenga su propia opcion
          * de menu y no viva dentro de las excepciones. */}
         {vista === 'scan' && <VistaScan datos={datos} />}

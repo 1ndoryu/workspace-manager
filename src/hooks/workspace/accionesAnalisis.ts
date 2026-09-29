@@ -38,7 +38,7 @@ export function crearAccionesAnalisis(set: Set, get: Get): AccionesAnalisis {
       return data;
     },
 
-    /* Barrido serial del workspace (auto-timer y boton 'Escanea todo').
+    /* Barrido serial del workspace (auto-timer y boton 'Escaneado completo').
      * [por que] El boton manual manda forzar=true para que sea GENUINO: el
      * server re-escanea git (nuevos commits/HEAD) y re-ejecuta sentinel aunque
      * la frescura no haya cambiado; el auto-timer manda forzar=false y reusa la

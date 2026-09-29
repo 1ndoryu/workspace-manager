@@ -1,6 +1,6 @@
 /* Vista 'gate' del PanelConfig: veredicto + cadena por herramienta + chips.
  * [por que] Rediseno compacto: antes eran 3 bloques de filas tecnicas con
- * hashes y estados escondidos en tooltips. Ahora se responde "todo bien?"
+ * hashes y estados escondidos en tooltips. Ahora se responde "sin pendientes?"
  * con un banner, cada herramienta muestra su cadena (checkout -> pin ->
  * runtime) resumida en una linea, y cada proyecto es un chip verde/rojo: el
  * detalle (hashes, motivo) solo se abre al clicar un rojo. */
