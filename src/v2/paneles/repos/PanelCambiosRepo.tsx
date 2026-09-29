@@ -8,9 +8,9 @@
  * React con identidad v2 (monocromo estricto, tokens --v2-*, sin
  * radios/sombras/bold). Solo lectura: sin stage/commit/discard. */
 import { useEffect, useMemo, useState } from 'react';
-import type { ArchivosRepo } from '../../shared/types.js';
-import { archivosRepo } from '../repos/apiRepos.js';
-import { separarEntradas, type ArchivoCambio } from '../repos/gitDiff.js';
+import type { ArchivosRepo } from '../../../shared/types.js';
+import { archivosRepo } from '../../repos/apiRepos.js';
+import { separarEntradas, type ArchivoCambio } from '../../repos/gitDiff.js';
 
 interface LineaDiff {
   tipo: 'hunk' | 'aviso' | 'adicion' | 'eliminacion' | 'contexto';

@@ -6,9 +6,10 @@
  * status): sin fetch, sin push, sin stage. Devuelve true si atendio la
  * ruta, false si no es suya. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { json } from './http.js';
-import { snapshotArea } from './snapshot.js';
-import { detalleArchivos, detalleSync } from './scanner/git.js';
+import { json } from '../http.js';
+import { snapshotArea } from '../snapshot.js';
+import { detalleSync } from '../scanner/git.js';
+import { detalleArchivos } from '../scanner/gitDiffs.js';
 
 export async function manejarRutasRepos(
   _req: IncomingMessage,

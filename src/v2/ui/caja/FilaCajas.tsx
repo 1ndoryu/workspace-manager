@@ -6,7 +6,7 @@
  * hijas (ids estables + defecto proporcional) y el tamano lo decide el
  * usuario, no la tab. */
 import { Children, Fragment, useRef, type ReactNode } from 'react';
-import { Resizer } from './Resizer.js';
+import { Resizer } from '../overlay/Resizer.js';
 import { useAnchosFila } from './useAnchosFila.js';
 
 interface FilaCajasProps {
