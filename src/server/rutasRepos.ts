@@ -8,7 +8,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json } from './http.js';
 import { snapshotArea } from './snapshot.js';
-import { detalleSync } from './scanner/git.js';
+import { detalleArchivos, detalleSync } from './scanner/git.js';
 
 export async function manejarRutasRepos(
   _req: IncomingMessage,
@@ -27,6 +27,19 @@ export async function manejarRutasRepos(
       return true;
     }
     json(res, 200, { clave, ...detalleSync(proyecto.ruta) });
+    return true;
+  }
+  /* Archivos con cambios + diffs para el lateral (299A-4): misma
+   * resolución anti-traversal por clave del snapshot. */
+  if (ruta === '/api/repos/archivos') {
+    const clave = url.searchParams.get('clave') ?? '';
+    const { snapshot } = snapshotArea(false);
+    const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
+    if (!proyecto || !proyecto.esGit) {
+      json(res, 404, { error: 'Proyecto no encontrado o no es git', clave });
+      return true;
+    }
+    json(res, 200, { clave, ...detalleArchivos(proyecto.ruta) });
     return true;
   }
   return false;

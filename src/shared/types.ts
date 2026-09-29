@@ -52,6 +52,24 @@ export interface ArchivoLocal {
   estado: 'staged' | 'unstaged' | 'untracked' | 'mixto';
 }
 
+/* Archivos con cambios sin commitear + diffs para el lateral de la tab
+ * repos (GET /api/repos/archivos?clave=, 299A-4, copiado de glory-harness):
+ * entradas = estado XY crudo (2 chars del porcelain) + ruta destino;
+ * diffStaged = `diff --cached`, diffUnstaged = `diff` + untracked como
+ * `diff --no-index -- /dev/null <ruta>`. Solo lectura. */
+export interface EntradaCambio {
+  estado: string;
+  ruta: string;
+}
+
+export interface ArchivosRepo {
+  clave: string;
+  entradas: EntradaCambio[];
+  diffStaged: string;
+  diffUnstaged: string;
+  truncado: boolean;
+}
+
 /* Detalle de sincronizacion de un repo (GET /api/repos/detalle?clave=).
  * salientes = @{upstream}..HEAD (por subir), entrantes = HEAD..@{upstream}
  * (por traer). Cálculo local sin fetch (ver pie en el cliente). */
