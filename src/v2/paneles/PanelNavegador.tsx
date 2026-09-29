@@ -8,9 +8,9 @@
  * (titulo "archivos" + breadcrumb) y el visor (titulo=nombre, meta=ruta).
  * Las clases panelDocsSeccion/Cabecera/Entradas/Visor* no tenian estilo
  * (se renderizaban sin aire): eliminadas, no reestilizadas. */
-import { Button } from '../ui/Button.js';
-import { Caja } from '../ui/Caja.js';
-import { FilaCajas } from '../ui/FilaCajas.js';
+import { Button } from '../ui/form/Button.js';
+import { Caja } from '../ui/caja/Caja.js';
+import { FilaCajas } from '../ui/caja/FilaCajas.js';
 import { usePanelNavegador } from '../../hooks/usePanelNavegador.js';
 import './paneles.css';
 

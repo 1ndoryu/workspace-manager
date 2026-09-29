@@ -2,7 +2,7 @@
  * [por que] Viven en modulo propio para que EditorEsquema.tsx no supere el
  * limite de lineas. */
 import { useState } from 'react';
-import { Button } from './ui/Button.js';
+import { Button } from './ui/form/Button.js';
 import { Selector } from './ui/selector/Selector.js';
 import { toastInfo } from './toast.js';
 import type { OpcionValor, ValorJson } from '../shared/gate/esquema.js';

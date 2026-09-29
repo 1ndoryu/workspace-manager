@@ -8,9 +8,9 @@
  * (titulo "opciones") y el contenido (titulo = la vista + accion verificar
  * en gate). Las cabeceras panelDocsVisor* no tenian estilo: eliminadas, el
  * titulo vive en la Caja. */
-import { Button } from '../../ui/Button.js';
-import { Caja } from '../../ui/Caja.js';
-import { FilaCajas } from '../../ui/FilaCajas.js';
+import { Button } from '../../ui/form/Button.js';
+import { Caja } from '../../ui/caja/Caja.js';
+import { FilaCajas } from '../../ui/caja/FilaCajas.js';
 import { usePanelConfig } from './usePanelConfig.js';
 import { VistaExcepciones } from './VistaExcepciones.js';
 import { VistaScan } from './VistaScan.js';

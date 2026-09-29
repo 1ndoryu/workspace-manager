@@ -75,10 +75,6 @@
     gap: var(--v2-spaceSm);
 }
 
-.panelPcDescripcion {
-    font-size: var(--v2-textXs);
-}
-
 .panelPcAcciones {
     display: flex;
     flex-wrap: wrap;
@@ -103,11 +99,17 @@
  * estilo del navegador: al expandir un grupo aparecia un hueco bajo la
  * cabecera que parecia padding-bottom de esta. La cabecera no cambia
  * (44px plegada o expandida); el hueco era del ul. */
+/* [299A-11] La caja (fondo + borde + 4px) es la receta canonica
+ * .v2Superficie (v2.css), compuesta en el TSX; aqui solo reset de lista y
+ * el override a padding 0 (el compuesto manda sobre la receta sin importar
+ * el orden de carga). */
 .panelPcLista {
     list-style: none;
     margin: 0;
+}
+
+.v2Superficie.panelPcLista {
     padding: 0;
-    border: 1px solid var(--v2-borde);
 }
 
 .panelPcFila {

@@ -12,12 +12,12 @@
  * [299A-9] La fila es `FilaCajas`: los anchos se arrastran (Resizer
  * central, igual que el mapa) y se persisten por tab; el defecto es el
  * reparto anterior. */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { VpsConfig, VpsDetalle, VpsRecursos, VpsSitio, VpsSitios } from '../../shared/types.js';
 import { configVps, detalleVps, invalidarVps, recursosVps, sitiosVps } from '../vps/apiVps.js';
-import { Button } from '../ui/Button.js';
-import { Caja, Seccion } from '../ui/Caja.js';
-import { FilaCajas } from '../ui/FilaCajas.js';
+import { Button } from '../ui/form/Button.js';
+import { Caja, Seccion } from '../ui/caja/Caja.js';
+import { FilaCajas } from '../ui/caja/FilaCajas.js';
 import './paneles.css';
 
 /* Fase del estado "fase:detalle" (running:healthy, degraded:unhealthy...):
@@ -26,6 +26,16 @@ function claseEstado(estado: string): string {
   if (estado.startsWith('running')) return 'vpsEstado vpsEstado--ok';
   if (estado.startsWith('degraded')) return 'vpsEstado vpsEstado--mal';
   return 'vpsEstado vpsEstado--apagado';
+}
+
+/* Clave estable para los elementos del inspector JSON: la lista es una
+ * foto estatica (sin reorden), asi que el contenido manda — escalares por
+ * valor, objetos por su forma. [por que] Sin id en el dato, el indice
+ * reconcilia mal al cambiar datos (reutiliza nodos de otra posicion). */
+function claveJson(d: unknown): string {
+  if (d === null || d === undefined) return 'nulo';
+  if (typeof d !== 'object') return `val-${String(d).slice(0, 40)}`;
+  return `obj-${JSON.stringify(d)?.slice(0, 40) ?? 'x'}`;
 }
 
 /* Inspector JSON generico y acotado: escalares como filas, objetos un nivel,
@@ -43,8 +53,8 @@ function JsonVista({ datos, prof = 0 }: { datos: unknown; prof?: number }): Reac
     return (
       <div className="vpsJsonGrupo">
         <span className="vpsJsonClave">{datos.length} elementos</span>
-        {datos.slice(0, 8).map((d, i) => (
-          <div key={i} className="vpsJsonItem">
+        {datos.slice(0, 8).map((d) => (
+          <div key={`${prof}-${claveJson(d)}`} className="vpsJsonItem v2Guia">
             <JsonVista datos={d} prof={prof + 1} />
           </div>
         ))}
@@ -237,15 +247,23 @@ export function PanelVps() {
           {!recursos && <div className="docsVacio">{cargando ? 'leyendo la VPS…' : '…'}</div>}
           {resumen && (
             <>
-              {resumen.metricas.map((m) => (
-                <div key={m.metrica} className="vpsMetrica">
-                  <span className="vpsMetricaNombre">{m.metrica}</span>
-                  <span className="vpsMetricaBarra" aria-hidden="true">
-                    <span className="vpsMetricaRelleno" style={{ width: `${Math.min(100, m.pct)}%` }} />
-                  </span>
-                  <span className="vpsMetricaPct">{m.pct}%</span>
-                </div>
-              ))}
+              {resumen.metricas.map((m) => {
+                /* [por que] El nivel se calcula fuera del objeto style: la coma
+                 * de Math.min romperia el detector de vars del gate. */
+                const nivel = `${Math.min(100, m.pct)}%`;
+                return (
+                  <div key={m.metrica} className="vpsMetrica">
+                    <span className="vpsMetricaNombre">{m.metrica}</span>
+                    <span className="vpsMetricaBarra" aria-hidden="true">
+                      <span
+                        className="vpsMetricaRelleno"
+                        style={{ '--vps-nivel': nivel } as CSSProperties}
+                      />
+                    </span>
+                    <span className="vpsMetricaPct">{m.pct}%</span>
+                  </div>
+                );
+              })}
               {resumen.carga && <div className="vpsLinea">carga {resumen.carga}</div>}
               <div className="vpsLinea">
                 contenedores {resumen.contenedores.sanos}/{resumen.contenedores.total} sanos

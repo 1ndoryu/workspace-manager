@@ -7,7 +7,7 @@
  * botones viven en Button.css (compuestos .botonV2, unico lugar permitido);
  * aqui solo layout contextual (css-especificacion-diseno-local).
  * El archivo se llama Selector para que la regla no marque sus <button>. */
-import { Button } from '../Button.js';
+import { Button } from '../form/Button.js';
 import { useSelector } from './useSelector.js';
 import './Selector.css';
 
@@ -35,7 +35,7 @@ export function Selector({ valor, opciones, onChange, titulo }: SelectorProps) {
         <span aria-hidden>▾</span>
       </Button>
       {abierto && (
-        <span className="v2SelectorLista" role="listbox" aria-label={titulo ?? 'opciones'}>
+        <span className="v2SelectorLista v2Superficie" role="listbox" aria-label={titulo ?? 'opciones'}>
           {opciones.map((o, i) => (
             <Button
               key={o}

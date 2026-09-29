@@ -9,7 +9,7 @@ import { useEffect, type CSSProperties } from 'react';
 import { useWorkspaceStore } from '../hooks/useWorkspace.js';
 import { MapaV2 } from './mapa/MapaV2.js';
 import { useLayoutV2, MAX_ANCHO, MAX_ALTO, MIN_ANCHO, MIN_ALTO } from './useLayoutV2.js';
-import { NavBar } from './ui/NavBar.js';
+import { NavBar } from './ui/menu/NavBar.js';
 import { PanelConsola } from './paneles/consola/PanelConsola.js';
 import { PanelDetalle } from './paneles/PanelDetalle.js';
 import { PanelDocs } from './paneles/PanelDocs.js';
@@ -18,11 +18,11 @@ import { PanelSentinel } from './paneles/sentinel/PanelSentinel.js';
 import { PanelLista } from './paneles/PanelLista.js';
 import { PanelNavegador } from './paneles/PanelNavegador.js';
 import { PanelPc } from './paneles/PanelPc.js';
-import { MenuContextual } from './ui/MenuContextual.js';
+import { MenuContextual } from './ui/menu/MenuContextual.js';
 import { PanelRepos } from './paneles/PanelRepos.js';
 import { PanelVps } from './paneles/PanelVps.js';
-import { Resizer } from './ui/Resizer.js';
-import { Toaster } from './ui/Toaster.js';
+import { Resizer } from './ui/overlay/Resizer.js';
+import { Toaster } from './ui/overlay/Toaster.js';
 import './styles/v2.css';
 
 export function AppV2() {
@@ -62,7 +62,7 @@ export function AppV2() {
 
   /* [por que] El marco con borde solo envuelve al mapa (el usuario pidio el
    * mapa dentro de un cuadro). En docs, repos y vps cada panel es una `Caja`
-   * externa (primitiva central en ui/Caja.tsx; las subdivisiones dentro de
+   * externa (primitiva central en ui/caja/Caja.tsx; las subdivisiones dentro de
    * una Caja son `Seccion`, panel interno sin borde), asi que el contenedor
    * no lleva borde exterior. */
   const claseCentral =

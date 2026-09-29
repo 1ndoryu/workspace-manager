@@ -1,0 +1,374 @@
+/* Panel repos: estados de los repositorios + visor lateral del diff.
+ * [299A-11] Extraido de paneles.css (Bloque E): lo importa PanelRepos
+ * (cubre a DetalleRepo y PanelCambiosRepo, que renderizan dentro de el).
+ * [299A-7] Dos CAJAS externas (primitiva `Caja`) en `.cajaFila` central: la
+ * lista (titulo + meta + ⟳ canonico) y el lateral del diff (solo al elegir
+ * archivo; al cerrarse, la lista se expande por flex). Aqui solo tamano y
+ * filas. */
+
+/* [299A-9] Sin panelReposCajaLista/Lateral: los anchos los decide el
+ * usuario (FilaCajas persistida, defecto [1,1.25]); los flex fijos se
+ * jubilaron. */
+
+.reposFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border: none;
+    border-bottom: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+    text-align: left;
+    cursor: pointer;
+}
+
+.reposFila--seleccionada {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.reposFilaNombre {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--v2-textSm);
+}
+
+.reposFilaRama {
+    flex: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 110px;
+}
+
+.reposFilaPush {
+    flex: none;
+    white-space: nowrap;
+}
+
+.reposFilaDirty {
+    flex: none;
+    white-space: nowrap;
+}
+
+.reposFilaCommit {
+    flex: none;
+    white-space: nowrap;
+}
+
+/* Fecha del último commit (criterio visible del orden de la lista). */
+.reposFilaFecha {
+    flex: none;
+    white-space: nowrap;
+    opacity: 0.75;
+}
+
+.reposFilaRemoto {
+    flex: none;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: inherit;
+    text-decoration: underline;
+}
+
+.reposFilaRemoto--sin {
+    text-decoration: none;
+    opacity: 0.6;
+}
+
+/* Detalle maximizado de un repo (289A-6): el grupo envuelve la fila + su
+ * detalle; solo un grupo esta abierto a la vez (acordeon en PanelRepos). */
+.reposGrupo {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.reposGrupo .reposFila {
+    border-bottom: none;
+}
+
+.reposFila--abierta {
+    font-weight: bold;
+}
+
+/* Repo sin cambios (limpio y al día): opacidad reducida para que no
+ * distraiga de los que sí tienen algo. */
+.reposFila--sin-cambios {
+    opacity: 0.65;
+}
+
+.reposDetalleContenedor {
+    border-top: 1px dashed var(--v2-borde);
+    background: var(--v2-fondo);
+}
+
+/* [299A-7] El split lista+lateral son dos Cajas en cajaFila central
+ * (cada una con su scroll de cajaCuerpo): sin grid propio. */
+
+/* Visor lateral del diff del archivo elegido (299A-4, copiado del pintado
+ * de harness `git.css`: diff con scroll, grid vieja/nueva/marca/texto).
+ * Sin cabecera ni lista propia: la lista única vive en el acordeón
+ * (`reposDetalleArchivos`, clicable). Monocromo v2 estricto: adicion =
+ * relleno negro, eliminacion = borde izquierdo grueso (patrones, no
+ * color); sin radios, sin sombras, sin bold. */
+.cambiosLateral {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: var(--v2-textXs);
+}
+
+.cambiosDiffStats {
+    margin-left: auto;
+    display: inline-flex;
+    gap: var(--v2-spaceXs);
+    white-space: nowrap;
+}
+
+/* [299A-7] Contadores +N/−N de la cabecera del diff (DetalleRepo y
+ * DiffArchivo): mismo patron monocromo que las filas (adicion=relleno,
+ * eliminacion=borde grueso). Hasta hoy se renderizaban sin estilo. */
+.cambiosDiffMas {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    padding: 0 var(--v2-spaceXs);
+}
+
+.cambiosDiffMenos {
+    border-left: 3px solid var(--v2-texto);
+    padding-left: var(--v2-spaceXs);
+}
+
+/* [299A-7] Aviso dentro del diff (sin patch): aire como docsVacio. Hasta
+ * hoy se renderizaba pegado al borde. */
+.cambiosDiffAviso {
+    padding: var(--v2-spaceSm);
+}
+
+.cambiosDiff {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--v2-spaceSm);
+}
+
+.cambiosDiffCaja {
+    border: 1px solid var(--v2-borde);
+}
+
+.cambiosDiffCabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.cambiosDiffRuta {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cambiosDiffCuerpo {
+    line-height: 1.5;
+}
+
+.cambiosDiffFila {
+    display: grid;
+    /* [por que] 4ch rompe con nº de 3+ dígitos (p. ej. 481): 5ch cubre
+     * hasta 9999 y el overflow oculto evita que un nº extremo deforme la
+     * fila (límite honesto, no perfecto). */
+    grid-template-columns: minmax(0, 5ch) minmax(0, 5ch) 2ch minmax(0, 1fr);
+    min-width: 0;
+    white-space: pre-wrap;
+}
+
+.cambiosDiffFila--adicion {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.cambiosDiffFila--eliminacion {
+    border-left: 3px solid var(--v2-texto);
+}
+
+.cambiosDiffNum {
+    padding: 0 var(--v2-spaceXs);
+    border-right: 1px solid var(--v2-borde);
+    text-align: right;
+    user-select: none;
+    overflow: hidden;
+}
+
+/* Contexto atenuado: lo que no cambia no debe distraer de lo que se
+ * agrega o elimina (lo pide el usuario). */
+.cambiosDiffFila--contexto {
+    opacity: 0.55;
+}
+
+.cambiosDiffFila--adicion .cambiosDiffNum {
+    border-right-color: var(--v2-invertido);
+}
+
+.cambiosDiffMarca {
+    text-align: center;
+    user-select: none;
+}
+
+.cambiosDiffTexto {
+    min-width: 0;
+    padding: 0 var(--v2-spaceSm);
+    overflow-wrap: anywhere;
+}
+
+.cambiosDiffFila--hunk,
+.cambiosDiffFila--aviso {
+    display: block;
+    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.reposDetalle {
+    display: flex;
+    flex-direction: column;
+    font-size: var(--v2-textXs);
+}
+
+.reposDetalleSeccion + .reposDetalleSeccion {
+    border-top: 1px solid var(--v2-borde);
+}
+
+.reposDetalleSeccionCabecera {
+    display: flex;
+    align-items: baseline;
+    gap: var(--v2-spaceSm);
+    width: 100%;
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.reposDetalleFlecha {
+    flex: none;
+}
+
+.reposDetalleSeccionTitulo {
+    flex: none;
+    font-size: var(--v2-textSm);
+}
+
+.reposDetalleSeccionResumen {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.75;
+}
+
+/* Total +A −D a la derecha del resumen de la sección. */
+.reposDetalleSeccionTotal {
+    flex: none;
+    white-space: nowrap;
+}
+
+.reposDetalleSeccionCuerpo {
+    padding: 0 var(--v2-spaceMd) var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+.reposDetalleCommits,
+.reposDetalleArchivos {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.reposDetalleCommit {
+    display: flex;
+    align-items: baseline;
+    gap: var(--v2-spaceSm);
+    padding: 1px 0;
+    min-width: 0;
+}
+
+/* Fila de archivo clicable (lista única 299A-4): abre el diff en el
+ * lateral; la elegida va en relleno negro (patrón, no color). */
+.reposDetalleArchivo {
+    display: flex;
+    align-items: baseline;
+    gap: var(--v2-spaceSm);
+    width: 100%;
+    padding: 1px var(--v2-spaceXs);
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.reposDetalleArchivo:hover {
+    text-decoration: underline;
+}
+
+.reposDetalleArchivo--elegido {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.reposDetalleStats {
+    flex: none;
+    display: inline-flex;
+    gap: var(--v2-spaceXs);
+    white-space: nowrap;
+}
+
+.reposDetalleHash {
+    flex: none;
+}
+
+.reposDetalleFecha {
+    flex: none;
+    opacity: 0.6;
+}
+
+.reposDetalleMensaje,
+.reposDetalleRuta {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reposDetalleEstado {
+    flex: none;
+    border: 1px solid var(--v2-borde);
+    padding: 0 4px;
+}
+
+.reposDetalleEstado--untracked {
+    border-style: dashed;
+}
+
+.reposDetalleMas {
+    opacity: 0.6;
+    padding: 1px 0;
+}

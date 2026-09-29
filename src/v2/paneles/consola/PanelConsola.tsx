@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { usePanelConsola } from './usePanelConsola.js';
 import { useEscanear } from '../../../hooks/useEscanear.js';
-import { Button } from '../../ui/Button.js';
+import { Button } from '../../ui/form/Button.js';
 import { Selector } from '../../ui/selector/Selector.js';
 import {
   type Categoria,
@@ -134,7 +134,7 @@ export function PanelConsola() {
                 {pr.entradas.map((e, i) => (
                   <li
                     key={`${e.motivo}-${i}`}
-                    className={`consolaMotivo${e.seriedad ? ` consolaMotivo--${e.seriedad === 'error' ? 'error' : 'warn'}` : ''}`}
+                    className={`consolaMotivo v2Guia${e.seriedad ? ` consolaMotivo--${e.seriedad === 'error' ? 'error' : 'warn'}` : ''}`}
                   >
                     {e.sentinelSeveridad ? (
                       <span className={`consolaSeveridad consolaSeveridad--${e.sentinelSeveridad}`}>

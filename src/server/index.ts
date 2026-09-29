@@ -6,12 +6,12 @@ import { readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { obtenerSnapshot } from './cache.js';
 import { escanearWorkspace } from './scanner/workspace.js';
-import { manejarRutasGate } from './rutasGate.js';
-import { manejarRutasConfig } from './rutasConfig.js';
-import { manejarRutasDocumentos } from './rutasDocumentos.js';
-import { manejarRutasArchivos } from './rutasArchivos.js';
-import { manejarRutasPc } from './rutasPc.js';
-import { manejarRutasRepos } from './rutasRepos.js';
+import { manejarRutasGate } from './rutas/rutasGate.js';
+import { manejarRutasConfig } from './rutas/rutasConfig.js';
+import { manejarRutasDocumentos } from './rutas/rutasDocumentos.js';
+import { manejarRutasArchivos } from './rutas/rutasArchivos.js';
+import { manejarRutasPc } from './rutas/rutasPc.js';
+import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutasVps.js';
 import { logger } from '../shared/logger.js';
 
