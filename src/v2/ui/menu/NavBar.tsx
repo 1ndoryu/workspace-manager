@@ -3,8 +3,8 @@
  * panel central (mapa, documentacion, repos) y botones para controlar la
  * visibilidad de cada panel lateral/consola. Iconos lucide-react. */
 import { BookOpen, Boxes, FolderOpen, GitBranch, HardDrive, PanelLeft, PanelRight, Server, Settings, ShieldCheck, SquareTerminal, type LucideIcon } from 'lucide-react';
-import { useWorkspaceStore, type PanelCentral, type VisibilidadPaneles } from '../../hooks/useWorkspace.js';
-import { Button } from './Button.js';
+import { useWorkspaceStore, type PanelCentral, type VisibilidadPaneles } from '../../../hooks/useWorkspace.js';
+import { Button } from '../form/Button.js';
 
 const CENTRALES: { clave: PanelCentral; icono: LucideIcon; etiqueta: string }[] = [
   { clave: 'mapa', icono: Boxes, etiqueta: 'mapa' },

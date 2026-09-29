@@ -6,10 +6,12 @@
  * en vivo y el reporte unido persiste para rehidratar al recargar. Devuelve
  * true si atendió la ruta, false si no es suya. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { json, leerBody } from './http.js';
-import { estadoBinario, reconstruirBinario } from './pc/binario.js';
-import { adjuntarLimpieza, escanearTodo, estadoLimpieza, estadoScan, leerReporte, limpiarPc, limpiarTodo } from './pc/ejecucion.js';
-import type { EventoLimpieza, EventoScan } from './pc/ejecucion.js';
+import { json, leerBody } from '../http.js';
+import { estadoBinario, reconstruirBinario } from '../pc/binario.js';
+import { escanearTodo, estadoScan, leerReporte } from '../pc/scan.js';
+import { adjuntarLimpieza, estadoLimpieza, limpiarPc, limpiarTodo } from '../pc/limpieza.js';
+import type { EventoScan } from '../pc/ejecucion.js';
+import type { EventoLimpieza } from '../pc/limpieza.js';
 
 export async function manejarRutasPc(
   req: IncomingMessage,

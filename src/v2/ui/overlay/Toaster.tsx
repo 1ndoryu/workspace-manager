@@ -1,6 +1,6 @@
 /* Toaster: renderiza los toasts del store en una esquina, por encima del
  * resto, con estetica monocroma coherente con el resto de la v2. */
-import { useToasts } from '../toast.js';
+import { useToasts } from '../../toast.js';
 import '../styles/v2.css';
 
 export function Toaster() {

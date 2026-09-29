@@ -14,7 +14,7 @@
  * resizers y anchos persistidos: otra responsabilidad), pero su × tambien
  * es este Button canonico. */
 import type { ReactNode } from 'react';
-import { Button } from './Button.js';
+import { Button } from '../form/Button.js';
 import './Caja.css';
 
 type CajaProps = {

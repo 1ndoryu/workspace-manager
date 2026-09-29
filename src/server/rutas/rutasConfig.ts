@@ -4,12 +4,12 @@
  * "config", con sus importaciones propias (configArea). Devuelve true si
  * atendio la ruta, false si no es suya. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { json, leerBody, RAIZ_AREA } from './http.js';
-import { snapshotArea } from './snapshot.js';
-import { cambiarIgnorado, cambiarSinGate, guardarConfigScan, leerConfigArea } from './configArea.js';
-import { actualizarSnapshot } from './cache.js';
-import { claveDe, resumenDe } from './scanner/workspace.js';
-import type { ConfigScan, SnapshotWorkspace } from '../shared/types.js';
+import { json, leerBody, RAIZ_AREA } from '../http.js';
+import { snapshotArea } from '../snapshot.js';
+import { cambiarIgnorado, cambiarSinGate, guardarConfigScan, leerConfigArea } from '../configArea.js';
+import { actualizarSnapshot } from '../cache.js';
+import { claveDe, resumenDe } from '../scanner/workspace.js';
+import type { ConfigScan, SnapshotWorkspace } from '../../shared/types.js';
 
 export async function manejarRutasConfig(
   req: IncomingMessage,

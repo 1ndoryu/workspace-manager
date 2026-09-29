@@ -6,9 +6,9 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { json, leerArchivo, leerBody, RAIZ_AREA } from './http.js';
-import { snapshotArea } from './snapshot.js';
-import { logger } from '../shared/logger.js';
+import { json, leerArchivo, leerBody, RAIZ_AREA } from '../http.js';
+import { snapshotArea } from '../snapshot.js';
+import { logger } from '../../shared/logger.js';
 
 export async function manejarRutasDocumentos(
   req: IncomingMessage,

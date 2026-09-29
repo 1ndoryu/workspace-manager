@@ -7,23 +7,23 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { json, leerArchivo, leerBody } from './http.js';
-import { snapshotArea } from './snapshot.js';
-import { ARCHIVOS_GATE, doctorSentinel } from './scanner/gate.js';
-import { esquemaGate, reglasGate } from './gate/proveedor.js';
-import { ESQUEMA_SENTINEL } from '../shared/gate/sentinel.js';
-import { ESQUEMA_VARSENSE } from '../shared/gate/varsense.js';
-import { diagnosticar, rutaEtiqueta, severidadDe } from '../shared/gate/esquema.js';
-import { correrSincronizacion } from './gate/sincronizacion.js';
-import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from './gate/analizador.js';
+import { json, leerArchivo, leerBody } from '../http.js';
+import { snapshotArea } from '../snapshot.js';
+import { ARCHIVOS_GATE, doctorSentinel } from '../scanner/gate.js';
+import { esquemaGate, reglasGate } from '../gate/proveedor.js';
+import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
+import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
+import { diagnosticar, rutaEtiqueta, severidadDe } from '../../shared/gate/esquema.js';
+import { correrSincronizacion } from '../gate/sincronizacion.js';
+import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from '../gate/analizador.js';
 import {
   auditarProyecto,
   auditarTodo,
   leerTodasVulnerabilidades,
   leerVulnerabilidades,
-} from './gate/vulnerabilidades.js';
-import { logger } from '../shared/logger.js';
-import type { AnalisisSentinel, AnalisisVulnerabilidades } from '../shared/types.js';
+} from '../gate/vulnerabilidades.js';
+import { logger } from '../../shared/logger.js';
+import type { AnalisisSentinel, AnalisisVulnerabilidades } from '../../shared/types.js';
 
 export async function manejarRutasGate(
   req: IncomingMessage,
