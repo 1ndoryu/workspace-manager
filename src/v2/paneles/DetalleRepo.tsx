@@ -13,31 +13,14 @@ function Seccion({
   titulo,
   resumen,
   abiertaPorDefecto,
-  vacia,
   children,
 }: {
   titulo: string;
   resumen: string;
   abiertaPorDefecto: boolean;
-  /* Sin contenido que mostrar (vacío o sin upstream): la cabecera es un
-   * div estático, no abre nada al pulsar (el resumen ya lo dice todo). */
-  vacia: boolean;
   children: ReactNode;
 }) {
   const [abierta, setAbierta] = useState(abiertaPorDefecto);
-  if (vacia) {
-    return (
-      <div className="reposDetalleSeccion">
-        <div className="reposDetalleSeccionCabecera reposDetalleSeccionCabecera--vacia" aria-disabled="true">
-          <span className="reposDetalleFlecha" aria-hidden="true">
-            ·
-          </span>
-          <span className="reposDetalleSeccionTitulo">{titulo}</span>
-          <span className="reposDetalleSeccionResumen">{resumen}</span>
-        </div>
-      </div>
-    );
-  }
   return (
     <div className="reposDetalleSeccion">
       <button
@@ -115,6 +98,10 @@ function ListaArchivos({ archivos, truncado }: DetalleRepoSync['locales']) {
 export function DetalleRepo({ detalle }: { detalle: DetalleRepoSync }) {
   const { salientes, entrantes } = detalle;
   const locales = detalle.locales.archivos;
+  /* Solo aparece la sección que tiene algo: vacía = ni se renderiza. */
+  const haySubir = !detalle.sinUpstream && salientes.commits.length > 0;
+  const hayTraer = !detalle.sinUpstream && entrantes.commits.length > 0;
+  const hayLocales = locales.length > 0;
   const cuentaLocal: Record<ArchivoLocal['estado'], number> = {
     staged: 0,
     unstaged: 0,
@@ -129,46 +116,28 @@ export function DetalleRepo({ detalle }: { detalle: DetalleRepoSync }) {
 
   return (
     <div className="reposDetalle" aria-label={`Detalle de sincronización de ${detalle.clave}`}>
-      <Seccion
-        titulo="POR SUBIR"
-        resumen={detalle.sinUpstream ? 'sin upstream' : resumenStat(salientes)}
-        abiertaPorDefecto={salientes.commits.length > 0}
-        vacia={detalle.sinUpstream || salientes.commits.length === 0}
-      >
-        {detalle.sinUpstream ? (
-          <div className="docsVacio">sin upstream: nada que subir contra remoto</div>
-        ) : salientes.commits.length === 0 ? (
-          <div className="docsVacio">nada por subir ✓</div>
-        ) : (
+      {haySubir && (
+        <Seccion
+          titulo="POR SUBIR"
+          resumen={resumenStat(salientes)}
+          abiertaPorDefecto={true}
+        >
           <ListaCommits commits={salientes.commits} />
-        )}
-      </Seccion>
-      <Seccion
-        titulo="POR TRAER"
-        resumen={detalle.sinUpstream ? 'sin upstream' : resumenStat(entrantes)}
-        abiertaPorDefecto={entrantes.commits.length > 0}
-        vacia={detalle.sinUpstream || entrantes.commits.length === 0}
-      >
-        {detalle.sinUpstream ? (
-          <div className="docsVacio">sin upstream: nada que traer del remoto</div>
-        ) : entrantes.commits.length === 0 ? (
-          <div className="docsVacio">al día ✓</div>
-        ) : (
+        </Seccion>
+      )}
+      {hayTraer && (
+        <Seccion titulo="POR TRAER" resumen={resumenStat(entrantes)} abiertaPorDefecto={true}>
           <ListaCommits commits={entrantes.commits} />
-        )}
-      </Seccion>
-      <Seccion
-        titulo="SIN COMMITEAR"
-        resumen={resumenLocales}
-        abiertaPorDefecto={locales.length > 0}
-        vacia={locales.length === 0}
-      >
-        {locales.length === 0 ? (
-          <div className="docsVacio">árbol limpio ✓</div>
-        ) : (
+        </Seccion>
+      )}
+      {hayLocales && (
+        <Seccion titulo="SIN COMMITEAR" resumen={resumenLocales} abiertaPorDefecto={true}>
           <ListaArchivos archivos={detalle.locales.archivos} truncado={detalle.locales.truncado} />
-        )}
-      </Seccion>
+        </Seccion>
+      )}
+      {!haySubir && !hayTraer && !hayLocales && (
+        <div className="docsVacio">al día ✓ · árbol limpio</div>
+      )}
       <div className="reposDetallePie">calculado en local, sin fetch — lo que traiga el remoto puede variar</div>
     </div>
   );

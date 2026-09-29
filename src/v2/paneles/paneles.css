@@ -448,11 +448,6 @@
     cursor: pointer;
 }
 
-/* Sección vacía: cabecera estática, sin affordance de clic. */
-.reposDetalleSeccionCabecera--vacia {
-    cursor: default;
-}
-
 .reposDetalleFlecha {
     flex: none;
 }
