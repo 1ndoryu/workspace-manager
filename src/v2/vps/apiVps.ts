@@ -3,7 +3,13 @@
  * invalidan con el recargar; el detalle se cachea por sitio y tambien cae
  * con el recargar porque los datos remotos pueden haber cambiado). */
 import axios from 'axios';
-import type { VpsConfig, VpsDetalle, VpsRecursos, VpsSitios } from '../../shared/types.js';
+import type {
+  VpsAgenteRespuesta,
+  VpsConfig,
+  VpsDetalle,
+  VpsRecursos,
+  VpsSitios,
+} from '../../shared/types.js';
 
 let cacheSitios: VpsSitios | null = null;
 let cacheRecursos: VpsRecursos | null = null;
@@ -42,5 +48,13 @@ export async function detalleVps(sitio: string): Promise<VpsDetalle> {
   if (previo) return previo;
   const { data } = await axios.get<VpsDetalle>('/api/vps/detalle', { params: { sitio } });
   cacheDetalle.set(sitio, data);
+  return data;
+}
+
+/* Snapshot del agente glory-pulse (299A-12 F3): sin caché de frontend (el
+ * backend cachea 5 s). El llamante decide legacy/agente por `disponible`;
+ * el error se propaga para que el poll lo trate como "sigue legacy". */
+export async function agenteVps(senal?: AbortSignal): Promise<VpsAgenteRespuesta> {
+  const { data } = await axios.get<VpsAgenteRespuesta>('/api/vps/agente', { signal: senal });
   return data;
 }
