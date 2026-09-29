@@ -239,5 +239,8 @@ Evidencia completa en `glory-pulse/docs/F0-spike.md` (+
 
 ## SIGUIENTE ACCIÓN
 
-F1 HECHA 2026-09-29. Siguiente: F2 (semáforo por familia, ver §F0);
-antes verificar colisión con el frente 299A-11 en `puente.ts`/`rutasVps.ts`.
+F1 HECHA 2026-09-29. F2 HECHA 2026-09-29 (`agente.ts` + breaker 3/60s +
+adaptador + `frescura` + contrato estricto + breaker-test 5/5 vía
+`tsx --test`, `type-check` 0, ruta `/api/vps/agente` verificada en vivo
+→ `sin-configurar` sin env; semáforo por familia: `list` carril paralelo ×3,
+`inspect` sigue en turno único). Siguiente: F3 frontend.
