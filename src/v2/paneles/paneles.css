@@ -388,6 +388,13 @@
     white-space: nowrap;
 }
 
+/* Fecha del último commit (criterio visible del orden de la lista). */
+.reposFilaFecha {
+    flex: none;
+    white-space: nowrap;
+    opacity: 0.75;
+}
+
 .reposFilaRemoto {
     flex: none;
     max-width: 150px;
@@ -417,6 +424,12 @@
 
 .reposFila--abierta {
     font-weight: bold;
+}
+
+/* Repo sin cambios (limpio y al día): opacidad reducida para que no
+ * distraiga de los que sí tienen algo. */
+.reposFila--sin-cambios {
+    opacity: 0.65;
 }
 
 .reposDetalleContenedor {
