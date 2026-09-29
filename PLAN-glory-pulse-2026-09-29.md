@@ -243,4 +243,8 @@ F1 HECHA 2026-09-29. F2 HECHA 2026-09-29 (`agente.ts` + breaker 3/60s +
 adaptador + `frescura` + contrato estricto + breaker-test 5/5 vía
 `tsx --test`, `type-check` 0, ruta `/api/vps/agente` verificada en vivo
 → `sin-configurar` sin env; semáforo por familia: `list` carril paralelo ×3,
-`inspect` sigue en turno único). Siguiente: F3 frontend.
+`inspect` sigue en turno único). F3 HECHA 2026-09-29 (poll 5 s con SWR
+manual + abort sin solapes + pausa en tab oculta + repedido al volver +
+insignia `agente` en meta + banner `pulse-inaccesible (modo lento)` /
+vista parcial; lista en vivo con estado/cpu/mem; sin agente la UI es la
+de antes; `type-check` 0, `vite build` OK). Siguiente: F4 deploy.

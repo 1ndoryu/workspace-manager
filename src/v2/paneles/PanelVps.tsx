@@ -13,8 +13,15 @@
  * central, igual que el mapa) y se persisten por tab; el defecto es el
  * reparto anterior. */
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import type { VpsConfig, VpsDetalle, VpsRecursos, VpsSitio, VpsSitios } from '../../shared/types.js';
-import { configVps, detalleVps, invalidarVps, recursosVps, sitiosVps } from '../vps/apiVps.js';
+import type {
+  VpsAgenteRespuesta,
+  VpsConfig,
+  VpsDetalle,
+  VpsRecursos,
+  VpsSitio,
+  VpsSitios,
+} from '../../shared/types.js';
+import { agenteVps, configVps, detalleVps, invalidarVps, recursosVps, sitiosVps } from '../vps/apiVps.js';
 import { Button } from '../ui/form/Button.js';
 import { Caja, Seccion } from '../ui/caja/Caja.js';
 import { FilaCajas } from '../ui/caja/FilaCajas.js';
@@ -96,6 +103,35 @@ export function PanelVps() {
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const enVuelo = useRef(false);
+  /* [299A-12 F3] Último snapshot del agente (SWR manual: se muestra lo
+   * último bueno mientras se repide). `null` = aún sin respuesta o agente
+   * caído → legacy intacto. Solo cuenta como activo con snapshot válido. */
+  const [agente, setAgente] = useState<VpsAgenteRespuesta | null>(null);
+  const agenteEnVuelo = useRef(false);
+  const agenteAbort = useRef<AbortController | null>(null);
+
+  const snapAgente = agente?.disponible ? (agente.snapshot ?? null) : null;
+
+  async function tickAgente() {
+    if (agenteEnVuelo.current || document.hidden) return;
+    agenteEnVuelo.current = true;
+    agenteAbort.current?.abort();
+    const ctrl = new AbortController();
+    agenteAbort.current = ctrl;
+    try {
+      setAgente(await agenteVps(ctrl.signal));
+    } catch {
+      if (ctrl.signal.aborted) return;
+      /* Sin red: se conserva el último bueno (SWR) y el legacy sigue
+       * mandando; el banner solo salta si hubo agente y cayó. */
+      setAgente((prev) =>
+        prev?.disponible ? { disponible: false, snapshot: prev.snapshot, error: 'pulse-inaccesible' } : prev,
+      );
+    } finally {
+      if (agenteAbort.current === ctrl) agenteAbort.current = null;
+      agenteEnVuelo.current = false;
+    }
+  }
 
   async function cargar() {
     if (enVuelo.current) return;
@@ -119,7 +155,29 @@ export function PanelVps() {
     invalidarVps();
     setDetalle(null);
     void cargar();
+    void tickAgente();
   }
+
+  /* Poll del agente cada 5 s (299A-12 F3): barato (el backend cachea),
+   * sin solapes (abort del tick anterior), pausado con la tab oculta y
+   * repedido al volver a visible. Sin agente configurado el backend
+   * responde `sin-configurar` y todo sigue legacy. */
+  useEffect(() => {
+    void tickAgente();
+    const intervalo = setInterval(() => {
+      void tickAgente();
+    }, 5000);
+    const alVisibilidad = () => {
+      if (!document.hidden) void tickAgente();
+    };
+    document.addEventListener('visibilitychange', alVisibilidad);
+    return () => {
+      clearInterval(intervalo);
+      document.removeEventListener('visibilitychange', alVisibilidad);
+      agenteAbort.current?.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* Carga inicial + auto-refresco configurable (VPS_REFRESH_MS del server):
    * sin solapes (si hay consulta en vuelo, el tick se salta). */
@@ -184,18 +242,33 @@ export function PanelVps() {
   const metaVps = [
     config?.binario.version ?? null,
     config ? (config.refreshMs > 0 ? `auto ${Math.round(config.refreshMs / 1000)}s` : 'manual') : null,
+    snapAgente ? 'agente' : null,
   ]
     .filter((x): x is string => x !== null)
     .join(' · ');
 
+  /* [299A-12 F3] Banner del agente: solo si hubo snapshot y cayó (cadena
+   * pulse → legacy) o si el snapshot viene recortado. Sin agente
+   * configurado no hay banner: todo es legacy como antes. */
+  const bannerAgente =
+    agente && !agente.disponible && agente.error !== null && agente.error !== 'sin-configurar'
+      ? `pulse-inaccesible (modo lento)${agente.error === 'pulse-inaccesible' ? '' : `: ${agente.error}`}`
+      : null;
+  const avisoTruncado =
+    snapAgente?.truncado === true
+      ? `vista parcial del agente (${snapAgente.contenedores.length} de ${snapAgente.totalContenedores})`
+      : null;
+
   return (
     <div className="panelVps">
-      {(config && !config.binario.ok) || error || sitios?.aviso || (sitios && sitios.avisos.length > 0) ? (
+      {(config && !config.binario.ok) || error || sitios?.aviso || (sitios && sitios.avisos.length > 0) || bannerAgente || avisoTruncado ? (
         <div className="panelVpsAvisos">
           {config && !config.binario.ok && (
             <div className="vpsAviso">sin binario ({config.binario.ruta}): la tab no puede leer nada</div>
           )}
           {error && <div className="vpsAviso">{error}</div>}
+          {bannerAgente && <div className="vpsAviso">{bannerAgente}</div>}
+          {avisoTruncado && <div className="vpsAviso">{avisoTruncado}</div>}
           {sitios?.aviso && <div className="vpsAviso">{sitios.aviso}</div>}
           {sitios && sitios.avisos.length > 0 && (
             <div className="vpsAviso">
@@ -244,7 +317,28 @@ export function PanelVps() {
           ))}
         </Caja>
         <Caja titulo="vps" meta={metaVps || undefined} etiqueta="Estado de la VPS">
-          {!recursos && <div className="docsVacio">{cargando ? 'leyendo la VPS…' : '…'}</div>}
+          {!recursos && !snapAgente && (
+            <div className="docsVacio">{cargando ? 'leyendo la VPS…' : '…'}</div>
+          )}
+          {/* [299A-12 F3] Lista en vivo del agente (una sola conexión, poll
+            * 5 s): sustituye al "leyendo…" y complementa al resumen legacy
+            * del audit, que sigue debajo. Sin agente, la caja es la de antes. */}
+          {snapAgente && (
+            <>
+              <div className="vpsLinea">
+                en vivo · {snapAgente.contenedores.length} contenedores · hace{' '}
+                {Math.round(snapAgente.frescura.edadMs / 1000)}s
+              </div>
+              {snapAgente.contenedores.map((c) => (
+                <div key={c.id} className="vpsLinea">
+                  <span className={claseEstado(c.estado)} title={c.estado}>
+                    {c.estado}
+                  </span>{' '}
+                  {c.nombre} · {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
+                </div>
+              ))}
+            </>
+          )}
           {resumen && (
             <>
               {resumen.metricas.map((m) => {
