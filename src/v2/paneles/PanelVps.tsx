@@ -8,12 +8,16 @@
  * expanden solas por flex). Las piezas del detalle son `Seccion` (panel
  * interno sin borde). Cada pieza es una consulta remota y puede tardar; el
  * refresco es configurable por VPS_REFRESH_MS, 0 = manual. v1 sin botones de
- * accion: solo lectura. */
+ * accion: solo lectura.
+ * [299A-9] La fila es `FilaCajas`: los anchos se arrastran (Resizer
+ * central, igual que el mapa) y se persisten por tab; el defecto es el
+ * reparto anterior. */
 import { useEffect, useRef, useState } from 'react';
 import type { VpsConfig, VpsDetalle, VpsRecursos, VpsSitio, VpsSitios } from '../../shared/types.js';
 import { configVps, detalleVps, invalidarVps, recursosVps, sitiosVps } from '../vps/apiVps.js';
 import { Button } from '../ui/Button.js';
 import { Caja, Seccion } from '../ui/Caja.js';
+import { FilaCajas } from '../ui/FilaCajas.js';
 import './paneles.css';
 
 /* Fase del estado "fase:detalle" (running:healthy, degraded:unhealthy...):
@@ -190,10 +194,16 @@ export function PanelVps() {
           )}
         </div>
       ) : null}
-      <div className="cajaFila">
+      {/* [299A-9] Fila redimensionable: los anchos los decide el usuario
+        * con el divisor (igual que el mapa), no la tab; el defecto [1,1,1.6]
+        * es el reparto que habia. */}
+      <FilaCajas
+        fila="vps"
+        ids={elegido ? ['despliegues', 'vps', 'detalle'] : ['despliegues', 'vps']}
+        defectos={[1, 1, 1.6]}
+      >
         <Caja
           titulo={`despliegues${sitios ? ` (${sitios.sitios.length})` : ''}`}
-          className="panelVpsCajaLista"
           etiqueta="Despliegues"
           acciones={
             <Button pequeno onClick={recargar} disabled={cargando} title="Re-consulta la VPS (ignora la caché)">
@@ -223,7 +233,7 @@ export function PanelVps() {
             </button>
           ))}
         </Caja>
-        <Caja titulo="vps" meta={metaVps || undefined} className="panelVpsCajaVps" etiqueta="Estado de la VPS">
+        <Caja titulo="vps" meta={metaVps || undefined} etiqueta="Estado de la VPS">
           {!recursos && <div className="docsVacio">{cargando ? 'leyendo la VPS…' : '…'}</div>}
           {resumen && (
             <>
@@ -254,7 +264,6 @@ export function PanelVps() {
         {elegido && (
           <Caja
             titulo={elegido}
-            className="panelVpsCajaDetalle"
             etiqueta="Detalle del despliegue"
             onCerrar={cerrarDetalle}
             cerrarTitulo="cerrar el detalle"
@@ -287,7 +296,7 @@ export function PanelVps() {
             )}
           </Caja>
         )}
-      </div>
+      </FilaCajas>
     </div>
   );
 }

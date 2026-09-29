@@ -10,6 +10,7 @@
  * panelDocsSeccion/Cabecera/Entradas no tenian estilo: eliminadas. */
 import { Button } from '../../ui/Button.js';
 import { Caja } from '../../ui/Caja.js';
+import { FilaCajas } from '../../ui/FilaCajas.js';
 import { usePanelSentinel } from './usePanelSentinel.js';
 import { VistaProyecto } from './VistaProyecto.js';
 import '../paneles.css';
@@ -20,9 +21,10 @@ export function PanelSentinel() {
   const { claveVisor, proyectos, abrirProyecto, visorIgnorado, alternarIgnorado } = datos;
 
   return (
-    <div className="cajaFila">
+    /* [299A-9] Fila redimensionable (defecto [1,2.5], como docs). */
+    <FilaCajas fila="sentinel" ids={['menu', 'contenido']} defectos={[1, 2.5]}>
       {/* Menu lateral: proyectos a configurar. */}
-      <Caja titulo="proyectos" className="panelDocsLista" etiqueta="Proyectos a configurar">
+      <Caja titulo="proyectos" etiqueta="Proyectos a configurar">
         {proyectos.length === 0 && <div className="docsVacio">sin proyectos visibles</div>}
         {proyectos.map((p) => (
           <button
@@ -39,7 +41,6 @@ export function PanelSentinel() {
 
       <Caja
         titulo={claveVisor ? (visorIgnorado ? `${claveVisor} (ignorado)` : claveVisor) : 'proyecto'}
-        className="panelDocsContenido"
         etiqueta="Opciones del proyecto"
         acciones={
           claveVisor ? (
@@ -51,6 +52,6 @@ export function PanelSentinel() {
       >
         <VistaProyecto datos={datos} />
       </Caja>
-    </div>
+    </FilaCajas>
   );
 }
