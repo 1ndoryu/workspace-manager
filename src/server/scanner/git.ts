@@ -4,7 +4,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
-import type { EstadoGit } from '../../shared/types.js';
+import type { ArchivoLocal, CommitResumen, DetalleRepoSync, EstadoGit, LadoSync } from '../../shared/types.js';
 
 export interface InfoGit {
   esRepo: boolean;
@@ -52,6 +52,11 @@ function lstatOrNull(ruta: string) {
 }
 
 /** Ejecuta git con args en un cwd, devolviendo salida limpia o null si falla. */
+/* [por que] Solo trimEnd, nunca trim: en `status --porcelain` el espacio
+ * inicial de la PRIMERA linea es dato (columna X del formato `XY ruta`;
+ * p. ej. ` M roadmap.md` = modificado sin staged). Un trim completo lo
+ * comia y la primera entrada salia con la ruta truncada (`oadmap.md`) y
+ * el estado cambiado a staged (289A-6). */
 function git(ruta: string, args: string[]): string | null {
   try {
     return execFileSync('git', args, {
@@ -59,7 +64,7 @@ function git(ruta: string, args: string[]): string | null {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 10000,
-    }).trim();
+    }).trimEnd();
   } catch {
     return null;
   }
@@ -214,4 +219,98 @@ function leerSubmodulos(ruta: string): string[] {
     submodulos.push(m[1]);
   }
   return submodulos;
+}
+
+/* Limites del detalle de sync: bastan para decidir que subir/traer sin
+ * inundar la tab (el plan 289A-6 pide listas acotadas con "+N mas"). */
+const MAX_COMMITS_LADO = 50;
+const MAX_ARCHIVOS_LOCALES = 200;
+
+/* Parsea `git log --format=%H%x09%ci%x09%s` en resumenes de una linea. */
+function parsearCommits(salida: string | null): CommitResumen[] {
+  if (!salida) return [];
+  const commits: CommitResumen[] = [];
+  for (const linea of salida.split('\n')) {
+    if (!linea) continue;
+    const [hash, fecha, ...resto] = linea.split('\t');
+    if (!hash) continue;
+    commits.push({ hash, fecha: fecha ?? '', mensaje: resto.join('\t') });
+  }
+  return commits;
+}
+
+/* Parsea `N files changed[, M insertions(+)][, K deletions(-)]` del
+ * --shortstat. [por que] El shortstat es estable entre versiones de git y
+ * evita recorrer el diff completo solo para la cabecera plegable. */
+function parsearShortstat(salida: string | null): { archivos: number; inserciones: number; borrados: number } {
+  const base = { archivos: 0, inserciones: 0, borrados: 0 };
+  if (!salida) return base;
+  const mArch = salida.match(/(\d+) files? changed/);
+  const mIns = salida.match(/(\d+) insertions?\(\+\)/);
+  const mDel = salida.match(/(\d+) deletions?\(-\)/);
+  return {
+    archivos: mArch ? Number(mArch[1]) : 0,
+    inserciones: mIns ? Number(mIns[1]) : 0,
+    borrados: mDel ? Number(mDel[1]) : 0,
+  };
+}
+
+/* Un lado del sync: lista de commits + stat agregado del rango. */
+function leerLado(ruta: string, rangoLog: string, rangoDiff: string): LadoSync {
+  const commits = parsearCommits(
+    git(ruta, ['log', rangoLog, `--max-count=${MAX_COMMITS_LADO}`, '--format=%H%x09%ci%x09%s']),
+  );
+  const stat = parsearShortstat(git(ruta, ['diff', '--shortstat', rangoDiff]));
+  return { commits, ...stat };
+}
+
+/* Estado de un archivo desde las columnas XY del porcelain (misma lectura
+ * que contarCambios: '??' = untracked; X = indice, Y = trabajo). */
+function estadoArchivo(x: string, y: string): ArchivoLocal['estado'] {
+  const enIndice = x !== ' ' && x !== '?';
+  const enTrabajo = y !== ' ' && y !== '?';
+  if (x === '?' || y === '?') return 'untracked';
+  if (enIndice && enTrabajo) return 'mixto';
+  if (enIndice) return 'staged';
+  return 'unstaged';
+}
+
+/* Detalle de sincronizacion de un repo para la tab repos (289A-6): que se
+ * va a subir (upstream..HEAD), que hay por traer (HEAD..upstream) y que hay
+ * sin commitear (porcelain). Solo lectura: log/diff/status, sin fetch. */
+export function detalleSync(ruta: string): Omit<DetalleRepoSync, 'clave'> {
+  const upstream = git(ruta, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']);
+  if (upstream === null) {
+    const locales = leerLocales(ruta);
+    return {
+      sinUpstream: true,
+      salientes: { commits: [], archivos: 0, inserciones: 0, borrados: 0 },
+      entrantes: { commits: [], archivos: 0, inserciones: 0, borrados: 0 },
+      locales,
+    };
+  }
+  return {
+    sinUpstream: false,
+    salientes: leerLado(ruta, `${upstream}..HEAD`, `${upstream}...HEAD`),
+    entrantes: leerLado(ruta, `HEAD..${upstream}`, `HEAD...${upstream}`),
+    locales: leerLocales(ruta),
+  };
+}
+
+function leerLocales(ruta: string): DetalleRepoSync['locales'] {
+  const status = git(ruta, ['status', '--porcelain']) ?? '';
+  const archivos: ArchivoLocal[] = [];
+  for (const linea of status.split('\n')) {
+    if (!linea || archivos.length >= MAX_ARCHIVOS_LOCALES) break;
+    if (linea.startsWith('??')) {
+      archivos.push({ ruta: linea.slice(3), estado: 'untracked' });
+      continue;
+    }
+    /* Renombros 'R  viejo -> nuevo': mostrar el destino (lo que se sube). */
+    const cruda = linea.slice(3);
+    const rutaMostrar = cruda.includes(' -> ') ? cruda.split(' -> ').at(-1)! : cruda;
+    archivos.push({ ruta: rutaMostrar, estado: estadoArchivo(linea[0] ?? ' ', linea[1] ?? ' ') });
+  }
+  const totalLineas = status.split('\n').filter(Boolean).length;
+  return { archivos, truncado: totalLineas > archivos.length };
 }

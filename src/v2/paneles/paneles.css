@@ -403,6 +403,128 @@
     opacity: 0.6;
 }
 
+/* Detalle maximizado de un repo (289A-6): el grupo envuelve la fila + su
+ * detalle; solo un grupo esta abierto a la vez (acordeon en PanelRepos). */
+.reposGrupo {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.reposGrupo .reposFila {
+    border-bottom: none;
+}
+
+.reposFila--abierta {
+    font-weight: bold;
+}
+
+.reposDetalleContenedor {
+    border-top: 1px dashed var(--v2-borde);
+    background: var(--v2-fondo);
+}
+
+.reposDetalle {
+    display: flex;
+    flex-direction: column;
+    font-size: var(--v2-textXs);
+}
+
+.reposDetalleSeccion + .reposDetalleSeccion {
+    border-top: 1px solid var(--v2-borde);
+}
+
+.reposDetalleSeccionCabecera {
+    display: flex;
+    align-items: baseline;
+    gap: var(--v2-spaceSm);
+    width: 100%;
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.reposDetalleFlecha {
+    flex: none;
+}
+
+.reposDetalleSeccionTitulo {
+    flex: none;
+    font-size: var(--v2-textSm);
+}
+
+.reposDetalleSeccionResumen {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.75;
+}
+
+.reposDetalleSeccionCuerpo {
+    padding: 0 var(--v2-spaceMd) var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+.reposDetalleCommits,
+.reposDetalleArchivos {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.reposDetalleCommit,
+.reposDetalleArchivo {
+    display: flex;
+    align-items: baseline;
+    gap: var(--v2-spaceSm);
+    padding: 1px 0;
+    min-width: 0;
+}
+
+.reposDetalleHash {
+    flex: none;
+}
+
+.reposDetalleFecha {
+    flex: none;
+    opacity: 0.6;
+}
+
+.reposDetalleMensaje,
+.reposDetalleRuta {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reposDetalleEstado {
+    flex: none;
+    border: 1px solid var(--v2-borde);
+    padding: 0 4px;
+}
+
+.reposDetalleEstado--untracked {
+    border-style: dashed;
+}
+
+.reposDetalleMas {
+    opacity: 0.6;
+    padding: 1px 0;
+}
+
+.reposDetallePie {
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border-top: 1px solid var(--v2-borde);
+    opacity: 0.6;
+}
+
 /* Panel central: navegador de archivos.
  * Reutiliza la estructura de docs (lista lateral + visor) con su
  * propia fila de ruta (breadcrumb + boton de subir). */
