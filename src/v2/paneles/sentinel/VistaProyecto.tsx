@@ -10,8 +10,8 @@ import { ARCHIVO_A_TOOL, badgesDe, type DatosPanelSentinel } from './usePanelSen
 export function VistaProyecto({ datos }: { datos: DatosPanelSentinel }) {
   const {
     claveVisor, gate, contenidos, setContenidos, editado, setEditado, editadoInicial, parseErrores, setParseErrores,
-    cargandoGate, guardando, proyectoVisor, visorIgnorado,
-    esquemas, esquemasFuente, reglasCatalogo, alternarIgnorado, guardar,
+    cargandoGate, guardando, proyectoVisor,
+    esquemas, esquemasFuente, reglasCatalogo, guardar,
   } = datos;
 
   /* H3: re-parseo en vivo del textarea de reparacion. [por que] Antes el
@@ -56,16 +56,9 @@ export function VistaProyecto({ datos }: { datos: DatosPanelSentinel }) {
   }
 
   return (
+    /* [299A-7] Sin cabecera propia: titulo y accion ignorar viven en la
+     * Caja contenido de PanelSentinel (un solo titulo, un solo lugar). */
     <>
-      <header className="docsVisorCabecera">
-        <span className="docsVisorTitulo">{visorIgnorado ? `${claveVisor} (ignorado)` : claveVisor}</span>
-        <Button
-          className="excBoton"
-          onClick={() => void alternarIgnorado(claveVisor, !visorIgnorado)}
-        >
-          {visorIgnorado ? 'dejar de ignorar' : 'ignorar'}
-        </Button>
-      </header>
 
       {proyectoVisor && <div className="configMeta">{proyectoVisor.ruta}</div>}
 
@@ -90,14 +83,15 @@ export function VistaProyecto({ datos }: { datos: DatosPanelSentinel }) {
                 <section key={a.nombre} className="gateEditor">
                   <header className="gateEditorCabecera">
                     <span className="gateEditorNombre">{a.nombre}</span>
-                    <button
-                      type="button"
-                      className="docsGuardar"
+                    {/* [299A-7] Guardar canonico: Button pequeno (la
+                     * primitiva prohibe botones ad-hoc en cabeceras). */}
+                    <Button
+                      pequeno
                       disabled
                       title="corrige el JSON para poder guardar"
                     >
                       guardar
-                    </button>
+                    </Button>
                   </header>
                   <div className="ejError">JSON inválido: {parseErrores[a.nombre]}</div>
                   <textarea
@@ -130,15 +124,15 @@ export function VistaProyecto({ datos }: { datos: DatosPanelSentinel }) {
                       esquema local
                     </span>
                   )}
-                  <button
-                    type="button"
-                    className="docsGuardar"
+                  {/* [299A-7] Guardar canonico: Button pequeno. */}
+                  <Button
+                    pequeno
                     onClick={() => void guardar(a.nombre)}
                     disabled={deshabilitado}
                     title={sinCambios(a.nombre) ? 'sin cambios' : 'guardar cambios'}
                   >
                     {guardando === a.nombre ? 'guardando…' : 'guardar'}
-                  </button>
+                  </Button>
                 </header>
                 {esquema ? (
                   <EditorEsquema

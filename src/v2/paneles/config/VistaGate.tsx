@@ -5,7 +5,6 @@
  * runtime) resumida en una linea, y cada proyecto es un chip verde/rojo: el
  * detalle (hashes, motivo) solo se abre al clicar un rojo. */
 import { useState } from 'react';
-import { Button } from '../../ui/Button.js';
 import type { DatosPanelConfig } from './usePanelConfig.js';
 import type { ReporteSincronizacion } from '../../../server/gate/sincronizacion.js';
 
@@ -60,7 +59,7 @@ function puntosDe(rep: ReporteSincronizacion, tool: Tool): Punto[] {
 }
 
 export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
-  const { sincronizacion, errorSincronizacion, cargarSincronizacion } = datos;
+  const { sincronizacion, errorSincronizacion } = datos;
   /* Un solo detalle abierto (clave herramienta:proyecto); el contenido se
    * calcula del reporte actual, asi que nunca queda rancio al re-verificar. */
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -70,17 +69,9 @@ export function VistaGate({ datos }: { datos: DatosPanelConfig }) {
     : [];
 
   return (
+    /* [299A-7] Sin cabecera propia: titulo y accion verificar viven en la
+     * Caja contenido de PanelConfig (panelDocsVisor* no tenia estilo). */
     <>
-      <header className="panelDocsVisorCabecera">
-        <span className="panelDocsVisorTitulo">gate centralizado</span>
-        <Button
-          pequeno
-          className="excBoton"
-          onClick={() => void cargarSincronizacion()}
-        >
-          verificar alineación
-        </Button>
-      </header>
       <section className="syncVista" aria-label="Centralización del gate">
         <div className="scanCfgAcciones">
           <span className="scanCfgMeta">

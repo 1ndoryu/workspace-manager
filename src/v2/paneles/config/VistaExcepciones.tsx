@@ -8,11 +8,9 @@ export function VistaExcepciones({ datos }: { datos: DatosPanelConfig }) {
   const { ignorados, alternarIgnorado } = datos;
 
   return (
+    /* [299A-7] Sin cabecera propia: el titulo vive en la Caja contenido
+     * de PanelConfig (panelDocsVisor* no tenia estilo). */
     <>
-      <header className="panelDocsVisorCabecera">
-        <span className="panelDocsVisorTitulo">excepciones ({ignorados.length})</span>
-      </header>
-
       {ignorados.length === 0 ? (
         <div className="docsVacio">
           no hay excepciones guardadas. usa el menú contextual (clic derecho) sobre un proyecto

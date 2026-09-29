@@ -163,36 +163,43 @@ export function PanelVps() {
       })
     : null) ?? null;
 
+  /* [299A-7] Sin barra flotante: la meta y el recargar viven en las
+   * cabeceras de las cajas (⟳ = accion de "despliegues", version/modo =
+   * meta de "vps"); los avisos solo se renderizan cuando existen
+   * (una alerta no es una caja). */
+  const metaVps = [
+    config?.binario.version ?? null,
+    config ? (config.refreshMs > 0 ? `auto ${Math.round(config.refreshMs / 1000)}s` : 'manual') : null,
+  ]
+    .filter((x): x is string => x !== null)
+    .join(' · ');
+
   return (
     <div className="panelVps">
-      {/* Barra superior: no es una caja, solo meta + recargar + avisos. */}
-      <div className="panelVpsBarra">
-        <div className="panelVpsBarraFila">
-          <span className="panelVpsMeta">
-            vps · {sitios ? `${sitios.sitios.length} despliegues` : '…'}
-            {config?.binario.version ? ` · ${config.binario.version}` : ''}
-            {config && config.refreshMs > 0 ? ` · auto ${Math.round(config.refreshMs / 1000)}s` : ' · manual'}
-          </span>
-          <Button pequeno onClick={recargar} disabled={cargando} title="Re-consulta la VPS (ignora la caché)">
-            {cargando ? '…' : '⟳ recargar'}
-          </Button>
+      {(config && !config.binario.ok) || error || sitios?.aviso || (sitios && sitios.avisos.length > 0) ? (
+        <div className="panelVpsAvisos">
+          {config && !config.binario.ok && (
+            <div className="vpsAviso">sin binario ({config.binario.ruta}): la tab no puede leer nada</div>
+          )}
+          {error && <div className="vpsAviso">{error}</div>}
+          {sitios?.aviso && <div className="vpsAviso">{sitios.aviso}</div>}
+          {sitios && sitios.avisos.length > 0 && (
+            <div className="vpsAviso">
+              settings ↔ real: {sitios.avisos.map((a) => `${a.nombre} (${a.problema})`).join(' · ')}
+            </div>
+          )}
         </div>
-        {config && !config.binario.ok && (
-          <div className="vpsAviso">sin binario ({config.binario.ruta}): la tab no puede leer nada</div>
-        )}
-        {error && <div className="vpsAviso">{error}</div>}
-        {sitios?.aviso && <div className="vpsAviso">{sitios.aviso}</div>}
-        {sitios && sitios.avisos.length > 0 && (
-          <div className="vpsAviso">
-            settings ↔ real: {sitios.avisos.map((a) => `${a.nombre} (${a.problema})`).join(' · ')}
-          </div>
-        )}
-      </div>
-      <div className="panelVpsCajas">
+      ) : null}
+      <div className="cajaFila">
         <Caja
           titulo={`despliegues${sitios ? ` (${sitios.sitios.length})` : ''}`}
           className="panelVpsCajaLista"
           etiqueta="Despliegues"
+          acciones={
+            <Button pequeno onClick={recargar} disabled={cargando} title="Re-consulta la VPS (ignora la caché)">
+              {cargando ? '…' : '⟳ recargar'}
+            </Button>
+          }
         >
           {!sitios && <div className="docsVacio">{cargando ? 'leyendo la VPS…' : '…'}</div>}
           {sitios?.sitios.map((s: VpsSitio) => (
@@ -216,7 +223,7 @@ export function PanelVps() {
             </button>
           ))}
         </Caja>
-        <Caja titulo="vps" className="panelVpsCajaVps" etiqueta="Estado de la VPS">
+        <Caja titulo="vps" meta={metaVps || undefined} className="panelVpsCajaVps" etiqueta="Estado de la VPS">
           {!recursos && <div className="docsVacio">{cargando ? 'leyendo la VPS…' : '…'}</div>}
           {resumen && (
             <>

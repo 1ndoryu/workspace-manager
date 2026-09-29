@@ -87,12 +87,9 @@
 
 /* Panel central: documentacion (skills globales + AGENTS.md).
  * [v2.2] Una sola lista lateral con etiqueta de tipo por entrada;
- * el contenido abre en el unico panel de la derecha. */
-.panelDocs {
-    height: 100%;
-    display: flex;
-    gap: var(--v2-spaceMd);
-}
+ * el contenido abre en el unico panel de la derecha.
+ * [299A-6] Las dos cajas usan la primitiva `Caja`; la fila es `.cajaFila`
+ * central ([299A-7] .panelDocs eliminado: no aportaba nada). */
 
 /* Lista lateral unica (caja externa izquierda del central de docs).
  * [299A-6] El borde, la cabecera y el cuerpo los pone la primitiva `Caja`;
@@ -100,14 +97,6 @@
 .panelDocsLista {
     width: 340px;
     flex: none;
-}
-
-.panelDocsEntradas {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
 }
 
 .docsFila {
@@ -203,15 +192,8 @@
     min-width: 0;
 }
 
-.docsGuardar {
-    background: var(--v2-fondo);
-    color: var(--v2-texto);
-    border: 1px solid var(--v2-borde);
-    font-family: inherit;
-    font-size: var(--v2-textXs);
-    padding: 2px var(--v2-spaceSm);
-    cursor: pointer;
-}
+/* [299A-7] Sin docsGuardar: el guardar es Button pequeno (primitiva
+ * Caja, sin botones ad-hoc en cabeceras). */
 
 .docsMensaje {
     font-size: var(--v2-textXs);
@@ -243,56 +225,20 @@
     font-size: var(--v2-textSm);
 }
 
-/* Panel central: estados de los repositorios. */
-.panelRepos {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--v2-borde);
+/* Panel repos: estados de los repositorios.
+ * [299A-7] Dos CAJAS externas (primitiva `Caja`) en `.cajaFila` central: la
+ * lista (titulo + meta + ⟳ canonico) y el lateral del diff (solo al elegir
+ * archivo; al cerrarse, la lista se expande por flex). Aqui solo tamano y
+ * filas. */
+
+/* Caja de la lista: llena su mitad; al cerrarse el lateral se expande. */
+.panelReposCajaLista {
+    flex: 1 1 0;
 }
 
-.panelReposCabecera {
-    flex: none;
-    display: flex;
-    align-items: center;
-    gap: var(--v2-spaceSm);
-    padding: var(--v2-spaceSm) var(--v2-spaceMd);
-    border-bottom: 1px solid var(--v2-borde);
-    font-size: var(--v2-textSm);
-}
-
-.panelReposMeta {
-    flex: 1;
-    text-align: right;
-    font-size: var(--v2-textXs);
-}
-
-.reposRecargar {
-    flex: none;
-    background: none;
-    border: 1px solid var(--v2-borde);
-    border-radius: 0;
-    font: inherit;
-    font-size: var(--v2-textXs);
-    color: var(--v2-texto);
-    padding: 3px 8px;
-    cursor: pointer;
-}
-.reposRecargar:hover:not(:disabled) {
-    background: var(--v2-invertido);
-    color: var(--v2-fondo);
-}
-.reposRecargar:disabled {
-    opacity: 0.55;
-    cursor: default;
-}
-
-.panelReposContenido {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
+/* Caja lateral del diff: un poco mas ancha que la lista. */
+.panelReposCajaLateral {
+    flex: 1.25 1 0;
 }
 
 .reposFila {
@@ -396,22 +342,8 @@
     background: var(--v2-fondo);
 }
 
-/* Split lista + lateral de cambios (299A-4): la cabecera abarca ambas
- * columnas; cada columna conserva su propio scroll. */
-.panelRepos--split {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
-}
-
-.panelRepos--split > .panelReposCabecera {
-    grid-column: 1 / -1;
-}
-
-.panelRepos--split > .panelReposContenido {
-    min-height: 0;
-    border-right: 1px solid var(--v2-borde);
-}
+/* [299A-7] El split lista+lateral son dos Cajas en cajaFila central
+ * (cada una con su scroll de cajaCuerpo): sin grid propio. */
 
 /* Visor lateral del diff del archivo elegido (299A-4, copiado del pintado
  * de harness `git.css`: diff con scroll, grid vieja/nueva/marca/texto).
@@ -431,6 +363,26 @@
     display: inline-flex;
     gap: var(--v2-spaceXs);
     white-space: nowrap;
+}
+
+/* [299A-7] Contadores +N/−N de la cabecera del diff (DetalleRepo y
+ * DiffArchivo): mismo patron monocromo que las filas (adicion=relleno,
+ * eliminacion=borde grueso). Hasta hoy se renderizaban sin estilo. */
+.cambiosDiffMas {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    padding: 0 var(--v2-spaceXs);
+}
+
+.cambiosDiffMenos {
+    border-left: 3px solid var(--v2-texto);
+    padding-left: var(--v2-spaceXs);
+}
+
+/* [299A-7] Aviso dentro del diff (sin patch): aire como docsVacio. Hasta
+ * hoy se renderizaba pegado al borde. */
+.cambiosDiffAviso {
+    padding: var(--v2-spaceSm);
 }
 
 .cambiosDiff {
@@ -731,8 +683,11 @@
 }
 
 /* Tab vps: despliegues + estado de la VPS + detalle (299A-5).
- * [299A-6] La raiz NO es una caja: llena el marco central y contiene tres
- * CAJAS externas (primitiva `Caja`) en fila + una barra superior sin borde.
+ * [299A-6] La raiz NO es una caja: columna que contiene avisos (solo cuando
+ * existen: una alerta no es una caja) + UNA fila de CAJAS externas
+ * (.cajaFila central) que llena el marco.
+ * [299A-7] Sin barra flotante: el recargar es accion de "despliegues" y la
+ * version/modo es meta de "vps" (prop `meta` de Caja).
  * Filas clicables como reposFila; estados monocromo (running=relleno,
  * degraded=borde grueso, resto=atenuado); metricas con barra solida. */
 .panelVps {
@@ -740,43 +695,18 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--v2-spaceMd);
+    gap: var(--v2-gapPanel);
 }
 
-/* Barra superior: meta + recargar + avisos. No es una caja. */
-.panelVpsBarra {
+.panelVpsAvisos {
     flex: none;
     display: flex;
     flex-direction: column;
     gap: var(--v2-spaceXs);
 }
 
-.panelVpsBarraFila {
-    display: flex;
-    align-items: center;
-    gap: var(--v2-spaceSm);
-    font-size: var(--v2-textSm);
-}
-
-.panelVpsMeta {
-    flex: 1;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 .vpsAviso {
     font-size: var(--v2-textSm);
-}
-
-/* Fila de cajas externas: llena todo el alto restante. Al cerrarse el
- * detalle (no se renderiza), las hermanas se expanden solas por flex. */
-.panelVpsCajas {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    gap: var(--v2-spaceMd);
 }
 
 .panelVpsCajaLista {

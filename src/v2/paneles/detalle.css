@@ -50,17 +50,8 @@
     font-size: var(--v2-textXs);
 }
 
-.panelCajaCerrar {
-    width: 28px;
-    height: 28px;
-    flex: none;
-    background: var(--v2-fondo);
-    color: var(--v2-texto);
-    border: 1px solid var(--v2-borde);
-    font-size: var(--v2-textMd);
-    line-height: 1;
-    cursor: pointer;
-}
+/* [299A-7] Sin regla de cierre aqui: el cierre es Button cuadrado
+ * pequeno, el unico × del v2 (primitiva Caja). */
 
 /* Filas de detalle: label encima de valor, separadas por linea. */
 .panelDetalleFilas {

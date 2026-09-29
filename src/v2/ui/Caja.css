@@ -1,7 +1,10 @@
 /* Estilos de la primitiva Caja/Seccion (299A-6): el unico lugar donde se
  * define como se ve un panel externo (borde 1px + cabecera + cuerpo que
- * llena) y un panel interno (titulillo sin borde). Los paneles concretos
- * (docs, repos, vps, pc) solo aportan tamano/posicion y su contenido. */
+ * llena), un panel interno (titulillo sin borde) y una fila de cajas
+ * hermanas. Los paneles concretos (docs, repos, vps, pc) solo aportan
+ * tamano/posicion (flex) y su contenido. [299A-7] El × es <Button cuadrado
+ * pequeno> (sin estilo propio aqui); la separacion entre cajas hermanas
+ * vive SOLO en .cajaFila (un token, un lugar). */
 
 .caja {
     border: 1px solid var(--v2-borde);
@@ -10,6 +13,18 @@
     flex-direction: column;
     min-height: 0;
     min-width: 0;
+}
+
+/* Fila de cajas hermanas: llena el marco y las separa con --v2-gapPanel,
+ * el mismo hueco de 12px que dejan los resizers invisibles del mapa (el
+ * usuario pidio ese gap como correcto: 16px era distinto). Al no
+ * renderizarse una hermana (detalle cerrado), las demas se expanden solas
+ * por flex. */
+.cajaFila {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    gap: var(--v2-gapPanel);
 }
 
 .cajaCabecera {
@@ -30,16 +45,10 @@
     text-overflow: ellipsis;
 }
 
-.cajaCerrar {
+/* Meta de cabecera: jerarquia por tamano (textXs), nunca por color. */
+.cajaMeta {
     flex: none;
-    background: var(--v2-fondo);
-    color: var(--v2-texto);
-    border: 1px solid var(--v2-borde);
-    font-family: inherit;
-    font-size: var(--v2-textSm);
-    line-height: 1;
-    padding: 0 var(--v2-spaceSm) 2px;
-    cursor: pointer;
+    font-size: var(--v2-textXs);
 }
 
 .cajaCuerpo {
