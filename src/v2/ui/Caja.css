@@ -1,0 +1,89 @@
+/* Estilos de la primitiva Caja/Seccion (299A-6): el unico lugar donde se
+ * define como se ve un panel externo (borde 1px + cabecera + cuerpo que
+ * llena) y un panel interno (titulillo sin borde). Los paneles concretos
+ * (docs, repos, vps, pc) solo aportan tamano/posicion y su contenido. */
+
+.caja {
+    border: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+}
+
+.cajaCabecera {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+}
+
+.cajaTitulo {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cajaCerrar {
+    flex: none;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    font-family: inherit;
+    font-size: var(--v2-textSm);
+    line-height: 1;
+    padding: 0 var(--v2-spaceSm) 2px;
+    cursor: pointer;
+}
+
+.cajaCuerpo {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Cuerpo en columna sin scroll propio: el hijo (p. ej. textarea) llena. */
+.cajaCuerpo--columna {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Panel interno: subdivision SIN borde dentro de una Caja. */
+.cajaSeccion {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.cajaSeccionTitulo {
+    margin: 0;
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+    font-weight: inherit;
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+}
+
+.cajaSeccionNombre {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Seccion en fallo: borde izquierdo grueso (patron v2 de eliminacion/error,
+ * mismo que repoFila--eliminada). */
+.cajaSeccion--fallo > .cajaSeccionTitulo {
+    border-left: 4px solid var(--v2-texto);
+    padding-left: calc(var(--v2-spaceMd) - 4px);
+}

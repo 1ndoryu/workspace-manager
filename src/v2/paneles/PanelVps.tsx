@@ -1,15 +1,19 @@
 /* Panel de la VPS: despliegues Coolify en solo lectura (299A-5).
  * [por que] El usuario pidio ver despliegues, estado y uso de recursos con
  * un panel de la VPS al lado y el detalle al dar clic, con el patron de la
- * tab repos (lista + zonas, monocromo v2). Tres zonas: lista de despliegues
- * (estado desde `list --detailed`), panel VPS (metricas del `audit`) y
- * detalle del despliegue elegido (health/stats/logs bajo demanda: cada pieza
- * es una consulta remota y puede tardar; el refresco es configurable por
- * VPS_REFRESH_MS, 0 = manual). v1 sin botones de accion: solo lectura. */
+ * tab repos (lista + zonas, monocromo v2).
+ * [299A-6] Tres CAJAS externas independientes (primitiva `Caja`) en una fila
+ * que llena el marco central: despliegues, vps y detalle. El detalle solo se
+ * renderiza al elegir (como el detalle de mapa: al cerrarse, las hermanas se
+ * expanden solas por flex). Las piezas del detalle son `Seccion` (panel
+ * interno sin borde). Cada pieza es una consulta remota y puede tardar; el
+ * refresco es configurable por VPS_REFRESH_MS, 0 = manual. v1 sin botones de
+ * accion: solo lectura. */
 import { useEffect, useRef, useState } from 'react';
 import type { VpsConfig, VpsDetalle, VpsRecursos, VpsSitio, VpsSitios } from '../../shared/types.js';
 import { configVps, detalleVps, invalidarVps, recursosVps, sitiosVps } from '../vps/apiVps.js';
 import { Button } from '../ui/Button.js';
+import { Caja, Seccion } from '../ui/Caja.js';
 import './paneles.css';
 
 /* Fase del estado "fase:detalle" (running:healthy, degraded:unhealthy...):
@@ -147,6 +151,10 @@ export function PanelVps() {
     }
   }
 
+  function cerrarDetalle() {
+    setElegido(null);
+  }
+
   const resumen = (recursos?.piezas.resumen?.ok
     ? (recursos.piezas.resumen.datos as {
         metricas: { metrica: string; pct: number }[];
@@ -157,29 +165,35 @@ export function PanelVps() {
 
   return (
     <div className="panelVps">
-      <header className="vpsCabecera">
-        <span className="panelVpsMeta">
-          vps · {sitios ? `${sitios.sitios.length} despliegues` : '…'}
-          {config?.binario.version ? ` · ${config.binario.version}` : ''}
-          {config && config.refreshMs > 0 ? ` · auto ${Math.round(config.refreshMs / 1000)}s` : ' · manual'}
-        </span>
-        <Button pequeno onClick={recargar} disabled={cargando} title="Re-consulta la VPS (ignora la caché)">
-          {cargando ? '…' : '⟳ recargar'}
-        </Button>
-      </header>
-      {config && !config.binario.ok && (
-        <div className="vpsAviso">sin binario ({config.binario.ruta}): la tab no puede leer nada</div>
-      )}
-      {error && <div className="vpsAviso">{error}</div>}
-      {sitios?.aviso && <div className="vpsAviso">{sitios.aviso}</div>}
-      {sitios && sitios.avisos.length > 0 && (
-        <div className="vpsAviso">
-          settings ↔ real: {sitios.avisos.map((a) => `${a.nombre} (${a.problema})`).join(' · ')}
+      {/* Barra superior: no es una caja, solo meta + recargar + avisos. */}
+      <div className="panelVpsBarra">
+        <div className="panelVpsBarraFila">
+          <span className="panelVpsMeta">
+            vps · {sitios ? `${sitios.sitios.length} despliegues` : '…'}
+            {config?.binario.version ? ` · ${config.binario.version}` : ''}
+            {config && config.refreshMs > 0 ? ` · auto ${Math.round(config.refreshMs / 1000)}s` : ' · manual'}
+          </span>
+          <Button pequeno onClick={recargar} disabled={cargando} title="Re-consulta la VPS (ignora la caché)">
+            {cargando ? '…' : '⟳ recargar'}
+          </Button>
         </div>
-      )}
-      <div className="vpsZonas">
-        <section className="vpsZona" aria-label="Despliegues">
-          <h3 className="vpsZonaTitulo">despliegues</h3>
+        {config && !config.binario.ok && (
+          <div className="vpsAviso">sin binario ({config.binario.ruta}): la tab no puede leer nada</div>
+        )}
+        {error && <div className="vpsAviso">{error}</div>}
+        {sitios?.aviso && <div className="vpsAviso">{sitios.aviso}</div>}
+        {sitios && sitios.avisos.length > 0 && (
+          <div className="vpsAviso">
+            settings ↔ real: {sitios.avisos.map((a) => `${a.nombre} (${a.problema})`).join(' · ')}
+          </div>
+        )}
+      </div>
+      <div className="panelVpsCajas">
+        <Caja
+          titulo={`despliegues${sitios ? ` (${sitios.sitios.length})` : ''}`}
+          className="panelVpsCajaLista"
+          etiqueta="Despliegues"
+        >
           {!sitios && <div className="docsVacio">{cargando ? 'leyendo la VPS…' : '…'}</div>}
           {sitios?.sitios.map((s: VpsSitio) => (
             <button
@@ -201,9 +215,8 @@ export function PanelVps() {
               </span>
             </button>
           ))}
-        </section>
-        <section className="vpsZona" aria-label="Estado de la VPS">
-          <h3 className="vpsZonaTitulo">vps</h3>
+        </Caja>
+        <Caja titulo="vps" className="panelVpsCajaVps" etiqueta="Estado de la VPS">
           {!recursos && <div className="docsVacio">{cargando ? 'leyendo la VPS…' : '…'}</div>}
           {resumen && (
             <>
@@ -230,33 +243,43 @@ export function PanelVps() {
           {recursos && !resumen && (
             <div className="docsVacio">sin métricas (ver texto del audit en consola del server)</div>
           )}
-        </section>
-        <section className="vpsZona vpsZona--detalle" aria-label="Detalle del despliegue">
-          <h3 className="vpsZonaTitulo">detalle{elegido ? ` · ${elegido}` : ''}</h3>
-          {!elegido && <div className="docsVacio">elige un despliegue para verlo</div>}
-          {elegido && cargandoDetalle && <div className="docsVacio">leyendo el despliegue… (puede tardar)</div>}
-          {elegido && !cargandoDetalle && detalle && (
-            <>
-              {Object.entries(detalle.piezas).map(([clave, p]) => (
-                <div key={clave} className={`vpsPieza${p.ok ? '' : ' vpsPieza--fallo'}`}>
-                  <h4 className="vpsPiezaTitulo">{ETIQUETAS_PIEZA[clave] ?? clave}</h4>
-                  {p.ok ? (
-                    typeof p.datos === 'string' ? (
-                      <pre className="vpsPre">{p.datos}</pre>
-                    ) : (
-                      <JsonVista datos={p.datos} />
-                    )
-                  ) : (
-                    <div className="vpsPiezaError">no disponible ({p.error})</div>
-                  )}
-                </div>
-              ))}
-              {Object.keys(detalle.piezas).length === 0 && (
-                <div className="docsVacio">no se pudo leer el detalle</div>
-              )}
-            </>
-          )}
-        </section>
+        </Caja>
+        {elegido && (
+          <Caja
+            titulo={elegido}
+            className="panelVpsCajaDetalle"
+            etiqueta="Detalle del despliegue"
+            onCerrar={cerrarDetalle}
+            cerrarTitulo="cerrar el detalle"
+          >
+            {cargandoDetalle && <div className="docsVacio">leyendo el despliegue… (puede tardar)</div>}
+            {!cargandoDetalle && detalle && (
+              <>
+                {Object.entries(detalle.piezas).map(([clave, p]) => (
+                  <Seccion key={clave} titulo={ETIQUETAS_PIEZA[clave] ?? clave} fallo={!p.ok}>
+                    <div className="vpsPiezaCuerpo">
+                      {p.ok ? (
+                        typeof p.datos === 'string' ? (
+                          <pre className="vpsPre">{p.datos}</pre>
+                        ) : (
+                          <JsonVista datos={p.datos} />
+                        )
+                      ) : (
+                        <div className="vpsPiezaError">no disponible ({p.error})</div>
+                      )}
+                    </div>
+                  </Seccion>
+                ))}
+                {Object.keys(detalle.piezas).length === 0 && (
+                  <div className="docsVacio">no se pudo leer el detalle</div>
+                )}
+              </>
+            )}
+            {!cargandoDetalle && !detalle && (
+              <div className="docsVacio">no se pudo leer el detalle</div>
+            )}
+          </Caja>
+        )}
       </div>
     </div>
   );
