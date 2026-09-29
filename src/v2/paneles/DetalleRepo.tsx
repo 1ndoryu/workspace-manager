@@ -13,14 +13,31 @@ function Seccion({
   titulo,
   resumen,
   abiertaPorDefecto,
+  vacia,
   children,
 }: {
   titulo: string;
   resumen: string;
   abiertaPorDefecto: boolean;
+  /* Sin contenido que mostrar (vacío o sin upstream): la cabecera es un
+   * div estático, no abre nada al pulsar (el resumen ya lo dice todo). */
+  vacia: boolean;
   children: ReactNode;
 }) {
   const [abierta, setAbierta] = useState(abiertaPorDefecto);
+  if (vacia) {
+    return (
+      <div className="reposDetalleSeccion">
+        <div className="reposDetalleSeccionCabecera reposDetalleSeccionCabecera--vacia" aria-disabled="true">
+          <span className="reposDetalleFlecha" aria-hidden="true">
+            ·
+          </span>
+          <span className="reposDetalleSeccionTitulo">{titulo}</span>
+          <span className="reposDetalleSeccionResumen">{resumen}</span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="reposDetalleSeccion">
       <button
@@ -116,6 +133,7 @@ export function DetalleRepo({ detalle }: { detalle: DetalleRepoSync }) {
         titulo="POR SUBIR"
         resumen={detalle.sinUpstream ? 'sin upstream' : resumenStat(salientes)}
         abiertaPorDefecto={salientes.commits.length > 0}
+        vacia={detalle.sinUpstream || salientes.commits.length === 0}
       >
         {detalle.sinUpstream ? (
           <div className="docsVacio">sin upstream: nada que subir contra remoto</div>
@@ -129,6 +147,7 @@ export function DetalleRepo({ detalle }: { detalle: DetalleRepoSync }) {
         titulo="POR TRAER"
         resumen={detalle.sinUpstream ? 'sin upstream' : resumenStat(entrantes)}
         abiertaPorDefecto={entrantes.commits.length > 0}
+        vacia={detalle.sinUpstream || entrantes.commits.length === 0}
       >
         {detalle.sinUpstream ? (
           <div className="docsVacio">sin upstream: nada que traer del remoto</div>
@@ -138,7 +157,12 @@ export function DetalleRepo({ detalle }: { detalle: DetalleRepoSync }) {
           <ListaCommits commits={entrantes.commits} />
         )}
       </Seccion>
-      <Seccion titulo="SIN COMMITEAR" resumen={resumenLocales} abiertaPorDefecto={locales.length > 0}>
+      <Seccion
+        titulo="SIN COMMITEAR"
+        resumen={resumenLocales}
+        abiertaPorDefecto={locales.length > 0}
+        vacia={locales.length === 0}
+      >
         {locales.length === 0 ? (
           <div className="docsVacio">árbol limpio ✓</div>
         ) : (
