@@ -40,6 +40,12 @@
     --v2-spaceMd: 16px;
     --v2-spaceLg: 24px;
 
+    /* Gap entre paneles hermanos (12px, el del mapa). [por que] En el mapa
+     * la separacion visible entre paneles la da el resizer invisible; las
+     * filas de Cajas (.cajaFila) usan este mismo token para que el hueco
+     * sea identico en todas las tabs. Un token, un lugar. */
+    --v2-gapPanel: 12px;
+
     /* Escala tipografica (rem; la base del root es 13px, ver v2.css, asi que
      * 0.72rem ~= 9.4px, 0.85rem ~= 11.1px, 1rem = 13px, 1.15rem ~= 15px) */
     --v2-textXs: 0.72rem;

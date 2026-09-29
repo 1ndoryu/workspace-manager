@@ -161,15 +161,17 @@ export function PanelDetalle() {
           </div>
           <div className="panelCajaSubtitulo">{ETIQUETA_ESTADO[estado]}</div>
         </div>
-        <button
-          type="button"
-          className="panelCajaCerrar"
+        {/* [299A-7] Cierre canonico: el unico × del v2 es
+         * <Button cuadrado pequeno> (ver Caja.tsx). */}
+        <Button
+          cuadrado
+          pequeno
           onClick={() => seleccionar(null)}
           aria-label="Cerrar detalle"
           title="Cerrar detalle"
         >
           ×
-        </button>
+        </Button>
       </header>
       <dl className="panelDetalleFilas">
         {filasProyecto(proyecto).map((f) => (

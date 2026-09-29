@@ -14,10 +14,9 @@ export function VistaScan({ datos }: { datos: DatosPanelConfig }) {
   } = datos;
 
   return (
+    /* [299A-7] Sin cabecera propia: el titulo vive en la Caja contenido
+     * de PanelConfig (panelDocsVisor* no tenia estilo). */
     <>
-      <header className="panelDocsVisorCabecera">
-        <span className="panelDocsVisorTitulo">escaneo</span>
-      </header>
       <section className="scanCfg" aria-label="Escaneo">
         <div className="scanCfgFila">
           <label className="scanCfgEtiqueta" htmlFor="scan-auto">

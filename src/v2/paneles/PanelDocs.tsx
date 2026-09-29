@@ -10,6 +10,7 @@
  * [299A-6] Las dos cajas (lista y visor) usan la primitiva central `Caja`:
  * son paneles externos independientes, no zonas internas. */
 import { usePanelDocs } from '../../hooks/usePanelDocs.js';
+import { Button } from '../ui/Button.js';
 import { Caja } from '../ui/Caja.js';
 import './paneles.css';
 
@@ -36,7 +37,9 @@ export function PanelDocs() {
   const total = grupos.reduce((n, g) => n + g.entradas.length, 0);
 
   return (
-    <div className="panelDocs" aria-label="Documentación">
+    /* [299A-7] Fila de cajas hermanas: la separacion vive en .cajaFila
+     * (un token, un lugar), no en cada tab. */
+    <div className="cajaFila">
       <Caja titulo={`documentación (${total})`} className="panelDocsLista" etiqueta="Lista de documentos">
         {grupos.length === 0 && <div className="docsVacio">no se detectaron documentos</div>}
         {grupos.map((grupo, i) => (
@@ -91,9 +94,10 @@ export function PanelDocs() {
           seleccion &&
           !cargando &&
           contenido !== null && (
-            <button
-              type="button"
-              className="docsGuardar"
+            /* [299A-7] Guardar canonico: Button pequeno (la primitiva
+             * prohibe botones ad-hoc en cabeceras). */
+            <Button
+              pequeno
               onClick={() => void guardar()}
               disabled={guardando}
             >
@@ -104,7 +108,7 @@ export function PanelDocs() {
                     ? 'guardar'
                     : 'crear'
                   : 'guardar'}
-            </button>
+            </Button>
           )
         }
       >

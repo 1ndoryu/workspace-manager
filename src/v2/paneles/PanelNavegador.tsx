@@ -3,8 +3,13 @@
  * archivo. [por que] El usuario pidio una pagina tipo documentacion pero con
  * la navegacion de carpetas separada de la vista de archivos. La lista
  * cambia de directorio al entrar/salir de carpetas; el visor muestra el
- * archivo seleccionado (texto; los binarios se marcan como no visibles). */
+ * archivo seleccionado (texto; los binarios se marcan como no visibles).
+ * [299A-7] Dos CAJAS externas (primitiva `Caja`) en `.cajaFila`: la lista
+ * (titulo "archivos" + breadcrumb) y el visor (titulo=nombre, meta=ruta).
+ * Las clases panelDocsSeccion/Cabecera/Entradas/Visor* no tenian estilo
+ * (se renderizaban sin aire): eliminadas, no reestilizadas. */
 import { Button } from '../ui/Button.js';
+import { Caja } from '../ui/Caja.js';
 import { usePanelNavegador } from '../../hooks/usePanelNavegador.js';
 import './paneles.css';
 
@@ -39,11 +44,8 @@ export function PanelNavegador() {
   } = usePanelNavegador();
 
   return (
-    <div className="panelDocs" aria-label="Navegación de archivos">
-      <div className="panelDocsLista">
-        <section className="panelDocsSeccion">
-          <header className="panelDocsCabecera">archivos</header>
-          <div className="panelDocsEntradas">
+    <div className="cajaFila">
+      <Caja titulo="archivos" className="panelDocsLista" etiqueta="Navegación de carpetas">
             {/* Breadcrumb: raiz + cada segmento; click en uno navega ahi. */}
             <div className="navegadorRuta">
               <Button
@@ -104,19 +106,18 @@ export function PanelNavegador() {
                   </Button>
                 );
               })}
-          </div>
-        </section>
-      </div>
-      <div className="panelDocsContenido">
+      </Caja>
+      <Caja
+        titulo={abierto ? abierto.nombre : 'visor'}
+        meta={abierto ? abierto.ruta : undefined}
+        className="panelDocsContenido"
+        etiqueta="Contenido del archivo"
+        acciones={mensaje && abierto ? <span className="docsMensaje">{mensaje}</span> : undefined}
+      >
         {!abierto && !cargandoArchivo && <div className="docsVacio">elige un archivo para verlo</div>}
         {cargandoArchivo && <div className="docsVacio">cargando…</div>}
         {!cargandoArchivo && abierto && (
           <>
-            <header className="panelDocsVisorCabecera">
-              <span className="panelDocsVisorTitulo">{abierto.nombre}</span>
-              <span className="panelDocsVisorMeta">{abierto.ruta}</span>
-              {mensaje && <span className="docsMensaje">{mensaje}</span>}
-            </header>
             {abierto.binario || abierto.contenido === null ? (
               <div className="docsVacio">
                 archivo binario o no legible — no se puede mostrar como texto
@@ -126,7 +127,7 @@ export function PanelNavegador() {
             )}
           </>
         )}
-      </div>
+      </Caja>
     </div>
   );
 }

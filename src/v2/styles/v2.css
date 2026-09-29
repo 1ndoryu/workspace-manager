@@ -129,10 +129,12 @@ html {
     width: var(--ancho-lista);
 }
 
-/* Divisores arrastrables INVISIBLES entre paneles: zona de agarre de 12px
- * sin linea visible (el usuario pidio que desaparezca). El unico indicio es
- * el cursor col/row-resize al pasar por encima; el drag lo gestiona
- * Resizer.tsx con eventos de puntero. */
+/* Divisores arrastrables INVISIBLES entre paneles: zona de agarre sin linea
+ * visible (el usuario pidio que desaparezca). El ancho es --v2-gapPanel, el
+ * mismo gap que usan las filas de Cajas: el hueco entre paneles es identico
+ * en el mapa y en el resto de tabs. El unico indicio es el cursor
+ * col/row-resize al pasar por encima; el drag lo gestiona Resizer.tsx con
+ * eventos de puntero. */
 .v2Resizer {
     flex: none;
     background: transparent;
@@ -140,17 +142,17 @@ html {
 }
 
 .v2Resizer--vertical {
-    width: 12px;
+    width: var(--v2-gapPanel);
     cursor: col-resize;
 }
 
 .v2Resizer--horizontal {
-    height: 12px;
+    height: var(--v2-gapPanel);
     cursor: row-resize;
-    /* [por que] Sin margen extra: el hueco de 12px de la zona queda igual
-     * que los huecos entre los 3 paneles superiores (antes eran 16+12=28px).
-     * La separacion inferior de la consola sigue siendo el marco de la
-     * pagina (24px), simetrico con el superior. */
+    /* [por que] Sin margen extra: el hueco de la zona queda igual que los
+     * huecos entre los 3 paneles superiores. La separacion inferior de la
+     * consola sigue siendo el marco de la pagina (24px), simetrico con el
+     * superior. */
 }
 
 /* Scrollbars finos, negros y sin fondo: coherentes con el diseño monocromo.
