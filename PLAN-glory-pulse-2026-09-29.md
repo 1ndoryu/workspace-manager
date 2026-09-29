@@ -6,8 +6,10 @@ el peor caso). Decisión del usuario: repo nuevo e independiente **`glory-pulse`
 (reutilizable por otras apps), WM solo lo consume. ID reasignado de `299A-11`
 a **`299A-12`** (el `299A-11` lo ocupa otro frente activo). **Estado:
 D1 aprobado (repo `1ndoryu/glory-pulse` creado por el usuario 2026-09-29),
-F0 completo con veredicto SÍ condicionado (ver §F0). Cero código WM antes
-de F1; D2–D4 siguen abiertas.**
+F0 completo con veredicto SÍ condicionado (ver §F0). F1 HECHA 2026-09-29
+(crate `pulse`: clippy/test/fmt limpios, smoke 401/200, compose proxy;
+test negativo del proxy pendiente de docker → F4 remoto).
+D2 delegada a assistant, D3=SÍ, D4=Yo vía manager (respuestas usuario 2026-09-29).**
 
 Rev.3 (2026-09-29, tras revisión de subagente `supervisor-reviewer`,
 veredicto APROBABLE CON PEGAS): añade `Decisiones abiertas`, descarta el SSE
@@ -237,5 +239,5 @@ Evidencia completa en `glory-pulse/docs/F0-spike.md` (+
 
 ## SIGUIENTE ACCIÓN
 
-D2–D4 las responde el usuario (puede aprobar F1 con reservas). Tras F1: F2
-requiere la decisión del semáforo ya tomada (por familia, ver §F0).
+F1 HECHA 2026-09-29. Siguiente: F2 (semáforo por familia, ver §F0);
+antes verificar colisión con el frente 299A-11 en `puente.ts`/`rutasVps.ts`.
