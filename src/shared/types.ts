@@ -81,6 +81,60 @@ export interface DetalleRepoSync {
   locales: { archivos: ArchivoLocal[]; truncado: boolean };
 }
 
+/* Tab vps (GET /api/vps/*, 299A-5): despliegues Coolify en solo lectura via
+ * coolify-manager-rs. El server ejecuta el binario por consulta (execFile sin
+ * shell, argv construido solo con comandos de lectura) y aqui solo viajan
+ * resumenes parseados: los secretos de settings.json nunca salen del server.
+ * Estados: el manager da texto humano en list/health/audit/logs, asi que el
+ * parseo es estricto y lo no reconocido es 'desconocido', nunca verde. */
+export interface VpsSitio {
+  nombre: string;
+  dominio: string;
+  target: string;
+  uuid: string;
+  /* Estado real desde `list --detailed` (running/exited/...) o
+   * 'sin-asignar' (sin UUID) / 'desconocido' (no parseable). */
+  estadoReal: string;
+}
+
+export interface VpsAviso {
+  nombre: string;
+  problema: 'sin-asignar' | 'estado-desconocido' | 'sin-estado-real';
+}
+
+export interface VpsSitios {
+  sitios: VpsSitio[];
+  /* Conciliacion settings <-> real: lo configurado que no cuadra con lo
+   * real. Limite honesto: lo real-fuera-de-settings no es visible desde
+   * `list` (solo lee settings), asi que no se inventa. */
+  avisos: VpsAviso[];
+  aviso: string | null;
+}
+
+/* Pieza del detalle/de recursos: degradacion parcial (una pieza puede fallar
+ * y el resto sigue visible). datos = JSON parseado o texto recortado. */
+export interface VpsPieza {
+  ok: boolean;
+  datos: unknown;
+  error: string | null;
+}
+
+export interface VpsDetalle {
+  sitio: string;
+  piezas: Record<string, VpsPieza>;
+}
+
+export interface VpsRecursos {
+  piezas: Record<string, VpsPieza>;
+}
+
+/* Estado del puente + refresco configurable (GET /api/vps/config):
+ * refreshMs 0 = manual con boton (defecto). */
+export interface VpsConfig {
+  refreshMs: number;
+  binario: { ruta: string; version: string | null; ok: boolean };
+}
+
 export interface EstadoGate {
   declarado: boolean;
   sentinel: 'config' | 'lock' | 'none';
