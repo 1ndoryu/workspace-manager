@@ -74,20 +74,55 @@ const ETIQUETA_ESTADO: Record<ArchivoLocal['estado'], string> = {
   mixto: 'S+M',
 };
 
-function ListaArchivos({ archivos, truncado }: DetalleRepoSync['locales']) {
+/* Numeración +N −M por archivo (viene del endpoint de archivos, no del
+ * detalle): la pide el usuario para la lista única clicable. */
+export interface StatsArchivo {
+  adds: number;
+  dels: number;
+}
+
+function ListaArchivos({
+  archivos,
+  truncado,
+  archivoSeleccionado,
+  alElegirArchivo,
+  stats,
+}: DetalleRepoSync['locales'] & {
+  archivoSeleccionado: string | null;
+  alElegirArchivo: (ruta: string) => void;
+  stats?: Record<string, StatsArchivo>;
+}) {
   return (
     <ol className="reposDetalleArchivos">
-      {archivos.slice(0, MAX_ARCHIVOS_VISIBLES).map((a) => (
-        <li key={a.ruta} className="reposDetalleArchivo">
-          <span
-            className={`reposDetalleEstado reposDetalleEstado--${a.estado}`}
-            title={a.estado}
-          >
-            {ETIQUETA_ESTADO[a.estado]}
-          </span>
-          <span className="reposDetalleRuta">{a.ruta}</span>
-        </li>
-      ))}
+      {archivos.slice(0, MAX_ARCHIVOS_VISIBLES).map((a) => {
+        const stat = stats?.[a.ruta];
+        const elegido = archivoSeleccionado === a.ruta;
+        return (
+          <li key={a.ruta}>
+            <button
+              type="button"
+              className={`reposDetalleArchivo${elegido ? ' reposDetalleArchivo--elegido' : ''}`}
+              title={`${a.ruta} — clic para ver el diff`}
+              onClick={() => alElegirArchivo(a.ruta)}
+              aria-pressed={elegido}
+            >
+              <span
+                className={`reposDetalleEstado reposDetalleEstado--${a.estado}`}
+                title={a.estado}
+              >
+                {ETIQUETA_ESTADO[a.estado]}
+              </span>
+              <span className="reposDetalleRuta">{a.ruta}</span>
+              {stat && (
+                <span className="reposDetalleStats">
+                  <span className="cambiosDiffMas">+{stat.adds}</span>
+                  <span className="cambiosDiffMenos">−{stat.dels}</span>
+                </span>
+              )}
+            </button>
+          </li>
+        );
+      })}
       {(archivos.length > MAX_ARCHIVOS_VISIBLES || truncado) && (
         <li className="reposDetalleMas">+más (lista acotada a {MAX_ARCHIVOS_VISIBLES})</li>
       )}
@@ -95,7 +130,17 @@ function ListaArchivos({ archivos, truncado }: DetalleRepoSync['locales']) {
   );
 }
 
-export function DetalleRepo({ detalle }: { detalle: DetalleRepoSync }) {
+export function DetalleRepo({
+  detalle,
+  archivoSeleccionado,
+  alElegirArchivo,
+  stats,
+}: {
+  detalle: DetalleRepoSync;
+  archivoSeleccionado: string | null;
+  alElegirArchivo: (ruta: string) => void;
+  stats?: Record<string, StatsArchivo>;
+}) {
   const { salientes, entrantes } = detalle;
   const locales = detalle.locales.archivos;
   /* Solo aparece la sección que tiene algo: vacía = ni se renderiza. */
@@ -132,7 +177,13 @@ export function DetalleRepo({ detalle }: { detalle: DetalleRepoSync }) {
       )}
       {hayLocales && (
         <Seccion titulo="SIN COMMITEAR" resumen={resumenLocales} abiertaPorDefecto={true}>
-          <ListaArchivos archivos={detalle.locales.archivos} truncado={detalle.locales.truncado} />
+          <ListaArchivos
+            archivos={detalle.locales.archivos}
+            truncado={detalle.locales.truncado}
+            archivoSeleccionado={archivoSeleccionado}
+            alElegirArchivo={alElegirArchivo}
+            stats={stats}
+          />
         </Seccion>
       )}
       {!haySubir && !hayTraer && !hayLocales && (

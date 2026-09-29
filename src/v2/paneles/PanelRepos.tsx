@@ -6,8 +6,10 @@
 import { useMemo, useState } from 'react';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import type { DetalleRepoSync } from '../../shared/types.js';
-import { detalleRepo, invalidarDetallesRepos } from '../repos/apiRepos.js';
-import { DetalleRepo } from './DetalleRepo.js';
+import { archivosRepo, detalleRepo, invalidarDetallesRepos } from '../repos/apiRepos.js';
+import { separarEntradas } from '../repos/gitDiff.js';
+import { DetalleRepo, type StatsArchivo } from './DetalleRepo.js';
+import { PanelCambiosRepo } from './PanelCambiosRepo.js';
 import './paneles.css';
 
 /* Extrae el nombre corto "org/repo" de una URL de remoto para el enlace.
@@ -46,6 +48,37 @@ export function PanelRepos() {
   const [detalles, setDetalles] = useState<Record<string, DetalleRepoSync>>({});
   const [cargandoClave, setCargandoClave] = useState<string | null>(null);
   const [errorClave, setErrorClave] = useState<string | null>(null);
+  /* Lista única clicable (299A-4): el archivo elegido en el acordeón abre
+   * su diff en el lateral; sin archivo elegido no hay lateral. */
+  const [archivoSel, setArchivoSel] = useState<{ clave: string; ruta: string } | null>(null);
+  /* Numeración +N −M de la lista: viene del endpoint de archivos (el
+   * detalle no trae stats); se pide al expandir y se cachea por clave. */
+  const [stats, setStats] = useState<{ clave: string; mapa: Record<string, StatsArchivo> } | null>(
+    null,
+  );
+
+  /* Trae la numeración sin bloquear el acordeón: si el usuario plegó o
+   * cambió de repo antes de que llegue, el mapa se guarda igual por clave
+   * y solo se muestra si coincide con la expandida. */
+  function pedirStats(clave: string) {
+    archivosRepo(clave).then(
+      (d) => {
+        /* Las entradas no traen stats: se derivan de los patches ya
+         * repartidos por ruta (staged + changes se suman por archivo). */
+        const grupos = separarEntradas(d.entradas, d.diffStaged, d.diffUnstaged);
+        const mapa: Record<string, StatsArchivo> = {};
+        for (const a of [...grupos.staged, ...grupos.changes]) {
+          const previo = mapa[a.ruta];
+          mapa[a.ruta] = {
+            adds: (previo?.adds ?? 0) + a.adiciones,
+            dels: (previo?.dels ?? 0) + a.eliminaciones,
+          };
+        }
+        setStats({ clave, mapa });
+      },
+      () => {},
+    );
+  }
 
   /* El detalle dice si hay algo que mostrar (289A-6): por subir, por
    * traer o sin commitear. Vacio = la fila no se expande, ni mensaje. */
@@ -58,13 +91,17 @@ export function PanelRepos() {
   async function alternar(id: string, clave: string) {
     if (expandida === id) {
       setExpandida(null);
+      if (archivoSel?.clave === clave) setArchivoSel(null);
       return;
     }
     seleccionar(id);
     setErrorClave(null);
     const conocido = detalles[clave];
     if (conocido) {
-      if (tieneContenido(conocido)) setExpandida(id);
+      if (tieneContenido(conocido)) {
+        setExpandida(id);
+        if (conocido.locales.archivos.length > 0) pedirStats(clave);
+      }
       return;
     }
     /* Primero se trae el detalle y solo se expande si hay algo: al día
@@ -73,7 +110,10 @@ export function PanelRepos() {
     try {
       const d = await detalleRepo(clave);
       setDetalles((prev) => ({ ...prev, [clave]: d }));
-      if (tieneContenido(d)) setExpandida(id);
+      if (tieneContenido(d)) {
+        setExpandida(id);
+        if (d.locales.archivos.length > 0) pedirStats(clave);
+      }
     } catch {
       setErrorClave(clave);
       setExpandida(id);
@@ -82,10 +122,18 @@ export function PanelRepos() {
     }
   }
 
+  /* Clic en un archivo de la lista: abre su diff; segundo clic lo cierra.
+   * Cambiar de repo limpia la elección anterior. */
+  function elegirArchivo(clave: string, ruta: string) {
+    setArchivoSel((prev) => (prev?.clave === clave && prev.ruta === ruta ? null : { clave, ruta }));
+  }
+
   function recargar() {
     setExpandida(null);
     setDetalles({});
     setErrorClave(null);
+    setArchivoSel(null);
+    setStats(null);
     invalidarDetallesRepos();
     cargar(true);
   }
@@ -95,8 +143,18 @@ export function PanelRepos() {
   const conRemoto = repos.filter((p) => p.git?.remoto).length;
   const conPush = repos.filter((p) => (p.git?.ahead ?? 0) > 0).length;
 
+  /* Lateral solo-diff (299A-4): aparece al elegir un archivo de la lista
+   * del repo expandido; es el visor, la lista única vive en el acordeón. */
+  const lateralArchivo =
+    archivoSel && expandida && repos.some((p) => p.id === expandida && p.clave === archivoSel.clave)
+      ? archivoSel
+      : null;
+
   return (
-    <div className="panelRepos" aria-label="Estados de los repositorios">
+    <div
+      className={`panelRepos${lateralArchivo ? ' panelRepos--split' : ''}`}
+      aria-label="Estados de los repositorios"
+    >
       <header className="panelReposCabecera">
         repositorios ({repos.length})
         <span className="panelReposMeta">
@@ -164,7 +222,12 @@ export function PanelRepos() {
             {abierta && (
               <div className="reposDetalleContenedor">
                 {detalle ? (
-                  <DetalleRepo detalle={detalle} />
+                  <DetalleRepo
+                    detalle={detalle}
+                    archivoSeleccionado={archivoSel?.clave === p.clave ? archivoSel.ruta : null}
+                    alElegirArchivo={(ruta) => elegirArchivo(p.clave, ruta)}
+                    stats={stats?.clave === p.clave ? stats.mapa : undefined}
+                  />
                 ) : errorClave === p.clave ? (
                   <div className="docsVacio">no se pudo leer el detalle (¿repo con bloqueo?)</div>
                 ) : (
@@ -176,6 +239,9 @@ export function PanelRepos() {
           );
         })}
       </div>
+      {lateralArchivo && (
+        <PanelCambiosRepo key={lateralArchivo.clave} clave={lateralArchivo.clave} ruta={lateralArchivo.ruta} />
+      )}
     </div>
   );
 }

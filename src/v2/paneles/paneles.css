@@ -424,6 +424,119 @@
     background: var(--v2-fondo);
 }
 
+/* Split lista + lateral de cambios (299A-4): la cabecera abarca ambas
+ * columnas; cada columna conserva su propio scroll. */
+.panelRepos--split {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+}
+
+.panelRepos--split > .panelReposCabecera {
+    grid-column: 1 / -1;
+}
+
+.panelRepos--split > .panelReposContenido {
+    min-height: 0;
+    border-right: 1px solid var(--v2-borde);
+}
+
+/* Visor lateral del diff del archivo elegido (299A-4, copiado del pintado
+ * de harness `git.css`: diff con scroll, grid vieja/nueva/marca/texto).
+ * Sin cabecera ni lista propia: la lista única vive en el acordeón
+ * (`reposDetalleArchivos`, clicable). Monocromo v2 estricto: adicion =
+ * relleno negro, eliminacion = borde izquierdo grueso (patrones, no
+ * color); sin radios, sin sombras, sin bold. */
+.cambiosLateral {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: var(--v2-textXs);
+}
+
+.cambiosDiffStats {
+    margin-left: auto;
+    display: inline-flex;
+    gap: var(--v2-spaceXs);
+    white-space: nowrap;
+}
+
+.cambiosDiff {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--v2-spaceSm);
+}
+
+.cambiosDiffCaja {
+    border: 1px solid var(--v2-borde);
+}
+
+.cambiosDiffCabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.cambiosDiffRuta {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cambiosDiffCuerpo {
+    line-height: 1.5;
+}
+
+.cambiosDiffFila {
+    display: grid;
+    grid-template-columns: 4ch 4ch 2ch minmax(0, 1fr);
+    min-width: 0;
+    white-space: pre-wrap;
+}
+
+.cambiosDiffFila--adicion {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.cambiosDiffFila--eliminacion {
+    border-left: 3px solid var(--v2-texto);
+}
+
+.cambiosDiffNum {
+    padding: 0 var(--v2-spaceXs);
+    border-right: 1px solid var(--v2-borde);
+    text-align: right;
+    user-select: none;
+}
+
+.cambiosDiffFila--adicion .cambiosDiffNum {
+    border-right-color: var(--v2-invertido);
+}
+
+.cambiosDiffMarca {
+    text-align: center;
+    user-select: none;
+}
+
+.cambiosDiffTexto {
+    min-width: 0;
+    padding: 0 var(--v2-spaceSm);
+    overflow-wrap: anywhere;
+}
+
+.cambiosDiffFila--hunk,
+.cambiosDiffFila--aviso {
+    display: block;
+    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
 .reposDetalle {
     display: flex;
     flex-direction: column;
@@ -477,13 +590,45 @@
     list-style: none;
 }
 
-.reposDetalleCommit,
-.reposDetalleArchivo {
+.reposDetalleCommit {
     display: flex;
     align-items: baseline;
     gap: var(--v2-spaceSm);
     padding: 1px 0;
     min-width: 0;
+}
+
+/* Fila de archivo clicable (lista única 299A-4): abre el diff en el
+ * lateral; la elegida va en relleno negro (patrón, no color). */
+.reposDetalleArchivo {
+    display: flex;
+    align-items: baseline;
+    gap: var(--v2-spaceSm);
+    width: 100%;
+    padding: 1px var(--v2-spaceXs);
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.reposDetalleArchivo:hover {
+    text-decoration: underline;
+}
+
+.reposDetalleArchivo--elegido {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.reposDetalleStats {
+    flex: none;
+    display: inline-flex;
+    gap: var(--v2-spaceXs);
+    white-space: nowrap;
 }
 
 .reposDetalleHash {
