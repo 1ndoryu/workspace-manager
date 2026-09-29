@@ -3,8 +3,11 @@
  * [por que] El usuario pidio un panel central para ver los estados de los
  * repositorios: remoto, rama, push pendiente (ahead/behind), dirty y ultimo
  * commit. El remoto github se enlaza para abrirlo. */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
+import type { DetalleRepoSync } from '../../shared/types.js';
+import { detalleRepo, invalidarDetallesRepos } from '../repos/apiRepos.js';
+import { DetalleRepo } from './DetalleRepo.js';
 import './paneles.css';
 
 /* Extrae el nombre corto "org/repo" de una URL de remoto para el enlace.
@@ -37,6 +40,41 @@ export function PanelRepos() {
       .sort((a, b) => a.id.localeCompare(b.id));
   }, [snapshot]);
 
+  /* Acordeon estricto (289A-6): una sola expandida (por id) o ninguna; el
+   * detalle se pide bajo demanda y se cachea por clave hasta el recargar. */
+  const [expandida, setExpandida] = useState<string | null>(null);
+  const [detalles, setDetalles] = useState<Record<string, DetalleRepoSync>>({});
+  const [cargandoClave, setCargandoClave] = useState<string | null>(null);
+  const [errorClave, setErrorClave] = useState<string | null>(null);
+
+  async function alternar(id: string, clave: string) {
+    if (expandida === id) {
+      setExpandida(null);
+      return;
+    }
+    seleccionar(id);
+    setExpandida(id);
+    setErrorClave(null);
+    if (detalles[clave]) return;
+    setCargandoClave(clave);
+    try {
+      const d = await detalleRepo(clave);
+      setDetalles((prev) => ({ ...prev, [clave]: d }));
+    } catch {
+      setErrorClave(clave);
+    } finally {
+      setCargandoClave(null);
+    }
+  }
+
+  function recargar() {
+    setExpandida(null);
+    setDetalles({});
+    setErrorClave(null);
+    invalidarDetallesRepos();
+    cargar(true);
+  }
+
   if (!snapshot) return null;
 
   const conRemoto = repos.filter((p) => p.git?.remoto).length;
@@ -53,7 +91,7 @@ export function PanelRepos() {
         <button
           type="button"
           className="reposRecargar"
-          onClick={() => cargar(true)}
+          onClick={recargar}
           disabled={cargando}
           title="Re-escanea los repositorios (ignora la caché)"
         >
@@ -65,19 +103,26 @@ export function PanelRepos() {
         {repos.map((p) => {
           const g = p.git!;
           const seleccionado = p.id === seleccionadoId;
+          const abierta = expandida === p.id;
+          /* Total sin commitear para el badge ~N de la fila (conteo ya
+           * disponible en el snapshot, sin pedir el detalle). */
+          const sinCommitear = g.cambios.staged + g.cambios.unstaged + g.cambios.untracked;
+          const detalle = detalles[p.clave];
           return (
+            <div key={p.id} className="reposGrupo">
             <button
-              key={p.id}
               type="button"
-              className={`reposFila${seleccionado ? ' reposFila--seleccionada' : ''}`}
-              onClick={() => seleccionar(p.id)}
-              title={p.ruta}
+              className={`reposFila${seleccionado ? ' reposFila--seleccionada' : ''}${abierta ? ' reposFila--abierta' : ''}`}
+              onClick={() => alternar(p.id, p.clave)}
+              title={`${p.ruta} — clic para ${abierta ? 'plegar' : 'ver cambios por subir/traer'}`}
+              aria-expanded={abierta}
             >
               <span className="reposFilaNombre">{p.id}</span>
               <span className="reposFilaRama">{g.rama}</span>
               <span className="reposFilaPush">
                 {g.ahead > 0 ? `${g.ahead}↑` : '·'}
                 {g.behind > 0 ? `${g.behind}↓` : ''}
+                {sinCommitear > 0 ? ` ~${sinCommitear}` : ''}
               </span>
               <span className="reposFilaDirty" aria-label={g.dirty ? 'con cambios' : 'limpio'}>
                 {g.dirty ? 'dirty' : 'limpio'}
@@ -100,6 +145,18 @@ export function PanelRepos() {
                 <span className="reposFilaRemoto reposFilaRemoto--sin">sin remoto</span>
               )}
             </button>
+            {abierta && (
+              <div className="reposDetalleContenedor">
+                {detalle ? (
+                  <DetalleRepo detalle={detalle} />
+                ) : errorClave === p.clave ? (
+                  <div className="docsVacio">no se pudo leer el detalle (¿repo con bloqueo?)</div>
+                ) : (
+                  <div className="docsVacio">{cargandoClave === p.clave ? 'leyendo cambios…' : '…'}</div>
+                )}
+              </div>
+            )}
+            </div>
           );
         })}
       </div>

@@ -27,6 +27,42 @@ export interface EstadoGit {
   } | null;
 }
 
+/* Resumen de un commit para el detalle de sincronizacion de la tab repos:
+ * hash completo (el cliente recorta), fecha ISO y primera linea. */
+export interface CommitResumen {
+  hash: string;
+  fecha: string;
+  mensaje: string;
+}
+
+/* Un lado del sync contra el upstream: commits + stat agregado. [por que]
+ * El diff --shortstat resume archivos/inserciones/borrados en una linea para
+ * la cabecera plegable; la lista de commits muestra que se va a subir/traer. */
+export interface LadoSync {
+  commits: CommitResumen[];
+  archivos: number;
+  inserciones: number;
+  borrados: number;
+}
+
+/* Archivo con cambios sin commitear: ruta tal cual la da el porcelain y
+ * estado derivado de las columnas XY (X=indice, Y=arbol de trabajo). */
+export interface ArchivoLocal {
+  ruta: string;
+  estado: 'staged' | 'unstaged' | 'untracked' | 'mixto';
+}
+
+/* Detalle de sincronizacion de un repo (GET /api/repos/detalle?clave=).
+ * salientes = @{upstream}..HEAD (por subir), entrantes = HEAD..@{upstream}
+ * (por traer). Todo calculado en local sin fetch (ver pie en el cliente). */
+export interface DetalleRepoSync {
+  clave: string;
+  sinUpstream: boolean;
+  salientes: LadoSync;
+  entrantes: LadoSync;
+  locales: { archivos: ArchivoLocal[]; truncado: boolean };
+}
+
 export interface EstadoGate {
   declarado: boolean;
   sentinel: 'config' | 'lock' | 'none';
