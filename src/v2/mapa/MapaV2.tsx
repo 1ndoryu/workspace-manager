@@ -73,7 +73,7 @@ export function MapaV2() {
 
   /* Cuadricula extendida EXT celdas mas alla del contenido en cada direccion.
    * Como la extension es simetrica (misma EXT por los 4 lados), el centro de
-   * la cuadricula coincide con el centro de las cajas y todo queda centrado. */
+   * la cuadricula coincide con el centro de las cajas y queda centrada. */
   const EXT = 10;
 
   /* viewBox base (zoom 1, sin pan): bbox de la cuadricula extendida + margen.
@@ -129,7 +129,7 @@ export function MapaV2() {
       >
         {/* Cuadricula iso de separacion, dibujada detras de las cajas.
          * Se extiende EXT celdas mas alla del contenido en cada direccion
-         * (extension simetrica => todo queda centrado). */}
+         * (extension simetrica => centrado garantizado). */}
         {rangoCeldas && (
           <path
             d={pathCuadricula(

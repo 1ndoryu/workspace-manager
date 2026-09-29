@@ -480,7 +480,7 @@
 }
 
 /* Gate centralizado compacto: veredicto + herramienta con chips por
- * proyecto. [por que] El banner responde "todo bien?" sin leer filas; el
+ * proyecto. [por que] El banner responde "sin pendientes?" sin leer filas; el
  * chip verde (invertido, como syncBadge--ok) es "alineado", el rojo con "!"
  * se clica para ver el detalle; el punteado es "sin datos". */
 .syncVeredicto {

@@ -143,7 +143,7 @@ export async function manejarRutasGate(
   /* Esquema del gate DINÁMICO (E1 gate-dinamico): sirve el esquema de
    * config de una herramienta (sentinel/varsense) + sus reglas + metadata
    * de versión, resueltos por el server. El cliente es 'tonto': deja de
-   * importar ESQUEMA_* estáticos en el bundle y pide todo acá. El esquema
+   * importar ESQUEMA_* estáticos en el bundle y lo pide aquí. El esquema
    * va SERIALIZADO (ciclos resueltos a refs); el cliente lo rehidrata.
    * Nunca toca el JSON real de ningún proyecto. */
   if (ruta === '/api/gate/dinamico') {

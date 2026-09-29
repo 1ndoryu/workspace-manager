@@ -1,5 +1,5 @@
 /* Panel central PC: interfaz del limpiador-pc (un análisis, un resultado).
- * [por que] El usuario pidió una sola cosa: un botón analiza todo, el
+ * [por que] El usuario pidió una sola cosa: un botón de análisis global, el
  * progreso muestra lo que va apareciendo en tiempo real (SSE por fase) y el
  * resultado persiste en el server (rehidrata al recargar, sin simulación).
  * La selección es por entrada suelta dentro de grupos plegables (área y

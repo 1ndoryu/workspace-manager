@@ -185,9 +185,9 @@ html {
 }
 
 /* Toasts: avisos flotantes temporales en la esquina inferior derecha, por
- * encima de todo. [por que] Los errores no aparecen crudos en el contenido
+ * encima del resto. [por que] Los errores no aparecen crudos en el contenido
  * sino como toast; estetica monocroma como el resto. El marcador distingue
- * ok (✓) de error (✕) e info (i), todo en blanco/negro. */
+ * ok (✓) de error (✕) e info (i), en blanco/negro. */
 .toasts {
     position: fixed;
     right: var(--v2-spaceLg);

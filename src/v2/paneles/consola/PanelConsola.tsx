@@ -52,7 +52,7 @@ export function PanelConsola() {
   const { ocupado: escaneando, escanearTodoUnificado } = useEscanear();
   /* Grupos plegados por id de proyecto: el clic pliega/despliega los
    * motivos sin navegar a archivos. [por que] Estado local de UI; por
-   * defecto todo expandido como antes. */
+   * defecto desplegado como antes. */
   const [colapsados, setColapsados] = useState<ReadonlySet<string>>(new Set());
   const alternarColapso = (id: string) => {
     setColapsados((prev) => {
@@ -107,7 +107,7 @@ export function PanelConsola() {
           visibles.map((pr) => (
             /* [por que] Problemas AGRUPADOS por proyecto: cabecera con el
              * nombre (clic = seleccionar) y cada motivo en su propia linea
-             * debajo, indentada con borde izquierdo. Antes todo iba en una
+             * debajo, indentada con borde izquierdo. Antes se mostraba en una
              * sola fila con badges y motivo a la derecha. */
             <div className="consolaGrupo" key={pr.p.id}>
               <button

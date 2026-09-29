@@ -2,7 +2,7 @@
  * que hay sin commitear (289A-6). [por que] El snapshot solo trae conteos
  * (ahead/behind/dirty); el contenido se pide bajo demanda y se muestra en 3
  * secciones plegables con su resumen en 1 linea para no abrir a ciegas.
- * Todo calculado en local sin fetch: el pie lo dice para no mentir. */
+ * Cálculo local sin fetch: el pie lo dice para no mentir. */
 import { useState, type ReactNode } from 'react';
 import type { ArchivoLocal, CommitResumen, DetalleRepoSync, LadoSync } from '../../shared/types.js';
 
