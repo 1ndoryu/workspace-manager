@@ -2,7 +2,7 @@
  * [por que] El usuario pidio un nav como otro panel: un menu para cambiar el
  * panel central (mapa, documentacion, repos) y botones para controlar la
  * visibilidad de cada panel lateral/consola. Iconos lucide-react. */
-import { BookOpen, Boxes, FolderOpen, GitBranch, HardDrive, PanelLeft, PanelRight, Settings, ShieldCheck, SquareTerminal, type LucideIcon } from 'lucide-react';
+import { BookOpen, Boxes, FolderOpen, GitBranch, HardDrive, PanelLeft, PanelRight, Server, Settings, ShieldCheck, SquareTerminal, type LucideIcon } from 'lucide-react';
 import { useWorkspaceStore, type PanelCentral, type VisibilidadPaneles } from '../../hooks/useWorkspace.js';
 import { Button } from './Button.js';
 
@@ -14,6 +14,7 @@ const CENTRALES: { clave: PanelCentral; icono: LucideIcon; etiqueta: string }[] 
   { clave: 'config', icono: Settings, etiqueta: 'config' },
   { clave: 'sentinel', icono: ShieldCheck, etiqueta: 'sentinel' },
   { clave: 'pc', icono: HardDrive, etiqueta: 'pc' },
+  { clave: 'vps', icono: Server, etiqueta: 'vps' },
 ];
 
 const TOGGLES: {

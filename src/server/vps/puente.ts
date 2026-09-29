@@ -41,7 +41,7 @@ function encolar<T>(trabajo: () => Promise<T>): Promise<T> {
 
 /* Redacta pares evidentes de secretos en texto humano (logs/health pueden
  * arrastrarlos). Dominios y UUIDs se conservan: no son secretos. */
-function redactar(texto: string): string {
+export function redactar(texto: string): string {
   return texto.replace(
     /(api[_-]?key|token|password|passwd|secret)\s*[:=]\s*(\S+)/gi,
     '$1=···',

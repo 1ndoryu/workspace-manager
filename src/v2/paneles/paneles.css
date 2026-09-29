@@ -771,3 +771,239 @@
     align-self: center;
 }
 
+/* Tab vps: despliegues + estado de la VPS + detalle (299A-5). Tres zonas en
+ * grid; filas clicables como reposFila; estados monocromo (running=relleno,
+ * degraded=borde grueso, resto=atenuado); metricas con barra solida. */
+.panelVps {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+}
+
+.vpsCabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+    flex: none;
+}
+
+.panelVpsMeta {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vpsAviso {
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+}
+
+.vpsZonas {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(200px, 0.9fr) minmax(320px, 1.4fr);
+    align-items: start;
+}
+
+.vpsZona {
+    min-width: 0;
+    border-right: 1px solid var(--v2-borde);
+}
+
+.vpsZona:last-child {
+    border-right: none;
+}
+
+.vpsZonaTitulo {
+    margin: 0;
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+    font-weight: inherit;
+}
+
+.vpsFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    width: 100%;
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border: none;
+    border-bottom: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textSm);
+    text-align: left;
+    cursor: pointer;
+}
+
+.vpsFila--elegida {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.vpsFila--apagada:not(.vpsFila--elegida) {
+    opacity: 0.65;
+}
+
+.vpsFilaNombre {
+    flex: none;
+}
+
+.vpsEstado {
+    flex: none;
+    border: 1px solid currentColor;
+    padding: 0 4px;
+    font-size: var(--v2-textXs);
+    line-height: 1.5;
+}
+
+.vpsEstado--ok {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    border-color: var(--v2-texto);
+}
+
+.vpsFila--elegida .vpsEstado--ok {
+    background: var(--v2-invertido);
+    color: var(--v2-texto);
+    border-color: var(--v2-invertido);
+}
+
+.vpsEstado--mal {
+    border-left-width: 4px;
+}
+
+.vpsEstado--apagado {
+    opacity: 0.7;
+}
+
+.vpsFilaDominio {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--v2-textXs);
+}
+
+.vpsMetrica {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+}
+
+.vpsMetricaNombre {
+    flex: none;
+    width: 64px;
+}
+
+.vpsMetricaBarra {
+    flex: 1;
+    height: 8px;
+    border: 1px solid var(--v2-borde);
+}
+
+.vpsMetricaRelleno {
+    display: block;
+    height: 100%;
+    background: var(--v2-texto);
+}
+
+.vpsMetricaPct {
+    flex: none;
+    min-width: 48px;
+    text-align: right;
+}
+
+.vpsLinea {
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textSm);
+}
+
+.vpsLinea--mal {
+    border-left: 4px solid var(--v2-texto);
+}
+
+.vpsPieza {
+    border-bottom: 1px solid var(--v2-borde);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+.vpsPiezaTitulo {
+    margin: 0 0 var(--v2-spaceSm) 0;
+    font-size: var(--v2-textSm);
+    font-weight: inherit;
+}
+
+.vpsPieza--fallo .vpsPiezaTitulo {
+    opacity: 0.65;
+}
+
+.vpsPiezaError {
+    font-size: var(--v2-textSm);
+    opacity: 0.65;
+}
+
+.vpsPre {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: var(--v2-textXs);
+}
+
+.vpsJsonGrupo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--v2-textXs);
+}
+
+.vpsJsonFila {
+    display: flex;
+    gap: var(--v2-spaceSm);
+    min-width: 0;
+}
+
+.vpsJsonClave {
+    flex: none;
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.7;
+}
+
+.vpsJsonValor {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.vpsJsonItem {
+    border-left: 1px solid var(--v2-borde);
+    padding-left: var(--v2-spaceSm);
+}
+
+.vpsJsonTexto {
+    overflow-wrap: anywhere;
+}
+
+.vpsJsonNulo {
+    opacity: 0.6;
+}
+

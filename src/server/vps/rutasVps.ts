@@ -14,6 +14,7 @@ import {
   inspectJson,
   listarSitios,
   logs,
+  redactar,
   rutaBinario,
   salud,
   statsJson,
@@ -22,6 +23,22 @@ import {
 
 const NOMBRE_OK = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const MAX_TEXTO = 4000;
+/* Claves cuyo valor nunca viaja al frontend (el --json puede traer env con
+ * secretos y el visor generico lo mostraria todo). */
+const CLAVE_SECRETA = /api[_-]?key|token|secret|password|passwd|authorization/i;
+
+function sanearJson(v: unknown): unknown {
+  if (typeof v === 'string') return redactar(v);
+  if (Array.isArray(v)) return v.map(sanearJson);
+  if (v && typeof v === 'object') {
+    const limpio: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      limpio[k] = CLAVE_SECRETA.test(k) ? '···' : sanearJson(val);
+    }
+    return limpio;
+  }
+  return v;
+}
 
 /* Nombres vistos en el ultimo /sitios: el /detalle exige pertenencia cuando
  * hay lista (anti-sondeo de nombres ajenos); sin lista previa, regex. */
@@ -156,16 +173,17 @@ export async function manejarRutasVps(
       json(res, 503, { error: 'sin-binario' });
       return true;
     }
-    /* Serie (el puente ya encola a 1): cada pieza cae por separado. */
+    /* Serie (el puente ya encola a 1): cada pieza cae por separado. El JSON
+     * se sanea de secretos antes de responder (el visor lo muestra todo). */
     const detalle: VpsDetalle = {
       sitio,
       piezas: {
         salud: await pieza(() => salud(sitio), true),
-        stats: await pieza(() => statsJson(sitio)),
-        inspeccion: await pieza(() => inspectJson(sitio)),
-        eventos: await pieza(() => eventosJson(sitio)),
-        bd: await pieza(() => dbStatsJson(sitio)),
-        diagnostico: await pieza(() => diagnoseJson(sitio)),
+        stats: await pieza(async () => sanearJson(await statsJson(sitio))),
+        inspeccion: await pieza(async () => sanearJson(await inspectJson(sitio))),
+        eventos: await pieza(async () => sanearJson(await eventosJson(sitio))),
+        bd: await pieza(async () => sanearJson(await dbStatsJson(sitio))),
+        diagnostico: await pieza(async () => sanearJson(await diagnoseJson(sitio))),
         logs: await pieza(() => logs(sitio, 100), true),
       },
     };
