@@ -4,8 +4,10 @@ Origen: duda del usuario (2026-09-29) — la tab `vps` tarda porque cada dato
 es un SSH (`/sitios` ≈ 20s en serie, `/detalle` 7 piezas en serie, minutos en
 el peor caso). Decisión del usuario: repo nuevo e independiente **`glory-pulse`**
 (reutilizable por otras apps), WM solo lo consume. ID reasignado de `299A-11`
-a **`299A-12`** (el `299A-11` lo ocupa otro frente activo). **Nada aquí está
-implementado: requiere aprobación explícita antes de F1.**
+a **`299A-12`** (el `299A-11` lo ocupa otro frente activo). **Estado:
+D1 aprobado (repo `1ndoryu/glory-pulse` creado por el usuario 2026-09-29),
+F0 completo con veredicto SÍ condicionado (ver §F0). Cero código WM antes
+de F1; D2–D4 siguen abiertas.**
 
 Rev.3 (2026-09-29, tras revisión de subagente `supervisor-reviewer`,
 veredicto APROBABLE CON PEGAS): añade `Decisiones abiertas`, descarta el SSE
@@ -199,19 +201,41 @@ commit sin push.
 
 ## Decisiones abiertas (requieren al usuario, [Rev.3])
 
-- **D1 ¿Crear `glory-pulse` como repo independiente?** Opciones: sí (dónde,
-  visibilidad, quién lo crea) / no (abortar frente, quedarse con fix legacy).
-  Sin esto, cero código.
+- **D1 ¿Crear `glory-pulse` como repo independiente? RESUELTO 2026-09-29:**
+  sí — `github.com/1ndoryu/glory-pulse` público, creado por el usuario.
 - **D2 ¿Aceptar endpoint público con Bearer permanente?** Opciones: sí con
   allowlist (ideal) / sí sin allowlist (riesgo aceptado por escrito) / no →
-  plan B Tailscale (re-estima F1–F2). No delegable a F0.
+  plan B Tailscale (re-estima F1–F2). No delegable a F0. Dato F0: sin
+  allowlist por app en la UI de Coolify (solo IP allowlist para la API
+  propia); Tailscale viable vía comando `tailscale` del manager.
 - **D3 ¿Aceptar el coste permanente (repo + releases + token + doble camino)
   frente al fix barato solo-legacy?** Decisión de producto con la medición F0
-  en mano; F0 puede recomendar matar pulse.
+  en mano (`detalle` 119.5 s es el coste real; `sitios` warm solo 1.3 s).
 - **D4 ¿Quién publica/mantiene imagen-tags, ejecuta deploy/rotación/rollback?**
   Propuesta: todo remoto lo ejecuta el usuario vía manager; confirmar.
 
+## F0 — resultado (2026-09-29, ejecutado, veredicto: SÍ condicionado)
+
+Evidencia completa en `glory-pulse/docs/F0-spike.md` (+
+`schema/snapshot.schema.json` + `schema/ejemplo.json`). Resumen:
+
+- **Monts: sí condicionado.** Sin flags de mounts en el manager; el alta es
+  compose sincronizado (`deploy-service`); el socket lo monta el proxy, no
+  pulse. Prueba final = el propio deploy (F4).
+- **Labels: no vía manager** (`diagnose.containers` es tabla de texto;
+  `container-inspect` falla validación en el manager). Meta-coolify vía
+  token Coolify `read` (secretos redactados), cache 60 s. Sin fix manager.
+- **Baseline:** `sitios` 1.3 s warm (`n=8`, ~20 s en frío — varianza sin
+  caracterizar); `detalle` **119.5 s** (`inspeccion=FALLO eventos=FALLO`);
+  `list` directo 0.1 s; `diagnose --json` 10848 bytes.
+- **Proxy:** `linuxserver/socket-proxy:version-3.4.4-r0` pineado (allowlist
+  por endpoint); alternativa tecnativa `≥0.5.1` por **CVE-2026-78122**
+  (CVSS 7.4, `<0.5.1` con `CONTAINERS=1` expone archive/export/logs/top).
+- **Semáforo: verde medido** (`list` ×3 paralelo en 0.1 s, sin degradación
+  del enlace). F2: semáforo por familia (`list`-class paralelo,
+  `inspect`-class serie por sitio) con medición en ruta.
+
 ## SIGUIENTE ACCIÓN
 
-El usuario responde D1–D4 (puede aprobar con reservas). Tras D1=sí: crear repo
-`glory-pulse` (el usuario) y ejecutar F0. Cero código antes.
+D2–D4 las responde el usuario (puede aprobar F1 con reservas). Tras F1: F2
+requiere la decisión del semáforo ya tomada (por familia, ver §F0).
