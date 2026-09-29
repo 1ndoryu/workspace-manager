@@ -12,11 +12,15 @@ const MAX_ARCHIVOS_VISIBLES = 100;
 function Seccion({
   titulo,
   resumen,
+  extra,
   abiertaPorDefecto,
   children,
 }: {
   titulo: string;
   resumen: string;
+  /* Total +A −D a la derecha del resumen (lo pide el usuario): solo la
+   * sección SIN COMMITEAR lo trae (sale de las stats de archivos). */
+  extra?: string;
   abiertaPorDefecto: boolean;
   children: ReactNode;
 }) {
@@ -32,6 +36,7 @@ function Seccion({
         <span className="reposDetalleFlecha">{abierta ? '▲' : '▼'}</span>
         <span className="reposDetalleSeccionTitulo">{titulo}</span>
         <span className="reposDetalleSeccionResumen">{resumen}</span>
+        {extra && <span className="reposDetalleSeccionTotal">{extra}</span>}
       </button>
       {abierta && <div className="reposDetalleSeccionCuerpo">{children}</div>}
     </div>
@@ -147,17 +152,17 @@ export function DetalleRepo({
   const haySubir = !detalle.sinUpstream && salientes.commits.length > 0;
   const hayTraer = !detalle.sinUpstream && entrantes.commits.length > 0;
   const hayLocales = locales.length > 0;
-  const cuentaLocal: Record<ArchivoLocal['estado'], number> = {
-    staged: 0,
-    unstaged: 0,
-    untracked: 0,
-    mixto: 0,
-  };
-  for (const a of locales) cuentaLocal[a.estado]++;
-  const resumenLocales =
-    locales.length === 0
-      ? 'limpio ✓'
-      : `${locales.length} archivos · S:${cuentaLocal.staged}+${cuentaLocal.mixto} M:${cuentaLocal.unstaged} ?:${cuentaLocal.untracked}`;
+  /* Total de cambios a la derecha, cantidad de archivos a la izquierda: el
+   * `S:x M:x ?:x` anterior no se entendía. Suma de las stats por archivo
+   * (las que no tienen diff, como dirs untracked, aportan 0). */
+  let totalAdds = 0;
+  let totalDels = 0;
+  if (stats) {
+    for (const a of locales) {
+      totalAdds += stats[a.ruta]?.adds ?? 0;
+      totalDels += stats[a.ruta]?.dels ?? 0;
+    }
+  }
 
   return (
     <div className="reposDetalle" aria-label={`Detalle de sincronización de ${detalle.clave}`}>
@@ -176,7 +181,12 @@ export function DetalleRepo({
         </Seccion>
       )}
       {hayLocales && (
-        <Seccion titulo="SIN COMMITEAR" resumen={resumenLocales} abiertaPorDefecto={true}>
+        <Seccion
+          titulo="SIN COMMITEAR"
+          resumen={`${locales.length} archivos`}
+          extra={stats ? `+${totalAdds} −${totalDels}` : undefined}
+          abiertaPorDefecto={true}
+        >
           <ListaArchivos
             archivos={detalle.locales.archivos}
             truncado={detalle.locales.truncado}
@@ -189,7 +199,6 @@ export function DetalleRepo({
       {!haySubir && !hayTraer && !hayLocales && (
         <div className="docsVacio">al día ✓ · árbol limpio</div>
       )}
-      <div className="reposDetallePie">calculado en local, sin fetch — lo que traiga el remoto puede variar</div>
     </div>
   );
 }

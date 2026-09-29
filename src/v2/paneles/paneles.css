@@ -494,7 +494,10 @@
 
 .cambiosDiffFila {
     display: grid;
-    grid-template-columns: 4ch 4ch 2ch minmax(0, 1fr);
+    /* [por que] 4ch rompe con nº de 3+ dígitos (p. ej. 481): 5ch cubre
+     * hasta 9999 y el overflow oculto evita que un nº extremo deforme la
+     * fila (límite honesto, no perfecto). */
+    grid-template-columns: minmax(0, 5ch) minmax(0, 5ch) 2ch minmax(0, 1fr);
     min-width: 0;
     white-space: pre-wrap;
 }
@@ -513,6 +516,13 @@
     border-right: 1px solid var(--v2-borde);
     text-align: right;
     user-select: none;
+    overflow: hidden;
+}
+
+/* Contexto atenuado: lo que no cambia no debe distraer de lo que se
+ * agrega o elimina (lo pide el usuario). */
+.cambiosDiffFila--contexto {
+    opacity: 0.55;
 }
 
 .cambiosDiffFila--adicion .cambiosDiffNum {
@@ -577,6 +587,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     opacity: 0.75;
+}
+
+/* Total +A −D a la derecha del resumen de la sección. */
+.reposDetalleSeccionTotal {
+    flex: none;
+    white-space: nowrap;
 }
 
 .reposDetalleSeccionCuerpo {
@@ -662,12 +678,6 @@
 .reposDetalleMas {
     opacity: 0.6;
     padding: 1px 0;
-}
-
-.reposDetallePie {
-    padding: var(--v2-spaceXs) var(--v2-spaceMd);
-    border-top: 1px solid var(--v2-borde);
-    opacity: 0.6;
 }
 
 /* Panel central: navegador de archivos.
