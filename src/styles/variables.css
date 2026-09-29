@@ -39,8 +39,10 @@
     --spaceSm: 8px;
     --spaceMd: 12px;
     --spaceLg: 20px;
-    --radiusSm: 8px;
-    --radiusMd: 12px;
+    /* [por que] Los radios siguen la escala de espaciado (mismo valor,
+     * un solo origen): alias, no coincidencia. */
+    --radiusSm: var(--spaceSm);
+    --radiusMd: var(--spaceMd);
     /* [por que] Pildora del Badge atomico (decision del usuario en fase
      * final 11-09): el unico radio gigante del v1. */
     --radioPildora: 999px;

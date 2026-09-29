@@ -10,9 +10,9 @@
  * [299A-6] Las dos cajas (lista y visor) usan la primitiva central `Caja`:
  * son paneles externos independientes, no zonas internas. */
 import { usePanelDocs } from '../../hooks/usePanelDocs.js';
-import { Button } from '../ui/Button.js';
-import { Caja } from '../ui/Caja.js';
-import { FilaCajas } from '../ui/FilaCajas.js';
+import { Button } from '../ui/form/Button.js';
+import { Caja } from '../ui/caja/Caja.js';
+import { FilaCajas } from '../ui/caja/FilaCajas.js';
 import './paneles.css';
 
 export function PanelDocs() {

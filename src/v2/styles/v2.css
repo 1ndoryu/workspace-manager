@@ -17,7 +17,7 @@ body {
  * menor y luego 1px mas. Todas las variables de texto v2 son rem, asi que la
  * escala completa baja proporcional (~9.4/11.1/13/15px). */
 html {
-    font-size: 13px;
+    font-size: var(--v2-base);
 }
 
 .v2App {
@@ -221,4 +221,18 @@ html {
 }
 .toastTexto {
     word-break: break-word;
+}
+
+/* [299A-11] Recetas canonicas de superficie (css-especificacion-diseno-local):
+ * la superficie de caja y la guia de anidado se definen una vez; los
+ * componentes componen por className y dejan local solo el layout. */
+.v2Superficie {
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+    padding: 4px;
+}
+
+.v2Guia {
+    border-left: 1px solid var(--v2-borde);
+    padding-left: var(--v2-spaceSm);
 }

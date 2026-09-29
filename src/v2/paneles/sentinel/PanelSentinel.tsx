@@ -8,9 +8,9 @@
  * [299A-7] Dos CAJAS externas (primitiva `Caja`) en `.cajaFila`: proyectos
  * y contenido (titulo = proyecto + accion ignorar). Las clases
  * panelDocsSeccion/Cabecera/Entradas no tenian estilo: eliminadas. */
-import { Button } from '../../ui/Button.js';
-import { Caja } from '../../ui/Caja.js';
-import { FilaCajas } from '../../ui/FilaCajas.js';
+import { Button } from '../../ui/form/Button.js';
+import { Caja } from '../../ui/caja/Caja.js';
+import { FilaCajas } from '../../ui/caja/FilaCajas.js';
 import { usePanelSentinel } from './usePanelSentinel.js';
 import { VistaProyecto } from './VistaProyecto.js';
 import '../paneles.css';

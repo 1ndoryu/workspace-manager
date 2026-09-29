@@ -2,8 +2,8 @@
  * JSON (dirigidos por esquema cuando hay, genericos si no).
  * [por que] MOVIDA desde config/ sin cambio: recibe el paquete `datos` del
  * hook, sin logica propia. */
-import { Button } from '../../ui/Button.js';
-import { EditorJson } from '../../ui/EditorJson.js';
+import { Button } from '../../ui/form/Button.js';
+import { EditorJson } from '../../ui/form/EditorJson.js';
 import { EditorEsquema } from '../../EditorEsquema.js';
 import { ARCHIVO_A_TOOL, badgesDe, type DatosPanelSentinel } from './usePanelSentinel.js';
 
@@ -110,7 +110,7 @@ export function VistaProyecto({ datos }: { datos: DatosPanelSentinel }) {
             /* H2: si el esquema es el estatico embebido (fallo la API), se
              * indica en vez de validar en silencio contra reglas viejas. */
             const fuenteEsquema = tool ? esquemasFuente[tool] : undefined;
-            const valor = (editado[a.nombre] ?? null) as import('../../ui/EditorJson.js').JsonValue;
+            const valor = (editado[a.nombre] ?? null) as import('../../ui/form/EditorJson.js').JsonValue;
             const deshabilitado = guardando === a.nombre || sinCambios(a.nombre);
             return (
               <section key={a.nombre} className="gateEditor">

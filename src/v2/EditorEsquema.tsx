@@ -20,7 +20,7 @@ import {
   type Ruta,
 } from '../shared/gate/esquema.js';
 import { REGLAS as REGLAS_ESTATICAS, type ReglaCatalogo } from '../shared/gate/reglas.js';
-import { Button } from './ui/Button.js';
+import { Button } from './ui/form/Button.js';
 import { SeccionReglas } from './SeccionReglas.js';
 import { Control, ValorCrudo } from './controlesEsquema.js';
 import { EtiquetaDeRuta } from './EtiquetaDeRuta.js';

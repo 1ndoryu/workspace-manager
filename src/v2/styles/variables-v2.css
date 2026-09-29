@@ -20,8 +20,10 @@
     /* Monocromo estricto: solo blanco y negro */
     --v2-fondo: #ffffff;
     --v2-texto: #000000;
-    --v2-invertido: #ffffff;      /* texto/relleno sobre negro */
-    --v2-borde: #000000;
+    /* [por que] Invertido y borde siguen los tokens base (mismo valor,
+     * un solo origen): alias, no coincidencia. */
+    --v2-invertido: var(--v2-fondo);      /* texto/relleno sobre negro */
+    --v2-borde: var(--v2-texto);
 
     /* Tipografia: Departure Mono (misma fuente del proyecto), sin bold */
     --v2-font: 'Departure Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
@@ -45,6 +47,10 @@
      * filas de Cajas (.cajaFila) usan este mismo token para que el hueco
      * sea identico en todas las tabs. Un token, un lugar. */
     --v2-gapPanel: 12px;
+
+    /* Base del root (ver v2.css): todas las variables de texto v2 son
+     * rem y escalan con este token. */
+    --v2-base: 13px;
 
     /* Escala tipografica (rem; la base del root es 13px, ver v2.css, asi que
      * 0.72rem ~= 9.4px, 0.85rem ~= 11.1px, 1rem = 13px, 1.15rem ~= 15px) */

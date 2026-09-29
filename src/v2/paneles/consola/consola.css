@@ -108,11 +108,10 @@
 }
 
 .consolaMotivo {
-    /* [por que] Borde izquierdo + indentado: el arbol de anidado marca que
-     * cada linea pertenece a la cabecera del grupo (su proyecto). */
+    /* [por que] La guia (borde + indentado) es la receta canonica .v2Guia
+     * (v2.css), compuesta en el TSX: el arbol de anidado marca que cada
+     * linea pertenece a la cabecera del grupo (su proyecto). */
     margin-left: var(--v2-spaceSm);
-    padding-left: var(--v2-spaceSm);
-    border-left: 1px solid var(--v2-borde);
 }
 
 /* Badge de severidad de CATEGORIA 'sentinel' (hallazgo de analyze), en linea
@@ -124,7 +123,7 @@
     margin-right: var(--v2-spaceSm);
     padding: 0 4px;
     border: 1px solid currentColor;
-    font-size: 0.85em;
+    font-size: var(--v2-textSm);
 }
 
 .consolaSeveridad--error {
