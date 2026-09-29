@@ -12,6 +12,7 @@
 import { usePanelDocs } from '../../hooks/usePanelDocs.js';
 import { Button } from '../ui/Button.js';
 import { Caja } from '../ui/Caja.js';
+import { FilaCajas } from '../ui/FilaCajas.js';
 import './paneles.css';
 
 export function PanelDocs() {
@@ -38,9 +39,10 @@ export function PanelDocs() {
 
   return (
     /* [299A-7] Fila de cajas hermanas: la separacion vive en .cajaFila
-     * (un token, un lugar), no en cada tab. */
-    <div className="cajaFila">
-      <Caja titulo={`documentación (${total})`} className="panelDocsLista" etiqueta="Lista de documentos">
+     * (un token, un lugar), no en cada tab.
+     * [299A-9] Redimensionable (defecto [1,2.5] ~= los 340px fijos que habia). */
+    <FilaCajas fila="docs" ids={['lista', 'visor']} defectos={[1, 2.5]}>
+      <Caja titulo={`documentación (${total})`} etiqueta="Lista de documentos">
         {grupos.length === 0 && <div className="docsVacio">no se detectaron documentos</div>}
         {grupos.map((grupo, i) => (
           <div key={grupo.titulo} className="docsGrupo">
@@ -88,7 +90,6 @@ export function PanelDocs() {
       <Caja
         columna
         titulo={seleccion?.nombre ?? 'visor'}
-        className="panelDocsContenido"
         etiqueta="Visor del documento"
         acciones={
           seleccion &&
@@ -127,6 +128,6 @@ export function PanelDocs() {
           />
         )}
       </Caja>
-    </div>
+    </FilaCajas>
   );
 }

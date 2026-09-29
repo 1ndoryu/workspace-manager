@@ -10,6 +10,7 @@
  * (se renderizaban sin aire): eliminadas, no reestilizadas. */
 import { Button } from '../ui/Button.js';
 import { Caja } from '../ui/Caja.js';
+import { FilaCajas } from '../ui/FilaCajas.js';
 import { usePanelNavegador } from '../../hooks/usePanelNavegador.js';
 import './paneles.css';
 
@@ -44,8 +45,9 @@ export function PanelNavegador() {
   } = usePanelNavegador();
 
   return (
-    <div className="cajaFila">
-      <Caja titulo="archivos" className="panelDocsLista" etiqueta="Navegación de carpetas">
+    /* [299A-9] Fila redimensionable (defecto [1,2.5], como docs). */
+    <FilaCajas fila="navegador" ids={['lista', 'visor']} defectos={[1, 2.5]}>
+      <Caja titulo="archivos" etiqueta="Navegación de carpetas">
             {/* Breadcrumb: raiz + cada segmento; click en uno navega ahi. */}
             <div className="navegadorRuta">
               <Button
@@ -110,7 +112,6 @@ export function PanelNavegador() {
       <Caja
         titulo={abierto ? abierto.nombre : 'visor'}
         meta={abierto ? abierto.ruta : undefined}
-        className="panelDocsContenido"
         etiqueta="Contenido del archivo"
         acciones={mensaje && abierto ? <span className="docsMensaje">{mensaje}</span> : undefined}
       >
@@ -128,6 +129,6 @@ export function PanelNavegador() {
           </>
         )}
       </Caja>
-    </div>
+    </FilaCajas>
   );
 }

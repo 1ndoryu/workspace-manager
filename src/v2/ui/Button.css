@@ -154,6 +154,7 @@
 }
 .botonV2.navegadorFila {
     display: flex;
+    width: 100%;
     align-items: baseline;
     justify-content: flex-start;
     gap: var(--v2-spaceSm);

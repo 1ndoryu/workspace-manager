@@ -10,6 +10,7 @@
  * titulo vive en la Caja. */
 import { Button } from '../../ui/Button.js';
 import { Caja } from '../../ui/Caja.js';
+import { FilaCajas } from '../../ui/FilaCajas.js';
 import { usePanelConfig } from './usePanelConfig.js';
 import { VistaExcepciones } from './VistaExcepciones.js';
 import { VistaScan } from './VistaScan.js';
@@ -29,9 +30,10 @@ export function PanelConfig() {
   const { vista, setVista, ignorados, cargarSincronizacion } = datos;
 
   return (
-    <div className="cajaFila">
+    /* [299A-9] Fila redimensionable (defecto [1,2.5], como docs). */
+    <FilaCajas fila="config" ids={['menu', 'contenido']} defectos={[1, 2.5]}>
       {/* Menu lateral de opciones globales. */}
-      <Caja titulo="opciones" className="panelDocsLista" etiqueta="Opciones globales">
+      <Caja titulo="opciones" etiqueta="Opciones globales">
         <button
           type="button"
           className={`docsFila${vista === 'excepciones' ? ' docsFila--activa' : ''}`}
@@ -57,7 +59,6 @@ export function PanelConfig() {
 
       <Caja
         titulo={vista === 'excepciones' ? `excepciones (${ignorados.length})` : TITULO_VISTA[vista]}
-        className="panelDocsContenido"
         etiqueta="Opción seleccionada"
         acciones={
           vista === 'gate' ? (
@@ -77,6 +78,6 @@ export function PanelConfig() {
 
         {vista === 'gate' && <VistaGate datos={datos} />}
       </Caja>
-    </div>
+    </FilaCajas>
   );
 }

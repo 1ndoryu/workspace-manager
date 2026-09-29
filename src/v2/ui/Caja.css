@@ -27,6 +27,27 @@
     gap: var(--v2-gapPanel);
 }
 
+/* Celda de FilaCajas (299A-9): la fraccion de ancho la pone el hook
+ * (flexGrow persistido); la Caja hija llena la celda. Los flex fijos por
+ * tab (panelDocsLista 340px, panelVpsCaja* 1/1/1.6...) se jubilaron: el
+ * tamano lo decide el usuario con el divisor, no la tab.
+ * La fila con divisores lleva gap:0 — el divisor invisible de 12px ya es
+ * el hueco (igual que en el mapa); con gap, el hueco se triplicaba. */
+.cajaFila--conDivisores {
+    gap: 0;
+}
+
+.cajaFilaCelda {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+}
+
+.cajaFilaCelda > .caja {
+    flex: 1;
+    min-width: 0;
+}
+
 .cajaCabecera {
     flex: none;
     display: flex;

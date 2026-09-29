@@ -91,13 +91,8 @@
  * [299A-6] Las dos cajas usan la primitiva `Caja`; la fila es `.cajaFila`
  * central ([299A-7] .panelDocs eliminado: no aportaba nada). */
 
-/* Lista lateral unica (caja externa izquierda del central de docs).
- * [299A-6] El borde, la cabecera y el cuerpo los pone la primitiva `Caja`;
- * aqui solo el tamano. */
-.panelDocsLista {
-    width: 340px;
-    flex: none;
-}
+/* [299A-9] Sin panelDocsLista: el ancho de la lista lo decide el usuario
+ * (FilaCajas persistida); el fijo de 340px se jubilo. */
 
 .docsFila {
     display: flex;
@@ -186,12 +181,8 @@
     font-size: var(--v2-textXs);
 }
 
-/* Visor abierto a la derecha (caja externa). [299A-6] Borde, cabecera
- * (titulo + boton guardar como accion) y cuerpo en columna los pone `Caja`. */
-.panelDocsContenido {
-    flex: 1;
-    min-width: 0;
-}
+/* [299A-9] Sin panelDocsContenido: el ancho del visor lo decide el usuario
+ * (FilaCajas persistida); el flex:1 fijo se jubilo. */
 
 /* [299A-7] Sin docsGuardar: el guardar es Button pequeno (primitiva
  * Caja, sin botones ad-hoc en cabeceras). */
@@ -232,15 +223,9 @@
  * archivo; al cerrarse, la lista se expande por flex). Aqui solo tamano y
  * filas. */
 
-/* Caja de la lista: llena su mitad; al cerrarse el lateral se expande. */
-.panelReposCajaLista {
-    flex: 1 1 0;
-}
-
-/* Caja lateral del diff: un poco mas ancha que la lista. */
-.panelReposCajaLateral {
-    flex: 1.25 1 0;
-}
+/* [299A-9] Sin panelReposCajaLista/Lateral: los anchos los decide el
+ * usuario (FilaCajas persistida, defecto [1,1.25]); los flex fijos se
+ * jubilaron. */
 
 .reposFila {
     display: flex;
@@ -710,17 +695,9 @@
     font-size: var(--v2-textSm);
 }
 
-.panelVpsCajaLista {
-    flex: 1 1 0;
-}
-
-.panelVpsCajaVps {
-    flex: 1 1 0;
-}
-
-.panelVpsCajaDetalle {
-    flex: 1.6 1 0;
-}
+/* [299A-9] Sin panelVpsCajaLista/Vps/Detalle: los anchos los decide el
+ * usuario (FilaCajas persistida, defecto [1,1,1.6]); los flex fijos se
+ * jubilaron. */
 
 .vpsFila {
     display: flex;

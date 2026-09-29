@@ -14,6 +14,7 @@ import { archivosRepo, detalleRepo, invalidarDetallesRepos } from '../repos/apiR
 import { separarEntradas } from '../repos/gitDiff.js';
 import { Button } from '../ui/Button.js';
 import { Caja } from '../ui/Caja.js';
+import { FilaCajas } from '../ui/FilaCajas.js';
 import { DetalleRepo, fechaCorta, type StatsArchivo } from './DetalleRepo.js';
 import { PanelCambiosRepo } from './PanelCambiosRepo.js';
 import './paneles.css';
@@ -172,11 +173,15 @@ export function PanelRepos() {
       : null;
 
   return (
-    <div className="cajaFila">
+    /* [299A-9] Fila redimensionable (defecto [1,1.25], el reparto que habia). */
+    <FilaCajas
+      fila="repos"
+      ids={lateralArchivo ? ['lista', 'diff'] : ['lista']}
+      defectos={[1, 1.25]}
+    >
       <Caja
         titulo={`repositorios (${repos.length})`}
         meta={`${conRemoto} con remoto · ${conPush} con push pendiente${desdeCache ? ' · desde caché' : ''}`}
-        className="panelReposCajaLista"
         etiqueta="Estados de los repositorios"
         acciones={
           <Button pequeno onClick={recargar} disabled={cargando} title="Re-escanea los repositorios (ignora la caché)">
@@ -261,7 +266,6 @@ export function PanelRepos() {
       {lateralArchivo && (
         <Caja
           titulo={lateralArchivo.ruta}
-          className="panelReposCajaLateral"
           etiqueta={`Diff de ${lateralArchivo.ruta}`}
           onCerrar={() => setArchivoSel(null)}
           cerrarTitulo="cerrar el diff"
@@ -269,6 +273,6 @@ export function PanelRepos() {
           <PanelCambiosRepo key={lateralArchivo.clave} clave={lateralArchivo.clave} ruta={lateralArchivo.ruta} />
         </Caja>
       )}
-    </div>
+    </FilaCajas>
   );
 }
