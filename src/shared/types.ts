@@ -135,6 +135,42 @@ export interface VpsConfig {
   binario: { ruta: string; version: string | null; ok: boolean };
 }
 
+/* Snapshot del agente glory-pulse (GET /api/vps/agente, 299A-12 F2): una
+ * sola conexión contra la VPS en vez de las 7 piezas legacy en serie. El
+ * token Bearer nunca sale del server: aquí viajan solo resúmenes. `frescura`
+ * lleva reloj del backend (edad del snapshot servido). */
+export interface VpsAgenteContenedor {
+  id: string;
+  nombre: string;
+  estado: string;
+  imagen: string;
+  cpuPct: number;
+  memMiB: number;
+  memLimiteMiB: number | null;
+  redRxBytes: number;
+  redTxBytes: number;
+  blkReadBytes: number;
+  blkWriteBytes: number;
+  sitioUuid: string | null;
+  dominio: string | null;
+}
+
+export interface VpsAgenteSnapshot {
+  schema: 1;
+  hostId: string;
+  ts: number;
+  contenedores: VpsAgenteContenedor[];
+  truncado: boolean;
+  totalContenedores: number;
+  frescura: { fuente: 'agente'; edadMs: number };
+}
+
+export interface VpsAgenteRespuesta {
+  disponible: boolean;
+  snapshot: VpsAgenteSnapshot | null;
+  error: string | null;
+}
+
 export interface EstadoGate {
   declarado: boolean;
   sentinel: 'config' | 'lock' | 'none';

@@ -6,6 +6,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json } from '../http.js';
 import type { VpsAviso, VpsConfig, VpsDetalle, VpsPieza, VpsSitio } from '../../shared/types.js';
+import { agenteProd } from './agente.js';
 import {
   auditoria,
   dbStatsJson,
@@ -117,6 +118,19 @@ export async function manejarRutasVps(
       },
     };
     json(res, 200, config);
+    return true;
+  }
+
+  /* Snapshot del agente glory-pulse (299A-12 F2): una sola conexión. Sin
+   * PULSE_URL/PULSE_TOKEN el frontend usa legacy (`sin-configurar`). El
+   * token jamás viaja al frontend (vive en agente.ts). */
+  if (ruta === '/api/vps/agente') {
+    const agente = agenteProd();
+    if (!agente) {
+      json(res, 200, { disponible: false, snapshot: null, error: 'sin-configurar' });
+      return true;
+    }
+    json(res, 200, await agente.snapshot());
     return true;
   }
 

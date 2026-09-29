@@ -39,6 +39,33 @@ function encolar<T>(trabajo: () => Promise<T>): Promise<T> {
   return resultado;
 }
 
+/* Carril paralelo para la familia list (299A-12 F2, semáforo por familia):
+ * F0 midió 3 `list` en 0.1 s en paralelo, así que la familia list admite
+ * hasta 3 en vuelo; la familia inspect sigue en el turno único (sus piezas
+ * son pesadas y con fallos conocidos). */
+const MAX_PARALELO_LIST = 3;
+let enVueloList = 0;
+const colaList: Array<() => void> = [];
+
+function tomarCarrilList(): Promise<void> {
+  if (enVueloList < MAX_PARALELO_LIST) {
+    enVueloList += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolver) => {
+    colaList.push(() => {
+      enVueloList += 1;
+      resolver();
+    });
+  });
+}
+
+function soltarCarrilList(): void {
+  const siguiente = colaList.shift();
+  if (siguiente) siguiente();
+  else enVueloList = Math.max(0, enVueloList - 1);
+}
+
 /* Redacta pares evidentes de secretos en texto humano (logs/health pueden
  * arrastrarlos). Dominios y UUIDs se conservan: no son secretos. */
 export function redactar(texto: string): string {
@@ -60,28 +87,40 @@ function validarNombre(sitio: string): void {
 async function correr(argv: string[]): Promise<string> {
   const bin = rutaBinario();
   if (!bin) throw new Error('sin-binario');
-  return encolar(
-    () =>
-      new Promise<string>((resolver, rechazar) => {
-        execFile(
-          bin,
-          argv,
-          { timeout: TIMEOUT_MS, maxBuffer: MAX_SALIDA, windowsHide: true },
-          (err, stdout, stderr) => {
-            const salida = redactar(String(stdout ?? ''));
-            if (err) {
-              const causa =
-                (err as NodeJS.ErrnoException & { killed?: boolean }).killed === true
-                  ? 'timeout'
-                  : redactar(String(stderr ?? err.message)).slice(0, 300);
-              rechazar(new Error(`manager-fallo: ${causa}`));
-              return;
-            }
-            resolver(salida);
-          },
-        );
-      }),
-  );
+  return encolar(() => ejecutar(bin, argv));
+}
+
+async function correrParalelo(argv: string[]): Promise<string> {
+  const bin = rutaBinario();
+  if (!bin) throw new Error('sin-binario');
+  await tomarCarrilList();
+  try {
+    return await ejecutar(bin, argv);
+  } finally {
+    soltarCarrilList();
+  }
+}
+
+function ejecutar(bin: string, argv: string[]): Promise<string> {
+  return new Promise<string>((resolver, rechazar) => {
+    execFile(
+      bin,
+      argv,
+      { timeout: TIMEOUT_MS, maxBuffer: MAX_SALIDA, windowsHide: true },
+      (err, stdout, stderr) => {
+        const salida = redactar(String(stdout ?? ''));
+        if (err) {
+          const causa =
+            (err as NodeJS.ErrnoException & { killed?: boolean }).killed === true
+              ? 'timeout'
+              : redactar(String(stderr ?? err.message)).slice(0, 300);
+          rechazar(new Error(`manager-fallo: ${causa}`));
+          return;
+        }
+        resolver(salida);
+      },
+    );
+  });
 }
 
 /* Version cacheada (corta: 15 s) para el /config y la trazabilidad. */
@@ -113,7 +152,7 @@ export async function versionBinario(): Promise<string | null> {
  * de escritura (--repair, --alert, deploy, restart...): no existen aqui. --- */
 
 export function listarSitios(detallado: boolean): Promise<string> {
-  return correr(['list', ...(detallado ? ['--detailed'] : []), ...configArg()]);
+  return correrParalelo(['list', ...(detallado ? ['--detailed'] : []), ...configArg()]);
 }
 
 export function salud(sitio?: string): Promise<string> {
