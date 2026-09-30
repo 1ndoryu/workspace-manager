@@ -320,6 +320,25 @@
     gap: var(--v2-spaceXs);
 }
 
+/* Una caja por despliegue: cabecera compacta + rejilla fluida de cajas. */
+.panelVpsCabecera {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceXs);
+}
+
+.panelVpsRejilla {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: var(--v2-gapPanel);
+    align-content: start;
+}
+
 .vpsAviso {
     font-size: var(--v2-textSm);
 }

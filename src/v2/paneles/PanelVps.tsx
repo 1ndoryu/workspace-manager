@@ -1,6 +1,7 @@
-/* Panel de la VPS: solo tiempo real via pulse (2026-10-01). Una sola caja:
- * sitios agrupados por nombre legible (el backend resuelve `app-{uuid}`) +
- * infra sin sitio al final. Sin legacy: lo que no venia de pulse salio
+/* Panel de la VPS: solo tiempo real via pulse (2026-10-01). Una caja por
+ * despliegue: titulo = nombre legible (el backend resuelve `app-{uuid}`),
+ * meta = dominio, filas = app/db/web/proxy + cpu% + MiB; infra sin sitio en
+ * su propia caja al final. Sin legacy: lo que no venia de pulse salio
  * (lista lenta, detalle de 7 piezas, resumen del audit). */
 import { useEffect, useRef, useState } from 'react';
 import type { VpsAgenteContenedor, VpsAgenteRespuesta, VpsConfig } from '../../shared/types.js';
@@ -127,60 +128,48 @@ export function PanelVps() {
           {avisoTruncado && <div className="vpsAviso">{avisoTruncado}</div>}
         </div>
       ) : null}
-      <Caja
-        titulo={`vps${snapAgente ? ` (${snapAgente.contenedores.length})` : ''}`}
-        etiqueta="VPS en vivo"
-        acciones={
-          <Button pequeno onClick={recargar} title="Pide el snapshot ahora">
-            ⟳ recargar
-          </Button>
-        }
-      >
-        {!snapAgente && <div className="docsVacio">conectando con pulse…</div>}
-        {snapAgente && (
-          <>
-            <div className="vpsLinea">
-              en vivo · hace {Math.round(snapAgente.frescura.edadMs / 1000)}s
-            </div>
-            {grupos.sitios.map(([nombre, g]) => (
-              <div key={nombre}>
-                <div className="vpsLinea">
-                  <span className="vpsFilaNombre">{nombre}</span>
-                  {g.dominio && (
-                    <span className="vpsFilaDominio" title={g.dominio}>
-                      {' '}
-                      {g.dominio.replace(/^https?:\/\//, '')}
-                    </span>
-                  )}
+      <div className="panelVpsCabecera">
+        <span className="vpsLinea">
+          vps{snapAgente ? ` (${snapAgente.contenedores.length})` : ''} ·{' '}
+          {snapAgente ? `en vivo · hace ${Math.round(snapAgente.frescura.edadMs / 1000)}s` : 'conectando con pulse…'}
+        </span>
+        <Button pequeno onClick={recargar} title="Pide el snapshot ahora">
+          ⟳ recargar
+        </Button>
+      </div>
+      {snapAgente && (
+        <div className="panelVpsRejilla">
+          {grupos.sitios.map(([nombre, g]) => (
+            <Caja
+              key={nombre}
+              titulo={nombre}
+              meta={g.dominio ? g.dominio.replace(/^https?:\/\//, '') : undefined}
+              etiqueta={`despliegue ${nombre}`}
+            >
+              {g.filas.map((c) => (
+                <div key={c.id} className="vpsLinea">
+                  <span className={claseEstado(c.estado)} title={c.estado}>
+                    {c.estado}
+                  </span>{' '}
+                  {rolContenedor(c.nombre)} · {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
                 </div>
-                {g.filas.map((c) => (
-                  <div key={c.id} className="vpsLinea">
-                    <span className={claseEstado(c.estado)} title={c.estado}>
-                      {c.estado}
-                    </span>{' '}
-                    {rolContenedor(c.nombre)} · {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
-                  </div>
-                ))}
-              </div>
-            ))}
-            {grupos.infra.length > 0 && (
-              <div>
-                <div className="vpsLinea">
-                  <span className="vpsFilaNombre">infra</span>
+              ))}
+            </Caja>
+          ))}
+          {grupos.infra.length > 0 && (
+            <Caja titulo="infra" etiqueta="infraestructura Coolify">
+              {grupos.infra.map((c) => (
+                <div key={c.id} className="vpsLinea">
+                  <span className={claseEstado(c.estado)} title={c.estado}>
+                    {c.estado}
+                  </span>{' '}
+                  {c.nombre} · {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
                 </div>
-                {grupos.infra.map((c) => (
-                  <div key={c.id} className="vpsLinea">
-                    <span className={claseEstado(c.estado)} title={c.estado}>
-                      {c.estado}
-                    </span>{' '}
-                    {c.nombre} · {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </Caja>
+              ))}
+            </Caja>
+          )}
+        </div>
+      )}
     </div>
   );
 }
