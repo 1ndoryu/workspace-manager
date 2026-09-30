@@ -40,9 +40,16 @@ desde caché caliente y avisa de caídas en segundos.
    `CHANGELOG.md`). Esquema neutro al producto; el adaptador a tipos WM vive
    en WM. Protocolo = contrato público día 1 (`v`, changelog).
 2. **Rust**, deps mínimas (`tokio`, `axum`, `bollard`, `serde`).
-3. **Despliegue Coolify-nativo, solo vía `coolify-manager-rs`** (build del
-   Dockerfile en la VPS, sin cross-compile ni registry: el pin es **tag git**,
-   nunca `main` flotante en producción, [Rev.3]).
+3. **Despliegue Coolify-nativo, solo vía `coolify-manager-rs`** [Rev.4
+   2026-09-29: build en VPS **descartado** — `rust-image-stack.yaml` del
+   manager documenta que compilar en la VPS productiva provocó el reinicio
+   de `dockerd` del 2026-09-20. Patrón adoptado = `rust-image`: imagen
+   compilada FUERA (GitHub Actions → GHCR) y pull por **tag fijo de imagen**
+   (nunca `latest` ni `main` flotante); `Dockerfile` del repo sigue siendo
+   la fuente del build. Dominio elegido: `https://pulse.wandori.us` (misma
+   zona ya gestionada). Primitivo pendiente en el manager: `set-compose`
+   (ningún comando escribe compose arbitrario; `deploy-service` solo
+   reescribe claves del template glory)].
 4. **Socket SOLO vía proxy filtrante** (Rev.2, concretado en Rev.3):
    referencia `tecnativa/docker-socket-proxy` (tag fijado en F0) con solo GET
    en eventos/contenedores/info/version; pulse jamás monta `docker.sock`.
@@ -248,3 +255,75 @@ manual + abort sin solapes + pausa en tab oculta + repedido al volver +
 insignia `agente` en meta + banner `pulse-inaccesible (modo lento)` /
 vista parcial; lista en vivo con estado/cpu/mem; sin agente la UI es la
 de antes; `type-check` 0, `vite build` OK). Siguiente: F4 deploy.
+
+## Rev.4 — incidente `x` + rediseño F4 (2026-09-29, noche)
+
+- **Incidente:** un probe de `new --template inventado --name x` contra el
+  binario 1.0.0 creó el stack basura `x`
+  (`xcg08oo0ckscg0s44skwkgww`, `https://x.test`) en Coolify prod.
+  **Limpieza autorizada y verificada:** manager compilado desde fuente
+  limpia (`main@0fb7c37`, release en
+  `C:\tmp\glory-target\coolify-manager`, 7m48s) → `delete-site -n x
+  --confirm x --dry-run` (objetivo exacto, 8 protegidos) → borrado real
+  (host limpio + DELETE aceptado; 1er intento quedó en 404-eventual y el
+  2º cerró idempotente: 404 verificado + 8 intactos + salida de
+  settings.json). `list` final sin `x`. Lección: **jamás probes de
+  escritura contra prod** (ni siquiera con datos falsos).
+- **Binario 1.0.0 < fuente:** solo crea `wordpress/kamples/minecraft` y no
+  tiene `delete-site` ni template `rust`. Todo F4 usa el binario compilado
+  de la fuente hasta que se publique release.
+- **F4 rediseñado:** workflow GHCR en `glory-pulse` (build amd64 fuera de
+  la VPS) → `new --template rust --image ghcr.io/1ndoryu/glory-pulse:<tag>`
+  → `set-compose` (nuevo primitivo mínimo en el manager) con
+  pulse+`socket-proxy` → `sync-env` (`PULSE_TOKEN` generado por assistant)
+  → `setup-site-dns` → tests remotos (negativo proxy, Bearer, p99).
+  `deploy/docker-compose.yaml` debe pasar `pulse` de `build` a `image`
+  pineada (el proxy ya es pull pineado).
+
+## F4 — HECHA 2026-09-30 (Rev.4 + fix v3, stack `pulse` en prod)
+
+- **Pipeline:** GHA `docker.yml` (`run 36647823650` success) → GHCR
+  `ghcr.io/1ndoryu/glory-pulse:sha-804f306` (público) → `new --template rust`
+  (`r4okw44w84c0ko88g844kosk`) → `sync-env push --only PULSE_TOKEN` (64 hex) →
+  `setup-site-dns` (`A pulse → 66.94.100.241`) → `set-compose` v3 (5021 bytes).
+- **Causa raíz del crash-loop (v2):** compose sin sidecar `socket-proxy` +
+  `healthcheck` con `curl` que la imagen (debian-slim, USER 65534, sin curl)
+  no trae. pulse hace `exit(1)` sin Docker → Coolify `degraded:unhealthy` →
+  rollback en cadena. v3 restaura el proxy (hostname = default
+  `DOCKER_HOST`) y elimina el healthcheck de app (el gate lo hace el probe
+  externo + `GET /health`).
+- **Evidencia viva:** `GET https://pulse.wandori.us/health` → 200
+  `{"estado":"ok","schema":1,"contenedores":34}`; `http://` → 302 a https;
+  `/snapshot` sin token → 401, con Bearer → 200 con datos reales (nombres,
+  stats, salud). Boot log: `token_len=64`. Samplers OK (solo WARN best-effort
+  `meta` sin creds Coolify).
+- **Pendiente conocido:** test negativo de escritura al proxy (requiere exec
+  en host, sin primitivo en el manager) y p99 <50 ms (medir en F5).
+  Observabilidad del manager con huecos: `diagnose` no lista contenedores
+  arrancados por Coolify y `container-events` se cuelga en este stack
+  (`logs` + `health` sí funcionan).
+
+## F5 — HECHA parcial 2026-09-30 (verificación + DoD; drill-kill bloqueado)
+
+- **Latencia (keep-alive, 10× `/snapshot` con Bearer):** min 101 ms, p50
+  107 ms, p99 558 ms; `/health` p50 105 ms → coste servidor ≈ 2 ms
+  (sirve de cache SWR), el suelo ~100 ms es RTT intercontinental
+  (sin keep-alive: p50 433 ms por TLS nuevo). El DoD p99 <50 ms e2e no es
+  cumplible desde fuera de la VPS por física de red; server-side ≈ ms.
+  Una muestra p99 coincide con ciclo de stats (10 s) en curso.
+- **DoD grep:** 0 `Command::new`/exec en pulse (solo `tokio::spawn` +
+  `process::exit` en errores fatales de arranque, por diseño);
+  `docker.sock` ausente en servicio `app` (solo en `socket-proxy`, por
+  diseño); `PULSE_TOKEN` jamás se loguea (solo `token_len=64`).
+- **Drill `kill -9` BLOQUEADO (gap de herramienta, no del stack):** el
+  manager no tiene primitivo host-exec/`docker kill` (`exec` es solo
+  intra-contenedor; `container-events` cuelga; `redeploy` rechaza stacks
+  rust-image por `REPO_URL` ausente en on-disk). Recovery sí probado: 3
+  ciclos `deploy-service` con rollback → servicio siempre de vuelta en 200
+  (último vía redeploy API). Fallback legacy intacto por diseño F3 (sin
+  agente → UI de antes + banner; ruta verificada `sin-configurar`).
+- **Decisiones abiertas para el usuario:** D2 (Bearer permanente sin
+  allowlist por app en Coolify — riesgo aceptado por escrito o plan B),
+  D3 (coste permanente vs fix barato), D4 (quién opera tags/deploy).
+- **Cierre:** tag pineado = imagen GHCR `sha-804f306` (= `glory-pulse@804f306`,
+  registrado); commit sin push (este repo va `ahead`, push solo del usuario).
