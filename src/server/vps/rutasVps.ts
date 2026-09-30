@@ -4,9 +4,11 @@
  * (list/health/audit/logs no tienen --json): lo no reconocido es
  * 'desconocido', nunca un estado inventado. Devuelve true si atendio. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { json } from '../http.js';
 import type { VpsAviso, VpsConfig, VpsDetalle, VpsPieza, VpsSitio } from '../../shared/types.js';
-import { agenteProd } from './agente.js';
+import { agenteProd, enriquecerConSitios, type InfoSitio } from './agente.js';
 import {
   auditoria,
   dbStatsJson,
@@ -44,6 +46,61 @@ function sanearJson(v: unknown): unknown {
 /* Nombres vistos en el ultimo /sitios: el /detalle exige pertenencia cuando
  * hay lista (anti-sondeo de nombres ajenos); sin lista previa, regex. */
 let nombresConocidos: string[] | null = null;
+
+/* Mapa uuid→sitio para resolver nombres legibles en /agente (los
+ * contenedores Coolify son `app-{uuid}`). Cache 10 min, refresco en
+ * segundo plano: el /agente nunca espera al `list` (lento en frio). */
+let mapaSitios: Map<string, InfoSitio> = new Map();
+let mapaSitiosTs = 0;
+const MAPA_SITIOS_MS = 600_000;
+
+/* Semilla local desde settings.json (nombre/dominio/stackUuid por sitio):
+ * instantanea y completa sin SSH ni binario. Solo se extraen esos tres
+ * campos: los secretos del archivo jamas salen de aqui. */
+function sembrarMapaSettings(): void {
+  const candidatos = [
+    (process.env.COOLIFY_MANAGER_CONFIG ?? '').trim(),
+    join(process.cwd(), '..', 'coolify-manager-rs', 'config', 'settings.json'),
+  ].filter((r) => r && existsSync(r));
+  for (const ruta of candidatos) {
+    try {
+      const cfg = JSON.parse(readFileSync(ruta, 'utf8')) as {
+        sitios?: { nombre?: unknown; dominio?: unknown; stackUuid?: unknown }[];
+      };
+      if (!Array.isArray(cfg.sitios)) continue;
+      for (const s of cfg.sitios) {
+        if (typeof s?.stackUuid === 'string' && s.stackUuid && typeof s?.nombre === 'string') {
+          mapaSitios.set(s.stackUuid, {
+            nombre: s.nombre,
+            dominio: typeof s.dominio === 'string' ? s.dominio : '',
+          });
+        }
+      }
+      if (mapaSitios.size > 0) {
+        mapaSitiosTs = Date.now();
+        return;
+      }
+    } catch {
+      /* Siguiente candidato. */
+    }
+  }
+}
+
+function refrescarMapaSitios(): void {
+  if (!rutaBinario()) return;
+  listarSitios(false)
+    .then((texto) => {
+      const m = new Map<string, InfoSitio>();
+      for (const s of parsearListado(String(texto), false)) {
+        if (s.uuid) m.set(s.uuid, { nombre: s.nombre, dominio: s.dominio });
+      }
+      if (m.size > 0) {
+        mapaSitios = m;
+        mapaSitiosTs = Date.now();
+      }
+    })
+    .catch(() => {});
+}
 
 export function leerRefreshMs(): number {
   const n = Number.parseInt(process.env.VPS_REFRESH_MS ?? '0', 10);
@@ -130,7 +187,24 @@ export async function manejarRutasVps(
       json(res, 200, { disponible: false, snapshot: null, error: 'sin-configurar' });
       return true;
     }
-    json(res, 200, await agente.snapshot());
+    if (mapaSitios.size === 0) {
+      sembrarMapaSettings();
+    }
+    if (mapaSitios.size === 0 || Date.now() - mapaSitiosTs > MAPA_SITIOS_MS) {
+      refrescarMapaSitios();
+    }
+    const r = await agente.snapshot();
+    if (r.disponible && r.snapshot) {
+      json(res, 200, {
+        ...r,
+        snapshot: {
+          ...r.snapshot,
+          contenedores: enriquecerConSitios(r.snapshot.contenedores, mapaSitios),
+        },
+      });
+      return true;
+    }
+    json(res, 200, r);
     return true;
   }
 

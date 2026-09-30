@@ -4,7 +4,7 @@
  * inyectados: ningún test toca red ni espera tiempo real. */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { crearAgente } from './agente.js';
+import { crearAgente, enriquecerConSitios, extraerUuidContenedor } from './agente.js';
 
 /* Fixture con la forma REAL de pulse (contrato F0: filas anidadas, recursos
  * en bytes; copiado de `GET /snapshot` prod 2026-09-30, sin secretos). */
@@ -168,5 +168,35 @@ void describe('agente glory-pulse', () => {
     const r2 = await a2.snapshot();
     assert.equal(r2.error, 'agente-http-500');
     assert.ok(!JSON.stringify(r2).includes('secreto'));
+  });
+
+  void it('extrae el uuid de app/postgres/socket-proxy/mariadb/wordpress y nada mas', () => {
+    assert.equal(extraerUuidContenedor('app-r4okw44w84c0ko88g844kosk'), 'r4okw44w84c0ko88g844kosk');
+    assert.equal(extraerUuidContenedor('postgres-r4okw44w84c0ko88g844kosk'), 'r4okw44w84c0ko88g844kosk');
+    assert.equal(extraerUuidContenedor('socket-proxy-r4okw44w84c0ko88g844kosk'), 'r4okw44w84c0ko88g844kosk');
+    assert.equal(extraerUuidContenedor('mariadb-csoc88c0gw8kc4cwcwosc48s'), 'csoc88c0gw8kc4cwcwosc48s');
+    assert.equal(extraerUuidContenedor('wordpress-csoc88c0gw8kc4cwcwosc48s'), 'csoc88c0gw8kc4cwcwosc48s');
+    assert.equal(extraerUuidContenedor('socket-proxy'), null);
+    assert.equal(extraerUuidContenedor('coolify'), null);
+    assert.equal(extraerUuidContenedor('cm-extract-bin'), null);
+    assert.equal(extraerUuidContenedor(''), null);
+  });
+
+  void it('enriquece con sitio+dominio y deja intacta la infra', async () => {
+    const agente = crearAgente({
+      baseUrl: 'https://pulse.test',
+      token: TOKEN,
+      fetchImpl: respuestaSnap(SNAP),
+    });
+    const r = await agente.snapshot();
+    const mapa = new Map([['as0scgwg44wkkkccgwcwg8w0', { nombre: 'guillermo', dominio: 'guillechatbots.es' }]]);
+    const filas = enriquecerConSitios(r.snapshot?.contenedores ?? [], mapa);
+    assert.equal(filas[0]?.sitio, 'guillermo');
+    assert.equal(filas[0]?.dominio, 'guillechatbots.es');
+    const base = r.snapshot?.contenedores[0];
+    assert.ok(base);
+    const infra = enriquecerConSitios([{ ...base, nombre: 'coolify' }], mapa);
+    assert.equal(infra[0]?.sitio, null);
+    assert.equal(infra[0]?.nombre, 'coolify');
   });
 });
