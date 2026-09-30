@@ -5,7 +5,8 @@
  * 'desconocido', nunca un estado inventado. Devuelve true si atendio. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { json } from '../http.js';
 import type { VpsAviso, VpsConfig, VpsDetalle, VpsPieza, VpsSitio } from '../../shared/types.js';
 import { agenteProd, enriquecerConSitios, type InfoSitio } from './agente.js';
@@ -56,11 +57,14 @@ const MAPA_SITIOS_MS = 600_000;
 
 /* Semilla local desde settings.json (nombre/dominio/stackUuid por sitio):
  * instantanea y completa sin SSH ni binario. Solo se extraen esos tres
- * campos: los secretos del archivo jamas salen de aqui. */
+ * campos: los secretos del archivo jamas salen de aqui. La ruta se resuelve
+ * desde este archivo (no desde cwd: el backend puede arrancar en otra
+ * carpeta y la semilla fallaba en silencio). */
+const RAIZ_REPO = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 function sembrarMapaSettings(): void {
   const candidatos = [
     (process.env.COOLIFY_MANAGER_CONFIG ?? '').trim(),
-    join(process.cwd(), '..', 'coolify-manager-rs', 'config', 'settings.json'),
+    join(RAIZ_REPO, '..', 'coolify-manager-rs', 'config', 'settings.json'),
   ].filter((r) => r && existsSync(r));
   for (const ruta of candidatos) {
     try {
@@ -90,12 +94,16 @@ function refrescarMapaSitios(): void {
   if (!rutaBinario()) return;
   listarSitios(false)
     .then((texto) => {
-      const m = new Map<string, InfoSitio>();
+      /* Fusión sobre la semilla (settings trae los 13 sitios; el list en
+       * vivo solo devuelve los 8 del manager legacy): lo vivo manda, lo
+       * demás se conserva. Antes se reemplazaba y 5 despliegues
+       * (agape, task, restaurante-perf, inmobiliaria, pulse) caían a
+       * infra con el `app-{uuid}` crudo. */
+      sembrarMapaSettings();
       for (const s of parsearListado(String(texto), false)) {
-        if (s.uuid) m.set(s.uuid, { nombre: s.nombre, dominio: s.dominio });
+        if (s.uuid) mapaSitios.set(s.uuid, { nombre: s.nombre, dominio: s.dominio });
       }
-      if (m.size > 0) {
-        mapaSitios = m;
+      if (mapaSitios.size > 0) {
         mapaSitiosTs = Date.now();
       }
     })
