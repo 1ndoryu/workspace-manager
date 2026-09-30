@@ -462,11 +462,21 @@
     flex-direction: column;
 }
 
+/* Panel lateral de recursos: fijo, siempre visible, misma altura. */
+.panelVpsRecursos {
+    flex: none;
+    width: 264px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
 /* La Caja llena su envoltorio en vertical (el cuerpo ya hace scroll
  * interno: sin overflow aqui, que duplicaba el borde inferior con el
  * borde de la Caja). */
 .panelVpsTabla > .caja,
-.panelVpsDetalle > .caja {
+.panelVpsDetalle > .caja,
+.panelVpsRecursos > .caja {
     flex: 1;
     min-height: 0;
 }
@@ -474,8 +484,17 @@
 /* Sin doble borde al final: la ultima fila no repite la linea que ya
  * pone el borde de la Caja. */
 .vpsTabla tbody tr:last-child td,
-.panelVpsDetalle .vpsLinea:last-child {
+.panelVpsDetalle .vpsLinea:last-child,
+.panelVpsRecursos .vpsLinea:last-child {
     border-bottom: none;
+}
+
+/* Minigráfico del panel de recursos: ancho completo, serie 2 punteada. */
+.vpsChispa {
+    display: block;
+    width: 100%;
+    height: 36px;
+    margin-top: var(--v2-spaceXs);
 }
 
 .vpsTabla {
