@@ -96,6 +96,33 @@ function esSnapshot(v: unknown): v is SnapshotPulse {
 
 const MIB = 1024 * 1024;
 
+/* Coolify nombra `app-{uuid}` / `postgres-{uuid}` (y `socket-proxy-{uuid}`,
+ * `mariadb-{uuid}`, `wordpress-{uuid}` en stacks WP): el uuid enlaza con el
+ * sitio de settings sin tocar Rust (pulse aun manda sitioUuid null). */
+export function extraerUuidContenedor(nombre: string): string | null {
+  const m = /^(?:app|postgres|socket-proxy|mariadb|wordpress)-([A-Za-z0-9]+)$/.exec(nombre);
+  return m ? m[1] : null;
+}
+
+export interface InfoSitio {
+  nombre: string;
+  dominio: string;
+}
+
+/* Enriquecimiento puro: resuelve `sitio` + `dominio` desde el mapa
+ * uuid→sitio del backend. Sin entrada, fila intacta (sitio null). */
+export function enriquecerConSitios(
+  contenedores: VpsAgenteContenedor[],
+  mapa: Map<string, InfoSitio>,
+): VpsAgenteContenedor[] {
+  return contenedores.map((c) => {
+    const uuid = extraerUuidContenedor(c.nombre);
+    const info = uuid ? mapa.get(uuid) : undefined;
+    if (!info) return c;
+    return { ...c, sitio: info.nombre, dominio: c.dominio ?? info.dominio };
+  });
+}
+
 function adaptar(f: FilaPulse): VpsAgenteContenedor {
   const limite = f.recursos.memLimite > 0 ? f.recursos.memLimite / MIB : null;
   return {
@@ -112,6 +139,7 @@ function adaptar(f: FilaPulse): VpsAgenteContenedor {
     blkWriteBytes: f.recursos.blkWo,
     sitioUuid: f.sitioUuid ?? null,
     dominio: f.dominio ?? null,
+    sitio: null,
   };
 }
 

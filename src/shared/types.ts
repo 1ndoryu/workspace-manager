@@ -153,6 +153,10 @@ export interface VpsAgenteContenedor {
   blkWriteBytes: number;
   sitioUuid: string | null;
   dominio: string | null;
+  /* Nombre del sitio resuelto por el backend (uuid de `app-{uuid}` /
+   * `postgres-{uuid}` contra el mapa de sitios; pulse aun no lo rellena).
+   * null = infra sin sitio (proxy, coolify...) o mapa aun sin cargar. */
+  sitio: string | null;
 }
 
 export interface VpsAgenteSnapshot {

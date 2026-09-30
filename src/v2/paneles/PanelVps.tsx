@@ -1,30 +1,12 @@
-/* Panel de la VPS: despliegues Coolify en solo lectura (299A-5).
- * [por que] El usuario pidio ver despliegues, estado y uso de recursos con
- * un panel de la VPS al lado y el detalle al dar clic, con el patron de la
- * tab repos (lista + zonas, monocromo v2).
- * [299A-6] Tres CAJAS externas independientes (primitiva `Caja`) en una fila
- * que llena el marco central: despliegues, vps y detalle. El detalle solo se
- * renderiza al elegir (como el detalle de mapa: al cerrarse, las hermanas se
- * expanden solas por flex). Las piezas del detalle son `Seccion` (panel
- * interno sin borde). Cada pieza es una consulta remota y puede tardar; el
- * refresco es configurable por VPS_REFRESH_MS, 0 = manual. v1 sin botones de
- * accion: solo lectura.
- * [299A-9] La fila es `FilaCajas`: los anchos se arrastran (Resizer
- * central, igual que el mapa) y se persisten por tab; el defecto es el
- * reparto anterior. */
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import type {
-  VpsAgenteRespuesta,
-  VpsConfig,
-  VpsDetalle,
-  VpsRecursos,
-  VpsSitio,
-  VpsSitios,
-} from '../../shared/types.js';
-import { agenteVps, configVps, detalleVps, invalidarVps, recursosVps, sitiosVps } from '../vps/apiVps.js';
+/* Panel de la VPS: solo tiempo real via pulse (2026-10-01). Una sola caja:
+ * sitios agrupados por nombre legible (el backend resuelve `app-{uuid}`) +
+ * infra sin sitio al final. Sin legacy: lo que no venia de pulse salio
+ * (lista lenta, detalle de 7 piezas, resumen del audit). */
+import { useEffect, useRef, useState } from 'react';
+import type { VpsAgenteContenedor, VpsAgenteRespuesta, VpsConfig } from '../../shared/types.js';
+import { agenteVps, configVps } from '../vps/apiVps.js';
 import { Button } from '../ui/form/Button.js';
-import { Caja, Seccion } from '../ui/caja/Caja.js';
-import { FilaCajas } from '../ui/caja/FilaCajas.js';
+import { Caja } from '../ui/caja/Caja.js';
 import './paneles.css';
 
 /* Fase del estado "fase:detalle" (running:healthy, degraded:unhealthy...):
@@ -35,77 +17,20 @@ function claseEstado(estado: string): string {
   return 'vpsEstado vpsEstado--apagado';
 }
 
-/* Clave estable para los elementos del inspector JSON: la lista es una
- * foto estatica (sin reorden), asi que el contenido manda — escalares por
- * valor, objetos por su forma. [por que] Sin id en el dato, el indice
- * reconcilia mal al cambiar datos (reutiliza nodos de otra posicion). */
-function claveJson(d: unknown): string {
-  if (d === null || d === undefined) return 'nulo';
-  if (typeof d !== 'object') return `val-${String(d).slice(0, 40)}`;
-  return `obj-${JSON.stringify(d)?.slice(0, 40) ?? 'x'}`;
+/* Rol legible del contenedor: `app-…`/`postgres-…` ya van agrupados bajo su
+ * sitio, asi que la fila muestra el rol, no el id. */
+function rolContenedor(nombre: string): string {
+  if (nombre.startsWith('app-')) return 'app';
+  if (nombre.startsWith('postgres-') || nombre.startsWith('mariadb-')) return 'db';
+  if (nombre.startsWith('socket-proxy')) return 'proxy';
+  if (nombre.startsWith('wordpress-')) return 'web';
+  return nombre;
 }
-
-/* Inspector JSON generico y acotado: escalares como filas, objetos un nivel,
- * arrays como "N elementos" + los primeros. [por que] Las formas del
- * --json del manager pueden cambiar entre versiones; esto nunca rompe. */
-function JsonVista({ datos, prof = 0 }: { datos: unknown; prof?: number }): React.ReactNode {
-  if (datos === null || datos === undefined) return <span className="vpsJsonNulo">—</span>;
-  if (typeof datos === 'string') {
-    const t = datos.length > 300 ? `${datos.slice(0, 300)}…` : datos;
-    return <span className="vpsJsonTexto">{t}</span>;
-  }
-  if (typeof datos !== 'object' || prof > 2) return <span>{String(datos)}</span>;
-  if (Array.isArray(datos)) {
-    if (datos.length === 0) return <span className="vpsJsonNulo">vacío</span>;
-    return (
-      <div className="vpsJsonGrupo">
-        <span className="vpsJsonClave">{datos.length} elementos</span>
-        {datos.slice(0, 8).map((d) => (
-          <div key={`${prof}-${claveJson(d)}`} className="vpsJsonItem v2Guia">
-            <JsonVista datos={d} prof={prof + 1} />
-          </div>
-        ))}
-      </div>
-    );
-  }
-  const filas = Object.entries(datos as Record<string, unknown>).slice(0, 40);
-  return (
-    <div className="vpsJsonGrupo">
-      {filas.map(([k, v]) => (
-        <div key={k} className="vpsJsonFila">
-          <span className="vpsJsonClave">{k}</span>
-          <span className="vpsJsonValor">
-            <JsonVista datos={v} prof={prof + 1} />
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const ETIQUETAS_PIEZA: Record<string, string> = {
-  salud: 'salud',
-  stats: 'recursos del contenedor',
-  inspeccion: 'inspección',
-  eventos: 'eventos',
-  bd: 'base de datos',
-  diagnostico: 'diagnóstico',
-  logs: 'logs (100 líneas)',
-};
 
 export function PanelVps() {
   const [config, setConfig] = useState<VpsConfig | null>(null);
-  const [sitios, setSitios] = useState<VpsSitios | null>(null);
-  const [recursos, setRecursos] = useState<VpsRecursos | null>(null);
-  const [elegido, setElegido] = useState<string | null>(null);
-  const [detalle, setDetalle] = useState<VpsDetalle | null>(null);
-  const [cargando, setCargando] = useState(false);
-  const [cargandoDetalle, setCargandoDetalle] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const enVuelo = useRef(false);
-  /* [299A-12 F3] Último snapshot del agente (SWR manual: se muestra lo
-   * último bueno mientras se repide). `null` = aún sin respuesta o agente
-   * caído → legacy intacto. Solo cuenta como activo con snapshot válido. */
+  /* Último snapshot bueno (SWR manual): se muestra lo último válido
+   * mientras se repide. `null` = aún sin respuesta. */
   const [agente, setAgente] = useState<VpsAgenteRespuesta | null>(null);
   const agenteEnVuelo = useRef(false);
   const agenteAbort = useRef<AbortController | null>(null);
@@ -122,8 +47,8 @@ export function PanelVps() {
       setAgente(await agenteVps(ctrl.signal));
     } catch {
       if (ctrl.signal.aborted) return;
-      /* Sin red: se conserva el último bueno (SWR) y el legacy sigue
-       * mandando; el banner solo salta si hubo agente y cayó. */
+      /* Sin red: se conserva el último bueno (SWR); el banner solo salta
+       * si hubo agente y cayó. */
       setAgente((prev) =>
         prev?.disponible ? { disponible: false, snapshot: prev.snapshot, error: 'pulse-inaccesible' } : prev,
       );
@@ -133,36 +58,16 @@ export function PanelVps() {
     }
   }
 
-  async function cargar() {
-    if (enVuelo.current) return;
-    enVuelo.current = true;
-    setCargando(true);
-    setError(null);
-    try {
-      const [c, s, r] = await Promise.all([configVps(), sitiosVps(), recursosVps()]);
-      setConfig(c);
-      setSitios(s);
-      setRecursos(r);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setCargando(false);
-      enVuelo.current = false;
-    }
-  }
-
   function recargar() {
-    invalidarVps();
-    setDetalle(null);
-    void cargar();
     void tickAgente();
   }
 
-  /* Poll del agente cada 5 s (299A-12 F3): barato (el backend cachea),
-   * sin solapes (abort del tick anterior), pausado con la tab oculta y
-   * repedido al volver a visible. Sin agente configurado el backend
-   * responde `sin-configurar` y todo sigue legacy. */
+  /* Poll cada 5 s: barato (el backend cachea), sin solapes (abort del
+   * tick anterior), pausado con la tab oculta y repedido al volver. */
   useEffect(() => {
+    configVps()
+      .then((c) => setConfig(c))
+      .catch(() => {});
     void tickAgente();
     const intervalo = setInterval(() => {
       void tickAgente();
@@ -179,236 +84,103 @@ export function PanelVps() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* Carga inicial + auto-refresco configurable (VPS_REFRESH_MS del server):
-   * sin solapes (si hay consulta en vuelo, el tick se salta). */
-  useEffect(() => {
-    void cargar();
-    let intervalo: ReturnType<typeof setInterval> | null = null;
-    configVps()
-      .then((c) => {
-        if (c.refreshMs > 0) {
-          intervalo = setInterval(() => {
-            if (!enVuelo.current) {
-              invalidarVps();
-              void cargar();
-            }
-          }, c.refreshMs);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      if (intervalo) clearInterval(intervalo);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function elegir(sitio: string) {
-    if (elegido === sitio) {
-      setElegido(null);
-      return;
+  /* Grupos por sitio (nombre legible del backend) en orden alfabético +
+   * infra sin sitio al final: el id largo no se muestra nunca. */
+  const grupos = (() => {
+    const porSitio = new Map<string, { dominio: string | null; filas: VpsAgenteContenedor[] }>();
+    const infra: VpsAgenteContenedor[] = [];
+    for (const c of snapAgente?.contenedores ?? []) {
+      if (!c.sitio) {
+        infra.push(c);
+        continue;
+      }
+      let g = porSitio.get(c.sitio);
+      if (!g) {
+        g = { dominio: null, filas: [] };
+        porSitio.set(c.sitio, g);
+      }
+      if (!g.dominio && c.dominio) g.dominio = c.dominio;
+      g.filas.push(c);
     }
-    setElegido(sitio);
-    setDetalle(null);
-    setCargandoDetalle(true);
-    try {
-      setDetalle(await detalleVps(sitio));
-    } catch (e) {
-      setDetalle({
-        sitio,
-        piezas: {},
-      });
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setCargandoDetalle(false);
-    }
-  }
+    const sitios = [...porSitio.entries()].sort(([a], [b]) => a.localeCompare(b));
+    return { sitios, infra };
+  })();
 
-  function cerrarDetalle() {
-    setElegido(null);
-  }
-
-  const resumen = (recursos?.piezas.resumen?.ok
-    ? (recursos.piezas.resumen.datos as {
-        metricas: { metrica: string; pct: number }[];
-        carga: string | null;
-        contenedores: { total: number; sanos: number; noSanos: string[] };
-      })
-    : null) ?? null;
-
-  /* [299A-7] Sin barra flotante: la meta y el recargar viven en las
-   * cabeceras de las cajas (⟳ = accion de "despliegues", version/modo =
-   * meta de "vps"); los avisos solo se renderizan cuando existen
-   * (una alerta no es una caja). */
-  const metaVps = [
-    config?.binario.version ?? null,
-    config ? (config.refreshMs > 0 ? `auto ${Math.round(config.refreshMs / 1000)}s` : 'manual') : null,
-    snapAgente ? 'agente' : null,
-  ]
-    .filter((x): x is string => x !== null)
-    .join(' · ');
-
-  /* [299A-12 F3] Banner del agente: solo si hubo snapshot y cayó (cadena
-   * pulse → legacy) o si el snapshot viene recortado. Sin agente
-   * configurado no hay banner: todo es legacy como antes. */
+  /* Avisos: solo existen cuando hay algo que decir. */
   const bannerAgente =
     agente && !agente.disponible && agente.error !== null && agente.error !== 'sin-configurar'
-      ? `pulse-inaccesible (modo lento)${agente.error === 'pulse-inaccesible' ? '' : `: ${agente.error}`}`
+      ? `pulse-inaccesible${agente.error === 'pulse-inaccesible' ? '' : `: ${agente.error}`}`
       : null;
   const avisoTruncado =
     snapAgente?.truncado === true
-      ? `vista parcial del agente (${snapAgente.contenedores.length} de ${snapAgente.totalContenedores})`
+      ? `vista parcial (${snapAgente.contenedores.length} de ${snapAgente.totalContenedores})`
       : null;
 
   return (
     <div className="panelVps">
-      {(config && !config.binario.ok) || error || sitios?.aviso || (sitios && sitios.avisos.length > 0) || bannerAgente || avisoTruncado ? (
+      {(config && !config.binario.ok) || bannerAgente || avisoTruncado ? (
         <div className="panelVpsAvisos">
           {config && !config.binario.ok && (
-            <div className="vpsAviso">sin binario ({config.binario.ruta}): la tab no puede leer nada</div>
+            <div className="vpsAviso">sin binario ({config.binario.ruta}): sin nombres de sitio</div>
           )}
-          {error && <div className="vpsAviso">{error}</div>}
           {bannerAgente && <div className="vpsAviso">{bannerAgente}</div>}
           {avisoTruncado && <div className="vpsAviso">{avisoTruncado}</div>}
-          {sitios?.aviso && <div className="vpsAviso">{sitios.aviso}</div>}
-          {sitios && sitios.avisos.length > 0 && (
-            <div className="vpsAviso">
-              settings ↔ real: {sitios.avisos.map((a) => `${a.nombre} (${a.problema})`).join(' · ')}
-            </div>
-          )}
         </div>
       ) : null}
-      {/* [299A-9] Fila redimensionable: los anchos los decide el usuario
-        * con el divisor (igual que el mapa), no la tab; el defecto [1,1,1.6]
-        * es el reparto que habia. */}
-      <FilaCajas
-        fila="vps"
-        ids={elegido ? ['despliegues', 'vps', 'detalle'] : ['despliegues', 'vps']}
-        defectos={[1, 1, 1.6]}
+      <Caja
+        titulo={`vps${snapAgente ? ` (${snapAgente.contenedores.length})` : ''}`}
+        etiqueta="VPS en vivo"
+        acciones={
+          <Button pequeno onClick={recargar} title="Pide el snapshot ahora">
+            ⟳ recargar
+          </Button>
+        }
       >
-        <Caja
-          titulo={`despliegues${sitios ? ` (${sitios.sitios.length})` : ''}`}
-          etiqueta="Despliegues"
-          acciones={
-            <Button pequeno onClick={recargar} disabled={cargando} title="Re-consulta la VPS (ignora la caché)">
-              {cargando ? '…' : '⟳ recargar'}
-            </Button>
-          }
-        >
-          {!sitios && <div className="docsVacio">{cargando ? 'leyendo la VPS…' : '…'}</div>}
-          {sitios?.sitios.map((s: VpsSitio) => (
-            <button
-              key={s.nombre}
-              type="button"
-              className={`vpsFila${elegido === s.nombre ? ' vpsFila--elegida' : ''}${
-                s.estadoReal === 'desconocido' || s.estadoReal === 'sin-asignar' ? ' vpsFila--apagada' : ''
-              }`}
-              onClick={() => void elegir(s.nombre)}
-              title={`${s.dominio} — clic para ver el detalle`}
-              aria-expanded={elegido === s.nombre}
-            >
-              <span className="vpsFilaNombre">{s.nombre}</span>
-              <span className={claseEstado(s.estadoReal)} title={s.estadoReal}>
-                {s.estadoReal}
-              </span>
-              <span className="vpsFilaDominio" title={s.dominio}>
-                {s.dominio.replace(/^https?:\/\//, '')}
-              </span>
-            </button>
-          ))}
-        </Caja>
-        <Caja titulo="vps" meta={metaVps || undefined} etiqueta="Estado de la VPS">
-          {!recursos && !snapAgente && (
-            <div className="docsVacio">{cargando ? 'leyendo la VPS…' : '…'}</div>
-          )}
-          {/* [299A-12 F3] Lista en vivo del agente (una sola conexión, poll
-            * 5 s): sustituye al "leyendo…" y complementa al resumen legacy
-            * del audit, que sigue debajo. Sin agente, la caja es la de antes. */}
-          {snapAgente && (
-            <>
-              <div className="vpsLinea">
-                en vivo · {snapAgente.contenedores.length} contenedores · hace{' '}
-                {Math.round(snapAgente.frescura.edadMs / 1000)}s
-              </div>
-              {snapAgente.contenedores.map((c) => (
-                <div key={c.id} className="vpsLinea">
-                  <span className={claseEstado(c.estado)} title={c.estado}>
-                    {c.estado}
-                  </span>{' '}
-                  {c.nombre} · {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
-                </div>
-              ))}
-            </>
-          )}
-          {resumen && (
-            <>
-              {resumen.metricas.map((m) => {
-                /* [por que] El nivel se calcula fuera del objeto style: la coma
-                 * de Math.min romperia el detector de vars del gate. */
-                const nivel = `${Math.min(100, m.pct)}%`;
-                return (
-                  <div key={m.metrica} className="vpsMetrica">
-                    <span className="vpsMetricaNombre">{m.metrica}</span>
-                    <span className="vpsMetricaBarra" aria-hidden="true">
-                      <span
-                        className="vpsMetricaRelleno"
-                        style={{ '--vps-nivel': nivel } as CSSProperties}
-                      />
+        {!snapAgente && <div className="docsVacio">conectando con pulse…</div>}
+        {snapAgente && (
+          <>
+            <div className="vpsLinea">
+              en vivo · hace {Math.round(snapAgente.frescura.edadMs / 1000)}s
+            </div>
+            {grupos.sitios.map(([nombre, g]) => (
+              <div key={nombre}>
+                <div className="vpsLinea">
+                  <span className="vpsFilaNombre">{nombre}</span>
+                  {g.dominio && (
+                    <span className="vpsFilaDominio" title={g.dominio}>
+                      {' '}
+                      {g.dominio.replace(/^https?:\/\//, '')}
                     </span>
-                    <span className="vpsMetricaPct">{m.pct}%</span>
-                  </div>
-                );
-              })}
-              {resumen.carga && <div className="vpsLinea">carga {resumen.carga}</div>}
-              <div className="vpsLinea">
-                contenedores {resumen.contenedores.sanos}/{resumen.contenedores.total} sanos
-              </div>
-              {resumen.contenedores.noSanos.map((n) => (
-                <div key={n} className="vpsLinea vpsLinea--mal">
-                  {n}
+                  )}
                 </div>
-              ))}
-            </>
-          )}
-          {recursos && !resumen && (
-            <div className="docsVacio">sin métricas (ver texto del audit en consola del server)</div>
-          )}
-        </Caja>
-        {elegido && (
-          <Caja
-            titulo={elegido}
-            etiqueta="Detalle del despliegue"
-            onCerrar={cerrarDetalle}
-            cerrarTitulo="cerrar el detalle"
-          >
-            {cargandoDetalle && <div className="docsVacio">leyendo el despliegue… (puede tardar)</div>}
-            {!cargandoDetalle && detalle && (
-              <>
-                {Object.entries(detalle.piezas).map(([clave, p]) => (
-                  <Seccion key={clave} titulo={ETIQUETAS_PIEZA[clave] ?? clave} fallo={!p.ok}>
-                    <div className="vpsPiezaCuerpo">
-                      {p.ok ? (
-                        typeof p.datos === 'string' ? (
-                          <pre className="vpsPre">{p.datos}</pre>
-                        ) : (
-                          <JsonVista datos={p.datos} />
-                        )
-                      ) : (
-                        <div className="vpsPiezaError">no disponible ({p.error})</div>
-                      )}
-                    </div>
-                  </Seccion>
+                {g.filas.map((c) => (
+                  <div key={c.id} className="vpsLinea">
+                    <span className={claseEstado(c.estado)} title={c.estado}>
+                      {c.estado}
+                    </span>{' '}
+                    {rolContenedor(c.nombre)} · {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
+                  </div>
                 ))}
-                {Object.keys(detalle.piezas).length === 0 && (
-                  <div className="docsVacio">no se pudo leer el detalle</div>
-                )}
-              </>
+              </div>
+            ))}
+            {grupos.infra.length > 0 && (
+              <div>
+                <div className="vpsLinea">
+                  <span className="vpsFilaNombre">infra</span>
+                </div>
+                {grupos.infra.map((c) => (
+                  <div key={c.id} className="vpsLinea">
+                    <span className={claseEstado(c.estado)} title={c.estado}>
+                      {c.estado}
+                    </span>{' '}
+                    {c.nombre} · {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
+                  </div>
+                ))}
+              </div>
             )}
-            {!cargandoDetalle && !detalle && (
-              <div className="docsVacio">no se pudo leer el detalle</div>
-            )}
-          </Caja>
+          </>
         )}
-      </FilaCajas>
+      </Caja>
     </div>
   );
 }
