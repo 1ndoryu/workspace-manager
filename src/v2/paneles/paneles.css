@@ -465,6 +465,19 @@
     margin-top: var(--v2-spaceXs);
 }
 
+/* Barra de uso de disco: monocromo (borde + relleno de texto), sin
+ * color semafórico — la identidad v2 no usa color para estado. */
+.vpsBarra {
+    height: 8px;
+    border: 1px solid var(--v2-borde);
+    margin-top: var(--v2-spaceXs);
+}
+
+.vpsBarraRelleno {
+    height: 100%;
+    background: currentColor;
+}
+
 .vpsTabla {
     width: 100%;
     border-collapse: collapse;

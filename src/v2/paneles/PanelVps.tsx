@@ -133,10 +133,14 @@ export function PanelVps() {
       .catch(() => {});
     const pedirDisco = () => {
       /* Sin invalidar, el cliente devolvería la primera respuesta
-       * cacheada para siempre. */
+       * cacheada para siempre. SWR manual: un audit fallido no borra
+       * el último % bueno (el audit falla a ratos por SSH). */
       invalidarVps();
       recursosVps()
-        .then((r) => setDiscoPct(extraerDisco(r)))
+        .then((r) => {
+          const pct = extraerDisco(r);
+          if (pct !== null) setDiscoPct(pct);
+        })
         .catch(() => {});
     };
     pedirDisco();
