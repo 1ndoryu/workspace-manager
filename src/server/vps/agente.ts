@@ -22,22 +22,28 @@ export interface OpcionesAgente {
   ahora?: () => number;
 }
 
-/* Filas tal cual las sirve pulse (snake_case, ver
- * glory-pulse/schema/snapshot.schema.json). */
+/* Filas tal cual las sirve pulse (ver `glory-pulse/schema/ejemplo.json` y
+ * `snapshot.schema.json`, contrato F0 canónico): filas ANIDADAS
+ * (`id12`, `estado:{...}`, `recursos:{...}` en bytes). [309A-fix 2026-09-30:
+ * F2 validaba una forma plana que el binario nunca produjo → `agente-contrato`
+ * contra prod; a partir de ahora manda F0. Sin `imagen`/`sitioUuid`/`dominio`
+ * en el origen: se sirven ''/null y la UI los tolera. */
 interface FilaPulse {
-  id: string;
+  id12: string;
   nombre: string;
-  estado: string;
-  imagen: string;
-  cpu_pct: number;
-  mem_uso_mib: number;
-  mem_limite_mib: number | null;
-  red_rx_bytes: number;
-  red_tx_bytes: number;
-  blk_read_bytes: number;
-  blk_write_bytes: number;
-  sitio_uuid: string | null;
-  dominio: string | null;
+  estado: { estado: string; salud?: unknown; reinicios?: unknown; desde?: unknown };
+  recursos: {
+    cpuPct: number;
+    memUsada: number;
+    memLimite: number;
+    blkRo: number;
+    blkWo: number;
+    netRx: number;
+    netTx: number;
+  };
+  puertos?: unknown;
+  sitioUuid?: string | null;
+  dominio?: string | null;
 }
 
 interface SnapshotPulse {
@@ -56,21 +62,20 @@ function esNumero(v: unknown): v is number {
 function esFila(v: unknown): v is FilaPulse {
   if (!v || typeof v !== 'object') return false;
   const f = v as Record<string, unknown>;
-  return (
-    typeof f['id'] === 'string' &&
-    typeof f['nombre'] === 'string' &&
-    typeof f['estado'] === 'string' &&
-    typeof f['imagen'] === 'string' &&
-    esNumero(f['cpu_pct']) &&
-    esNumero(f['mem_uso_mib']) &&
-    (f['mem_limite_mib'] === null || esNumero(f['mem_limite_mib'])) &&
-    esNumero(f['red_rx_bytes']) &&
-    esNumero(f['red_tx_bytes']) &&
-    esNumero(f['blk_read_bytes']) &&
-    esNumero(f['blk_write_bytes']) &&
-    (f['sitio_uuid'] === null || typeof f['sitio_uuid'] === 'string') &&
-    (f['dominio'] === null || typeof f['dominio'] === 'string')
-  );
+  if (typeof f['id12'] !== 'string' || typeof f['nombre'] !== 'string') return false;
+  const e = f['estado'];
+  if (!e || typeof e !== 'object' || typeof (e as Record<string, unknown>)['estado'] !== 'string') return false;
+  const r = f['recursos'];
+  if (!r || typeof r !== 'object') return false;
+  const rec = r as Record<string, unknown>;
+  for (const k of ['cpuPct', 'memUsada', 'memLimite', 'blkRo', 'blkWo', 'netRx', 'netTx']) {
+    if (!esNumero(rec[k])) return false;
+  }
+  for (const k of ['sitioUuid', 'dominio'] as const) {
+    const val = f[k];
+    if (val !== undefined && val !== null && typeof val !== 'string') return false;
+  }
+  return true;
 }
 
 /* Contrato estricto: schema distinto de 1 o forma inesperada se rechaza
@@ -89,21 +94,24 @@ function esSnapshot(v: unknown): v is SnapshotPulse {
   );
 }
 
+const MIB = 1024 * 1024;
+
 function adaptar(f: FilaPulse): VpsAgenteContenedor {
+  const limite = f.recursos.memLimite > 0 ? f.recursos.memLimite / MIB : null;
   return {
-    id: f.id,
+    id: f.id12,
     nombre: f.nombre,
-    estado: f.estado,
-    imagen: f.imagen,
-    cpuPct: f.cpu_pct,
-    memMiB: f.mem_uso_mib,
-    memLimiteMiB: f.mem_limite_mib,
-    redRxBytes: f.red_rx_bytes,
-    redTxBytes: f.red_tx_bytes,
-    blkReadBytes: f.blk_read_bytes,
-    blkWriteBytes: f.blk_write_bytes,
-    sitioUuid: f.sitio_uuid,
-    dominio: f.dominio,
+    estado: f.estado.estado,
+    imagen: '',
+    cpuPct: f.recursos.cpuPct,
+    memMiB: f.recursos.memUsada / MIB,
+    memLimiteMiB: limite,
+    redRxBytes: f.recursos.netRx,
+    redTxBytes: f.recursos.netTx,
+    blkReadBytes: f.recursos.blkRo,
+    blkWriteBytes: f.recursos.blkWo,
+    sitioUuid: f.sitioUuid ?? null,
+    dominio: f.dominio ?? null,
   };
 }
 

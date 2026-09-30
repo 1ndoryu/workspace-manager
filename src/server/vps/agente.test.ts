@@ -6,20 +6,22 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { crearAgente } from './agente.js';
 
+/* Fixture con la forma REAL de pulse (contrato F0: filas anidadas, recursos
+ * en bytes; copiado de `GET /snapshot` prod 2026-09-30, sin secretos). */
 const FILA = {
-  id: 'abc123def456',
-  nombre: 'glory-rest',
-  estado: 'running',
-  imagen: 'repo/app:1',
-  cpu_pct: 1.5,
-  mem_uso_mib: 100,
-  mem_limite_mib: 512,
-  red_rx_bytes: 10,
-  red_tx_bytes: 20,
-  blk_read_bytes: 30,
-  blk_write_bytes: 40,
-  sitio_uuid: 'uuid-1',
-  dominio: 'ejemplo.com',
+  id12: 'abcdaca71593',
+  nombre: 'app-as0scgwg44wkkkccgwcwg8w0',
+  estado: { estado: 'running', salud: 'healthy', reinicios: 0, desde: '2026-09-27T13:50:31Z' },
+  puertos: ['3000/tcp'],
+  recursos: {
+    cpuPct: 2.5,
+    memUsada: 134217728,
+    memLimite: 1073741824,
+    blkRo: 4096,
+    blkWo: 8192,
+    netRx: 149332550,
+    netTx: 45390096,
+  },
 };
 
 const SNAP = {
@@ -57,9 +59,16 @@ void describe('agente glory-pulse', () => {
     assert.equal(r.snapshot?.hostId, 'vps');
     assert.deepEqual(r.snapshot?.frescura, { fuente: 'agente', edadMs: 1000 });
     const c = r.snapshot?.contenedores[0];
-    assert.equal(c?.nombre, 'glory-rest');
-    assert.equal(c?.cpuPct, 1.5);
-    assert.equal(c?.sitioUuid, 'uuid-1');
+    assert.equal(c?.id, 'abcdaca71593');
+    assert.equal(c?.nombre, 'app-as0scgwg44wkkkccgwcwg8w0');
+    assert.equal(c?.estado, 'running');
+    assert.equal(c?.imagen, ''); // pulse no sirve imagen
+    assert.equal(c?.cpuPct, 2.5);
+    assert.equal(c?.memMiB, 128); // bytes → MiB
+    assert.equal(c?.memLimiteMiB, 1024);
+    assert.equal(c?.redRxBytes, 149332550);
+    assert.equal(c?.sitioUuid, null); // sin meta Coolify
+    assert.equal(c?.dominio, null);
     ahora = 6000; // dentro de la caché de 5 s: no repide
     const r2 = await agente.snapshot();
     assert.equal(r2.snapshot?.frescura.edadMs, 1000);
