@@ -195,6 +195,9 @@ export function PanelVps() {
         <div className="panelVpsTabla">
           <Caja
             titulo={`vps${snapAgente ? ` (${snapAgente.contenedores.length})` : ''}`}
+            meta={
+              snapAgente ? `en vivo · hace ${Math.round(snapAgente.frescura.edadMs / 1000)}s` : undefined
+            }
             etiqueta="VPS en vivo"
             acciones={
               <Button pequeno onClick={recargar} title="Pide el snapshot ahora">
@@ -204,12 +207,7 @@ export function PanelVps() {
           >
             {!snapAgente && <div className="docsVacio">conectando con pulse…</div>}
             {snapAgente && (
-              <>
-                <div className="vpsLinea">
-                  en vivo · hace {Math.round(snapAgente.frescura.edadMs / 1000)}s · {filas.length}{' '}
-                  despliegues
-                </div>
-                <table className="vpsTabla">
+              <table className="vpsTabla">
                   <thead>
                     <tr>
                       <th>Despliegue</th>
@@ -251,7 +249,6 @@ export function PanelVps() {
                     ))}
                   </tbody>
                 </table>
-              </>
             )}
           </Caja>
         </div>
