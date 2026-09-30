@@ -437,56 +437,24 @@
 
 /* [2026-10-01] Tabla resumen por despliegue + detalle lateral: una fila
  * por despliegue (peor estado, cpu/ram sumadas, nº contenedores); el clic
- * abre el lateral con las filas por contenedor. Todo en vivo (tick 5 s). */
-.panelVpsCuerpo {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    gap: var(--v2-gapPanel);
-    align-items: stretch;
-}
+ * abre el lateral con las filas por contenedor. Todo en vivo (tick 5 s).
+ * [2026-10-01] Los tres paneles (tabla, recursos, detalle) son hijas
+ * directas de FilaCajas: el ancho lo decide el usuario con el divisor
+ * (persistido, defecto [3,1,1.2]); no hay envoltorios ni anchos fijos. */
 
-.panelVpsTabla {
-    flex: 1;
-    min-width: 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.panelVpsDetalle {
-    flex: none;
-    width: 320px;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-/* Panel lateral de recursos: fijo, siempre visible, misma altura. */
-.panelVpsRecursos {
-    flex: none;
-    width: 264px;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-/* La Caja llena su envoltorio en vertical (el cuerpo ya hace scroll
- * interno: sin overflow aqui, que duplicaba el borde inferior con el
- * borde de la Caja). */
-.panelVpsTabla > .caja,
-.panelVpsDetalle > .caja,
-.panelVpsRecursos > .caja {
-    flex: 1;
-    min-height: 0;
-}
-
-/* Sin doble borde al final: la ultima fila no repite la linea que ya
+/* Sin doble borde al final: la ultima linea no repite la linea que ya
  * pone el borde de la Caja. */
 .vpsTabla tbody tr:last-child td,
-.panelVpsDetalle .vpsLinea:last-child,
-.panelVpsRecursos .vpsLinea:last-child {
+.panelVps .cajaCuerpo > .vpsLinea:last-child {
     border-bottom: none;
+}
+
+/* Fila de chips de rango del historial (reutiliza el chip del
+ * navegador: mismo gesto, mismo aspecto). */
+.vpsRangos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--v2-spaceXs);
 }
 
 /* Minigráfico del panel de recursos: ancho completo, serie 2 punteada. */

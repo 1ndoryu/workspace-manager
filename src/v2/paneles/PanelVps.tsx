@@ -3,9 +3,15 @@
  * infra sin sitio al final. Sin legacy: lo que no venia de pulse salio
  * (lista lenta, detalle de 7 piezas, resumen del audit). */
 import { useEffect, useRef, useState } from 'react';
-import type { VpsAgenteContenedor, VpsAgenteRespuesta, VpsConfig } from '../../shared/types.js';
-import { agenteVps, configVps } from '../vps/apiVps.js';
+import type {
+  VpsAgenteContenedor,
+  VpsAgenteRespuesta,
+  VpsConfig,
+  VpsRecursos,
+} from '../../shared/types.js';
+import { agenteVps, configVps, invalidarVps, recursosVps } from '../vps/apiVps.js';
 import { PanelVpsRecursos } from './PanelVpsRecursos.js';
+import { FilaCajas } from '../ui/caja/FilaCajas.js';
 import { Button } from '../ui/form/Button.js';
 import { Caja } from '../ui/caja/Caja.js';
 import './paneles.css';
@@ -34,6 +40,23 @@ export function fmtBytes(b: number): string {
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KiB`;
   if (b < 1024 * 1024 * 1024) return `${(b / (1024 * 1024)).toFixed(1)} MiB`;
   return `${(b / (1024 * 1024 * 1024)).toFixed(2)} GiB`;
+}
+
+/* % de uso de disco del host desde el resumen del audit (`Disco:
+ * ... use=N%`). La forma es `datos desconocido`: se extrae a la
+ * defensiva y se devuelve null si el formato cambió. */
+function extraerDisco(r: VpsRecursos): number | null {
+  try {
+    const pieza = r.piezas?.resumen;
+    if (!pieza?.ok) return null;
+    const datos = pieza.datos as { metricas?: { metrica: string; pct: number }[] } | null;
+    const m = Array.isArray(datos?.metricas)
+      ? datos.metricas.find((x) => x?.metrica === 'disco')
+      : undefined;
+    return typeof m?.pct === 'number' && Number.isFinite(m.pct) ? m.pct : null;
+  } catch {
+    return null;
+  }
 }
 
 /* Peor estado del despliegue para la tabla: degraded manda, luego
@@ -70,6 +93,10 @@ export function PanelVps() {
    * ticks de 5 s y se sigue actualizando en vivo. */
   const [sel, setSel] = useState<string | null>(null);
 
+  /* % de disco del host (viene del audit, no de pulse: los contadores
+   * blk de los contenedores llegan a cero). null = aún sin respuesta. */
+  const [discoPct, setDiscoPct] = useState<number | null>(null);
+
   const snapAgente = agente?.disponible ? (agente.snapshot ?? null) : null;
 
   async function tickAgente() {
@@ -98,11 +125,22 @@ export function PanelVps() {
   }
 
   /* Poll cada 5 s: barato (el backend cachea), sin solapes (abort del
-   * tick anterior), pausado con la tab oculta y repedido al volver. */
+   * tick anterior), pausado con la tab oculta y repedido al volver. El
+   * audit (disco del host) es más pesado: cadencia propia de 60 s. */
   useEffect(() => {
     configVps()
       .then((c) => setConfig(c))
       .catch(() => {});
+    const pedirDisco = () => {
+      /* Sin invalidar, el cliente devolvería la primera respuesta
+       * cacheada para siempre. */
+      invalidarVps();
+      recursosVps()
+        .then((r) => setDiscoPct(extraerDisco(r)))
+        .catch(() => {});
+    };
+    pedirDisco();
+    const discoCadaMinuto = setInterval(pedirDisco, 60000);
     void tickAgente();
     const intervalo = setInterval(() => {
       void tickAgente();
@@ -113,6 +151,7 @@ export function PanelVps() {
     document.addEventListener('visibilitychange', alVisibilidad);
     return () => {
       clearInterval(intervalo);
+      clearInterval(discoCadaMinuto);
       document.removeEventListener('visibilitychange', alVisibilidad);
       agenteAbort.current?.abort();
     };
@@ -192,103 +231,104 @@ export function PanelVps() {
           {avisoTruncado && <div className="vpsAviso">{avisoTruncado}</div>}
         </div>
       ) : null}
-      <div className="panelVpsCuerpo">
-        <div className="panelVpsTabla">
+      {/* [2026-10-01] Fila redimensionable con divisor arrastrable
+       * (FilaCajas persistida, defecto [3,1,1.2]): el ancho lo decide el
+       * usuario, no la tab. Sin detalle son 2 ids, con detalle 3. */}
+      <FilaCajas
+        fila="vps"
+        ids={selFila ? ['tabla', 'recursos', 'detalle'] : ['tabla', 'recursos']}
+        defectos={[3, 1, 1.2]}
+      >
+        <Caja
+          titulo={`vps${snapAgente ? ` (${snapAgente.contenedores.length})` : ''}`}
+          meta={
+            snapAgente ? `en vivo · hace ${Math.round(snapAgente.frescura.edadMs / 1000)}s` : undefined
+          }
+          etiqueta="VPS en vivo"
+          acciones={
+            <Button pequeno onClick={recargar} title="Pide el snapshot ahora">
+              ⟳ recargar
+            </Button>
+          }
+        >
+          {!snapAgente && <div className="docsVacio">conectando con pulse…</div>}
+          {snapAgente && (
+            <table className="vpsTabla">
+                <thead>
+                  <tr>
+                    <th>Despliegue</th>
+                    <th>Dominio</th>
+                    <th>Estado</th>
+                    <th>CPU</th>
+                    <th>RAM</th>
+                    <th>Cont.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filas.map((f) => (
+                    <tr
+                      key={f.clave}
+                      className={
+                        f.clave === selFila?.clave ? 'vpsTablaFila vpsTablaFila--elegida' : 'vpsTablaFila'
+                      }
+                      onClick={() => elegir(f.clave)}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          elegir(f.clave);
+                        }
+                      }}
+                      title="Ver detalle en el panel lateral"
+                    >
+                      <td>{f.nombre}</td>
+                      <td>{f.dominio ?? '—'}</td>
+                      <td>
+                        <span className={claseEstado(f.estado)} title={f.estado}>
+                          {f.estado}
+                        </span>
+                      </td>
+                      <td>{f.cpu.toFixed(1)}%</td>
+                      <td>{Math.round(f.mem)} MiB</td>
+                      <td>{f.n}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          )}
+        </Caja>
+        <PanelVpsRecursos snap={snapAgente} discoPct={discoPct} />
+        {selFila && (
           <Caja
-            titulo={`vps${snapAgente ? ` (${snapAgente.contenedores.length})` : ''}`}
-            meta={
-              snapAgente ? `en vivo · hace ${Math.round(snapAgente.frescura.edadMs / 1000)}s` : undefined
-            }
-            etiqueta="VPS en vivo"
+            titulo={selFila.nombre}
+            meta={selFila.dominio ?? undefined}
+            etiqueta={`detalle ${selFila.nombre}`}
             acciones={
-              <Button pequeno onClick={recargar} title="Pide el snapshot ahora">
-                ⟳ recargar
+              <Button pequeno onClick={() => setSel(null)} title="Cierra el detalle">
+                × cerrar
               </Button>
             }
           >
-            {!snapAgente && <div className="docsVacio">conectando con pulse…</div>}
-            {snapAgente && (
-              <table className="vpsTabla">
-                  <thead>
-                    <tr>
-                      <th>Despliegue</th>
-                      <th>Dominio</th>
-                      <th>Estado</th>
-                      <th>CPU</th>
-                      <th>RAM</th>
-                      <th>Cont.</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filas.map((f) => (
-                      <tr
-                        key={f.clave}
-                        className={
-                          f.clave === selFila?.clave ? 'vpsTablaFila vpsTablaFila--elegida' : 'vpsTablaFila'
-                        }
-                        onClick={() => elegir(f.clave)}
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            elegir(f.clave);
-                          }
-                        }}
-                        title="Ver detalle en el panel lateral"
-                      >
-                        <td>{f.nombre}</td>
-                        <td>{f.dominio ?? '—'}</td>
-                        <td>
-                          <span className={claseEstado(f.estado)} title={f.estado}>
-                            {f.estado}
-                          </span>
-                        </td>
-                        <td>{f.cpu.toFixed(1)}%</td>
-                        <td>{Math.round(f.mem)} MiB</td>
-                        <td>{f.n}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-            )}
-          </Caja>
-        </div>
-        <div className="panelVpsRecursos">
-          <PanelVpsRecursos snap={snapAgente} />
-        </div>
-        {selFila && (
-          <div className="panelVpsDetalle">
-            <Caja
-              titulo={selFila.nombre}
-              meta={selFila.dominio ?? undefined}
-              etiqueta={`detalle ${selFila.nombre}`}
-              acciones={
-                <Button pequeno onClick={() => setSel(null)} title="Cierra el detalle">
-                  × cerrar
-                </Button>
-              }
-            >
-              <div className="vpsLinea">
-                {selFila.n} contenedores · {selFila.cpu.toFixed(1)}% cpu · {Math.round(selFila.mem)} MiB
-              </div>
-              {selFilas.map((c) => (
-                <div key={c.id} className="vpsLinea">
-                  <span className={claseEstado(c.estado)} title={c.estado}>
-                    {c.estado}
-                  </span>{' '}
-                  {selFila.clave === 'infra' ? c.nombre : rolContenedor(c.nombre)} ·{' '}
-                  {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
-                  {c.memLimiteMiB !== null ? ` / ${Math.round(c.memLimiteMiB)}` : ''}
-                  <div className="vpsFilaDominio">
-                    red ↓{fmtBytes(c.redRxBytes)} ↑{fmtBytes(c.redTxBytes)} · disco{' '}
-                    {fmtBytes(c.blkReadBytes)}/{fmtBytes(c.blkWriteBytes)}
-                  </div>
+            <div className="vpsLinea">
+              {selFila.n} contenedores · {selFila.cpu.toFixed(1)}% cpu · {Math.round(selFila.mem)} MiB
+            </div>
+            {selFilas.map((c) => (
+              <div key={c.id} className="vpsLinea">
+                <span className={claseEstado(c.estado)} title={c.estado}>
+                  {c.estado}
+                </span>{' '}
+                {selFila.clave === 'infra' ? c.nombre : rolContenedor(c.nombre)} ·{' '}
+                {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
+                {c.memLimiteMiB !== null ? ` / ${Math.round(c.memLimiteMiB)}` : ''}
+                <div className="vpsFilaDominio">
+                  red ↓{fmtBytes(c.redRxBytes)} ↑{fmtBytes(c.redTxBytes)} · disco{' '}
+                  {fmtBytes(c.blkReadBytes)}/{fmtBytes(c.blkWriteBytes)}
                 </div>
-              ))}
-            </Caja>
-          </div>
+              </div>
+            ))}
+          </Caja>
         )}
-      </div>
+      </FilaCajas>
     </div>
   );
 }
