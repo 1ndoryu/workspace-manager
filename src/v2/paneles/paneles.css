@@ -435,6 +435,84 @@
     font-size: var(--v2-textSm);
 }
 
+/* [2026-10-01] Tabla resumen por despliegue + detalle lateral: una fila
+ * por despliegue (peor estado, cpu/ram sumadas, nº contenedores); el clic
+ * abre el lateral con las filas por contenedor. Todo en vivo (tick 5 s). */
+.panelVpsCuerpo {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    gap: var(--v2-gapPanel);
+    align-items: stretch;
+}
+
+.panelVpsTabla {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.panelVpsDetalle {
+    flex: none;
+    width: 320px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* La Caja llena su envoltorio en vertical (el cuerpo ya hace scroll
+ * interno: sin overflow aqui, que duplicaba el borde inferior con el
+ * borde de la Caja). */
+.panelVpsTabla > .caja,
+.panelVpsDetalle > .caja {
+    flex: 1;
+    min-height: 0;
+}
+
+/* Sin doble borde al final: la ultima fila no repite la linea que ya
+ * pone el borde de la Caja. */
+.vpsTabla tbody tr:last-child td,
+.panelVpsDetalle .vpsLinea:last-child {
+    border-bottom: none;
+}
+
+.vpsTabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--v2-textSm);
+}
+
+.vpsTabla th {
+    text-align: left;
+    font-weight: normal;
+    font-size: var(--v2-textXs);
+    opacity: 0.65;
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.vpsTabla td {
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.vpsTablaFila {
+    cursor: pointer;
+}
+
+.vpsTablaFila--elegida {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.vpsTablaFila--elegida .vpsEstado--ok {
+    background: var(--v2-invertido);
+    color: var(--v2-texto);
+    border-color: var(--v2-invertido);
+}
+
 .vpsLinea--mal {
     border-left: 4px solid var(--v2-texto);
 }

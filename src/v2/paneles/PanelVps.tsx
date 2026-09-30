@@ -27,6 +27,36 @@ function rolContenedor(nombre: string): string {
   return nombre;
 }
 
+/* Bytes a unidad legible (red/disco del detalle lateral). */
+function fmtBytes(b: number): string {
+  if (b < 1024) return `${Math.round(b)} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KiB`;
+  if (b < 1024 * 1024 * 1024) return `${(b / (1024 * 1024)).toFixed(1)} MiB`;
+  return `${(b / (1024 * 1024 * 1024)).toFixed(2)} GiB`;
+}
+
+/* Peor estado del despliegue para la tabla: degraded manda, luego
+ * cualquier no-running; si todo corre, running. */
+function peorEstado(cs: VpsAgenteContenedor[]): string {
+  const deg = cs.find((c) => c.estado.startsWith('degraded'));
+  if (deg) return deg.estado;
+  const otro = cs.find((c) => !c.estado.startsWith('running'));
+  return otro ? otro.estado : 'running';
+}
+
+/* Fila resumen de la tabla: un despliegue = cpu/mem sumadas. Las filas
+ * por contenedor no se pintan en la tabla: viven en el detalle lateral. */
+interface FilaDespliegue {
+  clave: string;
+  nombre: string;
+  dominio: string | null;
+  estado: string;
+  cpu: number;
+  mem: number;
+  limite: number | null;
+  n: number;
+}
+
 export function PanelVps() {
   const [config, setConfig] = useState<VpsConfig | null>(null);
   /* Último snapshot bueno (SWR manual): se muestra lo último válido
@@ -34,6 +64,10 @@ export function PanelVps() {
   const [agente, setAgente] = useState<VpsAgenteRespuesta | null>(null);
   const agenteEnVuelo = useRef(false);
   const agenteAbort = useRef<AbortController | null>(null);
+  /* Despliegue elegido para el detalle lateral (`sitio:<nombre>` o
+   * `infra`; null = tabla sola). Es solo una clave: sobrevive a los
+   * ticks de 5 s y se sigue actualizando en vivo. */
+  const [sel, setSel] = useState<string | null>(null);
 
   const snapAgente = agente?.disponible ? (agente.snapshot ?? null) : null;
 
@@ -106,6 +140,32 @@ export function PanelVps() {
     return { sitios, infra };
   })();
 
+  /* Tabla: una fila por despliegue + infra al final (si hay). */
+  function resumir(nombre: string, dominio: string | null, cs: VpsAgenteContenedor[]): FilaDespliegue {
+    return {
+      clave: nombre === 'infra' ? 'infra' : `sitio:${nombre}`,
+      nombre,
+      dominio: dominio ? dominio.replace(/^https?:\/\//, '') : null,
+      estado: peorEstado(cs),
+      cpu: cs.reduce((a, c) => a + c.cpuPct, 0),
+      mem: cs.reduce((a, c) => a + c.memMiB, 0),
+      limite: cs.every((c) => c.memLimiteMiB !== null)
+        ? cs.reduce((a, c) => a + (c.memLimiteMiB ?? 0), 0)
+        : null,
+      n: cs.length,
+    };
+  }
+  const filas: FilaDespliegue[] = [
+    ...grupos.sitios.map(([nombre, g]) => resumir(nombre, g.dominio, g.filas)),
+    ...(grupos.infra.length > 0 ? [resumir('infra', null, grupos.infra)] : []),
+  ];
+  const selFila = sel ? (filas.find((f) => f.clave === sel) ?? null) : null;
+  const selFilas: VpsAgenteContenedor[] = !selFila
+    ? []
+    : selFila.clave === 'infra'
+      ? grupos.infra
+      : (grupos.sitios.find(([n]) => `sitio:${n}` === selFila.clave)?.[1].filas ?? []);
+
   /* Avisos: solo existen cuando hay algo que decir. */
   const bannerAgente =
     agente && !agente.disponible && agente.error !== null && agente.error !== 'sin-configurar'
@@ -115,6 +175,10 @@ export function PanelVps() {
     snapAgente?.truncado === true
       ? `vista parcial (${snapAgente.contenedores.length} de ${snapAgente.totalContenedores})`
       : null;
+
+  function elegir(clave: string) {
+    setSel((prev) => (prev === clave ? null : clave));
+  }
 
   return (
     <div className="panelVps">
@@ -127,60 +191,103 @@ export function PanelVps() {
           {avisoTruncado && <div className="vpsAviso">{avisoTruncado}</div>}
         </div>
       ) : null}
-      <Caja
-        titulo={`vps${snapAgente ? ` (${snapAgente.contenedores.length})` : ''}`}
-        etiqueta="VPS en vivo"
-        acciones={
-          <Button pequeno onClick={recargar} title="Pide el snapshot ahora">
-            ⟳ recargar
-          </Button>
-        }
-      >
-        {!snapAgente && <div className="docsVacio">conectando con pulse…</div>}
-        {snapAgente && (
-          <>
-            <div className="vpsLinea">
-              en vivo · hace {Math.round(snapAgente.frescura.edadMs / 1000)}s
-            </div>
-            {grupos.sitios.map(([nombre, g]) => (
-              <div key={nombre}>
+      <div className="panelVpsCuerpo">
+        <div className="panelVpsTabla">
+          <Caja
+            titulo={`vps${snapAgente ? ` (${snapAgente.contenedores.length})` : ''}`}
+            etiqueta="VPS en vivo"
+            acciones={
+              <Button pequeno onClick={recargar} title="Pide el snapshot ahora">
+                ⟳ recargar
+              </Button>
+            }
+          >
+            {!snapAgente && <div className="docsVacio">conectando con pulse…</div>}
+            {snapAgente && (
+              <>
                 <div className="vpsLinea">
-                  <span className="vpsFilaNombre">{nombre}</span>
-                  {g.dominio && (
-                    <span className="vpsFilaDominio" title={g.dominio}>
-                      {' '}
-                      {g.dominio.replace(/^https?:\/\//, '')}
-                    </span>
-                  )}
+                  en vivo · hace {Math.round(snapAgente.frescura.edadMs / 1000)}s · {filas.length}{' '}
+                  despliegues
                 </div>
-                {g.filas.map((c) => (
-                  <div key={c.id} className="vpsLinea">
-                    <span className={claseEstado(c.estado)} title={c.estado}>
-                      {c.estado}
-                    </span>{' '}
-                    {rolContenedor(c.nombre)} · {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
-                  </div>
-                ))}
-              </div>
-            ))}
-            {grupos.infra.length > 0 && (
-              <div>
-                <div className="vpsLinea">
-                  <span className="vpsFilaNombre">infra</span>
-                </div>
-                {grupos.infra.map((c) => (
-                  <div key={c.id} className="vpsLinea">
-                    <span className={claseEstado(c.estado)} title={c.estado}>
-                      {c.estado}
-                    </span>{' '}
-                    {c.nombre} · {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
-                  </div>
-                ))}
-              </div>
+                <table className="vpsTabla">
+                  <thead>
+                    <tr>
+                      <th>Despliegue</th>
+                      <th>Dominio</th>
+                      <th>Estado</th>
+                      <th>CPU</th>
+                      <th>RAM</th>
+                      <th>Cont.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filas.map((f) => (
+                      <tr
+                        key={f.clave}
+                        className={
+                          f.clave === selFila?.clave ? 'vpsTablaFila vpsTablaFila--elegida' : 'vpsTablaFila'
+                        }
+                        onClick={() => elegir(f.clave)}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            elegir(f.clave);
+                          }
+                        }}
+                        title="Ver detalle en el panel lateral"
+                      >
+                        <td>{f.nombre}</td>
+                        <td>{f.dominio ?? '—'}</td>
+                        <td>
+                          <span className={claseEstado(f.estado)} title={f.estado}>
+                            {f.estado}
+                          </span>
+                        </td>
+                        <td>{f.cpu.toFixed(1)}%</td>
+                        <td>{Math.round(f.mem)} MiB</td>
+                        <td>{f.n}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
             )}
-          </>
+          </Caja>
+        </div>
+        {selFila && (
+          <div className="panelVpsDetalle">
+            <Caja
+              titulo={selFila.nombre}
+              meta={selFila.dominio ?? undefined}
+              etiqueta={`detalle ${selFila.nombre}`}
+              acciones={
+                <Button pequeno onClick={() => setSel(null)} title="Cierra el detalle">
+                  × cerrar
+                </Button>
+              }
+            >
+              <div className="vpsLinea">
+                {selFila.n} contenedores · {selFila.cpu.toFixed(1)}% cpu · {Math.round(selFila.mem)} MiB
+              </div>
+              {selFilas.map((c) => (
+                <div key={c.id} className="vpsLinea">
+                  <span className={claseEstado(c.estado)} title={c.estado}>
+                    {c.estado}
+                  </span>{' '}
+                  {selFila.clave === 'infra' ? c.nombre : rolContenedor(c.nombre)} ·{' '}
+                  {c.cpuPct.toFixed(1)}% · {Math.round(c.memMiB)} MiB
+                  {c.memLimiteMiB !== null ? ` / ${Math.round(c.memLimiteMiB)}` : ''}
+                  <div className="vpsFilaDominio">
+                    red ↓{fmtBytes(c.redRxBytes)} ↑{fmtBytes(c.redTxBytes)} · disco{' '}
+                    {fmtBytes(c.blkReadBytes)}/{fmtBytes(c.blkWriteBytes)}
+                  </div>
+                </div>
+              ))}
+            </Caja>
+          </div>
         )}
-      </Caja>
+      </div>
     </div>
   );
 }
