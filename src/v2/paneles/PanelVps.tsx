@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VpsAgenteContenedor, VpsAgenteRespuesta, VpsConfig } from '../../shared/types.js';
 import { agenteVps, configVps } from '../vps/apiVps.js';
+import { PanelVpsRecursos } from './PanelVpsRecursos.js';
 import { Button } from '../ui/form/Button.js';
 import { Caja } from '../ui/caja/Caja.js';
 import './paneles.css';
@@ -27,8 +28,8 @@ function rolContenedor(nombre: string): string {
   return nombre;
 }
 
-/* Bytes a unidad legible (red/disco del detalle lateral). */
-function fmtBytes(b: number): string {
+/* Bytes a unidad legible (red/disco del detalle lateral y recursos). */
+export function fmtBytes(b: number): string {
   if (b < 1024) return `${Math.round(b)} B`;
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KiB`;
   if (b < 1024 * 1024 * 1024) return `${(b / (1024 * 1024)).toFixed(1)} MiB`;
@@ -251,6 +252,9 @@ export function PanelVps() {
                 </table>
             )}
           </Caja>
+        </div>
+        <div className="panelVpsRecursos">
+          <PanelVpsRecursos snap={snapAgente} />
         </div>
         {selFila && (
           <div className="panelVpsDetalle">
