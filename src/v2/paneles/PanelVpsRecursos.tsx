@@ -260,7 +260,23 @@ export function PanelVpsRecursos({
           </div>
           <div className="vpsLinea">
             <div className="vpsFilaDominio">disco del host · audit</div>
-            {discoPct === null ? 'sin respuesta del audit…' : `${discoPct}% en uso`}
+            {discoPct === null ? (
+              'sin respuesta del audit…'
+            ) : (
+              <>
+                {discoPct}% en uso
+                <div
+                  className="vpsBarra"
+                  role="progressbar"
+                  aria-valuenow={discoPct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Uso de disco del host"
+                >
+                  <div className="vpsBarraRelleno" style={{ width: `${discoPct}%` }} />
+                </div>
+              </>
+            )}
           </div>
           <div className="vpsLinea">
             <div className="vpsFilaDominio">disco IO · contenedores</div>
