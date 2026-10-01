@@ -5,11 +5,13 @@
  * CLI. Levanta un listener señuelo en puerto alto ALEATORIO (127.0.0.1, nunca
  * 0.0.0.0: cero interferencia), verifica que el doctor lo reporte como
  * huerfano sin proyecto, lo apaga y verifica que desaparezca. Tambien valida
- * la ruta sin-boton de punta a punta. Limpieza siempre (hija propia +
- * temporal), aunque falle un check. Exit 0 = todo pasa. */
+ * la adopcion completa (0 pendiente-onboarding) y la ruta sin-boton en
+ * negativo (registro recortado temporalmente con restore garantizado).
+ * Limpieza siempre (hija propia + temporal + restore del registro),
+ * aunque falle un check. Exit 0 = todo pasa. */
 import { execFile, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -18,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const DOCTOR = join(DIR, 'doctor.mjs');
+const REGISTRO = join(DIR, 'registro.json');
 const API = 'http://127.0.0.1:8787';
 
 function getJson(url) {
@@ -137,8 +140,30 @@ async function main() {
     const conSenuelo = await correrDoctor(tmp);
     const visto = conSenuelo.informe.huerfanos.find((h) => h.puerto === puertoReal);
     ok('senuelo reportado sin proyecto', visto !== undefined && visto.clave === null, `puerto ${puertoReal ?? '?'}`);
-    const haySinBoton = conSenuelo.informe.proyectos.some((p) => p.estado === 'sin-boton');
-    ok('ruta sin-boton punta a punta', haySinBoton, `${conSenuelo.informe.proyectos.filter((p) => p.estado === 'sin-boton').length} sin-boton`);
+    /* Adopcion completa: con el registro real no debe quedar ningun
+     * pendiente-onboarding. Y la ruta sin-boton se prueba en negativo:
+     * registro recortado temporalmente (backup+restore en finally) debe
+     * surfear los proyectos sin entrada como sin-boton. */
+    const pendientes = conSenuelo.informe.proyectos.filter(
+      (p) => p.estado === 'sin-boton' && p.motivo === 'pendiente-onboarding',
+    );
+    ok('adopcion completa (0 pendiente-onboarding)', pendientes.length === 0, `${pendientes.length} pendientes`);
+    const backup = readFileSync(REGISTRO, 'utf8');
+    let recortadoOk = false;
+    let nSinBoton = -1;
+    try {
+      const rec = JSON.parse(backup);
+      rec.proyectos = rec.proyectos.slice(0, 1);
+      rec.noAplica = {};
+      writeFileSync(REGISTRO, JSON.stringify(rec));
+      const recortado = await correrDoctor(tmp);
+      const sb = recortado.informe.proyectos.filter((p) => p.estado === 'sin-boton');
+      nSinBoton = sb.length;
+      recortadoOk = sb.length === nSnap - 1 && sb.every((p) => p.motivo === 'pendiente-onboarding');
+    } finally {
+      writeFileSync(REGISTRO, backup);
+    }
+    ok('ruta sin-boton punta a punta', recortadoOk, `${nSinBoton} sin-boton (esperado ${nSnap - 1})`);
 
     /* Test negativo: muerta la hija, el puerto debe desaparecer del informe. */
     hija.kill();

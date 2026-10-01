@@ -28,6 +28,13 @@ export const MOTIVOS_ENUM = new Set([
   'pendiente-onboarding',
   'pausado-archivado',
   'puerto-dinamico',
+  // [por que] 6 de 17 proyectos del area son herramientas o bibliotecas sin
+  // servicio local (varsense, sentinel, inspector, gloryport, limpiador,
+  // glory-agent): forzarlos a 'solo-docs' mentiria (tienen codigo y releases)
+  // y 'otro{...}' pondria caducidad a un hecho permanente. 'sin-servicio'
+  // dice exactamente eso: nada que arrancar, nada que probar, el mando no
+  // aplica y no es deuda pendiente.
+  'sin-servicio',
 ]);
 const RE_OTRO = /^otro\{detalle="(.{1,80})",caducidad=(\d{4}-\d{2}-\d{2})\}$/;
 /* F1: boton = argv ejecutable, no texto bonito. argv[0] en allowlist
@@ -155,7 +162,22 @@ function validarEntrada(e) {
   if ('arranqueMs' in e && (!Number.isInteger(e.arranqueMs) || e.arranqueMs < 5000 || e.arranqueMs > 300000)) {
     throw new Error(`registro: '${e.id}' arranqueMs fuera de 5000..300000`);
   }
-  if (typeof e.expectedCmdline !== 'string' || e.expectedCmdline.length === 0) {
+  if (typeof e.expectedCmdline !== 'string' && !Array.isArray(e.expectedCmdline)) {
+    throw new Error(`registro: '${e.id}' expectedCmdline vacio`);
+  }
+  // [por que] Servicios con hijos heterogeneos (backend Rust compilado en
+  // C:\tmp + frontend Vite bajo la ruta) no comparten ningun substring en
+  // sus cmdlines: un marcador unico deja un puerto en deriva en el camino
+  // feliz. Array alinea con puertos (igual que boton): string sigue valiendo
+  // cuando un marcador cubre todos (compat v1).
+  if (Array.isArray(e.expectedCmdline)) {
+    if (e.expectedCmdline.length !== e.puertos.length) {
+      throw new Error(`registro: '${e.id}' expectedCmdline (${e.expectedCmdline.length}) y puertos (${e.puertos.length}) deben alinearse 1:1`);
+    }
+    for (const m of e.expectedCmdline) {
+      if (typeof m !== 'string' || m.length === 0) throw new Error(`registro: '${e.id}' expectedCmdline con marcador vacio`);
+    }
+  } else if (e.expectedCmdline.length === 0) {
     throw new Error(`registro: '${e.id}' expectedCmdline vacio`);
   }
 }
@@ -249,6 +271,16 @@ function normalizarRuta(r) {
 }
 
 export { normalizarRuta };
+
+/* Marcador de deteccion para un puerto: string unico o posicion i del
+ * array (misma alineacion 1:1 que boton). Fuera de rango = primero (no hay
+ * healths fuera de puertos: validarEntrada lo impide, esto es red). */
+export function marcadorPuerto(entrada, puerto) {
+  const m = entrada.expectedCmdline;
+  if (!Array.isArray(m)) return m;
+  const i = entrada.puertos.indexOf(puerto);
+  return i >= 0 ? m[i] : m[0];
+}
 
 /* ¿El proceso pertenece al proyecto? Exe bajo la ruta del proyecto O
  * cmdline que contiene expectedCmdline (deteccion; el match EXACTO con
@@ -376,7 +408,7 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
     // [por que] Dos `tsx watch` del mismo servidor pelean el puerto
     // (caso real 2026-10-01: pids 23444+16484 en 8787, probe intermitente).
     // Quedarse con el primero ocultaria el duplicado: es deriva visible.
-    const propios = oyentes.filter((o) => esDelProyecto(procs.get(o.pid), p.ruta, entrada.expectedCmdline));
+    const propios = oyentes.filter((o) => esDelProyecto(procs.get(o.pid), p.ruta, marcadorPuerto(entrada, h.puerto)));
     if (propios.length > 1) {
       estado = 'deriva';
       motivo = `puerto ${h.puerto} con ${propios.length} procesos del proyecto (duplicado: ${propios.map((o) => o.pid).join(',')})`;
@@ -455,25 +487,29 @@ export async function escuchaRobusta() {
  * npm es .cmd (no ejecutable por CreateProcess): se baja a node +
  * npm-cli.js hermano; cargo/node son exes reales y se lanzan directos. */
 function resolverExe(exeNombre) {
+  // [por que] `where npm` puede devolver primero un `npm` sin extension
+  // (shim de Git/MSYS u otro en PATH) antes que `npm.cmd`: caso real
+  // 2026-10-01 (`up PROYECTO TASKS` rehusado por resolver). Se recorre la
+  // lista y se elige el primer candidato existente con el nombre esperado,
+  // no a ciegas el primero.
+  const esperado = { npm: 'npm.cmd', cargo: 'cargo.exe', node: 'node.exe' }[exeNombre.toLowerCase()];
   return new Promise((resolveP, rejectP) => {
     execFile('where.exe', [exeNombre], { timeout: 10_000, windowsHide: true }, (err, stdout) => {
       if (err) {
         rejectP(new Error(`exe '${exeNombre}' no resuelto por where`));
         return;
       }
-      const primero = String(stdout).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)[0];
-      if (!primero || !existsSync(primero)) {
-        rejectP(new Error(`exe '${exeNombre}' sin candidato existente`));
+      const candidatos = String(stdout).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      const elegido = esperado
+        ? candidatos.find((c) => c.split('\\').pop().toLowerCase() === esperado && existsSync(c))
+        : candidatos.find((c) => existsSync(c));
+      if (!elegido) {
+        rejectP(new Error(`exe '${exeNombre}' sin candidato existente (${candidatos.slice(0, 3).join('; ') || 'vacio'})`));
         return;
       }
-      const base = primero.split('\\').pop().toLowerCase();
       const pedido = exeNombre.toLowerCase();
       if (pedido === 'npm') {
-        if (base !== 'npm.cmd') {
-          rejectP(new Error(`npm inesperado (${base}), se esperaba npm.cmd`));
-          return;
-        }
-        const dir = primero.slice(0, -'npm.cmd'.length);
+        const dir = elegido.slice(0, -'npm.cmd'.length);
         const cli = join(dir, 'node_modules', 'npm', 'bin', 'npm-cli.js');
         if (!existsSync(cli)) {
           rejectP(new Error('npm-cli.js no encontrado junto a npm.cmd'));
@@ -483,15 +519,7 @@ function resolverExe(exeNombre) {
         resolveP({ exe: nodo, prefijo: [cli] });
         return;
       }
-      if (pedido === 'cargo' && base !== 'cargo.exe') {
-        rejectP(new Error(`cargo inesperado (${base})`));
-        return;
-      }
-      if (pedido === 'node' && base !== 'node.exe') {
-        rejectP(new Error(`node inesperado (${base})`));
-        return;
-      }
-      resolveP({ exe: primero, prefijo: [] });
+      resolveP({ exe: elegido, prefijo: [] });
     });
   });
 }

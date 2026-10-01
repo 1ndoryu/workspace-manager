@@ -23,7 +23,116 @@
       "timeoutMs": 3000,
       "arranqueMs": 180000,
       "expectedCmdline": "pulse"
+    },
+    {
+      "id": "MN-Inmobiliaria",
+      "ruta": "../MN-Inmobiliaria",
+      "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
+      "puertos": [3000, 5199],
+      "healths": [
+        { "puerto": 3000, "ruta": "/api/health", "esperaJson": true },
+        { "puerto": 5199, "ruta": "/", "esperaJson": false }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 300000,
+      "expectedCmdline": ["glory-backend", "MN-Inmobiliaria"],
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\tmp + Vite bajo ruta)"
+    },
+    {
+      "id": "NAKOMI",
+      "ruta": "../NAKOMI",
+      "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
+      "puertos": [3000, 5173],
+      "healths": [
+        { "puerto": 3000, "ruta": "/api/health", "esperaJson": true },
+        { "puerto": 5173, "ruta": "/", "esperaJson": false }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 300000,
+      "expectedCmdline": ["glory-backend", "NAKOMI"],
+      "tipoLauncher": "glory-template (dev:back = cargo run directo en-arbol + Vite bajo ruta)"
+    },
+    {
+      "id": "PROYECTO TASKS",
+      "ruta": "../PROYECTO TASKS",
+      "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
+      "puertos": [4190, 4191],
+      "healths": [
+        { "puerto": 4190, "ruta": "/api/health", "esperaJson": true },
+        { "puerto": 4191, "ruta": "/", "esperaJson": false }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 300000,
+      "expectedCmdline": ["glory-backend", "PROYECTO TASKS"],
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs lee .env 4190/4191 + Vite bajo ruta)"
+    },
+    {
+      "id": "WANDORIUS",
+      "ruta": "../WANDORIUS",
+      "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
+      "puertos": [3000, 5173],
+      "healths": [
+        { "puerto": 3000, "ruta": "/api/health", "esperaJson": true },
+        { "puerto": 5173, "ruta": "/", "esperaJson": false }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 300000,
+      "expectedCmdline": ["glory-backend", "WANDORIUS"],
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\tmp + Vite bajo ruta)"
+    },
+    {
+      "id": "gloryapi",
+      "ruta": "../gloryapi",
+      "boton": [["npm", "run", "dev", "-w", "server"], ["npm", "run", "dev", "-w", "client"]],
+      "puertos": [3101, 5173],
+      "healths": [
+        { "puerto": 3101, "ruta": "/api/health", "esperaJson": true },
+        { "puerto": 5173, "ruta": "/", "esperaJson": false }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 120000,
+      "expectedCmdline": "gloryapi"
+    },
+    {
+      "id": "Glory-Laminal",
+      "ruta": "../Glory-Laminal",
+      "boton": [["npm", "run", "dev"]],
+      "puertos": [5173],
+      "healths": [{ "puerto": 5173, "ruta": "/", "esperaJson": false }],
+      "timeoutMs": 3000,
+      "arranqueMs": 60000,
+      "expectedCmdline": "Glory-Laminal"
+    },
+    {
+      "id": "coolify-manager-rs",
+      "ruta": "../coolify-manager-rs",
+      "boton": [["npm", "run", "dev:web"]],
+      "puertos": [5173],
+      "healths": [{ "puerto": 5173, "ruta": "/", "esperaJson": false }],
+      "timeoutMs": 3000,
+      "arranqueMs": 300000,
+      "expectedCmdline": "coolify-manager-rs",
+      "tipoLauncher": "dev-web.mjs (API 8787 no gestionada: puerto protegido del manager; su listener sale huerfano atribuido)"
+    },
+    {
+      "id": "glory-harness",
+      "ruta": "../glory-harness",
+      "boton": [["cargo", "run", "-p", "glory-harness", "--", "web", "--puerto", "8799"]],
+      "puertos": [8799],
+      "healths": [{ "puerto": 8799, "ruta": "/healthz", "esperaJson": true }],
+      "timeoutMs": 3000,
+      "arranqueMs": 300000,
+      "expectedCmdline": "glory-harness",
+      "tipoLauncher": "cargo web HTTP (el daemon TCP 8798 no tiene probe: fuera del mando)"
     }
   ],
-  "noAplica": {}
+  "noAplica": {
+    "glory-agent": "sin-servicio",
+    "glory-sentinel": "sin-servicio",
+    "varsense": "sin-servicio",
+    "GLORYINSPECTOR": "sin-servicio",
+    "GLORYPORT": "sin-servicio",
+    "limpiador-pc": "sin-servicio",
+    "minimax-h3-lab": "gestion-externa"
+  }
 }
