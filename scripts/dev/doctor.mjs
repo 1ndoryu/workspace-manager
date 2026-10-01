@@ -248,10 +248,12 @@ function normalizarRuta(r) {
   return String(r ?? '').replace(/\//g, '\\').toLowerCase();
 }
 
+export { normalizarRuta };
+
 /* ¿El proceso pertenece al proyecto? Exe bajo la ruta del proyecto O
  * cmdline que contiene expectedCmdline (deteccion; el match EXACTO con
  * normalizacion UTC es pre-kill, F1). */
-function esDelProyecto(proc, rutaProyecto, expectedCmdline) {
+export function esDelProyecto(proc, rutaProyecto, expectedCmdline) {
   if (!proc) return false;
   const base = normalizarRuta(rutaProyecto);
   if (proc.exe && normalizarRuta(proc.exe).startsWith(base + '\\')) return true;
@@ -567,63 +569,47 @@ function leerSnapshotServidor() {
   });
 }
 
-/* F1 `up <id>`: ya-arriba (verifica, no reinicia) | arranca puertos libres
- * (spawn + probe hasta arranqueMs) | rehusa (ocupado/duplicado/sin-probe/
- * no-verificable/sin entrada: nunca mata, nunca inventa). Exit 0 solo con
- * probe verde; 1 en cualquier otro caso, siempre con motivo. */
-export async function up(argv) {
-  const args = argv ?? [];
-  const id = args[0];
-  if (!id || id.startsWith('-')) {
-    console.error('uso: dev up <id> [--snapshot-file <ruta>] [--json]');
-    return 1;
-  }
-  const comoJson = args.includes('--json');
+/* Contexto compartido up/status/stop (F2): registro (+--registro para e2e),
+ * snapshot (archivo o servidor; nunca a ciegas), proyecto casado por ruta,
+ * escucha + procesos + mapa por puerto. Falla cerrado con motivo. */
+export async function contextoEntrada(id, args) {
   const iSnap = args.indexOf('--snapshot-file');
   const rutaSnap = iSnap >= 0 ? args[iSnap + 1] : null;
-  const sale = (codigo, obj) => {
-    if (comoJson) console.log(JSON.stringify(obj));
-    else console.log(obj.resumen);
-    return codigo;
-  };
-
+  const iReg = args.indexOf('--registro');
+  const rutaReg = iReg >= 0 ? args[iReg + 1] : undefined;
   let registro;
   try {
-    registro = leerRegistro();
+    registro = leerRegistro(rutaReg);
   } catch (e) {
-    return sale(1, { resumen: `up ${id}: registro invalido (${e.message})` });
+    return { ok: false, resumen: `registro invalido (${e.message})` };
   }
   const entrada = registro.entradas.get(id);
   if (!entrada) {
-    return sale(1, { resumen: `up ${id}: sin entrada en registro (pendiente onboarding o no-aplica): nada que arrancar` });
+    return { ok: false, resumen: `sin entrada en registro (pendiente onboarding o no-aplica): nada que hacer` };
   }
   const rutaAbs = isAbsolute(entrada.ruta) ? normalize(entrada.ruta) : resolve(RAIZ_REPO, entrada.ruta);
-
   let snapshot = null;
   if (rutaSnap) {
     try {
       snapshot = JSON.parse(readFileSync(rutaSnap, 'utf8'));
     } catch (e) {
-      return sale(1, { resumen: `up ${id}: snapshot ilegible (${e.message})` });
+      return { ok: false, resumen: `snapshot ilegible (${e.message})` };
     }
   } else {
     const r = await leerSnapshotServidor();
     if (r.error || !r.snapshot) {
-      return sale(1, { resumen: `up ${id}: servidor caido (${r.error}) y sin --snapshot-file: up no decide a ciegas` });
+      return { ok: false, resumen: `servidor caido (${r.error}) y sin --snapshot-file: no se decide a ciegas` };
     }
     snapshot = r.snapshot;
   }
   const proyectos = (snapshot?.proyectos ?? []).map((p) => ({ clave: p.clave, ruta: p.ruta }));
-  const proyecto = proyectos.find(
-    (p) => normalizarRuta(isAbsolute(entrada.ruta) ? entrada.ruta : resolve(RAIZ_REPO, entrada.ruta)) === normalizarRuta(p.ruta),
-  );
+  const proyecto = proyectos.find((p) => normalizarRuta(rutaAbs) === normalizarRuta(p.ruta));
   if (!proyecto) {
-    return sale(1, { resumen: `up ${id}: '${entrada.ruta}' fuera del snapshot (stale?): no se arranca sin cobertura` });
+    return { ok: false, resumen: `'${entrada.ruta}' fuera del snapshot (stale?): sin cobertura no se actua` };
   }
-
   const { escucha, errorSensor } = await escuchaRobusta();
   if (errorSensor) {
-    return sale(1, { resumen: `up ${id}: ${errorSensor}` });
+    return { ok: false, resumen: errorSensor };
   }
   const pids = [...new Set(escucha.map((e) => e.pid))];
   const procs = await procesosDe(pids);
@@ -640,6 +626,32 @@ export async function up(argv) {
     if (!porPuerto.has(c.puerto)) porPuerto.set(c.puerto, []);
     porPuerto.get(c.puerto).push(c);
   }
+  return { ok: true, entrada, proyecto, rutaAbs, porPuerto, procs };
+}
+
+/* F1 `up <id>`: ya-arriba (verifica, no reinicia) | arranca puertos libres
+ * (spawn + probe hasta arranqueMs) | rehusa (ocupado/duplicado/sin-probe/
+ * no-verificable/sin entrada: nunca mata, nunca inventa). Exit 0 solo con
+ * probe verde; 1 en cualquier otro caso, siempre con motivo. */
+export async function up(argv) {
+  const args = argv ?? [];
+  const id = args[0];
+  if (!id || id.startsWith('-')) {
+    console.error('uso: dev up <id> [--snapshot-file <ruta>] [--registro <ruta>] [--json]');
+    return 1;
+  }
+  const comoJson = args.includes('--json');
+  const sale = (codigo, obj) => {
+    if (comoJson) console.log(JSON.stringify(obj));
+    else console.log(obj.resumen);
+    return codigo;
+  };
+
+  const ctx = await contextoEntrada(id, args);
+  if (!ctx.ok) {
+    return sale(1, { resumen: `up ${id}: ${ctx.resumen}` });
+  }
+  const { entrada, proyecto, rutaAbs, porPuerto, procs } = ctx;
   const r = await clasificarEntrada(proyecto, entrada, porPuerto, procs);
   if (r.estado === 'bajo-mando') {
     return sale(0, { id, veredicto: 'ya-arriba', resumen: `up ${id}: ya-arriba (${r.motivo})` });
