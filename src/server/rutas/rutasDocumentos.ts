@@ -6,7 +6,7 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { json, leerArchivo, leerBody, RAIZ_AREA } from '../http.js';
+import { campoStr, json, leerArchivo, leerBody, RAIZ_AREA } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
 import { logger } from '../../shared/logger.js';
 
@@ -39,7 +39,7 @@ export async function manejarRutasDocumentos(
     /* POST: sobrescribir el SKILL.md, mismo transporte que /api/agentes. */
     if (req.method === 'POST') {
       const body = (await leerBody(req)) as { contenido?: unknown };
-      const contenido = typeof body.contenido === 'string' ? body.contenido : null;
+      const contenido = campoStr(body, 'contenido', null);
       if (contenido === null) {
         json(res, 400, { error: 'Contenido invalido' });
         return true;
@@ -93,8 +93,8 @@ export async function manejarRutasDocumentos(
      * tambien se resuelve desde el snapshot por id, nunca del cliente. */
     if (req.method === 'POST') {
       const body = (await leerBody(req)) as { id?: unknown; contenido?: unknown };
-      const id = typeof body.id === 'string' ? body.id : '';
-      const contenido = typeof body.contenido === 'string' ? body.contenido : null;
+      const id = campoStr(body, 'id', '');
+      const contenido = campoStr(body, 'contenido', null);
       if (contenido === null) {
         json(res, 400, { error: 'Contenido invalido' });
         return true;

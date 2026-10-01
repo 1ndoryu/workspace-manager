@@ -4,6 +4,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
+import { json } from './http.js';
 import { obtenerSnapshot } from './cache.js';
 import { escanearWorkspace } from './scanner/workspace.js';
 import { manejarRutasGate } from './rutas/rutasGate.js';
@@ -32,44 +33,6 @@ const MIME: Record<string, string> = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
 };
-
-function json(res: ServerResponse, status: number, body: unknown): void {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(JSON.stringify(body));
-}
-
-/* Lee el body JSON de un POST. [por que] Node http nativo no parsea bodies;
- * el unico POST del API es /api/agentes, asi que el parseo es minimalista. */
-function leerBody(req: IncomingMessage): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    let datos = '';
-    req.on('data', (c) => {
-      datos += c;
-      if (datos.length > 1_000_000) {
-        req.destroy();
-        reject(new Error('Body demasiado grande'));
-      }
-    });
-    req.on('end', () => {
-      try {
-        resolve(datos.length > 0 ? JSON.parse(datos) : {});
-      } catch (err) {
-        reject(err);
-      }
-    });
-    req.on('error', reject);
-  });
-}
-
-/* Lee el contenido de un archivo; null si no existe o falla. */
-function leerArchivo(ruta: string): string | null {
-  try {
-    if (!existsSync(ruta)) return null;
-    return readFileSync(ruta, 'utf8');
-  } catch {
-    return null;
-  }
-}
 
 /* Escaner con cache; el flag `forzar` re-escanea. */
 function snapshotArea(forzar: boolean) {

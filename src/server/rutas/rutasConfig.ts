@@ -4,7 +4,7 @@
  * "config", con sus importaciones propias (configArea). Devuelve true si
  * atendio la ruta, false si no es suya. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { json, leerBody, RAIZ_AREA } from '../http.js';
+import { campoStr, json, leerBody, RAIZ_AREA } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
 import { cambiarIgnorado, cambiarSinGate, guardarConfigScan, leerConfigArea } from '../configArea.js';
 import { actualizarSnapshot } from '../cache.js';
@@ -26,7 +26,7 @@ export async function manejarRutasConfig(
     }
     const body = (await leerBody(req)) as { op?: unknown; clave?: unknown };
     const op = body.op;
-    const clave = typeof body.clave === 'string' ? body.clave : '';
+    const clave = campoStr(body, 'clave', '');
     if ((op !== 'ignorar' && op !== 'quitar') || clave === '') {
       json(res, 400, { error: 'op o clave invalidos' });
       return true;
@@ -72,7 +72,7 @@ export async function manejarRutasConfig(
     }
     const body = (await leerBody(req)) as { op?: unknown; clave?: unknown };
     const op = body.op;
-    const clave = typeof body.clave === 'string' ? body.clave : '';
+    const clave = campoStr(body, 'clave', '');
     if ((op !== 'eximir' && op !== 'quitar') || clave !== 'glory-sentinel') {
       json(res, 400, { error: 'solo se puede eximir la clave real glory-sentinel' });
       return true;
