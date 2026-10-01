@@ -3,7 +3,7 @@
  * quede visual (regla componente-sin-hook): el estado del layout y su
  * persistencia en localStorage viven aqui. */
 import { useEffect, useState } from 'react';
-import { logger } from '../shared/logger.js';
+import { guardarJson, leerJson } from '../shared/storage.js';
 
 export interface LayoutV2 {
   anchoDetalle: number;
@@ -20,22 +20,16 @@ const CLAVE_LAYOUT = 'workspaceManager:layout';
 const LAYOUT_DEFECTO: LayoutV2 = { anchoDetalle: 300, anchoLista: 260, altoConsola: 200 };
 
 function layoutGuardado(): LayoutV2 {
-  try {
-    const raw = localStorage.getItem(CLAVE_LAYOUT);
-    if (!raw) return LAYOUT_DEFECTO;
-    const d = JSON.parse(raw) as Partial<LayoutV2>;
-    if (
-      typeof d.anchoDetalle !== 'number' ||
-      typeof d.anchoLista !== 'number' ||
-      typeof d.altoConsola !== 'number'
-    ) {
-      return LAYOUT_DEFECTO;
-    }
-    return { anchoDetalle: d.anchoDetalle, anchoLista: d.anchoLista, altoConsola: d.altoConsola };
-  } catch (err) {
-    logger.warn('no se pudo leer el layout guardado:', err);
+  const d = leerJson<Partial<LayoutV2>>(CLAVE_LAYOUT, 'no se pudo leer el layout guardado:');
+  if (
+    !d ||
+    typeof d.anchoDetalle !== 'number' ||
+    typeof d.anchoLista !== 'number' ||
+    typeof d.altoConsola !== 'number'
+  ) {
     return LAYOUT_DEFECTO;
   }
+  return { anchoDetalle: d.anchoDetalle, anchoLista: d.anchoLista, altoConsola: d.altoConsola };
 }
 
 /* Leido una sola vez por carga de pagina para inicializar el layout. */
@@ -48,14 +42,11 @@ export function useLayoutV2() {
 
   /* Persiste el layout en cada cambio para sobrevivir a recargas. */
   useEffect(() => {
-    try {
-      localStorage.setItem(
-        CLAVE_LAYOUT,
-        JSON.stringify({ anchoDetalle, anchoLista, altoConsola } satisfies LayoutV2),
-      );
-    } catch (err) {
-      logger.warn('no se pudo guardar el layout:', err);
-    }
+    guardarJson(
+      CLAVE_LAYOUT,
+      { anchoDetalle, anchoLista, altoConsola } satisfies LayoutV2,
+      'no se pudo guardar el layout:',
+    );
   }, [anchoDetalle, anchoLista, altoConsola]);
 
   return { anchoDetalle, setAnchoDetalle, anchoLista, setAnchoLista, altoConsola, setAltoConsola };

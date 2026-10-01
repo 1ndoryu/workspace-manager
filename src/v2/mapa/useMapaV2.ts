@@ -6,7 +6,7 @@
  * sigue el mismo patron que AppV2 (logger central, no console directo). */
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Proyecto } from '../../shared/types.js';
-import { logger } from '../../shared/logger.js';
+import { guardarJson, leerJson } from '../../shared/storage.js';
 
 /* Estado del mapa persistido entre recargas (zoom y posicion de arrastre).
  * [por que] El usuario pidio que al recargar la pagina no se pierdan. Se
@@ -20,18 +20,20 @@ interface EstadoMapaGuardado {
 const CLAVE_ESTADO = 'mapaV2:estado';
 
 function estadoGuardado(): EstadoMapaGuardado | null {
-  try {
-    const raw = localStorage.getItem(CLAVE_ESTADO);
-    if (!raw) return null;
-    const d = JSON.parse(raw) as Partial<EstadoMapaGuardado>;
-    if (typeof d.zoom !== 'number' || !d.pan || typeof d.pan.x !== 'number' || typeof d.pan.y !== 'number') {
-      return null;
-    }
-    return { zoom: d.zoom, pan: { x: d.pan.x, y: d.pan.y } };
-  } catch (err) {
-    logger.warn('[mapaV2] no se pudo leer el estado guardado:', err);
+  const d = leerJson<Partial<EstadoMapaGuardado>>(
+    CLAVE_ESTADO,
+    '[mapaV2] no se pudo leer el estado guardado:',
+  );
+  if (
+    !d ||
+    typeof d.zoom !== 'number' ||
+    !d.pan ||
+    typeof d.pan.x !== 'number' ||
+    typeof d.pan.y !== 'number'
+  ) {
     return null;
   }
+  return { zoom: d.zoom, pan: { x: d.pan.x, y: d.pan.y } };
 }
 
 /* Leido una sola vez por carga de pagina para inicializar zoom y pan. */
@@ -72,11 +74,11 @@ export function useMapaV2(): UseMapaV2 {
 
   /* Persiste zoom y pan en cada cambio para sobrevivir a recargas. */
   useEffect(() => {
-    try {
-      localStorage.setItem(CLAVE_ESTADO, JSON.stringify({ zoom, pan } satisfies EstadoMapaGuardado));
-    } catch (err) {
-      logger.warn('[mapaV2] no se pudo guardar el estado del mapa:', err);
-    }
+    guardarJson(
+      CLAVE_ESTADO,
+      { zoom, pan } satisfies EstadoMapaGuardado,
+      '[mapaV2] no se pudo guardar el estado del mapa:',
+    );
   }, [zoom, pan]);
 
   /* Modo mover (mano): al activarlo, arrastrar el puntero sobre el mapa lo

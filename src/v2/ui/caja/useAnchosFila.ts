@@ -1,6 +1,6 @@
 /* Fracciones de ancho de una fila de Cajas hermanas, persistidas por fila.
  * [por que] El usuario pidio cambiar los anchos de los paneles como en el
- * mapa (no solo mirarlos): el gesto ya era central (ui/Resizer.tsx) pero el
+ * mapa (no solo mirarlos): el gesto ya era central (ui/overlay/Resizer.tsx) pero el
  * estado estaba cableado solo al mapa (useLayoutV2) y las filas de Cajas
  * usaban flex fijos por tab. Este hook es el estado generico que le faltaba:
  * FilaCajas lo usa en las 6 tabs; el mapa sigue con su useLayoutV2 (anchos
@@ -8,7 +8,7 @@
  * [por que] Fracciones (no px): sobreviven a cambios de ventana; con ids
  * estables la caja que se abre/cierra no pierde el reparto de las demas. */
 import { useEffect, useState } from 'react';
-import { logger } from '../../../shared/logger.js';
+import { guardarJson, leerJson } from '../../../shared/storage.js';
 import { MIN_ANCHO } from '../../useLayoutV2.js';
 
 function claveFila(fila: string): string {
@@ -16,19 +16,16 @@ function claveFila(fila: string): string {
 }
 
 function leerGuardadas(fila: string): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(claveFila(fila));
-    if (!raw) return {};
-    const d = JSON.parse(raw) as Record<string, unknown>;
-    const limpias: Record<string, number> = {};
-    for (const [id, v] of Object.entries(d)) {
-      if (typeof v === 'number' && Number.isFinite(v) && v > 0) limpias[id] = v;
-    }
-    return limpias;
-  } catch (err) {
-    logger.warn('no se pudieron leer los anchos de la fila:', err);
-    return {};
+  const d = leerJson<Record<string, unknown>>(
+    claveFila(fila),
+    'no se pudieron leer los anchos de la fila:',
+  );
+  if (!d) return {};
+  const limpias: Record<string, number> = {};
+  for (const [id, v] of Object.entries(d)) {
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) limpias[id] = v;
   }
+  return limpias;
 }
 
 export function useAnchosFila(fila: string, ids: string[], defectos: number[]) {
@@ -40,15 +37,11 @@ export function useAnchosFila(fila: string, ids: string[], defectos: number[]) {
 
   /* Persiste en cada cambio para sobrevivir a recargas (igual que el mapa). */
   useEffect(() => {
-    try {
-      localStorage.setItem(claveFila(fila), JSON.stringify(guardadas));
-    } catch (err) {
-      logger.warn('no se pudieron guardar los anchos de la fila:', err);
-    }
+    guardarJson(claveFila(fila), guardadas, 'no se pudieron guardar los anchos de la fila:');
   }, [fila, guardadas]);
 
   /* Fracciones a renderizar: las guardadas mandan; la hija nueva toma su
-   * parte del defecto; todo se renormaliza a suma 1. */
+   * parte del defecto; el conjunto se renormaliza a suma 1. */
   function brutos(): number[] {
     return ids.map((id, i) => {
       const g = guardadas[id];
