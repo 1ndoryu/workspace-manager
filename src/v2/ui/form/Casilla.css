@@ -42,7 +42,7 @@
 .casillaV2Entrada:checked + .casillaV2Caja::after {
     content: '✓';
     color: var(--v2-invertido);
-    font-size: 11px;
+    font-size: var(--v2-textSm);
     line-height: 1;
 }
 
