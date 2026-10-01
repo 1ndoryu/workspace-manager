@@ -322,15 +322,15 @@ export async function clasificar(proyectos, registro, escucha) {
     );
     if (!entrada) {
       if (p.clave in registro.noAplica) {
-        resultado.push({ clave: p.clave, estado: 'no-aplica', motivo: registro.noAplica[p.clave] });
+        resultado.push({ clave: p.clave, id: null, estado: 'no-aplica', motivo: registro.noAplica[p.clave] });
       } else {
-        resultado.push({ clave: p.clave, estado: 'sin-boton', motivo: 'pendiente-onboarding' });
+        resultado.push({ clave: p.clave, id: null, estado: 'sin-boton', motivo: 'pendiente-onboarding' });
       }
       continue;
     }
     const r = await clasificarEntrada(p, entrada, porPuerto, procs);
     for (const k of r.consumidos) consumidos.add(k);
-    resultado.push({ clave: p.clave, estado: r.estado, motivo: r.motivo });
+    resultado.push({ clave: p.clave, id: entrada.id, estado: r.estado, motivo: r.motivo });
   }
 
   const huerfanos = [];

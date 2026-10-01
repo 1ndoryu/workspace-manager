@@ -13,6 +13,7 @@ import {
   type Problema,
   type SeveridadSentinel,
 } from './clasificacionConsola.js';
+import type { AccionDevNombre } from '../../../hooks/workspace/tipos.js';
 import './consola.css';
 
 const SEV_ETIQUETA: Record<SeveridadSentinel, string> = {
@@ -35,6 +36,18 @@ const FILTROS: { clave: 'todos' | Categoria; etiqueta: string }[] = [
   { clave: 'huerfano', etiqueta: 'huérfanos' },
 ];
 
+/* Botones del mando dev por linea con entrada (F3): arrancar (up),
+ * detener (stop), bitacora (logs) y abrir (open, pestana nueva).
+ * [por que] El tablero opera en vez de adivinar: el server reusa el CLI
+ * (mismas garantias: stop nunca toca protegidos, up nunca duplica) y aqui
+ * solo se invoca y se pinta el resultado. Sin devId no hay botones. */
+const BOTONES_DEV: { accion: AccionDevNombre; etiqueta: string; titulo: string }[] = [
+  { accion: 'up', etiqueta: 'arrancar', titulo: 'dev up: verifica o arranca (nunca duplica)' },
+  { accion: 'stop', etiqueta: 'detener', titulo: 'dev stop: solo propio no-protegido (nunca 8787/5174/5175)' },
+  { accion: 'logs', etiqueta: 'bitácora', titulo: 'dev logs: ultimas 50 lineas del arranque' },
+  { accion: 'open', etiqueta: 'abrir', titulo: 'dev open: abre las URLs servidas' },
+];
+
 export function PanelConsola() {
   const {
     snapshot,
@@ -45,6 +58,9 @@ export function PanelConsola() {
     seleccionadoId,
     seleccionar,
     abrirMenuContextual,
+    devOcupado,
+    devResultado,
+    accionDev,
   } = usePanelConsola();
 
   /* Acceso rapido al escaneo unificado (el mismo de la configuracion).
@@ -101,6 +117,18 @@ export function PanelConsola() {
           titulo="Filtro de problemas"
         />
       </header>
+      {/* Ultimo resultado del mando dev (F3): fail-loud tambien al operar.
+        [por que] up/stop tardan y pueden rehusar; sin esta linea el clic
+        pareceria no hacer nada. Se trunca a una linea legible. */}
+      {devResultado ? (
+        <div
+          className={`consolaDevResultado v2Guia${devResultado.codigo !== 0 ? ' consolaMotivo--error' : ''}`}
+          title={`${devResultado.accion} ${devResultado.id} (exit ${devResultado.codigo}) — ${devResultado.en}`}
+        >
+          {devResultado.accion} {devResultado.id} (exit {devResultado.codigo}):{' '}
+          {devResultado.salida.split(/\r?\n/)[0].slice(0, 140)}
+        </div>
+      ) : null}
       <div className="panelConsolaContenido">
         {visibles.length === 0 ? (
           <div className="consolaVacio">sin problemas en esta categoría</div>
@@ -148,6 +176,22 @@ export function PanelConsola() {
                       </span>
                     ) : null}
                     {e.motivo}
+                    {/* Botones del mando (F3): solo lineas dev con entrada. */}
+                    {e.categoria === 'dev' && e.devId ? (
+                      <span className="consolaDevBotones">
+                        {BOTONES_DEV.map((b) => (
+                          <Button
+                            key={b.accion}
+                            pequeno
+                            onClick={() => void accionDev(b.accion, e.devId as string)}
+                            disabled={devOcupado}
+                            title={b.titulo}
+                          >
+                            {devOcupado ? '…' : b.etiqueta}
+                          </Button>
+                        ))}
+                      </span>
+                    ) : null}
                   </li>
                 ))}
               </ul>

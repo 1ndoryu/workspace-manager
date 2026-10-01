@@ -20,6 +20,10 @@ export function usePanelConsola() {
   const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
   const dev = useWorkspaceStore((s) => s.dev);
   const devError = useWorkspaceStore((s) => s.devError);
+  /* Mando dev (F3): ejecutar acciones y pintar el ultimo resultado. */
+  const devOcupado = useWorkspaceStore((s) => s.devOcupado);
+  const devResultado = useWorkspaceStore((s) => s.devResultado);
+  const accionDev = useWorkspaceStore((s) => s.accionDev);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const irAArchivos = useWorkspaceStore((s) => s.irAArchivos);
@@ -132,6 +136,9 @@ export function usePanelConsola() {
     setFiltro,
     visibles,
     contar,
+    devOcupado,
+    devResultado,
+    accionDev,
     seleccionadoId,
     /* [por que] El grupo sintetico '(puertos sin proyecto)' no es un proyecto
      * real: plegar/desplegar sigue funcionando (estado local del panel) pero

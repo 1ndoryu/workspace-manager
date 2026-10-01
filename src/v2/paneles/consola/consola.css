@@ -162,3 +162,24 @@
     border-style: dotted;
     opacity: 0.7;
 }
+
+/* Resultado de la ultima accion del mando dev (F3): una linea bajo la
+ * cabecera, misma guia y tamano que los motivos. Exit != 0 marca como
+ * error (borde solido); exit 0 queda neutro. */
+.consolaDevResultado {
+    flex: none;
+    margin-left: var(--v2-spaceMd);
+    padding: var(--v2-spaceXs) var(--v2-spaceMd) var(--v2-spaceXs) 0;
+    font-size: var(--v2-textXs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Botones del mando en la linea dev: en linea tras el motivo, compactos. */
+.consolaDevBotones {
+    display: inline-flex;
+    gap: var(--v2-spaceXs);
+    margin-left: var(--v2-spaceSm);
+    vertical-align: middle;
+}
