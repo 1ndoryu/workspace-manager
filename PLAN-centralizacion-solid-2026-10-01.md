@@ -40,21 +40,60 @@ honesto — **centralizar / dejar duplicado a propósito (y por qué) /
 no tocar (fuera de alcance)**. Lo cosmético sin dueño claro no se
 migra.
 
-## Fases de ejecución (tras aprobar el inventario)
+## F0 — Auditoría (HECHA 2026-10-01, 3 subagentes solo lectura)
 
-1. **F1 — cerrar.** Una receta de cierre en `Caja` (el × canónico) y
-   migración de todas las variantes. Verifica: captura por panel
-   antes/después + `type-check` 0.
-2. **F2 — quick wins.** Duplicaciones exactas al dueño existente
-   (formateadores, clases, chips). Una por commit, verificación visual
-   por frente.
-3. **F3 — extracciones.** Solo lo que el inventario marque con dueño
-   nuevo claro (`usePersistida`, `usePoll`, errores server). Sin
-   monolitos: cada extracción con sus llamadas migradas y tests donde
-   haya.
-4. **F4 — cierre.** `type-check` 0, `vite build` OK, sentinel+varsense
-   sin hallazgos nuevos (0 preexistente 2026-09-29: no subir conteo),
-   smoke por tab en vivo, commit sin push.
+Inventario con veredictos (evidencia completa en el hilo 2026-10-01):
+
+**Centralizar:** (1) cerrar/quitar → `Caja.onCerrar` (× canónico); variantes a
+migrar: `PanelVps.tsx:311` (`Button pequeno` «Cierra el detalle»),
+`PanelDetalle.tsx:57-58` (documentada, migrar igual). `fjTagQuitar`/`ejQuitar`
+son quitar-tag, NO cierres: se dejan. (2) formato: `fmtBytes` (PanelVps, KiB…),
+`formatearTamano` (Navegador, B/KB/MB), `gb` (PC) → `shared/format.ts`;
+fechas `toLocaleString` ×3 + `fechaCorta` + `slice(0,7)` ×5 → mismo dueño.
+(3) localStorage: 7 claves, try/catch+warn repetido 7× → `shared/storage.ts`.
+(4) `index.ts` legacy duplica `http.ts` (`json`, `leerBody`, `leerArchivo`
+idénticos) → borrar. (5) `NOMBRE_OK` idéntico en `puente.ts:18` y
+`rutasVps.ts:28` + validación en 4 sitios → una en `puente.ts`.
+(6) single-flight idénticos (`analizador.ts` + `vulnerabilidades.ts`
+`Map<clave,Promise>`) → helper común en `gate/`. (7) SSE duplicado
+(`rutasPc.ts` scan/limpieza) → helper. (8) casts `leerBody`
+`typeof x==='string'` ~11× → `campoStr(body,…)` en `http.ts`.
+
+**Dejar duplicado (motivo):** `docsVacio` 18 usos (solo clase compartida,
+textos distintos, correcto); cachés TTL distintas (5 s/60 s/10 min/persistidas —
+parámetros por necesidad); timeouts por llamada (8 s–600 s justificados);
+`encolar` puente vs ejecucion (dominios distintos); `redactar`+`sanearJson`
+(ya colaboran); 3 familias anti-traversal (archivos/snapshot/diff, legítimas).
+
+**No tocar:** logger/Toaster/`Selector`/`Resizer`/`FilaCajas` (ya centrales),
+`setTimeout(0)` SSE.
+
+## Fases de ejecución
+
+1. **F1 — cerrar.** `PanelVps:311` y `PanelDetalle:57-58` migran al ×
+   canónico de `Caja` (`onCerrar`). Verifica: `type-check` 0 + captura vps
+   con detalle (× único arriba-derecha).
+2. **F2 — `shared/format.ts`.** Dueño nuevo: `fmtBytes` (el de PanelVps manda:
+   KiB/MiB/GiB), `formatearTamano` se jubila, `gb` se reimplementa sobre
+   `fmtBytes` o se deja como etiqueta GB con 2 decimales (misma firma),
+   `fechaCorta` + `fechaHora` (reemplaza los 3 `toLocaleString` sueltos) +
+   `hashCorto` (los 5 `slice(0,7)`; el `slice(0,10)` legacy de DetalleProyecto
+   se deja: archivo legacy fuera de v2). Migra importadores; verifica por
+   frente (vps, navegador, pc, repos).
+3. **F3 — `shared/storage.ts`.** Dueño nuevo: `leerClave`/`guardarClave`/
+   `borrarClave` (JSON + try/catch + warn central, misma semántica actual).
+   Migra las 7 claves (`layout`, `seleccion`, `ui`, `vps-historial`,
+   `vps-rango`, `fila:*`, `mapaV2:estado`). Verifica: recarga conserva
+   layout/historial/anchos.
+4. **F4 — server.** (a) borrar `json`/`leerBody`/`leerArchivo` legacy de
+   `index.ts` (usan los de `http.ts`); (b) `NOMBRE_OK`+`validarNombre` solo
+   en `puente.ts`, `rutasVps.ts` importa; (c) `campoStr` en `http.ts` y
+   migra los ~11 casts; (d) helper SSE en `rutasPc.ts` (scan+limpieza);
+   (e) single-flight común en `gate/` para analizador+vulnerabilidades.
+   Verifica: `type-check` 0 + smoke tsx de los módulos tocados.
+5. **F5 — cierre.** `type-check` 0, `vite build` OK, sentinel+varsense sin
+   hallazgos nuevos (0 preexistente 2026-09-29: no subir conteo), smoke por
+   tab en vivo, commit sin push, roadmap nº30 a HECHA.
 
 ## No alcance
 

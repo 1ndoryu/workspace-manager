@@ -307,11 +307,8 @@ export function PanelVps() {
             titulo={selFila.nombre}
             meta={selFila.dominio ?? undefined}
             etiqueta={`detalle ${selFila.nombre}`}
-            acciones={
-              <Button pequeno onClick={() => setSel(null)} title="Cierra el detalle">
-                × cerrar
-              </Button>
-            }
+            onCerrar={() => setSel(null)}
+            cerrarTitulo="Cierra el detalle"
           >
             <div className="vpsLinea">
               {selFila.n} contenedores · {selFila.cpu.toFixed(1)}% cpu · {Math.round(selFila.mem)} MiB
