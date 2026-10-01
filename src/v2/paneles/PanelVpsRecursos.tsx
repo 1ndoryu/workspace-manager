@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VpsAgenteSnapshot } from '../../shared/types.js';
 import { Caja } from '../ui/caja/Caja.js';
-import { logger } from '../../shared/logger.js';
+import { guardarJson, guardarTexto, leerJson, leerTexto } from '../../shared/storage.js';
 import { fmtBytes } from '../../shared/format.js';
 
 /* Muestra como tupla [t, cpu, mem, rx, tx, br, bw]: compacta en el
@@ -34,37 +34,26 @@ const RANGOS = [
 ] as const;
 
 function leerHistorial(): Muestra[] {
-  try {
-    const raw = localStorage.getItem(CLAVE_HISTORIAL);
-    if (!raw) return [];
-    const lista = JSON.parse(raw) as unknown;
-    if (!Array.isArray(lista)) return [];
-    const corte = Date.now() - RETENCION_MS;
-    const limpias: Muestra[] = [];
-    for (const x of lista) {
-      if (
-        Array.isArray(x) &&
-        x.length === 7 &&
-        x.every((v) => typeof v === 'number' && Number.isFinite(v)) &&
-        (x[0] as number) >= corte
-      ) {
-        limpias.push(x as Muestra);
-      }
+  const lista = leerJson<unknown>(CLAVE_HISTORIAL, 'no se pudo leer el historial de recursos:');
+  if (!Array.isArray(lista)) return [];
+  const corte = Date.now() - RETENCION_MS;
+  const limpias: Muestra[] = [];
+  for (const x of lista) {
+    if (
+      Array.isArray(x) &&
+      x.length === 7 &&
+      x.every((v) => typeof v === 'number' && Number.isFinite(v)) &&
+      (x[0] as number) >= corte
+    ) {
+      limpias.push(x as Muestra);
     }
-    return limpias.slice(-MAX_MUESTRAS);
-  } catch (err) {
-    logger.warn('no se pudo leer el historial de recursos:', err);
-    return [];
   }
+  return limpias.slice(-MAX_MUESTRAS);
 }
 
 function leerRango(): string {
-  try {
-    const r = localStorage.getItem(CLAVE_RANGO);
-    if (r && RANGOS.some((x) => x.id === r)) return r;
-  } catch {
-    /* Sin almacenamiento: rango por defecto. */
-  }
+  const r = leerTexto(CLAVE_RANGO);
+  if (r && RANGOS.some((x) => x.id === r)) return r;
   return '30m';
 }
 
@@ -154,11 +143,8 @@ export function PanelVpsRecursos({
     muestras.current = leerHistorial();
     setVersion((v) => v + 1);
     const alCerrar = () => {
-      try {
-        localStorage.setItem(CLAVE_HISTORIAL, JSON.stringify(muestras.current.slice(-MAX_MUESTRAS)));
-      } catch {
-        /* Cierre sin almacenamiento: se pierde la cola sin romper nada. */
-      }
+      /* Cierre sin almacenamiento: se pierde la cola sin romper nada. */
+      guardarJson(CLAVE_HISTORIAL, muestras.current.slice(-MAX_MUESTRAS));
     };
     window.addEventListener('beforeunload', alCerrar);
     return () => window.removeEventListener('beforeunload', alCerrar);
@@ -180,22 +166,15 @@ export function PanelVpsRecursos({
     muestras.current = [...muestras.current, nueva].slice(-MAX_MUESTRAS);
     if (Date.now() - ultimoGuardado.current > 30000) {
       ultimoGuardado.current = Date.now();
-      try {
-        localStorage.setItem(CLAVE_HISTORIAL, JSON.stringify(muestras.current));
-      } catch (err) {
-        logger.warn('no se pudo guardar el historial de recursos:', err);
-      }
+      guardarJson(CLAVE_HISTORIAL, muestras.current, 'no se pudo guardar el historial de recursos:');
     }
     setVersion((v) => v + 1);
   }, [snap?.ts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function elegirRango(id: string) {
     setRangoId(id);
-    try {
-      localStorage.setItem(CLAVE_RANGO, id);
-    } catch {
-      /* Sin almacenamiento: el rango vive solo la sesión. */
-    }
+    /* Sin almacenamiento: el rango vive solo la sesión. */
+    guardarTexto(CLAVE_RANGO, id);
     setVersion((v) => v + 1);
   }
 
