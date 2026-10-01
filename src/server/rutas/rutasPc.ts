@@ -6,7 +6,7 @@
  * en vivo y el reporte unido persiste para rehidratar al recargar. Devuelve
  * true si atendió la ruta, false si no es suya. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { json, leerBody } from '../http.js';
+import { iniciarSse, json, leerBody } from '../http.js';
 import { estadoBinario, reconstruirBinario } from '../pc/binario.js';
 import { escanearTodo, estadoScan, leerReporte } from '../pc/scan.js';
 import { adjuntarLimpieza, estadoLimpieza, limpiarPc, limpiarTodo } from '../pc/limpieza.js';
@@ -46,25 +46,7 @@ export async function manejarRutasPc(
       json(res, 405, { error: 'Método no permitido' });
       return true;
     }
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
-    });
-    /* El análisis completo roza los minutos: sin timeout de socket. */
-    try {
-      res.socket?.setTimeout(0);
-    } catch {
-      /* best-effort */
-    }
-    const enviar = (ev: EventoScan): void => {
-      try {
-        res.write(`event: ${ev.tipo}\ndata: ${JSON.stringify(ev)}\n\n`);
-      } catch {
-        /* cliente desconectado: el scan termina igual en background */
-      }
-    };
+    const enviar = iniciarSse<EventoScan>(res);
     try {
       await escanearTodo(enviar);
     } catch (err) {
@@ -122,25 +104,7 @@ export async function manejarRutasPc(
         return true;
       }
     }
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
-    });
-    /* El borrado completo roza los minutos: sin timeout de socket. */
-    try {
-      res.socket?.setTimeout(0);
-    } catch {
-      /* best-effort */
-    }
-    const enviar = (ev: EventoLimpieza): void => {
-      try {
-        res.write(`event: ${ev.tipo}\ndata: ${JSON.stringify(ev)}\n\n`);
-      } catch {
-        /* cliente desconectado: el borrado termina igual en background */
-      }
-    };
+    const enviar = iniciarSse<EventoLimpieza>(res);
     try {
       if (seleccion === null) {
         /* Sin selección: adjunta al borrado en curso (recarga a mitad). */

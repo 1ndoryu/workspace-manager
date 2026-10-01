@@ -7,7 +7,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { json, leerArchivo, leerBody } from '../http.js';
+import { campoStr, json, leerArchivo, leerBody } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
 import { ARCHIVOS_GATE, doctorSentinel } from '../scanner/gate.js';
 import { esquemaGate, reglasGate } from '../gate/proveedor.js';
@@ -60,8 +60,8 @@ export async function manejarRutasGate(
     }
     if (req.method === 'POST') {
       const body = (await leerBody(req)) as { nombre?: unknown; contenido?: unknown };
-      const nombre = typeof body.nombre === 'string' ? body.nombre : '';
-      const contenido = typeof body.contenido === 'string' ? body.contenido : null;
+      const nombre = campoStr(body, 'nombre', '');
+      const contenido = campoStr(body, 'contenido', null);
       if ((ARCHIVOS_GATE as readonly string[]).includes(nombre) === false || contenido === null) {
         json(res, 400, { error: 'archivo o contenido invalido' });
         return true;
@@ -204,7 +204,7 @@ export async function manejarRutasGate(
     /* Un proyecto: body { clave, forzar? }. Solo si es elegible (sentinel). */
     if (ruta === '/api/gate/analizar') {
       const body = (await leerBody(req)) as { clave?: unknown; forzar?: unknown };
-      const clave = typeof body.clave === 'string' ? body.clave : '';
+      const clave = campoStr(body, 'clave', '');
       const forzar = body.forzar === true;
       const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
       if (!proyecto) {
@@ -273,7 +273,7 @@ export async function manejarRutasGate(
     const { snapshot } = snapshotArea(true);
     if (ruta === '/api/gate/vulnerabilidades') {
       const body = (await leerBody(req)) as { clave?: unknown; forzar?: unknown };
-      const clave = typeof body.clave === 'string' ? body.clave : '';
+      const clave = campoStr(body, 'clave', '');
       const forzar = body.forzar === true;
       const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
       if (!proyecto) {

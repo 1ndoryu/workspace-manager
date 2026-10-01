@@ -15,7 +15,10 @@ const BIN_LEGACY = 'C:\\tmp\\bin\\coolify-manager.exe';
 const TIMEOUT_MS = 90_000;
 const MAX_SALIDA = 512 * 1024;
 
-const NOMBRE_OK = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+/* Nombres de sitio aceptados (dueño único; rutasVps lo reutiliza).
+ * [por que] F0 midió la regex duplicada en puente y rutasVps; una sola
+ * definición evita que diverjan. */
+export const NOMBRE_OK = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 export function rutaBinario(): string | null {
   const porEnv = (process.env.COOLIFY_MANAGER_BIN ?? '').trim();

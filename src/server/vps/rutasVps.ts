@@ -18,14 +18,13 @@ import {
   inspectJson,
   listarSitios,
   logs,
+  NOMBRE_OK,
   redactar,
   rutaBinario,
   salud,
   statsJson,
   versionBinario,
 } from './puente.js';
-
-const NOMBRE_OK = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const MAX_TEXTO = 4000;
 /* Claves cuyo valor nunca viaja al frontend (el --json puede traer env con
  * secretos y el visor generico lo mostraria todo). */

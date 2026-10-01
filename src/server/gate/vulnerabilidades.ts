@@ -16,6 +16,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
+import { compartirVuelo } from './vuelo.js';
 import type {
   AnalisisVulnerabilidades,
   HallazgoVulnerabilidad,
@@ -308,16 +309,11 @@ export function auditarProyecto(p: Proyecto, forzar = false): Promise<AnalisisVu
   const fresco = frescoDe(p, lock);
   const mem = cache.get(p.clave);
   if (!forzar && mem && mem.fresco === fresco) return Promise.resolve(mem.dato);
-  const yaEnVuelo = enVuelo.get(p.clave);
-  if (yaEnVuelo) return yaEnVuelo;
-  const vuelo = (async (): Promise<AnalisisVulnerabilidades> => {
+  return compartirVuelo(enVuelo, p.clave, async (): Promise<AnalisisVulnerabilidades> => {
     const dato = await correrAudit(p, lock);
     cache.set(p.clave, { fresco, dato });
     return dato;
-  })();
-  enVuelo.set(p.clave, vuelo);
-  void vuelo.finally(() => enVuelo.delete(p.clave));
-  return vuelo;
+  });
 }
 
 /* Barrido serial del workspace (una cola, max 1 auditor a la vez: el lockfile

@@ -13,6 +13,7 @@
  * El cliente es 'tonto': pide y muestra; este modulo es el dueno de la ejecucion. */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
+import { compartirVuelo } from './vuelo.js';
 import type {
   AnalisisSentinel,
   HallazgoSentinel,
@@ -195,9 +196,7 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
   const fresco = frescoDe(p);
   const mem = cache.get(clave);
   if (!forzar && mem && mem.fresco === fresco) return Promise.resolve(mem.dato);
-  const yaEnVuelo = enVuelo.get(clave);
-  if (yaEnVuelo) return yaEnVuelo;
-  const vuelo = (async (): Promise<AnalisisSentinel> => {
+  return compartirVuelo(enVuelo, clave, async (): Promise<AnalisisSentinel> => {
     const [res, resVs] = await Promise.all([correrSentinel(p.ruta), correrVarsense(p.ruta)]);
     let dato: AnalisisSentinel;
     if (!res) {
@@ -230,10 +229,7 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
     cache.set(clave, { fresco, dato });
     persistir();
     return dato;
-  })();
-  enVuelo.set(clave, vuelo);
-  void vuelo.finally(() => enVuelo.delete(clave));
-  return vuelo;
+  });
 }
 
 /* Barrido serial del workspace: analiza solo los elegibles UNO POR UNO

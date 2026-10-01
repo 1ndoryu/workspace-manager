@@ -47,6 +47,15 @@ export function leerArchivo(ruta: string): string | null {
   }
 }
 
+/* Extrae un campo string de un body ya parseado; fallback si no es string.
+ * [por que] F0 midió 9 ternarios `typeof body.x==='string'` repetidos en las
+ * rutas (gate/documentos/config); un dueño único evita que diverjan. */
+export function campoStr<F extends string | null>(body: unknown, campo: string, fallback: F): string | F {
+  if (!body || typeof body !== 'object') return fallback;
+  const v = (body as Record<string, unknown>)[campo];
+  return typeof v === 'string' ? v : fallback;
+}
+
 /* Resuelve una ruta relativa al área dentro del área; null si escapa
  * (path traversal). [por que] El cliente solo envía rutas relativas; nunca
  * se acepta un path absoluto ni una subida fuera de la raíz. */
@@ -61,4 +70,29 @@ export function resolverArea(rutaRel: string): string | null {
 export function padreDe(rutaRel: string): string {
   const idx = rutaRel.lastIndexOf('/');
   return idx <= 0 ? '' : rutaRel.slice(0, idx);
+}
+
+/* Prepara una respuesta SSE y devuelve el emisor de eventos.
+ * [por que] F0 midió el andamiaje SSE duplicado en rutasPc (escanear y
+ * limpiar-stream); un dueño único evita que diverjan. */
+export function iniciarSse<T extends { tipo: string }>(res: ServerResponse): (ev: T) => void {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  /* El trabajo roza los minutos: sin timeout de socket. */
+  try {
+    res.socket?.setTimeout(0);
+  } catch {
+    /* best-effort */
+  }
+  return (ev: T): void => {
+    try {
+      res.write(`event: ${ev.tipo}\ndata: ${JSON.stringify(ev)}\n\n`);
+    } catch {
+      /* cliente desconectado: el trabajo termina igual en background */
+    }
+  };
 }
