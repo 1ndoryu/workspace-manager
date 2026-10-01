@@ -1,4 +1,4 @@
-/* Doctor del mando dev (F0): solo detecta, nunca arranca nada.
+/* Doctor del mando dev (F0: clasifica; F1: +`up` que arranca puertos libres).
  * [por que] Modulo COMPARTIDO CLI<->server: el CLI (`dev.mjs doctor`) y el
  * servidor (`src/server/dev/vigilancia.ts` via execFile) ejecutan este mismo
  * archivo; no hay dos implementaciones que diverjan. Sensores verificados en
@@ -9,8 +9,8 @@
  * Con --assert: 1 tambien si el INSTRUMENTO falla (cobertura, motivos fuera
  * de enum, `otro`>20%, snapshot stale); 0 exige instrumento OK + area verde;
  * 2 = instrumento OK pero hay huecos visibles (deriva/sin-boton/huerfanos). */
-import { execFile } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { execFile, execFileSync, spawn } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
@@ -30,11 +30,14 @@ export const MOTIVOS_ENUM = new Set([
   'puerto-dinamico',
 ]);
 const RE_OTRO = /^otro\{detalle="(.{1,80})",caducidad=(\d{4}-\d{2}-\d{2})\}$/;
-const BOTONES_VALIDOS = new Set([
-  'node scripts/dev.mjs',
-  'npm run dev',
-  'npm run server',
-  'cargo run -p pulse',
+/* F1: boton = argv ejecutable, no texto bonito. argv[0] en allowlist
+ * (npm/cargo/node); `node <script>` solo scripts con nombre permitido bajo la
+ * ruta de la entrada (anti-hijack: el nombre lo fija el registro, la
+ * existencia la comprueba el doctor, el exe lo resuelve `where`). argv[i]
+ * arranca puertos[i] (mapeo posicional, validado): el `up` sabe que lanzar
+ * por puerto caido sin adivinar. */
+export const EXES_PERMITIDOS = new Set(['npm', 'cargo', 'node']);
+const SCRIPTS_NODO_VALIDOS = new Set([
   'dev-web.mjs',
   'dev-web.ts',
   'dev-runner.ts',
@@ -72,7 +75,7 @@ function validarEntrada(e) {
   for (const k of ['id', 'ruta', 'boton', 'puertos', 'expectedCmdline']) {
     if (!(k in e)) throw new Error(`registro: entrada sin '${k}' (${JSON.stringify(e).slice(0, 80)})`);
   }
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'expectedCmdline', 'tipoLauncher']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) throw new Error(`registro: clave desconocida '${k}' en '${e.id}'`);
   }
@@ -84,14 +87,30 @@ function validarEntrada(e) {
     throw new Error(`registro: '${e.id}' ruta fuera del area (${e.ruta})`);
   }
   if (!existsSync(rutaAbs)) throw new Error(`registro: '${e.id}' ruta inexistente (${e.ruta})`);
-  if (!Array.isArray(e.boton) || e.boton.length === 0 || e.boton.some((a) => typeof a !== 'string')) {
-    throw new Error(`registro: '${e.id}' boton debe ser array de strings no vacio`);
+  if (!Array.isArray(e.boton) || e.boton.length === 0 || e.boton.some((a) => !Array.isArray(a) || a.length < 2 || a.some((t) => typeof t !== 'string' || t.length === 0))) {
+    throw new Error(`registro: '${e.id}' boton debe ser array de argv (arrays de >=2 strings)`);
   }
-  const primero = e.boton[0];
-  const botonOk = [...BOTONES_VALIDOS].some((b) => primero === b || primero.endsWith('/' + b) || primero.endsWith('\\' + b));
-  if (!botonOk && !primero.startsWith('run-')) throw new Error(`registro: '${e.id}' boton fuera de allowlist (${primero})`);
   if (!Array.isArray(e.puertos) || e.puertos.some((p) => !Number.isInteger(p) || p < 1 || p > 65535)) {
     throw new Error(`registro: '${e.id}' puertos invalidos`);
+  }
+  // [por que] argv[i] <-> puertos[i]: sin igualdad posicional el `up` no sabe
+  // que lanzar ante un puerto caido y cualquier suposicion seria verde fingido.
+  if (e.boton.length !== e.puertos.length) {
+    throw new Error(`registro: '${e.id}' boton (${e.boton.length}) y puertos (${e.puertos.length}) deben alinearse 1:1`);
+  }
+  for (const argv of e.boton) {
+    const exe = argv[0].toLowerCase();
+    if (!EXES_PERMITIDOS.has(exe) && !(exe.endsWith('/node') || exe.endsWith('\\node'))) {
+      throw new Error(`registro: '${e.id}' exe fuera de allowlist (${argv[0]})`);
+    }
+    if ((exe === 'node' || exe.endsWith('/node') || exe.endsWith('\\node')) && argv[1] !== '-e') {
+      const nombre = argv[1].split('/').pop().split('\\').pop();
+      if (!SCRIPTS_NODO_VALIDOS.has(nombre)) {
+        throw new Error(`registro: '${e.id}' script node fuera de allowlist (${argv[1]})`);
+      }
+      const rutaScript = resolve(rutaAbs, argv[1]);
+      if (!existsSync(rutaScript)) throw new Error(`registro: '${e.id}' script inexistente (${argv[1]})`);
+    }
   }
   for (const p of e.puertos) {
     // [por que] 8787/5175 son del propio manager y 5174 de opencode-propio:
@@ -129,6 +148,12 @@ function validarEntrada(e) {
   }
   if ('timeoutMs' in e && (!Number.isInteger(e.timeoutMs) || e.timeoutMs < 500 || e.timeoutMs > 30000)) {
     throw new Error(`registro: '${e.id}' timeoutMs fuera de 500..30000`);
+  }
+  // [por que] timeoutMs = probe puntual; arranqueMs = compilacion fria
+  // (cargo). Confundirlos deja un arranque real fuera de tiempo o un probe
+  // colgado minutos. Tope 5 min: mas alla es pipeline, no `up`.
+  if ('arranqueMs' in e && (!Number.isInteger(e.arranqueMs) || e.arranqueMs < 5000 || e.arranqueMs > 300000)) {
+    throw new Error(`registro: '${e.id}' arranqueMs fuera de 5000..300000`);
   }
   if (typeof e.expectedCmdline !== 'string' || e.expectedCmdline.length === 0) {
     throw new Error(`registro: '${e.id}' expectedCmdline vacio`);
@@ -301,43 +326,9 @@ export async function clasificar(proyectos, registro, escucha) {
       }
       continue;
     }
-    const timeoutMs = entrada.timeoutMs ?? 2000;
-    const healths = entrada.healths?.length ? entrada.healths : entrada.puertos.map((puerto) => ({ puerto }));
-    let estado = 'bajo-mando';
-    let motivo = 'probe verde';
-    for (const h of healths) {
-      const oyentes = porPuerto.get(h.puerto) ?? [];
-      // [por que] Dos `tsx watch` del mismo servidor pelean el puerto
-      // (caso real 2026-10-01: pids 23444+16484 en 8787, probe intermitente).
-      // Quedarse con el primero ocultaria el duplicado: es deriva visible.
-      const propios = oyentes.filter((o) => esDelProyecto(procs.get(o.pid), p.ruta, entrada.expectedCmdline));
-      if (propios.length > 1) {
-        estado = 'deriva';
-        motivo = `puerto ${h.puerto} con ${propios.length} procesos del proyecto (duplicado: ${propios.map((o) => o.pid).join(',')})`;
-        break;
-      }
-      const propio = propios[0];
-      if (!propio) {
-        estado = 'deriva';
-        motivo = oyentes.length ? `puerto ${h.puerto} ocupado por desconocido` : `puerto ${h.puerto} libre (caido?)`;
-        break;
-      }
-      for (const o of oyentes) consumidos.add(`${o.ip}:${o.puerto}:${o.pid}`);
-      const proc = procs.get(propio.pid);
-      if (!proc?.cmd) {
-        estado = 'deriva';
-        motivo = `puerto ${h.puerto} no verificable (sin cmdline)`;
-        break;
-      }
-      consumidos.add(`${propio.ip}:${propio.puerto}:${propio.pid}`);
-      const s = await sondear(h.puerto, h.ruta, h.esperaJson, timeoutMs);
-      if (!s.ok) {
-        estado = 'deriva';
-        motivo = `puerto ${h.puerto} sin probe (status ${s.status})`;
-        break;
-      }
-    }
-    resultado.push({ clave: p.clave, estado, motivo });
+    const r = await clasificarEntrada(p, entrada, porPuerto, procs);
+    for (const k of r.consumidos) consumidos.add(k);
+    resultado.push({ clave: p.clave, estado: r.estado, motivo: r.motivo });
   }
 
   const huerfanos = [];
@@ -367,6 +358,62 @@ export async function clasificar(proyectos, registro, escucha) {
   return { proyectos: resultado, huerfanos };
 }
 
+/* Inspeccion por entrada (F1): mismo veredicto que clasificar + detalle por
+ * puerto para que `up` decida sin reinterpretar strings. situacion:
+ * arriba | libre | ocupado-desconocido | duplicado | no-verificable |
+ * sin-probe. Solo `libre` autoriza arrancar; el resto rehusa en voz alta. */
+export async function clasificarEntrada(p, entrada, porPuerto, procs) {
+  const timeoutMs = entrada.timeoutMs ?? 2000;
+  const healths = entrada.healths?.length ? entrada.healths : entrada.puertos.map((puerto) => ({ puerto }));
+  const consumidos = new Set();
+  const detalle = [];
+  let estado = 'bajo-mando';
+  let motivo = 'probe verde';
+  for (const h of healths) {
+    const oyentes = porPuerto.get(h.puerto) ?? [];
+    // [por que] Dos `tsx watch` del mismo servidor pelean el puerto
+    // (caso real 2026-10-01: pids 23444+16484 en 8787, probe intermitente).
+    // Quedarse con el primero ocultaria el duplicado: es deriva visible.
+    const propios = oyentes.filter((o) => esDelProyecto(procs.get(o.pid), p.ruta, entrada.expectedCmdline));
+    if (propios.length > 1) {
+      estado = 'deriva';
+      motivo = `puerto ${h.puerto} con ${propios.length} procesos del proyecto (duplicado: ${propios.map((o) => o.pid).join(',')})`;
+      detalle.push({ puerto: h.puerto, situacion: 'duplicado', pids: propios.map((o) => o.pid) });
+      break;
+    }
+    const propio = propios[0];
+    if (!propio) {
+      estado = 'deriva';
+      if (oyentes.length) {
+        motivo = `puerto ${h.puerto} ocupado por desconocido`;
+        detalle.push({ puerto: h.puerto, situacion: 'ocupado-desconocido', pids: oyentes.map((o) => o.pid) });
+      } else {
+        motivo = `puerto ${h.puerto} libre (caido?)`;
+        detalle.push({ puerto: h.puerto, situacion: 'libre', pids: [] });
+      }
+      break;
+    }
+    for (const o of oyentes) consumidos.add(`${o.ip}:${o.puerto}:${o.pid}`);
+    const proc = procs.get(propio.pid);
+    if (!proc?.cmd) {
+      estado = 'deriva';
+      motivo = `puerto ${h.puerto} no verificable (sin cmdline)`;
+      detalle.push({ puerto: h.puerto, situacion: 'no-verificable', pids: [propio.pid] });
+      break;
+    }
+    consumidos.add(`${propio.ip}:${propio.puerto}:${propio.pid}`);
+    const s = await sondear(h.puerto, h.ruta, h.esperaJson, timeoutMs);
+    if (!s.ok) {
+      estado = 'deriva';
+      motivo = `puerto ${h.puerto} sin probe (status ${s.status})`;
+      detalle.push({ puerto: h.puerto, situacion: 'sin-probe', pids: [propio.pid] });
+      break;
+    }
+    detalle.push({ puerto: h.puerto, situacion: 'arriba', pids: [propio.pid] });
+  }
+  return { estado, motivo, detalle, consumidos };
+}
+
 function codigoSalida(informe) {
   if (informe.errorSensor) return 1;
   if (informe.huerfanos.length > 0) return 2;
@@ -387,7 +434,262 @@ function tabla(informe) {
   return lineas.join('\n');
 }
 
-/* CLI: doctor --all [--json] [--snapshot-file <ruta>] [--assert] */
+/* Escucha con UN reintento ante arranque frio (powershell+CIM tras idle
+ * puede superar los 5s y no es defecto del area). Dos fallos = real. */
+export async function escuchaRobusta() {
+  try {
+    return { escucha: await escanearEscucha(), errorSensor: null };
+  } catch (e) {
+    await new Promise((r) => setTimeout(r, 1000));
+    try {
+      return { escucha: await escanearEscucha(), errorSensor: null };
+    } catch (e2) {
+      return { escucha: [], errorSensor: `sensor: ${e.message} / reintento: ${e2.message}` };
+    }
+  }
+}
+
+/* Resuelve el exe del launcher sin shell: `where` + comprobacion de nombre.
+ * npm es .cmd (no ejecutable por CreateProcess): se baja a node +
+ * npm-cli.js hermano; cargo/node son exes reales y se lanzan directos. */
+function resolverExe(exeNombre) {
+  return new Promise((resolveP, rejectP) => {
+    execFile('where.exe', [exeNombre], { timeout: 10_000, windowsHide: true }, (err, stdout) => {
+      if (err) {
+        rejectP(new Error(`exe '${exeNombre}' no resuelto por where`));
+        return;
+      }
+      const primero = String(stdout).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)[0];
+      if (!primero || !existsSync(primero)) {
+        rejectP(new Error(`exe '${exeNombre}' sin candidato existente`));
+        return;
+      }
+      const base = primero.split('\\').pop().toLowerCase();
+      const pedido = exeNombre.toLowerCase();
+      if (pedido === 'npm') {
+        if (base !== 'npm.cmd') {
+          rejectP(new Error(`npm inesperado (${base}), se esperaba npm.cmd`));
+          return;
+        }
+        const dir = primero.slice(0, -'npm.cmd'.length);
+        const cli = join(dir, 'node_modules', 'npm', 'bin', 'npm-cli.js');
+        if (!existsSync(cli)) {
+          rejectP(new Error('npm-cli.js no encontrado junto a npm.cmd'));
+          return;
+        }
+        const nodo = String(execFileSyncNode()).trim();
+        resolveP({ exe: nodo, prefijo: [cli] });
+        return;
+      }
+      if (pedido === 'cargo' && base !== 'cargo.exe') {
+        rejectP(new Error(`cargo inesperado (${base})`));
+        return;
+      }
+      if (pedido === 'node' && base !== 'node.exe') {
+        rejectP(new Error(`node inesperado (${base})`));
+        return;
+      }
+      resolveP({ exe: primero, prefijo: [] });
+    });
+  });
+}
+
+function execFileSyncNode() {
+  // [por que] where es async; node para npm-cli se resuelve sync una vez.
+  // Si where falla aqui, el error ya salio por el camino async de npm.
+  const sal = execFileSync('where.exe', ['node'], { timeout: 10_000, windowsHide: true });
+  const primero = String(sal).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)[0];
+  if (!primero || !existsSync(primero)) throw new Error('node no resuelto por where');
+  return primero;
+}
+
+/* Lanza detached con logs a <ruta>/logs/dev-up-<id>.log (*.log gitignored).
+ * Devuelve pid. Nunca mata nada: el dueño del puerto decide. */
+export async function lanzar(entrada, rutaAbs, argv) {
+  const nombreExe = argv[0].toLowerCase();
+  const { exe, prefijo } = await resolverExe(nombreExe === 'node' && argv[1] === '-e' ? 'node' : nombreExe);
+  const dir = join(rutaAbs, 'logs');
+  mkdirSync(dir, { recursive: true });
+  const rutaLog = join(dir, `dev-up-${entrada.id}.log`);
+  appendFileSync(rutaLog, `--- up ${new Date().toISOString()} :: ${argv.join(' ')}\n`);
+  const fd = openSync(rutaLog, 'a');
+  const hijo = spawn(exe, [...prefijo, ...argv.slice(1)], {
+    cwd: rutaAbs,
+    detached: true,
+    stdio: ['ignore', fd, fd],
+    windowsHide: true,
+  });
+  hijo.unref();
+  if (!hijo.pid) throw new Error('spawn sin pid');
+  return { pid: hijo.pid, rutaLog };
+}
+
+function esperarProbe(puerto, rutaRecurso, esperaJson, timeoutMs, limiteMs) {
+  const t0 = Date.now();
+  return new Promise((resolveP) => {
+    const intento = async () => {
+      const s = await sondear(puerto, rutaRecurso, esperaJson, timeoutMs);
+      if (s.ok) {
+        resolveP(true);
+        return;
+      }
+      if (Date.now() - t0 > limiteMs) {
+        resolveP(false);
+        return;
+      }
+      setTimeout(intento, 1000);
+    };
+    intento();
+  });
+}
+
+function leerSnapshotServidor() {
+  return new Promise((resolveP) => {
+    const req = http.get(
+      { host: '127.0.0.1', port: 8787, path: '/api/workspace', timeout: 30_000 },
+      (res) => {
+        let cuerpo = '';
+        res.on('data', (t) => {
+          cuerpo += t;
+          if (cuerpo.length > 8 * 1024 * 1024) req.destroy();
+        });
+        res.on('end', () => {
+          try {
+            resolveP({ snapshot: JSON.parse(cuerpo), error: null });
+          } catch {
+            resolveP({ snapshot: null, error: 'respuesta no JSON' });
+          }
+        });
+      },
+    );
+    req.on('timeout', () => req.destroy(new Error('timeout')));
+    req.on('error', (e) => resolveP({ snapshot: null, error: String(e.message ?? e).slice(0, 120) }));
+  });
+}
+
+/* F1 `up <id>`: ya-arriba (verifica, no reinicia) | arranca puertos libres
+ * (spawn + probe hasta arranqueMs) | rehusa (ocupado/duplicado/sin-probe/
+ * no-verificable/sin entrada: nunca mata, nunca inventa). Exit 0 solo con
+ * probe verde; 1 en cualquier otro caso, siempre con motivo. */
+export async function up(argv) {
+  const args = argv ?? [];
+  const id = args[0];
+  if (!id || id.startsWith('-')) {
+    console.error('uso: dev up <id> [--snapshot-file <ruta>] [--json]');
+    return 1;
+  }
+  const comoJson = args.includes('--json');
+  const iSnap = args.indexOf('--snapshot-file');
+  const rutaSnap = iSnap >= 0 ? args[iSnap + 1] : null;
+  const sale = (codigo, obj) => {
+    if (comoJson) console.log(JSON.stringify(obj));
+    else console.log(obj.resumen);
+    return codigo;
+  };
+
+  let registro;
+  try {
+    registro = leerRegistro();
+  } catch (e) {
+    return sale(1, { resumen: `up ${id}: registro invalido (${e.message})` });
+  }
+  const entrada = registro.entradas.get(id);
+  if (!entrada) {
+    return sale(1, { resumen: `up ${id}: sin entrada en registro (pendiente onboarding o no-aplica): nada que arrancar` });
+  }
+  const rutaAbs = isAbsolute(entrada.ruta) ? normalize(entrada.ruta) : resolve(RAIZ_REPO, entrada.ruta);
+
+  let snapshot = null;
+  if (rutaSnap) {
+    try {
+      snapshot = JSON.parse(readFileSync(rutaSnap, 'utf8'));
+    } catch (e) {
+      return sale(1, { resumen: `up ${id}: snapshot ilegible (${e.message})` });
+    }
+  } else {
+    const r = await leerSnapshotServidor();
+    if (r.error || !r.snapshot) {
+      return sale(1, { resumen: `up ${id}: servidor caido (${r.error}) y sin --snapshot-file: up no decide a ciegas` });
+    }
+    snapshot = r.snapshot;
+  }
+  const proyectos = (snapshot?.proyectos ?? []).map((p) => ({ clave: p.clave, ruta: p.ruta }));
+  const proyecto = proyectos.find(
+    (p) => normalizarRuta(isAbsolute(entrada.ruta) ? entrada.ruta : resolve(RAIZ_REPO, entrada.ruta)) === normalizarRuta(p.ruta),
+  );
+  if (!proyecto) {
+    return sale(1, { resumen: `up ${id}: '${entrada.ruta}' fuera del snapshot (stale?): no se arranca sin cobertura` });
+  }
+
+  const { escucha, errorSensor } = await escuchaRobusta();
+  if (errorSensor) {
+    return sale(1, { resumen: `up ${id}: ${errorSensor}` });
+  }
+  const pids = [...new Set(escucha.map((e) => e.pid))];
+  const procs = await procesosDe(pids);
+  const candidatos = escucha.filter((e) => {
+    if (e.ip === '127.0.0.1' || e.ip === '::1') return true;
+    if (e.ip === '0.0.0.0' || e.ip === '::') {
+      const pr = procs.get(e.pid);
+      return normalizarRuta(`${pr?.exe ?? ''} ${pr?.cmd ?? ''}`).includes(normalizarRuta(RAIZ_REPO));
+    }
+    return false;
+  });
+  const porPuerto = new Map();
+  for (const c of candidatos) {
+    if (!porPuerto.has(c.puerto)) porPuerto.set(c.puerto, []);
+    porPuerto.get(c.puerto).push(c);
+  }
+  const r = await clasificarEntrada(proyecto, entrada, porPuerto, procs);
+  if (r.estado === 'bajo-mando') {
+    return sale(0, { id, veredicto: 'ya-arriba', resumen: `up ${id}: ya-arriba (${r.motivo})` });
+  }
+  const caidos = r.detalle.filter((d) => d.situacion === 'libre');
+  const bloqueos = r.detalle.filter((d) => d.situacion !== 'libre' && d.situacion !== 'arriba');
+  if (bloqueos.length > 0) {
+    const b = bloqueos[0];
+    return sale(1, {
+      id,
+      veredicto: 'rehusado',
+      resumen: `up ${id}: rehusado (puerto ${b.puerto}: ${b.situacion}${b.pids.length ? ` pids ${b.pids.join(',')}` : ''}): el mando no mata ni suplanta`,
+    });
+  }
+  if (caidos.length === 0) {
+    return sale(1, { resumen: `up ${id}: deriva sin puerto libre (${r.motivo}): nada arrancable` });
+  }
+  const timeoutMs = entrada.timeoutMs ?? 2000;
+  const limiteMs = entrada.arranqueMs ?? 60_000;
+  const healths = entrada.healths?.length ? entrada.healths : entrada.puertos.map((puerto) => ({ puerto }));
+  const lanzados = [];
+  for (const c of caidos) {
+    const i = entrada.puertos.indexOf(c.puerto);
+    const argvLanzador = entrada.boton[i];
+    let lan;
+    try {
+      lan = await lanzar(entrada, rutaAbs, argvLanzador);
+    } catch (e) {
+      return sale(1, { resumen: `up ${id}: spawn fallo (puerto ${c.puerto}: ${e.message})` });
+    }
+    lanzados.push({ puerto: c.puerto, pid: lan.pid, rutaLog: lan.rutaLog });
+  }
+  for (const l of lanzados) {
+    const h = healths.find((x) => x.puerto === l.puerto) ?? { puerto: l.puerto };
+    const ok = await esperarProbe(l.puerto, h.ruta, h.esperaJson, timeoutMs, limiteMs);
+    if (!ok) {
+      return sale(1, {
+        resumen: `up ${id}: arrancado pid ${l.pid} pero sin probe en ${limiteMs}ms (puerto ${l.puerto}, log ${l.rutaLog}): NO verde`,
+      });
+    }
+  }
+  return sale(0, {
+    id,
+    veredicto: 'arrancado',
+    resumen: `up ${id}: arrancado (${lanzados.map((l) => `${l.puerto} pid ${l.pid}`).join(', ')}) + probe verde`,
+  });
+}
+
+/* CLI: doctor --all [--json] [--snapshot-file <ruta>] [--assert].
+ * `up` vive en dev.mjs (mismo modulo, funcion exportada `up`). */
 export async function main(argv) {
   const args = argv ?? process.argv.slice(2);
   if (args[0] !== '--all') {
@@ -420,19 +722,7 @@ export async function main(argv) {
 
   let escucha = [];
   let errorSensor = null;
-  try {
-    escucha = await escanearEscucha();
-  } catch (e) {
-    // [por que] Arranque frio: el primer powershell+CIM tras idle puede
-    // superar los 5s y no es un defecto del area. UN reintento; si falla dos
-    // veces seguidas es real y queda en errorSensor (fail-loud, nunca hueco).
-    await new Promise((r) => setTimeout(r, 1000));
-    try {
-      escucha = await escanearEscucha();
-    } catch (e2) {
-      errorSensor = `sensor: ${e.message} / reintento: ${e2.message}`;
-    }
-  }
+  ({ escucha, errorSensor } = await escuchaRobusta());
   const tomadoEn = new Date().toISOString();
   let clasif = { proyectos: [], huerfanos: [] };
   if (!errorSensor) {
