@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "proyectos": [
+    {
+      "id": "workspace-manager",
+      "ruta": ".",
+      "boton": ["npm run server", "npm run dev"],
+      "puertos": [8787, 5175],
+      "healths": [
+        { "puerto": 8787, "ruta": "/api/pc/estado", "esperaJson": true },
+        { "puerto": 5175, "ruta": "/", "esperaJson": false }
+      ],
+      "timeoutMs": 3000,
+      "expectedCmdline": "workspace-manager"
+    },
+    {
+      "id": "glory-pulse",
+      "ruta": "../glory-pulse",
+      "boton": ["cargo run -p pulse"],
+      "puertos": [3000],
+      "healths": [{ "puerto": 3000, "ruta": "/health", "esperaJson": true }],
+      "timeoutMs": 3000,
+      "expectedCmdline": "pulse"
+    }
+  ],
+  "noAplica": {}
+}

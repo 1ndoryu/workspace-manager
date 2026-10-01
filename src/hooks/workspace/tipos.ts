@@ -10,6 +10,7 @@ import type {
   ConfigScan,
   SnapshotWorkspace,
 } from '../../shared/types.js';
+import type { InformeDevVivo } from './accionesDev.js';
 import type { ReglaCatalogo } from '../../shared/gate/reglas.js';
 import type { NodoEsquema } from '../../shared/gate/esquema.js';
 import type { TipoGate } from '../../shared/gate/proveedores.js';
@@ -102,6 +103,23 @@ export interface DatosAnalisis {
   auditando: boolean;
 }
 
+/* Vigilancia dev (F0b): informe del doctor cacheado + single-flight + ultimo
+ * error de fetch (3 miembros). La consola deriva de aqui sin-boton/deriva
+ * sin re-ejecutar sensores. */
+export interface DatosDev {
+  dev: InformeDevVivo | null;
+  /* Single-flight de la vigilancia (igual que analizando/auditando). */
+  devCargando: boolean;
+  /* Ultimo error al pedir /api/dev/estado: la consola lo pinta en la fila
+   * del propio manager en vez de callar (fail-loud). */
+  devError: string | null;
+}
+
+/* Vigilancia dev: pedir el informe al server (1). */
+export interface AccionesDev {
+  cargarDev: () => Promise<void>;
+}
+
 /* Carga inicial e hidratacion: snapshot, catalogo de reglas y un esquema (3). */
 export interface AccionesCarga {
   cargar: (forzar?: boolean) => Promise<void>;
@@ -156,8 +174,10 @@ export interface EstadoWorkspace
     DatosUi,
     DatosGate,
     DatosAnalisis,
+    DatosDev,
     AccionesCarga,
     AccionesAnalisis,
     AccionesVulnerabilidades,
     AccionesConfig,
+    AccionesDev,
     AccionesUi {}

@@ -29,6 +29,10 @@ export function crearAccionesCarga(set: Set, get: Get): AccionesCarga {
           desdeCache: data.desdeCache ?? false,
           cargando: false,
         });
+        /* [por que] F0b: la consola necesita el informe dev junto al snapshot;
+         * el server lo cachea 60s asi que es barato. Best-effort: cargarDev
+         * nunca rechaza (guarda devError y la consola lo pinta). */
+        void get().cargarDev();
       } catch (err) {
         set({
           cargando: false,

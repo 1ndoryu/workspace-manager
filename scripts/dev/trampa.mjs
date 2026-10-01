@@ -1,0 +1,174 @@
+/* Trampa del mando dev (F0c, DoD F0): inyector INDEPENDIENTE + test negativo.
+ * [por que] Anti-tautologia: si la trampa importara al doctor, probaria el
+ * codigo contra si mismo. Este archivo solo usa builtins de node (net, fs,
+ * os, crypto, child_process, http) y habla con el doctor como caja negra por
+ * CLI. Levanta un listener señuelo en puerto alto ALEATORIO (127.0.0.1, nunca
+ * 0.0.0.0: cero interferencia), verifica que el doctor lo reporte como
+ * huerfano sin proyecto, lo apaga y verifica que desaparezca. Tambien valida
+ * la ruta sin-boton de punta a punta. Limpieza siempre (hija propia +
+ * temporal), aunque falle un check. Exit 0 = todo pasa. */
+import { execFile, spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import http from 'node:http';
+import net from 'node:net';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const DIR = dirname(fileURLToPath(import.meta.url));
+const DOCTOR = join(DIR, 'doctor.mjs');
+const API = 'http://127.0.0.1:8787';
+
+function getJson(url) {
+  return new Promise((res, rej) => {
+    http
+      .get(url, (r) => {
+        let b = '';
+        r.on('data', (c) => (b += c));
+        r.on('end', () => {
+          try {
+            res(JSON.parse(b));
+          } catch (e) {
+            rej(new Error(`JSON invalido de ${url}: ${String(e)}`));
+          }
+        });
+      })
+      .on('error', rej);
+  });
+}
+
+/* Ejecuta al doctor como caja negra: nunca rechaza por exit code (el 2 es
+ * estado valido); devuelve codigo + informe parseado o falla si no hay JSON. */
+function correrDoctor(snapshotTmp) {
+  return new Promise((res, rej) => {
+    execFile(
+      process.execPath,
+      [DOCTOR, '--all', '--json', '--snapshot-file', snapshotTmp],
+      { timeout: 60_000, maxBuffer: 4 * 1024 * 1024 },
+      (err, stdout) => {
+        const codigo = err && typeof err.code === 'number' ? err.code : 0;
+        try {
+          res({ codigo, informe: JSON.parse(String(stdout)) });
+        } catch {
+          rej(new Error(`doctor sin JSON (exit ${codigo}): ${String(stdout).slice(0, 200)}`));
+        }
+      },
+    );
+  });
+}
+
+function esperarPuerto(puerto, ms = 5000) {
+  const t0 = Date.now();
+  return new Promise((res) => {
+    const intento = () => {
+      const s = net.connect(puerto, '127.0.0.1');
+      s.on('connect', () => {
+        s.end();
+        res(true);
+      });
+      s.on('error', () => {
+        s.destroy();
+        if (Date.now() - t0 > ms) res(false);
+        else setTimeout(intento, 200);
+      });
+    };
+    intento();
+  });
+}
+
+const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+const hex = (n) =>
+  [...randomBytes(n)].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+async function main() {
+  const fallos = [];
+  const ok = (nombre, cond, detalle = '') => {
+    console.log(`${cond ? 'PASS' : 'FAIL'} ${nombre}${detalle ? ` (${detalle})` : ''}`);
+    if (!cond) fallos.push(nombre);
+  };
+
+  let snapshot;
+  try {
+    snapshot = await getJson(`${API}/api/workspace`);
+  } catch (e) {
+    console.error(`FAIL snapshot: server 8787 caido o sin respuesta (${String(e)})`);
+    return 1;
+  }
+  const nSnap = snapshot?.proyectos?.length ?? 0;
+  ok('snapshot del server', nSnap > 0, `${nSnap} proyectos`);
+
+  const dir = mkdtempSync(join(tmpdir(), 'wm-trampa-'));
+  const tmp = join(dir, 'snapshot.json');
+  writeFileSync(tmp, JSON.stringify(snapshot));
+  let hija = null;
+  try {
+    const base = await correrDoctor(tmp);
+    ok(
+      'linea base clasifica todo',
+      base.informe.proyectos.length === nSnap && !base.informe.errorSensor,
+      `${base.informe.proyectos.length}/${nSnap}, exit ${base.codigo}${base.informe.errorSensor ? `, sensor: ${base.informe.errorSensor}` : ''}`,
+    );
+
+    /* Senuelo: puerto y token aleatorios; el token viaja en el cmdline para
+     * que el proceso sea identificable sin adivinar por puerto. */
+    const puerto = 40000 + Math.floor(Math.random() * 9999);
+    const token = hex(8);
+    hija = spawn(process.execPath, ['-e', `// senuelo-trampa ${token}\nrequire("net").createServer().listen(${puerto},"127.0.0.1")`], {
+      stdio: 'ignore',
+    });
+    const escucha = await esperarPuerto(puerto);
+    let puertoReal = escucha ? puerto : null;
+    if (!escucha) {
+      /* Puerto ocupado por otro o la hija murio: se reintenta una vez con
+       * otro puerto antes de declarar el fallo. */
+      hija.kill();
+      await dormir(500);
+      puertoReal = 40000 + Math.floor(Math.random() * 9999);
+      hija = spawn(process.execPath, ['-e', `// senuelo-trampa ${token}\nrequire("net").createServer().listen(${puertoReal},"127.0.0.1")`], {
+        stdio: 'ignore',
+      });
+      if (!(await esperarPuerto(puertoReal))) {
+        ok('senuelo escucha', false, `puertos ${puerto}/${puertoReal} no disponibles`);
+        return fallos.length > 0 ? 1 : 0;
+      }
+    }
+    ok('senuelo escucha', true, `puerto ${puertoReal}`);
+    const conSenuelo = await correrDoctor(tmp);
+    const visto = conSenuelo.informe.huerfanos.find((h) => h.puerto === puertoReal);
+    ok('senuelo reportado sin proyecto', visto !== undefined && visto.clave === null, `puerto ${puertoReal ?? '?'}`);
+    const haySinBoton = conSenuelo.informe.proyectos.some((p) => p.estado === 'sin-boton');
+    ok('ruta sin-boton punta a punta', haySinBoton, `${conSenuelo.informe.proyectos.filter((p) => p.estado === 'sin-boton').length} sin-boton`);
+
+    /* Test negativo: muerta la hija, el puerto debe desaparecer del informe. */
+    hija.kill();
+    hija = null;
+    await dormir(1500);
+    const trasMatar = await correrDoctor(tmp);
+    ok(
+      'negativo: senuelo desaparece',
+      !trasMatar.informe.huerfanos.some((h) => h.puerto === puertoReal),
+      `huerfanos ${trasMatar.informe.huerfanos.length}`,
+    );
+  } finally {
+    try {
+      hija?.kill();
+    } catch {
+      /* Hija ya muerta, nada que limpiar. */
+    }
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* Buffer temporal, mejor esfuerzo. */
+    }
+  }
+  return fallos.length > 0 ? 1 : 0;
+}
+
+main().then(
+  (c) => process.exit(c),
+  (e) => {
+    console.error(`trampa: ${e?.message ?? e}`);
+    process.exit(1);
+  },
+);
