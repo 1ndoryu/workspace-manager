@@ -5,6 +5,7 @@
  * Cálculo local sin fetch: el pie lo dice para no mentir. */
 import { useState, type ReactNode } from 'react';
 import type { ArchivoLocal, CommitResumen, DetalleRepoSync, LadoSync } from '../../../shared/types.js';
+import { fechaCorta, hashCorto } from '../../../shared/format.js';
 
 const MAX_COMMITS_VISIBLES = 25;
 const MAX_ARCHIVOS_VISIBLES = 100;
@@ -49,18 +50,12 @@ function resumenStat(lado: LadoSync): string {
   return `${lado.commits.length} commits · ${lado.archivos} archivos +${lado.inserciones} −${lado.borrados}`;
 }
 
-export function fechaCorta(fecha: string): string {
-  /* "2026-09-28 12:00:00 +0200" -> "28-09". */
-  const m = fecha.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]}-${m[2]}` : '';
-}
-
 function ListaCommits({ commits }: { commits: CommitResumen[] }) {
   return (
     <ol className="reposDetalleCommits">
       {commits.slice(0, MAX_COMMITS_VISIBLES).map((c) => (
         <li key={c.hash} className="reposDetalleCommit" title={c.hash}>
-          <span className="reposDetalleHash">{c.hash.slice(0, 7)}</span>
+          <span className="reposDetalleHash">{hashCorto(c.hash)}</span>
           <span className="reposDetalleFecha">{fechaCorta(c.fecha)}</span>
           <span className="reposDetalleMensaje">{c.mensaje}</span>
         </li>
@@ -197,7 +192,7 @@ export function DetalleRepo({
         </Seccion>
       )}
       {!haySubir && !hayTraer && !hayLocales && (
-        <div className="docsVacio">al día ✓ · árbol limpio</div>
+        <div className="docsVacio">al día · árbol limpio</div>
       )}
     </div>
   );

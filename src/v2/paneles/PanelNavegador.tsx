@@ -12,6 +12,7 @@ import { Button } from '../ui/form/Button.js';
 import { Caja } from '../ui/caja/Caja.js';
 import { FilaCajas } from '../ui/caja/FilaCajas.js';
 import { usePanelNavegador } from '../../hooks/usePanelNavegador.js';
+import { fmtBytes } from '../../shared/format.js';
 import './paneles.css';
 
 /* Extensiones de texto conocidas; el resto se intenta leer igual y el
@@ -22,11 +23,8 @@ function esArchivoTexto(nombre: string): boolean {
   ) || ['AGENTS.md', 'README.md', 'package.json'].includes(nombre);
 }
 
-function formatearTamano(bytes: number | null): string {
-  if (bytes === null) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function tamanoLegible(bytes: number | null): string {
+  return bytes === null ? '' : fmtBytes(bytes);
 }
 
 export function PanelNavegador() {
@@ -104,7 +102,7 @@ export function PanelNavegador() {
                       {e.tipo === 'carpeta' ? 'dir' : esArchivoTexto(e.nombre) ? 'txt' : 'bin'}
                     </span>
                     <span className="docsFilaNombre">{e.nombre}</span>
-                    <span className="docsFilaMeta">{formatearTamano(e.tamano)}</span>
+                    <span className="docsFilaMeta">{tamanoLegible(e.tamano)}</span>
                   </Button>
                 );
               })}

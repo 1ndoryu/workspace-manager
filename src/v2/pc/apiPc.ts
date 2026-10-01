@@ -181,8 +181,3 @@ export async function reconstruirPc(): Promise<EstadoPc> {
   const { data } = await axios.post<EstadoPc>('/api/pc/reconstruir', {});
   return data;
 }
-
-/* Gibibytes con 2 decimales para tablas y resúmenes. */
-export function gb(bytes: number): string {
-  return (bytes / 1024 / 1024 / 1024).toFixed(2);
-}

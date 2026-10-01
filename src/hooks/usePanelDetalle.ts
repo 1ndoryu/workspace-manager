@@ -5,6 +5,7 @@ import { useWorkspaceStore } from './useWorkspace.js';
 import { estadoProyecto } from '../v2/estado.js';
 import { useEscanear } from './useEscanear.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../shared/types.js';
+import { hashCorto } from '../shared/format.js';
 
 function filasProyecto(p: Proyecto): { k: string; v: string }[] {
   const filas: { k: string; v: string }[] = [
@@ -24,7 +25,7 @@ function filasProyecto(p: Proyecto): { k: string; v: string }[] {
     }
     const c = p.git.ultimoCommit;
     if (c) {
-      filas.push({ k: 'último commit', v: `${c.hash.slice(0, 7)} · ${c.mensaje}` });
+      filas.push({ k: 'último commit', v: `${hashCorto(c.hash)} · ${c.mensaje}` });
       filas.push({ k: 'fecha', v: c.fecha });
     }
   } else {

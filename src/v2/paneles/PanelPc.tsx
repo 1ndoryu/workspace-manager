@@ -9,7 +9,8 @@
  * [299A-11] Estado en `usePanelPc`: el componente renderiza. */
 import { Button } from '../ui/form/Button.js';
 import { Casilla } from '../ui/form/Casilla.js';
-import { gb, type AccionPc, type ResultadoLimpieza } from '../pc/apiPc.js';
+import { type AccionPc, type ResultadoLimpieza } from '../pc/apiPc.js';
+import { fechaHora, gb } from '../../shared/format.js';
 import { usePanelPc } from '../../hooks/usePanelPc.js';
 import { rutaCorta, type Grupo } from '../../hooks/gruposPc.js';
 import './PanelPc.css';
@@ -91,7 +92,7 @@ export function PanelPc() {
         {!progreso && entradas.length > 0 && (
           <p className="panelPcMeta">
             {entradas.length} entradas · {gb(totalBytes)} GB · {filasElegidas.length} elegidas ({gb(bytesElegidos)} GB se borrarán)
-            {medidoEn ? ` · medido ${new Date(medidoEn).toLocaleString()}` : ''}
+            {medidoEn ? ` · medido ${fechaHora(medidoEn)}` : ''}
           </p>
         )}
         {error && <p className="panelPcError">{error}</p>}

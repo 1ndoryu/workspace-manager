@@ -12,7 +12,8 @@ import { Button } from '../ui/form/Button.js';
 import { Caja } from '../ui/caja/Caja.js';
 import { FilaCajas } from '../ui/caja/FilaCajas.js';
 import { usePanelRepos, remotoCorto } from '../../hooks/usePanelRepos.js';
-import { DetalleRepo, fechaCorta } from './repos/DetalleRepo.js';
+import { DetalleRepo } from './repos/DetalleRepo.js';
+import { fechaCorta, hashCorto } from '../../shared/format.js';
 import { PanelCambiosRepo } from './repos/PanelCambiosRepo.js';
 import './paneles.css';
 import './repos/repos.css';
@@ -92,7 +93,7 @@ export function PanelRepos() {
                   {g.dirty ? 'dirty' : 'limpio'}
                 </span>
                 <span className="reposFilaCommit">
-                  {g.ultimoCommit ? g.ultimoCommit.hash.slice(0, 7) : '—'}
+                  {g.ultimoCommit ? hashCorto(g.ultimoCommit.hash) : '—'}
                 </span>
                 <span className="reposFilaFecha" title={g.ultimoCommit?.mensaje ?? 'sin commits'}>
                   {g.ultimoCommit ? fechaCorta(g.ultimoCommit.fecha) : '—'}

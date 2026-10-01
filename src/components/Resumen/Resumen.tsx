@@ -1,5 +1,6 @@
 /* Vista de resumen: tarjetas con metricas del area + boton re-escaneo. */
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
+import { fechaHora } from '../../shared/format.js';
 import { Tarjeta } from '../ui/Tarjeta.js';
 import { Boton } from '../ui/Boton.js';
 import './resumen.css';
@@ -41,7 +42,7 @@ export function Resumen() {
         ))}
       </div>
       <div className="resumenPie">
-        Escaneado: {new Date(snapshot.escaneadoEn).toLocaleString()}
+        Escaneado: {fechaHora(snapshot.escaneadoEn)}
         {desdeCache && <span className="resumenCache"> · desde caché</span>}
       </div>
     </Tarjeta>
