@@ -1,7 +1,7 @@
 /* Servidor HTTP del workspace-manager: sirve la API JSON (escaneo del area)
  * y el build estatico del cliente. [por que] Node http nativo, sin framework:
  * rapido, cero deps, coherente con el stack ligero del proyecto. */
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createServer, type ServerResponse } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { json } from './http.js';
