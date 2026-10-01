@@ -3,8 +3,9 @@
  * (regla componente-sin-hook-glory) y esta clasificacion se deriva del snapshot
  * sin llamada extra al server, asi que vive como funciones puras testeables. */
 import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../../../shared/types.js';
+import type { InformeDev } from '../../../shared/dev.js';
 
-export type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad';
+export type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad' | 'dev';
 
 /* Severidad real del hallazgo de sentinel (analyze); solo la categoria
  * 'sentinel' la usa. El badge del proyecto y de la linea deriva de aqui. */
@@ -136,9 +137,72 @@ export function problemasVulnerabilidadDe(
   return { p, entradas };
 }
 
+/* Vigilancia dev de un proyecto (F0b): sin-boton/deriva del informe del doctor
+ * mas los huerfanos atribuidos a su clave. Cada estado es una entrada propia
+ * en la categoria 'dev'; los huerfanos reviven la categoria 'huerfano' (estaba
+ * en el union y el filtro pero problemasDe nunca la emitia). [por que] El
+ * informe viaja en el store (useWorkspace.dev, servido por /api/dev/estado);
+ * la consola lo deriva igual que sentinel/vulnerabilidades, sin tuberia
+ * paralela. Los fallos del sensor y del fetch se pintan en la fila del propio
+ * manager (fail-loud: si la vigilancia falla, se ve donde vive). */
+export function problemasDevDe(
+  p: Proyecto,
+  dev: InformeDev | null,
+  devError: string | null,
+): Problema | null {
+  const entradas: Entrada[] = [];
+  const esMando = p.id === 'workspace-manager';
+  if (devError && esMando) {
+    entradas.push({ categoria: 'dev', motivo: `dev: vigilancia no disponible: ${devError}`, seriedad: 'error' });
+  }
+  const info = dev?.proyectos.find((d) => d.clave === p.clave);
+  if (info?.estado === 'sin-boton') {
+    entradas.push({ categoria: 'dev', motivo: `dev sin botón: ${info.motivo}`, seriedad: 'advertencia' });
+  } else if (info?.estado === 'deriva') {
+    entradas.push({ categoria: 'dev', motivo: `dev deriva: ${info.motivo}`, seriedad: 'error' });
+  }
+  if (dev?.errorSensor && esMando) {
+    entradas.push({ categoria: 'dev', motivo: `dev: sensor falló: ${dev.errorSensor}`, seriedad: 'error' });
+  }
+  for (const h of dev?.huerfanos ?? []) {
+    if (h.clave !== p.clave) continue;
+    const quien = h.exe ? (h.exe.split(/[\\/]/).pop() ?? h.exe) : `pid ${h.pid}`;
+    entradas.push({
+      categoria: 'huerfano',
+      motivo: `puerto ${h.puerto} ocupado por ${quien} (pid ${h.pid})${h.verificado ? '' : ' NO-VERIFICADO'}`,
+      seriedad: 'advertencia',
+    });
+  }
+  if (entradas.length === 0) return null;
+  return { p, entradas };
+}
+
+/* Huerfanos sin proyecto atribuible (clave null): grupo sintetico solo para
+ * la consola. [por que] Fail-loud: un listener desconocido en el area debe
+ * verse aunque ningun exe/cmd apunte a un proyecto; inventar un Proyecto real
+ * mentiria, asi que este grupo NUNCA participa en seleccion ni menu (el hook
+ * lo ignora por clave ''). */
+export function problemaHuerfanosSinProyecto(dev: InformeDev | null): Problema | null {
+  if (!dev) return null;
+  const solos = dev.huerfanos.filter((h) => h.clave == null);
+  if (solos.length === 0) return null;
+  const entradas: Entrada[] = solos.map((h) => {
+    const quien = h.exe ? (h.exe.split(/[\\/]/).pop() ?? h.exe) : `pid ${h.pid}`;
+    return {
+      categoria: 'huerfano' as const,
+      motivo: `puerto ${h.puerto} sin proyecto: ${quien} (pid ${h.pid})${h.verificado ? '' : ' NO-VERIFICADO'}`,
+      seriedad: 'advertencia' as const,
+    };
+  });
+  return {
+    p: { id: '(puertos sin proyecto)', clave: '', ruta: '', esGit: false, tipo: 'carpeta' },
+    entradas,
+  };
+}
+
 /* Categorias unicas de un proyecto (para sus badges), en orden fijo. */
 export function categoriasDe(pr: Problema): Categoria[] {
-  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'vulnerabilidad', 'huerfano'];
+  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'vulnerabilidad', 'huerfano', 'dev'];
   return orden.filter((c) => pr.entradas.some((e) => e.categoria === c));
 }
 

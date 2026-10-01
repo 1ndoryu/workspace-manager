@@ -5,7 +5,9 @@
 import { useMemo, useState } from 'react';
 import { useWorkspaceStore } from '../../../hooks/useWorkspace.js';
 import {
+  problemaHuerfanosSinProyecto,
   problemasDe,
+  problemasDevDe,
   problemasSentinelDe,
   problemasVulnerabilidadDe,
   type Categoria,
@@ -16,6 +18,8 @@ export function usePanelConsola() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const analisis = useWorkspaceStore((s) => s.analisis);
   const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
+  const dev = useWorkspaceStore((s) => s.dev);
+  const devError = useWorkspaceStore((s) => s.devError);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const irAArchivos = useWorkspaceStore((s) => s.irAArchivos);
@@ -46,6 +50,27 @@ export function usePanelConsola() {
       .filter((x): x is Problema => x !== null);
   }, [snapshot, vulnerabilidades]);
 
+  /* Vigilancia dev por proyecto (F0b): sin-boton/deriva + huerfanos con clave,
+   * mas el grupo sintetico de huerfanos sin proyecto. Viven en los filtros
+   * 'dev'/'huérfanos' y su conteo entra en el total 'todos'. */
+  const problemasDev = useMemo(() => {
+    if (!snapshot) return [];
+    const lista = snapshot.proyectos
+      .map((p) => problemasDevDe(p, dev, devError))
+      .filter((x): x is Problema => x !== null);
+    const solos = problemaHuerfanosSinProyecto(dev);
+    if (solos) lista.push(solos);
+    return lista;
+  }, [snapshot, dev, devError]);
+
+  /* Base filtrable: regulares + dev (los filtros por categoria solo miran
+   * entradas de su categoria, asi que un proyecto con varias categorias no se
+   * duplica al filtrar). */
+  const problemasBase = useMemo(
+    () => [...problemas, ...problemasDev],
+    [problemas, problemasDev],
+  );
+
   /* 'todos' fusiona los problemas regulares con los hallazgos de sentinel y
    * las vulnerabilidades AGRUPADOS por proyecto (un proyecto con varias
    * categorias sale una sola vez con sus entradas combinadas y sus badges). */
@@ -68,8 +93,9 @@ export function usePanelConsola() {
     problemas.forEach(poner);
     problemasSentinel.forEach(poner);
     problemasVuln.forEach(poner);
+    problemasDev.forEach(poner);
     return [...porProyecto.values()];
-  }, [problemas, problemasSentinel, problemasVuln]);
+  }, [problemas, problemasSentinel, problemasVuln, problemasDev]);
 
   const visibles = useMemo(() => {
     if (filtro === 'sentinel') return problemasSentinel;
@@ -79,10 +105,10 @@ export function usePanelConsola() {
      * no deben verse las lineas de otras categorias del mismo proyecto.
      * [por que] antes devolviamos el grupo completo y se colaban lineas de
      * config/sin-push/analisis al filtrar por sentinel-varsense o la inversa. */
-    return problemas
+    return problemasBase
       .map((pr) => ({ p: pr.p, entradas: pr.entradas.filter((e) => e.categoria === filtro) }))
       .filter((pr) => pr.entradas.length > 0);
-  }, [problemas, problemasSentinel, problemasVuln, problemasTodo, filtro]);
+  }, [problemasBase, problemasSentinel, problemasVuln, problemasTodo, filtro]);
 
   /* El conteo es por PROBLEMA individual (entradas), no por proyecto.
    * [por que] Un proyecto puede agrupar varias lineas; contarlo como 1
@@ -97,7 +123,7 @@ export function usePanelConsola() {
       return problemasVuln.reduce((n, pr) => n + pr.entradas.length, 0);
     }
     if (clave === 'todos') return problemasTodo.reduce((n, pr) => n + pr.entradas.length, 0);
-    return problemas.reduce((n, pr) => n + pr.entradas.filter((e) => e.categoria === clave).length, 0);
+    return problemasBase.reduce((n, pr) => n + pr.entradas.filter((e) => e.categoria === clave).length, 0);
   };
 
   return {
@@ -107,8 +133,17 @@ export function usePanelConsola() {
     visibles,
     contar,
     seleccionadoId,
-    seleccionar,
+    /* [por que] El grupo sintetico '(puertos sin proyecto)' no es un proyecto
+     * real: plegar/desplegar sigue funcionando (estado local del panel) pero
+     * seleccionar o abrir menu sobre el no debe tocar seleccion ni config. */
+    seleccionar: (id: string) => {
+      if (id === '(puertos sin proyecto)') return;
+      seleccionar(id);
+    },
     irAArchivos,
-    abrirMenuContextual,
+    abrirMenuContextual: (m: { x: number; y: number; id: string; clave: string }) => {
+      if (!m.clave) return;
+      abrirMenuContextual(m);
+    },
   };
 }

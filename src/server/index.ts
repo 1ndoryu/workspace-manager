@@ -12,6 +12,7 @@ import { manejarRutasConfig } from './rutas/rutasConfig.js';
 import { manejarRutasDocumentos } from './rutas/rutasDocumentos.js';
 import { manejarRutasArchivos } from './rutas/rutasArchivos.js';
 import { manejarRutasPc } from './rutas/rutasPc.js';
+import { manejarRutasDev } from './rutas/rutasDev.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutasVps.js';
 import { logger } from '../shared/logger.js';
@@ -113,6 +114,10 @@ export function crearServidor() {
         }
         /* Rutas de la tab PC (/api/pc/*): viven en rutasPc.ts. */
         if (await manejarRutasPc(req, res, url, ruta)) {
+          return;
+        }
+        /* Rutas del mando dev (/api/dev/*, F0b): viven en rutasDev.ts. */
+        if (await manejarRutasDev(req, res, url, ruta)) {
           return;
         }
         json(res, 404, { error: 'Ruta no encontrada', ruta });
