@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { VpsAgenteSnapshot } from '../../shared/types.js';
 import { Caja } from '../ui/caja/Caja.js';
 import { logger } from '../../shared/logger.js';
-import { fmtBytes } from './PanelVps.js';
+import { fmtBytes } from '../../shared/format.js';
 
 /* Muestra como tupla [t, cpu, mem, rx, tx, br, bw]: compacta en el
  * localStorage (≈50 caracteres por muestra). */

@@ -10,6 +10,7 @@ import type {
   VpsRecursos,
 } from '../../shared/types.js';
 import { agenteVps, configVps, invalidarVps, recursosVps } from '../vps/apiVps.js';
+import { fmtBytes } from '../../shared/format.js';
 import { PanelVpsRecursos } from './PanelVpsRecursos.js';
 import { FilaCajas } from '../ui/caja/FilaCajas.js';
 import { Button } from '../ui/form/Button.js';
@@ -32,14 +33,6 @@ function rolContenedor(nombre: string): string {
   if (nombre.startsWith('socket-proxy')) return 'proxy';
   if (nombre.startsWith('wordpress-')) return 'web';
   return nombre;
-}
-
-/* Bytes a unidad legible (red/disco del detalle lateral y recursos). */
-export function fmtBytes(b: number): string {
-  if (b < 1024) return `${Math.round(b)} B`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KiB`;
-  if (b < 1024 * 1024 * 1024) return `${(b / (1024 * 1024)).toFixed(1)} MiB`;
-  return `${(b / (1024 * 1024 * 1024)).toFixed(2)} GiB`;
 }
 
 /* % de uso de disco del host desde el resumen del audit (`Disco:

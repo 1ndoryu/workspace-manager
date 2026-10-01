@@ -3,6 +3,7 @@
  * [por que] Salio de PanelConfig.tsx para que el componente quede bajo el
  * limite-lineas (300): recibe el paquete `datos` del hook, sin logica propia. */
 import { Button } from '../../ui/form/Button.js';
+import { horaCorta } from '../../../shared/format.js';
 import type { DatosPanelConfig } from './usePanelConfig.js';
 
 export function VistaScan({ datos }: { datos: DatosPanelConfig }) {
@@ -71,7 +72,7 @@ export function VistaScan({ datos }: { datos: DatosPanelConfig }) {
             <span className="scanCfgBadge scanCfgBadge--error">{totales.error} error{totales.error === 1 ? '' : 'es'}</span>
             <span className="scanCfgBadge scanCfgBadge--warn">{totales.warning} aviso{totales.warning === 1 ? '' : 's'}</span>
             {ultimaActualizacion > 0 && (
-              <span className="scanCfgMeta">última: {new Date(ultimaActualizacion).toLocaleTimeString()}</span>
+              <span className="scanCfgMeta">última: {horaCorta(ultimaActualizacion)}</span>
             )}
           </div>
         )}
