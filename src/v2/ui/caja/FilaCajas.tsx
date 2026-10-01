@@ -5,7 +5,7 @@
  * `<div className="cajaFila">` con flex fijos por tab: cada tab declara sus
  * hijas (ids estables + defecto proporcional) y el tamano lo decide el
  * usuario, no la tab. */
-import { Children, Fragment, useRef, type ReactNode } from 'react';
+import { Children, Fragment, useRef, type CSSProperties, type ReactNode } from 'react';
 import { Resizer } from '../overlay/Resizer.js';
 import { useAnchosFila } from './useAnchosFila.js';
 
@@ -40,7 +40,7 @@ export function FilaCajas({ fila, ids, defectos, children }: FilaCajasProps) {
           )}
           <div
             className="cajaFilaCelda"
-            style={{ flexGrow: fracs[i] ?? 1, flexShrink: 1, flexBasis: 0 }}
+            style={{ '--caja-fraccion': `${fracs[i] ?? 1}` } as CSSProperties}
           >
             {hijo}
           </div>

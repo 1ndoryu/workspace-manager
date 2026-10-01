@@ -97,11 +97,11 @@ function DiffArchivo({ archivo }: { archivo: ArchivoCambio }) {
         )}
         {lineas.map((l, i) =>
           l.tipo === 'hunk' || l.tipo === 'aviso' ? (
-            <div key={i} className={`cambiosDiffFila cambiosDiffFila--${l.tipo}`}>
+            <div key={`${l.tipo}:${l.vieja || l.texto}:${l.nueva}`} className={`cambiosDiffFila cambiosDiffFila--${l.tipo}`}>
               {l.texto}
             </div>
           ) : (
-            <div key={i} className={`cambiosDiffFila cambiosDiffFila--${l.tipo}`}>
+            <div key={`${l.tipo}:${l.vieja || l.texto}:${l.nueva}`} className={`cambiosDiffFila cambiosDiffFila--${l.tipo}`}>
               <span className="cambiosDiffNum">{l.vieja}</span>
               <span className="cambiosDiffNum">{l.nueva}</span>
               <span className="cambiosDiffMarca">{l.marca}</span>
@@ -128,14 +128,13 @@ export function PanelCambiosRepo({ clave, ruta }: { clave: string; ruta: string 
     let vivo = true;
     setDatos(null);
     setFallo(false);
-    archivosRepo(clave).then(
-      (d) => {
+    archivosRepo(clave)
+      .then((d) => {
         if (vivo) setDatos(d);
-      },
-      () => {
+      })
+      .catch(() => {
         if (vivo) setFallo(true);
-      },
-    );
+      });
     return () => {
       vivo = false;
     };

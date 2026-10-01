@@ -45,7 +45,7 @@ export function MenuContextual() {
 
   return (
     <div
-      className="menuContextual"
+      className="menuContextual v2Superficie"
       style={{ '--menu-x': `${menu.x}px`, '--menu-y': `${menu.y}px` } as CSSProperties}
       onPointerDown={(e) => e.stopPropagation()}
       role="menu"
