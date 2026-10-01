@@ -7,6 +7,10 @@ export type EstadoDev = 'bajo-mando' | 'deriva' | 'sin-boton' | 'no-aplica';
 
 export interface ProyectoDev {
   clave: string;
+  /* Id de la entrada del registro que lo gestiona (F3: lo usa el tablero
+   * para llamar up/stop/logs/open); null en sin-boton/no-aplica (nada
+   * que arrancar: el tablero no ofrece botones). */
+  id: string | null;
   estado: EstadoDev;
   motivo: string;
 }

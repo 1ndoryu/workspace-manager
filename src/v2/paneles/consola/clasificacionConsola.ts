@@ -23,6 +23,10 @@ export interface Entrada {
   /* Severidad de la vulnerabilidad de dependencias (critical/high/moderate/low).
    * Null salvo en la categoria 'vulnerabilidad'. */
   vulnSeveridad?: SeveridadVuln;
+  /* Id de la entrada del registro del mando dev (F3: el tablero lo usa para
+   * up/stop/logs/open). Solo en entradas 'dev' con entrada (bajo-mando o
+   * deriva); sin-boton/no-aplica y el resto de categorias no lo llevan. */
+  devId?: string | null;
 }
 
 /* Severidad de una vulnerabilidad de dependencias (npm/pnpm/cargo audit). */
@@ -159,7 +163,12 @@ export function problemasDevDe(
   if (info?.estado === 'sin-boton') {
     entradas.push({ categoria: 'dev', motivo: `dev sin botón: ${info.motivo}`, seriedad: 'advertencia' });
   } else if (info?.estado === 'deriva') {
-    entradas.push({ categoria: 'dev', motivo: `dev deriva: ${info.motivo}`, seriedad: 'error' });
+    entradas.push({ categoria: 'dev', motivo: `dev deriva: ${info.motivo}`, seriedad: 'error', devId: info.id });
+  } else if (info?.estado === 'bajo-mando' && info.id) {
+    /* [por que] F3: el tablero ofrece operar lo que el mando gestiona
+     * (arrancar/ver, detener, logs): sin esta linea lo sano seria invisible
+     * y el usuario no sabria que hay mando. Seriedad null (no es problema). */
+    entradas.push({ categoria: 'dev', motivo: `dev bajo mando: ${info.motivo}`, seriedad: null, devId: info.id });
   }
   if (dev?.errorSensor && esMando) {
     entradas.push({ categoria: 'dev', motivo: `dev: sensor falló: ${dev.errorSensor}`, seriedad: 'error' });

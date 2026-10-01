@@ -113,11 +113,30 @@ export interface DatosDev {
   /* Ultimo error al pedir /api/dev/estado: la consola lo pinta en la fila
    * del propio manager en vez de callar (fail-loud). */
   devError: string | null;
+  /* Accion del mando en curso (F3: up puede tardar minutos): bloquea
+   * botones concurrentes igual que devCargando bloquea la vigilancia. */
+  devOcupado: boolean;
+  /* Ultimo resultado de accion (codigo + salida del CLI): la consola lo
+   * pinta bajo la cabecera en vez de callar. Null hasta la primera accion. */
+  devResultado: ResultadoDev | null;
 }
 
-/* Vigilancia dev: pedir el informe al server (1). */
+/* Accion del mando invocable desde el tablero (F3): las que ofrece el CLI. */
+export type AccionDevNombre = 'up' | 'stop' | 'status' | 'logs' | 'open';
+
+/* Resultado de una accion del mando para pintar en la consola. */
+export interface ResultadoDev {
+  accion: AccionDevNombre;
+  id: string;
+  codigo: number;
+  salida: string;
+  en: string;
+}
+
+/* Vigilancia dev: pedir el informe al server (1) + ejecutar acciones (1). */
 export interface AccionesDev {
   cargarDev: () => Promise<void>;
+  accionDev: (accion: AccionDevNombre, id: string) => Promise<void>;
 }
 
 /* Carga inicial e hidratacion: snapshot, catalogo de reglas y un esquema (3). */
