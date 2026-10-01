@@ -11,6 +11,7 @@ import {
   esDelProyecto,
   escanearEscucha,
   leerRegistro,
+  marcadorPuerto,
   PUERTOS_PROTEGIDOS,
   procesosDe,
   RAIZ_REPO,
@@ -32,14 +33,27 @@ function puertoLibre(puerto) {
   );
 }
 
+/* [por que] Tras taskkill el kernel puede tardar ~1s en soltar el socket:
+ * un solo chequeo declara "sobrevive" cuando el proceso ya murio (caso real
+ * 2026-10-01: sonda-f2b pid 12560 terminado pero puerto aun listado).
+ * Reintentar 3x500ms distingue muerte lenta de supervivencia real; si sigue
+ * ocupado, el rojo se mantiene (fail-closed). */
+async function puertoLibreTrasKill(puerto, intentos = 3) {
+  for (let i = 0; i < intentos; i++) {
+    if (await puertoLibre(puerto)) return true;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return puertoLibre(puerto);
+}
+
 /* Revalida el PID antes de matar: CIM fresco, creationTime EXACTA y
  * exe/cmd todavia del proyecto. Si algo cambio (reuso de PID), aborta. */
-async function revalidarPid(pid, rutaProyecto, expectedCmdline, creadoAntes) {
+async function revalidarPid(pid, rutaProyecto, marcador, creadoAntes) {
   const procs = await procesosDe([pid]);
   const proc = procs.get(pid);
   if (!proc?.creado) return { vale: false, porQue: 'proceso desaparecido o sin datos' };
   if (proc.creado !== creadoAntes) return { vale: false, porQue: 'creationTime cambio (PID reusado)' };
-  if (!esDelProyecto(proc, rutaProyecto, expectedCmdline)) {
+  if (!esDelProyecto(proc, rutaProyecto, marcador)) {
     return { vale: false, porQue: 'exe/cmd ya no son del proyecto' };
   }
   return { vale: true };
@@ -163,7 +177,7 @@ export async function stop(argv) {
   for (const h of entrada.puertos) {
     const oyentes = porPuerto.get(h) ?? [];
     for (const o of oyentes) {
-      if (esDelProyecto(procs.get(o.pid), proyecto.ruta, entrada.expectedCmdline)) propios.push(o);
+      if (esDelProyecto(procs.get(o.pid), proyecto.ruta, marcadorPuerto(entrada, h))) propios.push(o);
     }
   }
   if (propios.length === 0) {
@@ -178,15 +192,15 @@ export async function stop(argv) {
   const detenidos = [];
   for (const o of propios) {
     const antes = procs.get(o.pid);
-    const rev = await revalidarPid(o.pid, proyecto.ruta, entrada.expectedCmdline, antes?.creado);
+    const rev = await revalidarPid(o.pid, proyecto.ruta, marcadorPuerto(entrada, o.puerto), antes?.creado);
     if (!rev.vale) {
       return sale(1, { resumen: `stop ${id}: pid ${o.pid} ya no vale (${rev.porQue}): aborto, re-escanea` });
     }
     let tk = await taskkill(o.pid, false);
-    if (!(await puertoLibre(o.puerto))) {
+    if (!(await puertoLibreTrasKill(o.puerto))) {
       tk = await taskkill(o.pid, true);
     }
-    if (!(await puertoLibre(o.puerto))) {
+    if (!(await puertoLibreTrasKill(o.puerto))) {
       return sale(1, { resumen: `stop ${id}: pid ${o.pid} sobrevive tras /F (puerto ${o.puerto} ocupado): NO verde (${tk.salida})` });
     }
     detenidos.push(`${o.puerto} pid ${o.pid}`);
