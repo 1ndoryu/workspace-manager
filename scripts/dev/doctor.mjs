@@ -11,7 +11,7 @@
  * 2 = instrumento OK pero hay huecos visibles (deriva/sin-boton/huerfanos). */
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
@@ -718,13 +718,29 @@ export async function up(argv) {
   return r.codigo;
 }
 
-/* Token local para pulse: en local vale cualquiera >=32 (el real solo vive
+/* Token local ESTABLE para pulse: se genera una vez y se guarda en
+ * <repo>/logs/.pulse-token (gitignored); el backend lo lee para hablar con
+ * pulse sin reiniciarse. En local vale cualquiera >=32 (el real solo vive
  * en Coolify y jamas se commitea); si el entorno ya trae uno, se respeta. */
+const RUTA_TOKEN_PULSE = join(RAIZ_REPO, 'logs', '.pulse-token');
 function envPara(entrada) {
-  if (entrada.id === 'glory-pulse' && !process.env.PULSE_TOKEN) {
-    return { PULSE_TOKEN: randomBytes(32).toString('hex') };
+  if (entrada.id !== 'glory-pulse' || process.env.PULSE_TOKEN) return undefined;
+  let token = '';
+  try {
+    token = readFileSync(RUTA_TOKEN_PULSE, 'utf8').trim();
+  } catch {
+    /* Aun no existe: se genera abajo. */
   }
-  return undefined;
+  if (token.length < 32) {
+    token = randomBytes(32).toString('hex');
+    try {
+      mkdirSync(join(RAIZ_REPO, 'logs'), { recursive: true });
+      writeFileSync(RUTA_TOKEN_PULSE, `${token}\n`);
+    } catch {
+      /* Disco: se usa en memoria solo esta vez. */
+    }
+  }
+  return { PULSE_TOKEN: token };
 }
 
 async function arrancarUno(id, args, visitados) {

@@ -4,6 +4,7 @@ data/cache
 data/*
 !data/cache/
 *.log
+logs/.pulse-token
 .log-*.txt
 *.tsbuildinfo
 .DS_Store
