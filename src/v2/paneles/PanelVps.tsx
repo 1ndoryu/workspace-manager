@@ -102,10 +102,12 @@ export function PanelVps() {
       setAgente(await agenteVps(ctrl.signal));
     } catch {
       if (ctrl.signal.aborted) return;
-      /* Sin red: se conserva el último bueno (SWR); el banner solo salta
-       * si hubo agente y cayó. */
+      /* Sin red: se conserva el último bueno (SWR); si nunca hubo respuesta
+       * se registra el error para no decir "conectando" eternamente. */
       setAgente((prev) =>
-        prev?.disponible ? { disponible: false, snapshot: prev.snapshot, error: 'pulse-inaccesible' } : prev,
+        prev?.disponible
+          ? { disponible: false, snapshot: prev.snapshot, error: 'pulse-inaccesible' }
+          : (prev ?? { disponible: false, snapshot: null, error: 'pulse-inaccesible' }),
       );
     } finally {
       if (agenteAbort.current === ctrl) agenteAbort.current = null;
@@ -248,7 +250,11 @@ export function PanelVps() {
             </Button>
           }
         >
-          {!snapAgente && <div className="docsVacio">conectando con pulse…</div>}
+          {!snapAgente && (
+            <div className="docsVacio">
+              {agente?.error ? `pulse no disponible (${agente.error})` : 'conectando con pulse…'}
+            </div>
+          )}
           {snapAgente && (
             <table className="vpsTabla">
                 <thead>

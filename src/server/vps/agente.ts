@@ -10,6 +10,9 @@ import type {
   VpsAgenteRespuesta,
   VpsAgenteSnapshot,
 } from '../../shared/types.js';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface OpcionesAgente {
   baseUrl: string;
@@ -209,15 +212,27 @@ export function crearAgente(op: OpcionesAgente): { snapshot: () => Promise<VpsAg
   return { snapshot };
 }
 
-/* Instancia de producción desde env (PULSE_URL + PULSE_TOKEN>=32). Sin env
- * la ruta responde `sin-configurar` y el frontend usa legacy. Singleton
- * perezoso: el token se lee una vez y nunca se expone. */
+/* Instancia desde env (PULSE_URL + PULSE_TOKEN>=32) o desde el token local
+ * estable que el mando dev guarda en <repo>/logs/.pulse-token (gitignored)
+ * al arrancar pulse. Sin PULSE_URL se supone pulse local (127.0.0.1:3000).
+ * Sin token (ni env ni fichero) la ruta responde `sin-configurar` y el
+ * frontend usa legacy. Singleton perezoso (el null NO se cachea: reintenta
+ * cada vez hasta que el token exista) y el token nunca se expone. */
 let prod: { snapshot: () => Promise<VpsAgenteRespuesta> } | null = null;
 
+function leerTokenLocal(): string {
+  try {
+    const raiz = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+    return readFileSync(join(raiz, 'logs', '.pulse-token'), 'utf8').trim();
+  } catch {
+    return '';
+  }
+}
+
 export function agenteProd(): { snapshot: () => Promise<VpsAgenteRespuesta> } | null {
-  const base = (process.env['PULSE_URL'] ?? '').trim();
-  const token = (process.env['PULSE_TOKEN'] ?? '').trim();
-  if (!base || token.length < 32) return null;
+  const base = (process.env['PULSE_URL'] ?? '').trim() || 'http://127.0.0.1:3000';
+  const token = (process.env['PULSE_TOKEN'] ?? '').trim() || leerTokenLocal();
+  if (token.length < 32) return null;
   if (!prod) prod = crearAgente({ baseUrl: base, token });
   return prod;
 }
