@@ -651,12 +651,25 @@ export async function contextoEntrada(id, args) {
   }
   const pids = [...new Set(escucha.map((e) => e.pid))];
   const procs = await procesosDe(pids);
+  // [por que] Los binarios Rust compilan en C:\tmp por regla del area: un
+  // `0.0.0.0` suyo jamas contiene RAIZ_REPO y el filtro viejo los borraba
+  // (caso real 2026-10-03: pulse en 3000 visto como "libre"). La contencion
+  // correcta es la misma atribucion que esDelProyecto (exe bajo la ruta del
+  // proyecto o cmd con su expectedCmdline), aplicada a TODAS las entradas.
+  const todas = [...(registro.entradas?.values() ?? [])];
+  const esDeAlgunProyecto = (pr) => {
+    if (!pr) return false;
+    for (const t of todas) {
+      const rAbs = isAbsolute(t.ruta) ? normalize(t.ruta) : resolve(RAIZ_REPO, t.ruta);
+      if (pr.exe && normalizarRuta(pr.exe).startsWith(normalizarRuta(rAbs) + '\\')) return true;
+      const marcas = Array.isArray(t.expectedCmdline) ? t.expectedCmdline : [t.expectedCmdline];
+      if (marcas.some((m) => typeof m === 'string' && m.length > 0 && (pr.cmd ?? '').includes(m))) return true;
+    }
+    return normalizarRuta(`${pr.exe ?? ''} ${pr.cmd ?? ''}`).includes(normalizarRuta(RAIZ_REPO));
+  };
   const candidatos = escucha.filter((e) => {
     if (e.ip === '127.0.0.1' || e.ip === '::1') return true;
-    if (e.ip === '0.0.0.0' || e.ip === '::') {
-      const pr = procs.get(e.pid);
-      return normalizarRuta(`${pr?.exe ?? ''} ${pr?.cmd ?? ''}`).includes(normalizarRuta(RAIZ_REPO));
-    }
+    if (e.ip === '0.0.0.0' || e.ip === '::') return esDeAlgunProyecto(procs.get(e.pid));
     return false;
   });
   const porPuerto = new Map();
