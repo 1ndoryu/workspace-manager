@@ -24,7 +24,8 @@
       "healths": [{ "puerto": 3000, "ruta": "/health", "esperaJson": true }],
       "timeoutMs": 3000,
       "arranqueMs": 180000,
-      "expectedCmdline": "pulse"
+      "expectedCmdline": "pulse",
+      "tipoLauncher": "cargo run (requiere PULSE_TOKEN>=32 en entorno; en local vale cualquiera, el real solo vive en Coolify)"
     },
     {
       "id": "MN-Inmobiliaria",
