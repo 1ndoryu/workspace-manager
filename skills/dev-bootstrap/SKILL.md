@@ -34,6 +34,7 @@ Los `<id>` válidos están en `scripts/dev/registro.json` (p. ej. `MN-Inmobiliar
 
 - Matar o tocar `8787/5174/5175` y procesos de opencode-propio (la app del usuario).
 - `up --all` o arrancar varios Rust a la vez (thrash de compilación). Uno por vez.
+- `up workspace-manager` enciende pulse solo si estaba caído (`requiere: ["glory-pulse"]`); con el 3000 ocupado por otro sale 2 avisando el pid, sin matar.
 - Editar `scripts/quality-sync.mjs` y `sentinel.lock.json.bak` (ruido ajeno sin commitear).
 - Tocar código de otros repos para que algo arranque (p. ej. `glory-harness-core`).
 

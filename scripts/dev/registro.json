@@ -13,7 +13,8 @@
       ],
       "timeoutMs": 3000,
       "arranqueMs": 60000,
-      "expectedCmdline": "workspace-manager"
+      "expectedCmdline": "workspace-manager",
+      "requiere": ["glory-pulse"]
     },
     {
       "id": "glory-pulse",
@@ -31,15 +32,16 @@
       "id": "MN-Inmobiliaria",
       "ruta": "../MN-Inmobiliaria",
       "dominio": "inmobiliaria.localhost",
-      "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
-      "puertos": [3000, 5199],
+      "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"], ["npm", "run", "dev:gateway"]],
+      "puertos": [3000, 5199, 3102],
       "healths": [
         { "puerto": 3000, "ruta": "/api/health", "esperaJson": true },
-        { "puerto": 5199, "ruta": "/", "esperaJson": false }
+        { "puerto": 5199, "ruta": "/", "esperaJson": false },
+        { "puerto": 3102, "ruta": "/health", "esperaJson": true }
       ],
       "timeoutMs": 3000,
       "arranqueMs": 300000,
-      "expectedCmdline": ["glory-backend", "MN-Inmobiliaria"],
+      "expectedCmdline": ["glory-backend", "MN-Inmobiliaria", "gateway"],
       "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\tmp + Vite bajo ruta)"
     },
     {

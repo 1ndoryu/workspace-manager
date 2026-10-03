@@ -155,6 +155,14 @@ async function main() {
       const rec = JSON.parse(backup);
       rec.proyectos = rec.proyectos.slice(0, 1);
       rec.noAplica = {};
+      // [por que] El recorte simula "proyectos sin entrada": las
+      // dependencias `requiere` que apunten fuera del recorte se podan para
+      // que el registro recortado siga valido (un requiere colgado en
+      // produccion SI debe fallar cerrado en leerRegistro).
+      const idsRec = new Set(rec.proyectos.map((p) => p.id));
+      for (const p of rec.proyectos) {
+        if (Array.isArray(p.requiere)) p.requiere = p.requiere.filter((d) => idsRec.has(d));
+      }
       writeFileSync(REGISTRO, JSON.stringify(rec));
       const recortado = await correrDoctor(tmp);
       const sb = recortado.informe.proyectos.filter((p) => p.estado === 'sin-boton');
