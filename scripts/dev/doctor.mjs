@@ -10,6 +10,7 @@
  * de enum, `otro`>20%, snapshot stale); 0 exige instrumento OK + area verde;
  * 2 = instrumento OK pero hay huecos visibles (deriva/sin-boton/huerfanos). */
 import { execFile, execFileSync, spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,6 +76,11 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
     throw new Error('registro: noAplica no es objeto');
   }
   for (const [clave, motivo] of Object.entries(noAplica)) validarMotivo(motivo, `noAplica.${clave}`);
+  for (const e of entradas.values()) {
+    for (const d of e.requiere ?? []) {
+      if (!entradas.has(d)) throw new Error(`registro: '${e.id}' requiere id inexistente '${d}'`);
+    }
+  }
   return { version: 1, entradas, noAplica };
 }
 
@@ -82,7 +88,7 @@ function validarEntrada(e) {
   for (const k of ['id', 'ruta', 'boton', 'puertos', 'expectedCmdline']) {
     if (!(k in e)) throw new Error(`registro: entrada sin '${k}' (${JSON.stringify(e).slice(0, 80)})`);
   }
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) throw new Error(`registro: clave desconocida '${k}' en '${e.id}'`);
   }
@@ -152,6 +158,17 @@ function validarEntrada(e) {
   // Formato cerrado: solo <slug>.localhost; nada publico, nada configurable.
   if ('dominio' in e && (typeof e.dominio !== 'string' || !/^[a-z0-9-]{1,40}\.localhost$/.test(e.dominio))) {
     throw new Error(`registro: '${e.id}' dominio debe ser <slug>.localhost`);
+  }
+  // [por que] `requiere` = dependencias de arranque (p. ej.
+  // workspace-manager necesita pulse: sin el, el panel VPS se queda en
+  // "conectando con pulse..." para siempre). Forma: array de ids del
+  // registro, sin autorreferencia; la existencia se valida en leerRegistro
+  // (aqui aun no se conocen todos los ids) y los ciclos en `up`.
+  if ('requiere' in e) {
+    if (!Array.isArray(e.requiere) || e.requiere.some((d) => typeof d !== 'string' || d.length === 0)) {
+      throw new Error(`registro: '${e.id}' requiere debe ser array de ids (strings no vacios)`);
+    }
+    if (e.requiere.includes(e.id)) throw new Error(`registro: '${e.id}' se requiere a si mismo`);
   }
   // [por que] F0d: nuevo launcher = campo tipoLauncher + checklist, no `if`
   // en codigo. Si viene, debe decir algo (string no vacio); el contenido lo
@@ -545,7 +562,7 @@ function execFileSyncNode() {
 
 /* Lanza detached con logs a <ruta>/logs/dev-up-<id>.log (*.log gitignored).
  * Devuelve pid. Nunca mata nada: el dueño del puerto decide. */
-export async function lanzar(entrada, rutaAbs, argv) {
+export async function lanzar(entrada, rutaAbs, argv, envExtra) {
   const nombreExe = argv[0].toLowerCase();
   const { exe, prefijo } = await resolverExe(nombreExe === 'node' && argv[1] === '-e' ? 'node' : nombreExe);
   const dir = join(rutaAbs, 'logs');
@@ -558,6 +575,7 @@ export async function lanzar(entrada, rutaAbs, argv) {
     detached: true,
     stdio: ['ignore', fd, fd],
     windowsHide: true,
+    ...(envExtra ? { env: { ...process.env, ...envExtra } } : {}),
   });
   hijo.unref();
   if (!hijo.pid) throw new Error('spawn sin pid');
@@ -683,7 +701,9 @@ export async function contextoEntrada(id, args) {
 /* F1 `up <id>`: ya-arriba (verifica, no reinicia) | arranca puertos libres
  * (spawn + probe hasta arranqueMs) | rehusa (ocupado/duplicado/sin-probe/
  * no-verificable/sin entrada: nunca mata, nunca inventa). Exit 0 solo con
- * probe verde; 1 en cualquier otro caso, siempre con motivo. */
+ * probe verde; 1 en cualquier otro caso, siempre con motivo.
+ * Tras el verde propio, asegura `requiere` (dependencias de arranque):
+ * todo verde = 0; dependencia caida/rehusada = 2 (degradado, visible). */
 export async function up(argv) {
   const args = argv ?? [];
   const id = args[0];
@@ -692,33 +712,44 @@ export async function up(argv) {
     return 1;
   }
   const comoJson = args.includes('--json');
-  const sale = (codigo, obj) => {
-    if (comoJson) console.log(JSON.stringify(obj));
-    else console.log(obj.resumen);
-    return codigo;
-  };
+  const r = await arrancarUno(id, args, new Set());
+  if (comoJson) console.log(JSON.stringify({ id, codigo: r.codigo, resumen: r.resumen }));
+  else console.log(r.resumen);
+  return r.codigo;
+}
 
+/* Token local para pulse: en local vale cualquiera >=32 (el real solo vive
+ * en Coolify y jamas se commitea); si el entorno ya trae uno, se respeta. */
+function envPara(entrada) {
+  if (entrada.id === 'glory-pulse' && !process.env.PULSE_TOKEN) {
+    return { PULSE_TOKEN: randomBytes(32).toString('hex') };
+  }
+  return undefined;
+}
+
+async function arrancarUno(id, args, visitados) {
+  if (visitados.has(id)) return { codigo: 1, resumen: `up ${id}: ciclo en requiere (omitido)` };
+  visitados.add(id);
   const ctx = await contextoEntrada(id, args);
   if (!ctx.ok) {
-    return sale(1, { resumen: `up ${id}: ${ctx.resumen}` });
+    return { codigo: 1, resumen: `up ${id}: ${ctx.resumen}` };
   }
   const { entrada, proyecto, rutaAbs, porPuerto, procs } = ctx;
   const r = await clasificarEntrada(proyecto, entrada, porPuerto, procs);
   if (r.estado === 'bajo-mando') {
-    return sale(0, { id, veredicto: 'ya-arriba', resumen: `up ${id}: ya-arriba (${r.motivo})` });
+    return await conDependencias(id, entrada, args, visitados, 0, `up ${id}: ya-arriba (${r.motivo})`);
   }
   const caidos = r.detalle.filter((d) => d.situacion === 'libre');
   const bloqueos = r.detalle.filter((d) => d.situacion !== 'libre' && d.situacion !== 'arriba');
   if (bloqueos.length > 0) {
     const b = bloqueos[0];
-    return sale(1, {
-      id,
-      veredicto: 'rehusado',
+    return {
+      codigo: 1,
       resumen: `up ${id}: rehusado (puerto ${b.puerto}: ${b.situacion}${b.pids.length ? ` pids ${b.pids.join(',')}` : ''}): el mando no mata ni suplanta`,
-    });
+    };
   }
   if (caidos.length === 0) {
-    return sale(1, { resumen: `up ${id}: deriva sin puerto libre (${r.motivo}): nada arrancable` });
+    return { codigo: 1, resumen: `up ${id}: deriva sin puerto libre (${r.motivo}): nada arrancable` };
   }
   const timeoutMs = entrada.timeoutMs ?? 2000;
   const limiteMs = entrada.arranqueMs ?? 60_000;
@@ -729,9 +760,9 @@ export async function up(argv) {
     const argvLanzador = entrada.boton[i];
     let lan;
     try {
-      lan = await lanzar(entrada, rutaAbs, argvLanzador);
+      lan = await lanzar(entrada, rutaAbs, argvLanzador, envPara(entrada));
     } catch (e) {
-      return sale(1, { resumen: `up ${id}: spawn fallo (puerto ${c.puerto}: ${e.message})` });
+      return { codigo: 1, resumen: `up ${id}: spawn fallo (puerto ${c.puerto}: ${e.message})` };
     }
     lanzados.push({ puerto: c.puerto, pid: lan.pid, rutaLog: lan.rutaLog });
   }
@@ -739,16 +770,36 @@ export async function up(argv) {
     const h = healths.find((x) => x.puerto === l.puerto) ?? { puerto: l.puerto };
     const ok = await esperarProbe(l.puerto, h.ruta, h.esperaJson, timeoutMs, limiteMs, entrada.dominio);
     if (!ok) {
-      return sale(1, {
+      return {
+        codigo: 1,
         resumen: `up ${id}: arrancado pid ${l.pid} pero sin probe en ${limiteMs}ms (puerto ${l.puerto}, log ${l.rutaLog}): NO verde`,
-      });
+      };
     }
   }
-  return sale(0, {
+  return await conDependencias(
     id,
-    veredicto: 'arrancado',
-    resumen: `up ${id}: arrancado (${lanzados.map((l) => `${l.puerto} pid ${l.pid}`).join(', ')}) + probe verde`,
-  });
+    entrada,
+    args,
+    visitados,
+    0,
+    `up ${id}: arrancado (${lanzados.map((l) => `${l.puerto} pid ${l.pid}`).join(', ')}) + probe verde`,
+  );
+}
+
+/* Asegura `requiere` tras el verde propio. Si el propio fallo (codigo!=0)
+ * no se persiguen dependencias: el motivo principal manda y no se enmascara. */
+async function conDependencias(id, entrada, args, visitados, codigoPropio, resumenPropio) {
+  if (codigoPropio !== 0) return { codigo: codigoPropio, resumen: resumenPropio };
+  const deps = entrada.requiere ?? [];
+  if (deps.length === 0) return { codigo: 0, resumen: resumenPropio };
+  const partes = [resumenPropio];
+  let codigo = 0;
+  for (const d of deps) {
+    const rd = await arrancarUno(d, args, visitados);
+    partes.push(`[dep] ${rd.resumen}`);
+    if (rd.codigo !== 0) codigo = 2;
+  }
+  return { codigo, resumen: partes.join(' | ') };
 }
 
 /* CLI: doctor --all [--json] [--snapshot-file <ruta>] [--assert].
