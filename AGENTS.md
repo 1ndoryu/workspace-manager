@@ -10,13 +10,15 @@ Tablero del área: frontend React+Vite + backend Node que muestra estado, consol
 Fuente: `scripts/dev/` (`dev.mjs` dispatcher, `doctor.mjs` sensores, `acciones.mjs`, `registro.json`, `trampa.mjs`). Skill: `skills/dev-bootstrap/SKILL.md`.
 
 ```text
-node scripts/dev/dev.mjs doctor --all            # estado honesto de todo (exit 0 verde / 2 degradado / 1 sensor roto)
-node scripts/dev/dev.mjs up "<id>"               # arrancar un proyecto (ya-arriba / arrancado / rehusado, nunca mata a ciegas)
-node scripts/dev/dev.mjs status ["<id>"]         # estado + salud sin tocar nada
-node scripts/dev/dev.mjs stop "<id>"             # detiene solo listeners propios verificados (PID revalidado <500 ms antes)
-node scripts/dev/dev.mjs logs "<id>" [--cola N]  # últimas líneas (defecto 50, tope 200)
-node scripts/dev/dev.mjs open "<id>"             # imprime URLs con nombre (http://<slug>.localhost:<puerto>), sin abrir nada
+kamples doctor --all            # estado honesto de todo (exit 0 verde / 2 degradado / 1 sensor roto)
+kamples up "<id>"               # arrancar un proyecto (ya-arriba / arrancado / rehusado, nunca mata a ciegas)
+kamples status ["<id>"]         # estado + salud sin tocar nada
+kamples stop "<id>"             # detiene solo listeners propios verificados (PID revalidado <500 ms antes)
+kamples logs "<id>" [--cola N]  # últimas líneas (defecto 50, tope 200)
+kamples open "<id>"             # imprime URLs con nombre (http://<slug>.localhost:<puerto>), sin abrir nada
 ```
+
+`kamples` = atajo global (`C:\Users\Owner\bin\kamples.cmd` en el PATH de usuario, terminal nueva para verlo). Canónico sin atajo: `node scripts/dev/dev.mjs ...` desde este repo.
 
 Reglas:
 

@@ -10,13 +10,15 @@ Operas los 17 proyectos del área con el mando `dev`. Todo desde `workspace-mana
 ## Comandos
 
 ```text
-node scripts/dev/dev.mjs doctor --all            # ver todo (exit 0 verde / 2 degradado / 1 sensor roto)
-node scripts/dev/dev.mjs up "<id>"               # arrancar (nunca mata procesos ajenos a ciegas)
-node scripts/dev/dev.mjs status ["<id>"]         # estado sin tocar nada
-node scripts/dev/dev.mjs stop "<id>"             # parar (solo listeners propios verificados)
-node scripts/dev/dev.mjs logs "<id>" [--cola N] # logs (defecto 50, tope 200)
-node scripts/dev/dev.mjs open "<id>"            # mostrar URLs con nombre (http://<slug>.localhost:<puerto>)
+kamples doctor --all            # ver todo (exit 0 verde / 2 degradado / 1 sensor roto)
+kamples up "<id>"               # arrancar (nunca mata procesos ajenos a ciegas)
+kamples status ["<id>"]         # estado sin tocar nada
+kamples stop "<id>"             # parar (solo listeners propios verificados)
+kamples logs "<id>" [--cola N] # logs (defecto 50, tope 200)
+kamples open "<id>"            # mostrar URLs con nombre (http://<slug>.localhost:<puerto>)
 ```
+
+`kamples` = atajo global (`C:\Users\Owner\bin\kamples.cmd` en el PATH de usuario; hace falta terminal nueva la primera vez). Sin atajo: `node scripts/dev/dev.mjs ...` desde el repo.
 
 Los `<id>` válidos están en `scripts/dev/registro.json` (p. ej. `MN-Inmobiliaria`, `NAKOMI`, `WANDORIUS`, `PROYECTO TASKS`, `glory-pulse`, `gloryapi`).
 
