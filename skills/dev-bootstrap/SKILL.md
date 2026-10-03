@@ -15,7 +15,7 @@ node scripts/dev/dev.mjs up "<id>"               # arrancar (nunca mata procesos
 node scripts/dev/dev.mjs status ["<id>"]         # estado sin tocar nada
 node scripts/dev/dev.mjs stop "<id>"             # parar (solo listeners propios verificados)
 node scripts/dev/dev.mjs logs "<id>" [--cola N] # logs (defecto 50, tope 200)
-node scripts/dev/dev.mjs open "<id>"            # mostrar URLs
+node scripts/dev/dev.mjs open "<id>"            # mostrar URLs con nombre (http://<slug>.localhost:<puerto>)
 ```
 
 Los `<id>` válidos están en `scripts/dev/registro.json` (p. ej. `MN-Inmobiliaria`, `NAKOMI`, `WANDORIUS`, `PROYECTO TASKS`, `glory-pulse`, `gloryapi`).

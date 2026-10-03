@@ -4,6 +4,7 @@
     {
       "id": "workspace-manager",
       "ruta": ".",
+      "dominio": "workspace.localhost",
       "boton": [["npm", "run", "server"], ["npm", "run", "dev", "--", "--port", "5175", "--strictPort"]],
       "puertos": [8787, 5175],
       "healths": [
@@ -17,7 +18,8 @@
     {
       "id": "glory-pulse",
       "ruta": "../glory-pulse",
-      "boton": [["cargo", "run", "-p", "pulse"]],
+      "dominio": "pulse.localhost",
+      "boton": [["cargo", "run", "--manifest-path", "pulse/Cargo.toml"]],
       "puertos": [3000],
       "healths": [{ "puerto": 3000, "ruta": "/health", "esperaJson": true }],
       "timeoutMs": 3000,
@@ -27,6 +29,7 @@
     {
       "id": "MN-Inmobiliaria",
       "ruta": "../MN-Inmobiliaria",
+      "dominio": "inmobiliaria.localhost",
       "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
       "puertos": [3000, 5199],
       "healths": [
@@ -41,6 +44,7 @@
     {
       "id": "NAKOMI",
       "ruta": "../NAKOMI",
+      "dominio": "nakomi.localhost",
       "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
       "puertos": [3000, 5173],
       "healths": [
@@ -55,6 +59,7 @@
     {
       "id": "PROYECTO TASKS",
       "ruta": "../PROYECTO TASKS",
+      "dominio": "tareas.localhost",
       "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
       "puertos": [4190, 4191],
       "healths": [
@@ -69,6 +74,7 @@
     {
       "id": "WANDORIUS",
       "ruta": "../WANDORIUS",
+      "dominio": "wandorius.localhost",
       "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
       "puertos": [3000, 5173],
       "healths": [
@@ -83,6 +89,7 @@
     {
       "id": "gloryapi",
       "ruta": "../gloryapi",
+      "dominio": "gloryapi.localhost",
       "boton": [["npm", "run", "dev", "-w", "server"], ["npm", "run", "dev", "-w", "client"]],
       "puertos": [3101, 5173],
       "healths": [
@@ -96,6 +103,7 @@
     {
       "id": "Glory-Laminal",
       "ruta": "../Glory-Laminal",
+      "dominio": "laminal.localhost",
       "boton": [["npm", "run", "dev"]],
       "puertos": [5173],
       "healths": [{ "puerto": 5173, "ruta": "/", "esperaJson": false }],
@@ -106,6 +114,7 @@
     {
       "id": "coolify-manager-rs",
       "ruta": "../coolify-manager-rs",
+      "dominio": "coolify.localhost",
       "boton": [["npm", "run", "dev:web"]],
       "puertos": [5173],
       "healths": [{ "puerto": 5173, "ruta": "/", "esperaJson": false }],
@@ -117,6 +126,7 @@
     {
       "id": "glory-harness",
       "ruta": "../glory-harness",
+      "dominio": "harness.localhost",
       "boton": [["cargo", "run", "-p", "glory-harness", "--", "web", "--puerto", "8799"]],
       "puertos": [8799],
       "healths": [{ "puerto": 8799, "ruta": "/healthz", "esperaJson": true }],
