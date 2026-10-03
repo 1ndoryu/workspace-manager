@@ -82,7 +82,7 @@ function validarEntrada(e) {
   for (const k of ['id', 'ruta', 'boton', 'puertos', 'expectedCmdline']) {
     if (!(k in e)) throw new Error(`registro: entrada sin '${k}' (${JSON.stringify(e).slice(0, 80)})`);
   }
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) throw new Error(`registro: clave desconocida '${k}' en '${e.id}'`);
   }
@@ -146,6 +146,12 @@ function validarEntrada(e) {
         throw new Error(`registro: '${e.id}' health con clave desconocida '${k}'`);
       }
     }
+  }
+  // [por que] Dominio .localhost = URL con nombre por proyecto sin tocar
+  // hosts ni pedir administrador (el navegador lo resuelve a loopback).
+  // Formato cerrado: solo <slug>.localhost; nada publico, nada configurable.
+  if ('dominio' in e && (typeof e.dominio !== 'string' || !/^[a-z0-9-]{1,40}\.localhost$/.test(e.dominio))) {
+    throw new Error(`registro: '${e.id}' dominio debe ser <slug>.localhost`);
   }
   // [por que] F0d: nuevo launcher = campo tipoLauncher + checklist, no `if`
   // en codigo. Si viene, debe decir algo (string no vacio); el contenido lo
@@ -293,10 +299,14 @@ export function esDelProyecto(proc, rutaProyecto, expectedCmdline) {
   return false;
 }
 
-function sondear(puerto, rutaRecurso, esperaJson, timeoutMs) {
+function sondear(puerto, rutaRecurso, esperaJson, timeoutMs, dominio) {
+  // [por que] Node/SO no resuelven *.localhost (solo el navegador aplica el
+  // caso especial). El probe conecta a 127.0.0.1 con cabecera Host = dominio:
+  // verifica que el servicio sirve ese nombre virtual. Sin dominio, como antes.
+  const cabeceras = dominio && dominio !== '127.0.0.1' ? { Host: dominio } : undefined;
   return new Promise((resolveP) => {
     const req = http.get(
-      { host: '127.0.0.1', port: puerto, path: rutaRecurso || '/', timeout: timeoutMs },
+      { host: '127.0.0.1', port: puerto, path: rutaRecurso || '/', timeout: timeoutMs, headers: cabeceras },
       (res) => {
         let cuerpo = '';
         res.on('data', (t) => {
@@ -436,7 +446,7 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
       break;
     }
     consumidos.add(`${propio.ip}:${propio.puerto}:${propio.pid}`);
-    const s = await sondear(h.puerto, h.ruta, h.esperaJson, timeoutMs);
+    const s = await sondear(h.puerto, h.ruta, h.esperaJson, timeoutMs, entrada.dominio);
     if (!s.ok) {
       estado = 'deriva';
       motivo = `puerto ${h.puerto} sin probe (status ${s.status})`;
@@ -554,11 +564,11 @@ export async function lanzar(entrada, rutaAbs, argv) {
   return { pid: hijo.pid, rutaLog };
 }
 
-function esperarProbe(puerto, rutaRecurso, esperaJson, timeoutMs, limiteMs) {
+function esperarProbe(puerto, rutaRecurso, esperaJson, timeoutMs, limiteMs, dominio) {
   const t0 = Date.now();
   return new Promise((resolveP) => {
     const intento = async () => {
-      const s = await sondear(puerto, rutaRecurso, esperaJson, timeoutMs);
+      const s = await sondear(puerto, rutaRecurso, esperaJson, timeoutMs, dominio);
       if (s.ok) {
         resolveP(true);
         return;
@@ -714,7 +724,7 @@ export async function up(argv) {
   }
   for (const l of lanzados) {
     const h = healths.find((x) => x.puerto === l.puerto) ?? { puerto: l.puerto };
-    const ok = await esperarProbe(l.puerto, h.ruta, h.esperaJson, timeoutMs, limiteMs);
+    const ok = await esperarProbe(l.puerto, h.ruta, h.esperaJson, timeoutMs, limiteMs, entrada.dominio);
     if (!ok) {
       return sale(1, {
         resumen: `up ${id}: arrancado pid ${l.pid} pero sin probe en ${limiteMs}ms (puerto ${l.puerto}, log ${l.rutaLog}): NO verde`,

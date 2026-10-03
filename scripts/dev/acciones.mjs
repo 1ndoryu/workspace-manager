@@ -144,8 +144,9 @@ export async function open(argv) {
     return 1;
   }
   const healths = e.entrada.healths?.length ? e.entrada.healths : e.entrada.puertos.map((puerto) => ({ puerto }));
+  const dominio = e.entrada.dominio ?? '127.0.0.1';
   for (const h of healths) {
-    console.log(`http://127.0.0.1:${h.puerto}${h.ruta ?? '/'}`);
+    console.log(`http://${dominio}:${h.puerto}${h.ruta ?? '/'}`);
   }
   return 0;
 }
