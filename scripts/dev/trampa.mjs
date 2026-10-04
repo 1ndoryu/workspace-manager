@@ -173,6 +173,15 @@ async function main() {
     }
     ok('ruta sin-boton punta a punta', recortadoOk, `${nSinBoton} sin-boton (esperado ${nSnap - 1})`);
 
+    /* Deteccion de choques (03AA-3): dos entradas no pueden reclamar el mismo
+     * puerto. Caja negra: el informe trae `compartidos`; debe venir vacio. */
+    const comp = base.informe.compartidos;
+    ok(
+      'sin puertos compartidos',
+      Array.isArray(comp) && comp.length === 0,
+      Array.isArray(comp) ? (comp.length === 0 ? '0 choques' : comp.map((c) => `${c.puerto}:${c.ids.join('+')}`).join(' ')) : 'campo compartidos ausente',
+    );
+
     /* Test negativo: muerta la hija, el puerto debe desaparecer del informe. */
     hija.kill();
     hija = null;

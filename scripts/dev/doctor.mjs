@@ -88,7 +88,7 @@ function validarEntrada(e) {
   for (const k of ['id', 'ruta', 'boton', 'puertos', 'expectedCmdline']) {
     if (!(k in e)) throw new Error(`registro: entrada sin '${k}' (${JSON.stringify(e).slice(0, 80)})`);
   }
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) throw new Error(`registro: clave desconocida '${k}' en '${e.id}'`);
   }
@@ -105,6 +105,19 @@ function validarEntrada(e) {
   }
   if (!Array.isArray(e.puertos) || e.puertos.some((p) => !Number.isInteger(p) || p < 1 || p > 65535)) {
     throw new Error(`registro: '${e.id}' puertos invalidos`);
+  }
+  // [por que] `env` fija puertos/URLs por proyecto sin tocar sus repos
+  // (PORT/VITE_API_URL/VITE_PORT): el mando compone el entorno, cada repo
+  // conserva sus defaults. Solo strings no vacios; nada de objetos.
+  if ('env' in e) {
+    if (typeof e.env !== 'object' || e.env === null || Array.isArray(e.env)) {
+      throw new Error(`registro: '${e.id}' env no es objeto`);
+    }
+    for (const [k, v] of Object.entries(e.env)) {
+      if (typeof v !== 'string' || v.length === 0) {
+        throw new Error(`registro: '${e.id}' env['${k}'] debe ser string no vacio`);
+      }
+    }
   }
   // [por que] argv[i] <-> puertos[i]: sin igualdad posicional el `up` no sabe
   // que lanzar ante un puerto caido y cualquier suposicion seria verde fingido.
@@ -320,33 +333,42 @@ function sondear(puerto, rutaRecurso, esperaJson, timeoutMs, dominio) {
   // [por que] Node/SO no resuelven *.localhost (solo el navegador aplica el
   // caso especial). El probe conecta a 127.0.0.1 con cabecera Host = dominio:
   // verifica que el servicio sirve ese nombre virtual. Sin dominio, como antes.
+  // [por que 2] Vite por defecto escucha solo en ::1 (IPv6): si 127.0.0.1
+  // rehusa la conexion se reintenta contra ::1 con la misma cabecera Host.
   const cabeceras = dominio && dominio !== '127.0.0.1' ? { Host: dominio } : undefined;
-  return new Promise((resolveP) => {
-    const req = http.get(
-      { host: '127.0.0.1', port: puerto, path: rutaRecurso || '/', timeout: timeoutMs, headers: cabeceras },
-      (res) => {
-        let cuerpo = '';
-        res.on('data', (t) => {
-          cuerpo += t;
-          if (cuerpo.length > 64 * 1024) req.destroy();
-        });
-        res.on('end', () => {
-          const okStatus = res.statusCode === 200;
-          let okJson = true;
-          if (esperaJson !== false) {
-            try {
-              JSON.parse(cuerpo);
-            } catch {
-              okJson = false;
+  const intentar = (host) =>
+    new Promise((resolveP) => {
+      const req = http.get(
+        { host, port: puerto, path: rutaRecurso || '/', timeout: timeoutMs, headers: cabeceras },
+        (res) => {
+          let cuerpo = '';
+          res.on('data', (t) => {
+            cuerpo += t;
+            if (cuerpo.length > 64 * 1024) req.destroy();
+          });
+          res.on('end', () => {
+            const okStatus = res.statusCode === 200;
+            let okJson = true;
+            if (esperaJson !== false) {
+              try {
+                JSON.parse(cuerpo);
+              } catch {
+                okJson = false;
+              }
             }
-          }
-          resolveP({ ok: okStatus && okJson, status: res.statusCode });
-        });
-      },
-    );
-    req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', () => resolveP({ ok: false, status: null }));
-  });
+            resolveP({ ok: okStatus && okJson, status: res.statusCode });
+          });
+        },
+      );
+      req.on('timeout', () => req.destroy(new Error('timeout')));
+      req.on('error', () => resolveP({ ok: false, status: null }));
+    });
+  return (async () => {
+    const v4 = await intentar('127.0.0.1');
+    if (v4.ok) return v4;
+    if (v4.status === null) return intentar('::1');
+    return v4;
+  })();
 }
 
 /* Clasifica snapshot x registro x escucha. Por proyecto: exactamente un
@@ -477,6 +499,7 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
 
 function codigoSalida(informe) {
   if (informe.errorSensor) return 1;
+  if ((informe.compartidos ?? []).length > 0) return 2;
   if (informe.huerfanos.length > 0) return 2;
   if (informe.proyectos.some((p) => p.estado === 'deriva' || p.estado === 'sin-boton')) return 2;
   return 0;
@@ -489,6 +512,9 @@ function tabla(informe) {
   }
   for (const h of informe.huerfanos) {
     lineas.push(`deriva      ${h.clave ? `@${h.clave} ` : '(sin proyecto) '}(puerto ${h.puerto} pid ${h.pid}${h.verificado ? '' : ' NO-VERIFICADO'})`);
+  }
+  for (const c of informe.compartidos ?? []) {
+    lineas.push(`aviso       puerto ${c.puerto} compartido: ${c.ids.join(', ')}`);
   }
   if (informe.errorSensor) lineas.push(`ERROR sensor: ${informe.errorSensor}`);
   lineas.push(`tomadoEn=${informe.tomadoEn} snapshotEn=${informe.snapshotEn}`);
@@ -724,7 +750,11 @@ export async function up(argv) {
  * en Coolify y jamas se commitea); si el entorno ya trae uno, se respeta. */
 const RUTA_TOKEN_PULSE = join(RAIZ_REPO, 'logs', '.pulse-token');
 function envPara(entrada) {
-  if (entrada.id !== 'glory-pulse' || process.env.PULSE_TOKEN) return undefined;
+  // [por que] Lo declarado en `env` se suma al entorno del hijo (lanzar lo
+  // mezcla sobre process.env). PULSE_TOKEN de proceso o declarado se respeta:
+  // el token estable del archivo solo entra cuando falta en ambos.
+  const extra = entrada.env && typeof entrada.env === 'object' ? { ...entrada.env } : undefined;
+  if (entrada.id !== 'glory-pulse' || process.env.PULSE_TOKEN || (extra && extra.PULSE_TOKEN)) return extra;
   let token = '';
   try {
     token = readFileSync(RUTA_TOKEN_PULSE, 'utf8').trim();
@@ -740,7 +770,25 @@ function envPara(entrada) {
       /* Disco: se usa en memoria solo esta vez. */
     }
   }
-  return { PULSE_TOKEN: token };
+  return { ...extra, PULSE_TOKEN: token };
+}
+
+/* Puertos reclamados por >1 entrada: el mando los DETECTA y degrada (exit 2)
+ * en vez de dejar que dos `up` peleen por el mismo puerto. Solo registro
+ * interno; un oyente externo (p. ej. 5173 ocupado por opencode-propio) sale
+ * como ocupado-desconocido en cada entrada, no aqui. */
+export function detectarCompartidos(registro) {
+  const porPuerto = new Map();
+  for (const e of registro.entradas?.values() ?? []) {
+    for (const p of e.puertos ?? []) {
+      if (!porPuerto.has(p)) porPuerto.set(p, []);
+      porPuerto.get(p).push(e.id);
+    }
+  }
+  return [...porPuerto.entries()]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([puerto, ids]) => ({ puerto, ids: [...ids].sort() }))
+    .sort((a, b) => a.puerto - b.puerto);
 }
 
 async function arrancarUno(id, args, visitados) {
@@ -759,9 +807,19 @@ async function arrancarUno(id, args, visitados) {
   const bloqueos = r.detalle.filter((d) => d.situacion !== 'libre' && d.situacion !== 'arriba');
   if (bloqueos.length > 0) {
     const b = bloqueos[0];
+    // [por que] Si el puerto lo reclaman dos entradas, el rehusado lo dice:
+    // el choque es del registro, no del pid que escucha.
+    let reclamados = [];
+    try {
+      const iReg = args.indexOf('--registro');
+      const reg = leerRegistro(iReg >= 0 ? args[iReg + 1] : undefined);
+      reclamados = (detectarCompartidos(reg).find((c) => c.puerto === b.puerto)?.ids ?? []).filter((x) => x !== id);
+    } catch {
+      /* contextoEntrada ya valido el registro; sin hint. */
+    }
     return {
       codigo: 1,
-      resumen: `up ${id}: rehusado (puerto ${b.puerto}: ${b.situacion}${b.pids.length ? ` pids ${b.pids.join(',')}` : ''}): el mando no mata ni suplanta`,
+      resumen: `up ${id}: rehusado (puerto ${b.puerto}: ${b.situacion}${b.pids.length ? ` pids ${b.pids.join(',')}` : ''}${reclamados.length ? `; reclamado tambien por: ${reclamados.join(', ')}` : ''}): el mando no mata ni suplanta`,
     };
   }
   if (caidos.length === 0) {
@@ -862,7 +920,7 @@ export async function main(argv) {
       errorSensor = `clasificar: ${e.message}`;
     }
   }
-  const informe = { version: 1, tomadoEn, snapshotEn, ttlMs: TTL_MS, errorSensor, ...clasif };
+  const informe = { version: 1, tomadoEn, snapshotEn, ttlMs: TTL_MS, errorSensor, compartidos: detectarCompartidos(registro), ...clasif };
 
   if (conAssert) {
     const fallos = [];
@@ -895,6 +953,9 @@ export async function main(argv) {
     }
     if (clasificados > 0 && otros / clasificados > 0.2) {
       fallos.push(`otro supera 20% (${otros}/${clasificados}): el registro no describe el area`);
+    }
+    for (const c of informe.compartidos ?? []) {
+      fallos.push(`puerto ${c.puerto} compartido: ${c.ids.join(', ')}`);
     }
     if (snapshotEn) {
       const edad = Date.now() - new Date(snapshotEn).getTime();

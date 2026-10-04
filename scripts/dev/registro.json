@@ -13,7 +13,7 @@
       ],
       "timeoutMs": 3000,
       "arranqueMs": 60000,
-      "expectedCmdline": "workspace-manager",
+      "expectedCmdline": ["workspace-manager", "5175"],
       "requiere": ["glory-pulse"]
     },
     {
@@ -32,38 +32,40 @@
       "id": "MN-Inmobiliaria",
       "ruta": "../MN-Inmobiliaria",
       "dominio": "inmobiliaria.localhost",
-      "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"], ["npm", "run", "dev:gateway"]],
-      "puertos": [3000, 5199, 3102],
+      "boton": [["npm", "run", "dev:back"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5199", "--strictPort"], ["npm", "run", "dev:gateway"]],
+      "puertos": [3110, 5199, 3102],
       "healths": [
-        { "puerto": 3000, "ruta": "/api/health", "esperaJson": true },
+        { "puerto": 3110, "ruta": "/api/health", "esperaJson": true },
         { "puerto": 5199, "ruta": "/", "esperaJson": false },
         { "puerto": 3102, "ruta": "/health", "esperaJson": true }
       ],
       "timeoutMs": 3000,
       "arranqueMs": 300000,
-      "expectedCmdline": ["glory-backend", "MN-Inmobiliaria", "gateway"],
-      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\tmp + Vite bajo ruta)"
+      "expectedCmdline": ["glory-backend", "5199", "gateway"],
+      "env": { "PORT": "3110" },
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp + Vite bajo ruta; PORT=3110 por env del mando; front via --prefix+-- para que --port llegue a vite)"
     },
     {
       "id": "NAKOMI",
       "ruta": "../NAKOMI",
       "dominio": "nakomi.localhost",
-      "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
-      "puertos": [3000, 5173],
+      "boton": [["npm", "run", "dev:back"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5176", "--strictPort"]],
+      "puertos": [3103, 5176],
       "healths": [
-        { "puerto": 3000, "ruta": "/api/health", "esperaJson": true },
-        { "puerto": 5173, "ruta": "/", "esperaJson": false }
+        { "puerto": 3103, "ruta": "/api/health", "esperaJson": true },
+        { "puerto": 5176, "ruta": "/", "esperaJson": false }
       ],
       "timeoutMs": 3000,
       "arranqueMs": 300000,
-      "expectedCmdline": ["glory-backend", "NAKOMI"],
-      "tipoLauncher": "glory-template (dev:back = cargo run directo en-arbol + Vite bajo ruta)"
+      "expectedCmdline": ["glory-backend", "5176"],
+      "env": { "PORT": "3103", "VITE_API_URL": "http://localhost:3103" },
+      "tipoLauncher": "glory-template (dev:back = cargo run directo en-arbol con PORT por env + Vite con --port por argv via --prefix+--, sin wrapper; VITE_API_URL por env pisa .env.development)"
     },
     {
       "id": "PROYECTO TASKS",
       "ruta": "../PROYECTO TASKS",
       "dominio": "tareas.localhost",
-      "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
+      "boton": [["npm", "run", "dev:back"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "4191", "--strictPort"]],
       "puertos": [4190, 4191],
       "healths": [
         { "puerto": 4190, "ruta": "/api/health", "esperaJson": true },
@@ -71,60 +73,62 @@
       ],
       "timeoutMs": 3000,
       "arranqueMs": 300000,
-      "expectedCmdline": ["glory-backend", "PROYECTO TASKS"],
-      "tipoLauncher": "glory-template (wrapper run-with-db.mjs lee .env 4190/4191 + Vite bajo ruta)"
+      "expectedCmdline": ["glory-backend", "4191"],
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs lee .env 4190/4191 + Vite via --prefix+-- para que --port llegue)"
     },
     {
       "id": "WANDORIUS",
       "ruta": "../WANDORIUS",
       "dominio": "wandorius.localhost",
-      "boton": [["npm", "run", "dev:back"], ["npm", "run", "dev:front"]],
-      "puertos": [3000, 5173],
+      "boton": [["npm", "run", "dev:back"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5177", "--strictPort"]],
+      "puertos": [3104, 5177],
       "healths": [
-        { "puerto": 3000, "ruta": "/api/health", "esperaJson": true },
-        { "puerto": 5173, "ruta": "/", "esperaJson": false }
+        { "puerto": 3104, "ruta": "/api/health", "esperaJson": true },
+        { "puerto": 5177, "ruta": "/", "esperaJson": false }
       ],
       "timeoutMs": 3000,
       "arranqueMs": 300000,
-      "expectedCmdline": ["glory-backend", "WANDORIUS"],
-      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\tmp + Vite bajo ruta)"
+      "expectedCmdline": ["glory-backend", "5177"],
+      "env": { "PORT": "3104", "VITE_API_URL": "http://localhost:3104" },
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp con PORT por env + Vite con --port por argv)"
     },
     {
       "id": "gloryapi",
       "ruta": "../gloryapi",
       "dominio": "gloryapi.localhost",
-      "boton": [["npm", "run", "dev", "-w", "server"], ["npm", "run", "dev", "-w", "client"]],
-      "puertos": [3101, 5173],
+      "boton": [["npm", "run", "dev", "-w", "server"], ["npm", "run", "dev", "-w", "client", "--", "--port", "5178", "--strictPort"]],
+      "puertos": [3101, 5178],
       "healths": [
-        { "puerto": 3101, "ruta": "/api/health", "esperaJson": true },
-        { "puerto": 5173, "ruta": "/", "esperaJson": false }
+        { "puerto": 3101, "ruta": "/api/ping", "esperaJson": true },
+        { "puerto": 5178, "ruta": "/", "esperaJson": false }
       ],
       "timeoutMs": 3000,
       "arranqueMs": 120000,
-      "expectedCmdline": "gloryapi"
+      "expectedCmdline": ["gloryapi", "5178"]
     },
     {
       "id": "Glory-Laminal",
       "ruta": "../Glory-Laminal",
       "dominio": "laminal.localhost",
-      "boton": [["npm", "run", "dev"]],
-      "puertos": [5173],
-      "healths": [{ "puerto": 5173, "ruta": "/", "esperaJson": false }],
+      "boton": [["npm", "run", "dev", "--", "--port", "5179", "--strictPort"]],
+      "puertos": [5179],
+      "healths": [{ "puerto": 5179, "ruta": "/", "esperaJson": false }],
       "timeoutMs": 3000,
       "arranqueMs": 60000,
-      "expectedCmdline": "Glory-Laminal"
+      "expectedCmdline": "5179"
     },
     {
       "id": "coolify-manager-rs",
       "ruta": "../coolify-manager-rs",
       "dominio": "coolify.localhost",
       "boton": [["npm", "run", "dev:web"]],
-      "puertos": [5173],
-      "healths": [{ "puerto": 5173, "ruta": "/", "esperaJson": false }],
+      "puertos": [5180],
+      "healths": [{ "puerto": 5180, "ruta": "/", "esperaJson": false }],
       "timeoutMs": 3000,
       "arranqueMs": 300000,
       "expectedCmdline": "coolify-manager-rs",
-      "tipoLauncher": "dev-web.mjs (API 8787 no gestionada: puerto protegido del manager; su listener sale huerfano atribuido)"
+      "env": { "VITE_PORT": "5180" },
+      "tipoLauncher": "dev-web.mjs (VITE_PORT fijo por env; API elige puerto libre solo: 8787 del manager intacto; su listener sale huerfano atribuido)"
     },
     {
       "id": "glory-harness",
