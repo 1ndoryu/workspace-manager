@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "server": "tsx watch src/server/index.ts",
+    "server:compilado": "node dist-server/server/index.js",
+    "build:server": "tsc -p tsconfig.server.json",
     "diagnostico": "tsx scripts/diagnostico-escaner.ts",
     "sync:gate": "tsx scripts/sync-gate-schema.mjs",
     "sync:quality": "tsx scripts/quality-sync.mjs",

@@ -5,7 +5,8 @@
       "id": "workspace-manager",
       "ruta": ".",
       "dominio": "workspace.localhost",
-      "boton": [["npm", "run", "server"], ["npm", "run", "dev", "--", "--port", "5175", "--strictPort"]],
+      "boton": [["node", "dist-server/server/index.js"], ["npm", "run", "dev", "--", "--port", "5175", "--strictPort"]],
+      "tipoLauncher": "backend = servidor COMPILADO en un solo proceso node (dist-server/, rebuild con npm run build:server; tsx/cli abria consola visible en su worker hijo) + front directo sin npm/cmd via resolverDirecto; reinicio tras cambios con stop+up",
       "puertos": [8787, 5175],
       "healths": [
         { "puerto": 8787, "ruta": "/api/pc/estado", "esperaJson": true },

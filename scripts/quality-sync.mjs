@@ -60,6 +60,10 @@ const CONSUMIDORES = [
    * init pero nunca registrado; solo sentinel (sin varsense), checkout
    * compartido del área. */
   { nombre: 'limpiador-pc', ruta: 'limpiador-pc', fase: 'F1' },
+  /* glory-agent onboard 2026-10-01 (F10): gate declarado (sentinel+varsense,
+   * checkout compartido del área) pero nunca registrado; pins 0.7.15/2.2.5
+   * con deriva de releases. */
+  { nombre: 'glory-agent', ruta: 'glory-agent', fase: 'F1' },
 ];
 
 /* Herramientas del checkout compartido y su subcarpeta. */

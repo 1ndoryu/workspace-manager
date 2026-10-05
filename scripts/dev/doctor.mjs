@@ -20,7 +20,7 @@ export const DIR_DEV = dirname(fileURLToPath(import.meta.url));
 export const RAIZ_REPO = resolve(DIR_DEV, '..', '..');
 export const RUTA_REGISTRO = join(DIR_DEV, 'registro.json');
 export const TTL_MS = 60_000;
-export const TIMEOUT_SENSOR_MS = 5_000;
+export const TIMEOUT_SENSOR_MS = 12_000;
 export const MAX_PIDS_CONSULTA = 20;
 export const PUERTOS_PROTEGIDOS = new Set([8787, 5174, 5175]);
 export const MOTIVOS_ENUM = new Set([
@@ -52,6 +52,8 @@ const SCRIPTS_NODO_VALIDOS = new Set([
   'dev.sh',
   'dev.ps1',
 ]);
+/* Servidor compilado del propio manager: un solo proceso node (sin tsx/cli
+ * hijo que pida consola). Ruta fijada exacta, no basename generico. */
 
 /* Lee y valida el registro (schema v1). Falla cerrado: cualquier desvio
  * es error, nunca "vale igual". */
@@ -131,7 +133,8 @@ function validarEntrada(e) {
     }
     if ((exe === 'node' || exe.endsWith('/node') || exe.endsWith('\\node')) && argv[1] !== '-e') {
       const nombre = argv[1].split('/').pop().split('\\').pop();
-      if (!SCRIPTS_NODO_VALIDOS.has(nombre)) {
+      const esServidorCompilado = argv[1].replace(/\\/g, '/') === 'dist-server/server/index.js';
+      if (!esServidorCompilado && !SCRIPTS_NODO_VALIDOS.has(nombre)) {
         throw new Error(`registro: '${e.id}' script node fuera de allowlist (${argv[1]})`);
       }
       const rutaScript = resolve(rutaAbs, argv[1]);
@@ -526,7 +529,8 @@ function tabla(informe) {
 }
 
 /* Escucha con UN reintento ante arranque frio (powershell+CIM tras idle
- * puede superar los 5s y no es defecto del area). Dos fallos = real. */
+ * en maquina cargada puede superar los 10s —medido 9s solo el arranque— y
+ * no es defecto del area). Dos fallos = real. */
 export async function escuchaRobusta() {
   try {
     return { escucha: await escanearEscucha(), errorSensor: null };
@@ -590,17 +594,85 @@ function execFileSyncNode() {
   return primero;
 }
 
+/* Resuelve `npm run <script>` al js final lanzado con node, sin pasar por
+ * npm/cmd. [por que] `windowsHide:true` oculta al hijo directo, pero npm
+ * ejecuta el script via `cmd.exe /d /s /c`: el NIETO cmd hereda "sin
+ * consola" (detached) y Windows le crea una ventana VISIBLE nueva; al
+ * cerrarla muere la app (caso real 2026-10-05: vite 5175). Lanzar el js
+ * final con node evita cmd y no abre nada. Fallback: null (=npm original). */
+function resolverDirecto(rutaAbs, argv) {
+  if (argv.length < 3) return null;
+  if (String(argv[0]).toLowerCase() !== 'npm') return null;
+  const sub = String(argv[1]).toLowerCase();
+  if (sub !== 'run' && sub !== 'run-script') return null;
+  let pkg;
+  try {
+    pkg = JSON.parse(readFileSync(join(rutaAbs, 'package.json'), 'utf8'));
+  } catch (e) {
+    return null;
+  }
+  const linea = pkg?.scripts?.[argv[2]];
+  if (typeof linea !== 'string' || !linea.trim()) return null;
+  const toks = linea.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
+  if (!toks.length) return null;
+  const sinComillas = (t) => String(t).replace(/^["']|["']$/g, '');
+  const primero = sinComillas(toks[0]);
+  const argsScript = toks.slice(1).map(sinComillas);
+  const resto = argv.slice(3).filter((t) => t !== '--');
+  let jsReal;
+  if (/\.m?c?js$/.test(primero)) {
+    jsReal = isAbsolute(primero) ? normalize(primero) : resolve(rutaAbs, primero);
+    if (!existsSync(jsReal)) return null;
+  } else {
+    const partes = primero.split('/');
+    const dirPkg = join(rutaAbs, 'node_modules', ...partes);
+    const claveBin = partes[partes.length - 1];
+    if (!existsSync(join(rutaAbs, 'node_modules', '.bin', claveBin)) &&
+        !existsSync(join(rutaAbs, 'node_modules', '.bin', `${claveBin}.cmd`))) return null;
+    let pkgBin;
+    try {
+      pkgBin = JSON.parse(readFileSync(join(dirPkg, 'package.json'), 'utf8'));
+    } catch (e) {
+      return null;
+    }
+    const campo = pkgBin?.bin;
+    const rel = typeof campo === 'string' ? campo : campo?.[claveBin];
+    if (typeof rel !== 'string') return null;
+    jsReal = resolve(dirPkg, rel);
+    if (!existsSync(jsReal)) return null;
+  }
+  return [process.execPath, jsReal, ...argsScript, ...resto];
+}
+
 /* Lanza detached con logs a <ruta>/logs/dev-up-<id>.log (*.log gitignored).
  * Devuelve pid. Nunca mata nada: el dueño del puerto decide. */
 export async function lanzar(entrada, rutaAbs, argv, envExtra) {
-  const nombreExe = argv[0].toLowerCase();
-  const { exe, prefijo } = await resolverExe(nombreExe === 'node' && argv[1] === '-e' ? 'node' : nombreExe);
+  const directo = resolverDirecto(rutaAbs, argv);
+  const argvLanzar = directo ?? argv;
+  let exe;
+  let prefijo;
+  if (directo) {
+    exe = process.execPath;
+    prefijo = [];
+  } else {
+    const nombreExe = argvLanzar[0].toLowerCase();
+    ({ exe, prefijo } = await resolverExe(nombreExe === 'node' && argvLanzar[1] === '-e' ? 'node' : nombreExe));
+  }
   const dir = join(rutaAbs, 'logs');
   mkdirSync(dir, { recursive: true });
   const rutaLog = join(dir, `dev-up-${entrada.id}.log`);
-  appendFileSync(rutaLog, `--- up ${new Date().toISOString()} :: ${argv.join(' ')}\n`);
+  appendFileSync(rutaLog, `--- up ${new Date().toISOString()} :: ${argvLanzar.join(' ')}\n`);
   const fd = openSync(rutaLog, 'a');
-  const hijo = spawn(exe, [...prefijo, ...argv.slice(1)], {
+  // [por que] La atribucion (esDelProyecto) exige exe bajo la ruta del
+  // proyecto o cmd con RAIZ_REPO/expectedCmdline: un `node script-relativo`
+  // queda "ocupado-desconocido" y el `up` nunca lo adopta (caso real
+  // 2026-10-05: backend compilado). Absolutizar no cambia el programa.
+  const esNodo = exe.toLowerCase().endsWith('node.exe') || exe.toLowerCase().endsWith('/node') || exe === process.execPath;
+  const argsSpawn = [...prefijo, ...argvLanzar.slice(1)];
+  if (esNodo && argsSpawn[0] && !argsSpawn[0].startsWith('-') && !isAbsolute(argsSpawn[0]) && existsSync(resolve(rutaAbs, argsSpawn[0]))) {
+    argsSpawn[0] = resolve(rutaAbs, argsSpawn[0]);
+  }
+  const hijo = spawn(exe, argsSpawn, {
     cwd: rutaAbs,
     detached: true,
     stdio: ['ignore', fd, fd],
