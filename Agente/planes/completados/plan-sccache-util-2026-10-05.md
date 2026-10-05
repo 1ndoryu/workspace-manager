@@ -33,6 +33,17 @@ y con menos CPU, tirando de caché en vez de recompilar todo.
    (coolify/limpiador). Decidir el punto mínimo de inyección de entorno y
    verificar que `RUSTC_WRAPPER=sccache` (ya en usuario) llega a esos spawns.
    Registrarlo aquí antes de programar.
+   **Resultado F1 (2026-10-05):** todos los caminos heredan el entorno de
+   usuario (mando `lanzar()` sin `envExtra` → `process.env` íntegro;
+   wrappers hacen `{...process.env, ...}`; npm hereda). Punto mínimo =
+   **variables de usuario** (precedente: `RUSTC_WRAPPER`/`CARGO_TARGET_DIR`/
+   `SCCACHE_CACHE_SIZE` ya viven ahí) + explícito en los 2 wrappers y en el
+   `env` del registro (pulse/harness) para efecto inmediato sin reiniciar el
+   backend 8787. Corrección: los wrappers MN (60 líneas) y WANDORIUS (120
+   líneas, con heavy-guard + cuota + markers) NO son idénticos (el F2 de
+   05AA-1 decía que sí: errata). NAKOMI `dev:back` = `cargo run --bin
+   glory-backend` directo (exento igual). Coolify `dev-web.mjs` ya es
+   sccache-aware (línea 120) y trae su propio watcher con cuota 4 GB.
 2. **F2 aplicar entorno.** `CARGO_INCREMENTAL=0` + `SCCACHE_BASEDIRS` (raíz del
    área) en los puntos de F1. Solo entorno, sin tocar flags ni perfiles.
 3. **F3 validación con medida.** Borrar `C:\tmp\glory-target` (hábito del
