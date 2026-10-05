@@ -1,15 +1,19 @@
-/* Panel de la VPS: solo tiempo real via pulse (2026-10-01). Una sola caja:
- * sitios agrupados por nombre legible (el backend resuelve `app-{uuid}`) +
- * infra sin sitio al final. Sin legacy: lo que no venia de pulse salio
- * (lista lenta, detalle de 7 piezas, resumen del audit). */
+/* Panel de la VPS: tiempo real via pulse + lista completa via Coolify
+ * (2026-10-05). Una sola caja: sitios agrupados por nombre legible (el
+ * backend resuelve `app-{uuid}`) + infra sin sitio al final. Lo detenido no
+ * tiene contenedores en vivo y antes desaparecía: ahora la lista de Coolify
+ * aporta todos los sitios y pulse solo el vivo (fila con estado Coolify y
+ * ceros si está detenido). Sin legacy: detalle de 7 piezas y resumen del
+ * audit salieron (solo queda el % de disco del host). */
 import { useEffect, useRef, useState } from 'react';
 import type {
   VpsAgenteContenedor,
   VpsAgenteRespuesta,
   VpsConfig,
   VpsRecursos,
+  VpsSitio,
 } from '../../shared/types.js';
-import { agenteVps, configVps, invalidarVps, recursosVps } from '../vps/apiVps.js';
+import { agenteVps, configVps, invalidarVps, recursosVps, sitiosVps } from '../vps/apiVps.js';
 import { fmtBytes } from '../../shared/format.js';
 import { PanelVpsRecursos } from './PanelVpsRecursos.js';
 import { FilaCajas } from '../ui/caja/FilaCajas.js';
@@ -90,6 +94,11 @@ export function PanelVps() {
    * blk de los contenedores llegan a cero). null = aún sin respuesta. */
   const [discoPct, setDiscoPct] = useState<number | null>(null);
 
+  /* Lista completa de sitios desde Coolify (incluye detenidos, que no tienen
+   * contenedores en vivo y sin esto desaparecían de la tabla). null = aún
+   * sin respuesta: se muestra solo lo vivo hasta entonces (fail-open). */
+  const [sitios, setSitios] = useState<VpsSitio[] | null>(null);
+
   const snapAgente = agente?.disponible ? (agente.snapshot ?? null) : null;
 
   async function tickAgente() {
@@ -137,6 +146,12 @@ export function PanelVps() {
           if (pct !== null) setDiscoPct(pct);
         })
         .catch(() => {});
+      /* La lista de sitios es lenta en frío: cadencia propia de 60 s junto
+       * al disco (no cada 5 s con lo vivo). Un fallo no borra la última
+       * lista buena: lo detenido seguiría visible. */
+      sitiosVps()
+        .then((s) => setSitios(s.sitios))
+        .catch(() => {});
     };
     pedirDisco();
     const discoCadaMinuto = setInterval(pedirDisco, 60000);
@@ -158,7 +173,10 @@ export function PanelVps() {
   }, []);
 
   /* Grupos por sitio (nombre legible del backend) en orden alfabético +
-   * infra sin sitio al final: el id largo no se muestra nunca. */
+   * infra sin sitio al final: el id largo no se muestra nunca. La lista de
+   * Coolify aporta TODOS los sitios (vivos o detenidos); lo vivo de pulse
+   * aporta contenedores y métricas. Un sitio detenido queda con fila propia
+   * (estado Coolify, ceros) en vez de desaparecer. */
   const grupos = (() => {
     const porSitio = new Map<string, { dominio: string | null; filas: VpsAgenteContenedor[] }>();
     const infra: VpsAgenteContenedor[] = [];
@@ -175,17 +193,33 @@ export function PanelVps() {
       if (!g.dominio && c.dominio) g.dominio = c.dominio;
       g.filas.push(c);
     }
-    const sitios = [...porSitio.entries()].sort(([a], [b]) => a.localeCompare(b));
-    return { sitios, infra };
+    const estadoSitio = new Map<string, string>();
+    for (const s of sitios ?? []) {
+      estadoSitio.set(s.nombre, s.estadoReal || 'detenido');
+      let g = porSitio.get(s.nombre);
+      if (!g) {
+        g = { dominio: s.dominio || null, filas: [] };
+        porSitio.set(s.nombre, g);
+      } else if (!g.dominio && s.dominio) {
+        g.dominio = s.dominio;
+      }
+    }
+    const sitiosOrdenados = [...porSitio.entries()].sort(([a], [b]) => a.localeCompare(b));
+    return { sitios: sitiosOrdenados, infra, estadoSitio };
   })();
 
   /* Tabla: una fila por despliegue + infra al final (si hay). */
-  function resumir(nombre: string, dominio: string | null, cs: VpsAgenteContenedor[]): FilaDespliegue {
+  function resumir(
+    nombre: string,
+    dominio: string | null,
+    cs: VpsAgenteContenedor[],
+    estadoBase: string,
+  ): FilaDespliegue {
     return {
       clave: nombre === 'infra' ? 'infra' : `sitio:${nombre}`,
       nombre,
       dominio: dominio ? dominio.replace(/^https?:\/\//, '') : null,
-      estado: peorEstado(cs),
+      estado: cs.length > 0 ? peorEstado(cs) : estadoBase,
       cpu: cs.reduce((a, c) => a + c.cpuPct, 0),
       mem: cs.reduce((a, c) => a + c.memMiB, 0),
       limite: cs.every((c) => c.memLimiteMiB !== null)
@@ -195,8 +229,10 @@ export function PanelVps() {
     };
   }
   const filas: FilaDespliegue[] = [
-    ...grupos.sitios.map(([nombre, g]) => resumir(nombre, g.dominio, g.filas)),
-    ...(grupos.infra.length > 0 ? [resumir('infra', null, grupos.infra)] : []),
+    ...grupos.sitios.map(([nombre, g]) =>
+      resumir(nombre, g.dominio, g.filas, grupos.estadoSitio.get(nombre) ?? 'detenido'),
+    ),
+    ...(grupos.infra.length > 0 ? [resumir('infra', null, grupos.infra, 'infra')] : []),
   ];
   const selFila = sel ? (filas.find((f) => f.clave === sel) ?? null) : null;
   const selFilas: VpsAgenteContenedor[] = !selFila
