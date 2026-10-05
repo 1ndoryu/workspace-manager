@@ -5,6 +5,7 @@ data/cache
 data/*
 !data/cache/
 *.log
+*.err
 logs/.pulse-token
 .log-*.txt
 *.tsbuildinfo
