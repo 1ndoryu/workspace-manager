@@ -1,13 +1,15 @@
 # 05AA-1 — Rust: perfil dev adelgazado + purga con cuota (2026-10-05)
 
-> **ESTADO 2026-10-05: F0+F1+F2+F3 HECHOS, F4/F5 PROPUESTA.** Hallazgo clave:
-> `CARGO_TARGET_DIR=C:\tmp\glory-target` ya es variable de usuario global
-> (todo compila ahí, no in-tree). Piloto glory-pulse: build frío 246 s →
-> rebuild 134 s, `pulse.pdb` 98,8→21,8 MB, `glory-target` 1,00→0,75 GB tras
-> `cargo sweep --maxsize 800MB` (commit `901dcdd` en glory-pulse, sin push).
+> **ESTADO 2026-10-05: F0–F3 HECHOS + PROPAGACIÓN COMPLETA, F4/F5 PROPUESTA.**
+> Hallazgo clave: `CARGO_TARGET_DIR=C:\tmp\glory-target` ya es variable de
+> usuario global (todo compila ahí, no in-tree). Piloto glory-pulse +
+> propagación a los 6 manifiestos (receta 124A-OPT1): 5 builds OK,
+> `.pdb` 22–38 MB, `glory-target` 7,06→3,73 GB tras
+> `cargo-sweep sweep --maxsize 4GB` (commits por repo, sin push).
 > Ventanas: las abren los nietos (`rustc`/linker) al compilar en frío, no el
 > mando; el arreglo es compilar en frío menos veces (cuota, no purga por
-> tiempo). `sccache` no instalado → F4 propuesta. Evidencia completa:
+> tiempo). `sccache` SÍ instalado (0.15.0) pero con hit 0,89% → F4 propuesta.
+> NAKOMI exento (código roto, 77 errores). Evidencia completa:
 > `Agente/completados/tareas-2026-10-05.md`.
 
 Replanteo de `04AA-1` (veredicto REPLANTEAR del subagente supervisor-thinking +
