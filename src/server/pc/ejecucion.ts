@@ -94,9 +94,18 @@ export interface AccionPc {
   detalle: string;
 }
 
+export interface ResumenReintento {
+  fase: FasePc;
+  candidatas: number;
+  resultado: 'omitido' | 'exito' | 'fallo-lanzamiento' | 'denegado';
+}
+
 export interface ResultadoLimpieza {
   acciones: AccionPc[];
   liberadosGb: number;
+  /* Trazabilidad del reintento elevado (UAC) por fase: la UI lo usa para
+   * explicar si hubo diálogo de Windows, si se denegó o si no procedía. */
+  reintentos: ResumenReintento[];
 }
 
 export type EventoScan =

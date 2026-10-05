@@ -18,7 +18,7 @@ import {
   rutaMeta,
   rutaReporte,
 } from './ejecucion.js';
-import type { AccionPc, FasePc, ResultadoLimpieza } from './ejecucion.js';
+import type { AccionPc, FasePc, ResumenReintento, ResultadoLimpieza } from './ejecucion.js';
 import { ejecutarCleanElevado, esFalloPermiso, esRutaAdmin } from './elevacion.js';
 import { hayScanEnCurso, leerReporte } from './scan.js';
 
@@ -118,6 +118,7 @@ export async function limpiarPc(seleccionRaw: unknown): Promise<ResultadoLimpiez
   const { bin } = await asegurarBinario();
   const porFase = agruparSeleccion(seleccion);
   const acciones: AccionPc[] = [];
+  const reintentos: ResumenReintento[] = [];
   let liberadosGb = 0;
   for (const fase of ORDEN_FASES_PC) {
     const solo = porFase.get(fase);
@@ -132,10 +133,11 @@ export async function limpiarPc(seleccionRaw: unknown): Promise<ResultadoLimpiez
     const parte = parsearSalidaLimpieza(fase, salida);
     const reintento = await reintentarAdminSiProcede(bin, fase, flag, parte.filas);
     acciones.push(...reintento.filas);
+    reintentos.push(reintento.resumen);
     liberadosGb += parte.liberados + reintento.liberados;
   }
   podarReporte(acciones);
-  return { acciones, liberadosGb };
+  return { acciones, liberadosGb, reintentos };
 }
 
 /* Ruta real de una fila: área/tmp la traen (`--solo-ruta`); en el resto
@@ -165,13 +167,16 @@ async function reintentarAdminSiProcede(
   fase: FasePc,
   flag: string,
   filas: FilaLimpieza[],
-): Promise<{ filas: FilaLimpieza[]; liberados: number }> {
+): Promise<{ filas: FilaLimpieza[]; liberados: number; resumen: ResumenReintento }> {
   const candidatas = filas.filter(
     (f) => f.estado === 'fallo' && esFalloPermiso(f.detalle) && esRutaAdmin(rutaDeFila(fase, f)),
   );
-  if (candidatas.length === 0) return { filas, liberados: 0 };
+  if (candidatas.length === 0) return { filas, liberados: 0, resumen: { fase, candidatas: 0, resultado: 'omitido' } };
   const meta = FASES_PC[fase];
   const args = [meta.clean, '--reporte', rutaCrudo(fase), '--json', '--ejecutar'];
+  /* Camino del reintento: 'exito' si el elevado devolvió filas reales;
+   * el catch lo marca como 'denegado' o 'fallo-lanzamiento'. */
+  let viaFallback: ResumenReintento['resultado'] = 'exito';
   for (const c of candidatas) {
     /* En área/tmp el filtro es la ruta; en el resto, la clave del objetivo.
      * Ambas vienen validadas (reporte o regex) antes de llegar aquí. */
@@ -179,16 +184,18 @@ async function reintentarAdminSiProcede(
   }
   const { salida } = await ejecutarCleanElevado(bin, args).catch((err: unknown) => {
     /* UAC denegado o lanzamiento imposible: no tumba el resto del borrado;
-     * las filas conservan su fallo original con el motivo del reintento,
-     * en forma de CLI para que el parseo las reconozca por su clave. */
+     * las filas conservan su fallo original con el motivo del reintento
+     * delante (el detalle del CLI ya llena 500 caracteres y lo taparía
+     * detrás), en forma de CLI para que el parseo las reconozca. */
     const motivo = String(err instanceof Error ? err.message : err);
+    viaFallback = motivo.includes('elevación denegada') ? 'denegado' : 'fallo-lanzamiento';
     return {
       salida: JSON.stringify({
         acciones: candidatas.map((c) => ({
           ...(esPorRuta(fase) ? { ruta: c.ruta } : { cache: c.clave }),
           gb: c.gb,
           estado: 'fallo',
-          detalle: `${c.detalle} | ${motivo}`.slice(0, 500),
+          detalle: `${motivo} | ${c.detalle}`.slice(0, 500),
         })),
         liberados_gb: 0,
       }),
@@ -197,7 +204,11 @@ async function reintentarAdminSiProcede(
   const parte = parsearSalidaLimpieza(fase, salida);
   const nuevas = new Map(parte.filas.map((f) => [`${esPorRuta(fase) ? f.ruta : f.clave}`, f]));
   const fusionadas = filas.map((f) => nuevas.get(esPorRuta(fase) ? f.ruta : f.clave) ?? f);
-  return { filas: fusionadas, liberados: parte.liberados };
+  return {
+    filas: fusionadas,
+    liberados: parte.liberados,
+    resumen: { fase, candidatas: candidatas.length, resultado: viaFallback },
+  };
 }
 
 /* Estados que retiran la entrada del reporte (el resto —fallo, rechazada,
@@ -351,6 +362,7 @@ async function cuerpoLimpieza(seleccion: SeleccionPc[]): Promise<void> {
     }
   };
   const acciones: AccionPc[] = [];
+  const reintentos: ResumenReintento[] = [];
   let liberadosGb = 0;
   try {
     if (!existsSync(rutaReporte())) throw new Error('sin análisis previo: analiza primero');
@@ -364,10 +376,12 @@ async function cuerpoLimpieza(seleccion: SeleccionPc[]): Promise<void> {
       const meta = FASES_PC[fase];
       emite({ tipo: 'fase', fase, etiqueta: meta.etiqueta, actual, total: fases.length });
       try {
-        liberadosGb += await ejecutarFaseLimpieza(bin, fase, porFase.get(fase) ?? [], (f) => {
+        const r = await ejecutarFaseLimpieza(bin, fase, porFase.get(fase) ?? [], (f) => {
           acciones.push(f);
           emite({ tipo: 'fila', fase: f.fase, clave: f.clave, ruta: f.ruta, gb: f.gb, estado: f.estado, detalle: f.detalle });
         });
+        liberadosGb += r.liberados;
+        reintentos.push(r.resumen);
       } catch (err) {
         emite({ tipo: 'error', fase, etiqueta: meta.etiqueta, detalle: String(err) });
       }
@@ -375,10 +389,10 @@ async function cuerpoLimpieza(seleccion: SeleccionPc[]): Promise<void> {
     podarReporte(acciones);
     const eliminadas = acciones.filter((a) => ELIMINADA_LIMPIEZA.has(a.estado)).length;
     emite({ tipo: 'fin', liberadosGb, eliminadas, fallos: acciones.length - eliminadas });
-    t.resolver({ acciones, liberadosGb });
+    t.resolver({ acciones, liberadosGb, reintentos });
   } catch (err) {
     emite({ tipo: 'error', fase: 'area', etiqueta: '', detalle: String(err) });
-    t.resolver({ acciones, liberadosGb });
+    t.resolver({ acciones, liberadosGb, reintentos });
   } finally {
     if (trabajoLimpieza === t) trabajoLimpieza = null;
   }
@@ -392,13 +406,14 @@ async function ejecutarFaseLimpieza(
   fase: FasePc,
   valores: string[],
   porFila: (f: FilaLimpieza) => void,
-): Promise<number> {
+): Promise<{ liberados: number; resumen: ResumenReintento }> {
   const meta = FASES_PC[fase];
   const crudo = rutaCrudo(fase);
   if (!existsSync(crudo)) throw new Error(`sin análisis previo de ${meta.etiqueta}: analiza primero`);
   const flag = esPorRuta(fase) ? '--solo-ruta' : '--solo';
   const lotes = esPorRuta(fase) ? valores.map((v) => [v]) : [valores];
   let liberados = 0;
+  let resumen: ResumenReintento = { fase, candidatas: 0, resultado: 'omitido' };
   for (const lote of lotes) {
     const args = [meta.clean, '--reporte', crudo, '--json', '--ejecutar'];
     for (const s of lote) args.push(flag, s);
@@ -406,7 +421,8 @@ async function ejecutarFaseLimpieza(
     const parte = parsearSalidaLimpieza(fase, salida);
     const reintento = await reintentarAdminSiProcede(bin, fase, flag, parte.filas);
     liberados += parte.liberados + reintento.liberados;
+    resumen = reintento.resumen;
     for (const f of reintento.filas) porFila(f);
   }
-  return liberados;
+  return { liberados, resumen };
 }
