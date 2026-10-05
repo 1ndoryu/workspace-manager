@@ -26,6 +26,10 @@
       "timeoutMs": 3000,
       "arranqueMs": 180000,
       "expectedCmdline": "pulse",
+      "env": {
+        "CARGO_INCREMENTAL": "0",
+        "SCCACHE_BASEDIRS": "C:\\Users\\Owner\\OneDrive\\Documentos\\area-trabajo"
+      },
       "tipoLauncher": "cargo run (requiere PULSE_TOKEN>=32 en entorno; en local vale cualquiera, el real solo vive en Coolify)"
     },
     {
@@ -140,6 +144,10 @@
       "timeoutMs": 3000,
       "arranqueMs": 300000,
       "expectedCmdline": "glory-harness",
+      "env": {
+        "CARGO_INCREMENTAL": "0",
+        "SCCACHE_BASEDIRS": "C:\\Users\\Owner\\OneDrive\\Documentos\\area-trabajo"
+      },
       "tipoLauncher": "cargo web HTTP (el daemon TCP 8798 no tiene probe: fuera del mando)"
     }
   ],
