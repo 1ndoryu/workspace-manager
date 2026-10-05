@@ -84,18 +84,9 @@ export function PanelDetalle() {
           ×
         </Button>
       </header>
-      <dl className="panelDetalleFilas">
-        {filas.map((f) => (
-          <div className="panelDetalleFila" key={f.k}>
-            <dt>{f.k}</dt>
-            <dd>{f.v}</dd>
-          </div>
-        ))}
-      </dl>
-
-      {/* Mando dev arriba del detalle (05AA-4): al clicar la caja se opera
-        * sin ir a la consola. Solo con entrada (id); sin-boton/no-aplica no
-        * operan y no muestran seccion. */}
+      {/* Mando dev PEGADO a la cabecera (05AA-4): al clicar la caja los
+        * botones quedan arriba del todo. Solo con entrada (id);
+        * sin-boton/no-aplica no operan y no muestran seccion. */}
       {devInfo ? (
         <div className="panelDetalleDev" aria-label="Mando dev del proyecto">
           <div className="panelDetalleDevEstado" title={devInfo.motivo}>
@@ -116,6 +107,14 @@ export function PanelDetalle() {
           </div>
         </div>
       ) : null}
+      <dl className="panelDetalleFilas">
+        {filas.map((f) => (
+          <div className="panelDetalleFila" key={f.k}>
+            <dt>{f.k}</dt>
+            <dd>{f.v}</dd>
+          </div>
+        ))}
+      </dl>
 
       {/* Un solo 'escanear' por proyecto: analisis (solo con puerta
         * sentinel) + auditoria de dependencias en secuencia. */}
