@@ -35,4 +35,13 @@ export interface InformeDev {
   errorSensor: string | null;
   proyectos: ProyectoDev[];
   huerfanos: HuerfanoDev[];
+  compartidos?: { puerto: number; ids: string[] }[];
+  // Higiene Rust (05AA-2): avisos solo-lectura del doctor, nunca errores.
+  rust?: AvisoRust[];
+}
+
+export interface AvisoRust {
+  chequeo: 'tamano' | 'perfil' | 'cache' | 'colision';
+  proyectos: string[];
+  detalle: string;
 }

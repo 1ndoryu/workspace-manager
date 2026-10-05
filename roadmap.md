@@ -146,7 +146,6 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md`, `PLAN-corregir-hallazgos-202
 
    37. `05AA-1` - **ACTIVA (2026-10-05): Rust perfil dev adelgazado + purga con cuota (replanteo de 04AA-1).** Plan: `Agente/planes/plan-rust-perfil-y-purga-2026-10-05.md` (F0 inventario `targetDir` + F1 verificar `windowsHide` + F2 `debug="line-tables-only"` por proyecto con medición + F3 `cargo-sweep` con cuota, jamás en `up`/`stop` + F4 `sccache` útil vía wrappers `CARGO_INCREMENTAL=0`+`SCCACHE_BASEDIRS` solo si los fríos duelen + F5 propuesta global/Dev Drive al humano sin ejecutar + F6 cierre con gate). DoD: mediciones frío/caliente registradas, `target/` acotado, `C:\tmp` <7 GB. **Estado 2026-10-05: F0–F3 HECHOS + PROPAGACIÓN COMPLETA (6 manifiestos con receta 124A-OPT1, 5 builds OK, `.pdb` 22–38 MB, `glory-target` 7,06→3,73 GB, commits por repo sin push; NAKOMI exento por código roto) + causa de ventanas encontrada (nietos `rustc`/linker en frío, no el mando); F4 EJECUTADA vía `05AA-3` (2026-10-05, HECHA: sccache útil, frío-hit 49 s limpiador / 216 s pulse, hit 46%); F5 Dev Drive pendiente de ti. Evidencia: `Agente/completados/tareas-2026-10-05.md`.**
 
-    38. `05AA-2` - **PLAN (2026-10-05, pendiente de aprobación): detección de Rust mal configurado en el tablero.** Plan: `Agente/planes/plan-rust-deteccion-2026-10-05.md`. `doctor --all` avisará (solo lectura, degrada a exit 2, nunca purga) cuando: `target/` efectivo >2 GB, manifiesto raíz sin `[profile.dev]` adelgazado, caché ausente o con hit <5%, o dos proyectos compartiendo el mismo `target/` (hoy MN/WANDORIUS). DoD: 4 avisos sobre fixture + 0 falsos positivos en el área real + `doctor` no más de 5 s más lento.
 
 ## Planes activos
 
@@ -165,5 +164,5 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md`, `PLAN-corregir-hallazgos-202
 - `PLAN-vps-tab-2026-09-29.md` — **299A-5 PLAN (2026-09-29, pendiente de aprobación)**: tab vps solo-lectura vía proceso por consulta con allowlist cerrada.
 - `PLAN-rust-limpieza-auto-2026-10-04.md` — **04AA-1 REPLANTEADA (2026-10-05)**, archivada en `Agente/planes/completados/` como evidencia (no ejecutar).
 - `Agente/planes/plan-rust-perfil-y-purga-2026-10-05.md` — **05AA-1 ACTIVA (2026-10-05)**: perfil dev adelgazado + purga con cuota (replanteo).
-- `Agente/planes/plan-rust-deteccion-2026-10-05.md` — **05AA-2 PLAN (2026-10-05, pendiente de aprobación)**: detección de Rust mal configurado (solo aviso).
+- `Agente/planes/completados/plan-rust-deteccion-2026-10-05.md` — **05AA-2 HECHA (2026-10-05)**: detección de Rust mal configurado en el tablero (solo aviso, exit 2; enciende la colisión real de los 7 en `C:\tmp\glory-target`).
 - `Agente/planes/completados/plan-sccache-util-2026-10-05.md` — **05AA-3 HECHA (2026-10-05)**: sccache útil (ejecutó F4 de 05AA-1).
