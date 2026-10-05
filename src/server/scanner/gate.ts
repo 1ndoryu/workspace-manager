@@ -56,6 +56,7 @@ export function doctorSentinel(ruta: string): string | null {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 15000,
+      windowsHide: true,
     });
     return out.trim().slice(0, 2000);
   } catch {

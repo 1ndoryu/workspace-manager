@@ -102,7 +102,9 @@ function validarEntrada(e) {
     throw new Error(`registro: '${e.id}' ruta fuera del area (${e.ruta})`);
   }
   if (!existsSync(rutaAbs)) throw new Error(`registro: '${e.id}' ruta inexistente (${e.ruta})`);
-  if (!Array.isArray(e.boton) || e.boton.length === 0 || e.boton.some((a) => !Array.isArray(a) || a.length < 2 || a.some((t) => typeof t !== 'string' || t.length === 0))) {
+  // [por que] El binario absoluto no necesita args (longitud 1 vale); el resto
+  // exige exe + args para que el `up` sepa que lanzar sin suposiciones.
+  if (!Array.isArray(e.boton) || e.boton.length === 0 || e.boton.some((a) => !Array.isArray(a) || a.some((t) => typeof t !== 'string' || t.length === 0) || (a.length < 2 && !(/^[a-z]:[\\/]/i.test(a[0]) && a[0].toLowerCase().endsWith('.exe'))))) {
     throw new Error(`registro: '${e.id}' boton debe ser array de argv (arrays de >=2 strings)`);
   }
   if (!Array.isArray(e.puertos) || e.puertos.some((p) => !Number.isInteger(p) || p < 1 || p > 65535)) {
@@ -128,7 +130,13 @@ function validarEntrada(e) {
   }
   for (const argv of e.boton) {
     const exe = argv[0].toLowerCase();
-    if (!EXES_PERMITIDOS.has(exe) && !(exe.endsWith('/node') || exe.endsWith('\\node'))) {
+    // [por que] Binario absoluto precompilado (p. ej. pulse.exe): evita
+    // `cargo run`, cuyo hijo hereda una consola visible permanente. Solo ruta
+    // absoluta existente: el registro versionado ya es la lista de confianza,
+    // igual que los scripts node de la allowlist.
+    const esBinarioAbsoluto =
+      /^[a-z]:[\\/]/i.test(argv[0]) && exe.endsWith('.exe') && existsSync(resolve(argv[0]));
+    if (!EXES_PERMITIDOS.has(exe) && !(exe.endsWith('/node') || exe.endsWith('\\node')) && !esBinarioAbsoluto) {
       throw new Error(`registro: '${e.id}' exe fuera de allowlist (${argv[0]})`);
     }
     if ((exe === 'node' || exe.endsWith('/node') || exe.endsWith('\\node')) && argv[1] !== '-e') {
@@ -656,7 +664,15 @@ export async function lanzar(entrada, rutaAbs, argv, envExtra) {
     prefijo = [];
   } else {
     const nombreExe = argvLanzar[0].toLowerCase();
-    ({ exe, prefijo } = await resolverExe(nombreExe === 'node' && argvLanzar[1] === '-e' ? 'node' : nombreExe));
+    // [por que] Binario absoluto precompilado (pulse.exe): se usa tal cual
+    // (existencia ya validada en el registro); `where` solo resuelve nombres
+    // del PATH y rehusaba el spawn (caso real 2026-10-05).
+    if (/^[a-z]:[\\/]/i.test(argvLanzar[0]) && existsSync(resolve(argvLanzar[0]))) {
+      exe = argvLanzar[0];
+      prefijo = [];
+    } else {
+      ({ exe, prefijo } = await resolverExe(nombreExe === 'node' && argvLanzar[1] === '-e' ? 'node' : nombreExe));
+    }
   }
   const dir = join(rutaAbs, 'logs');
   mkdirSync(dir, { recursive: true });
