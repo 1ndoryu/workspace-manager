@@ -19,6 +19,7 @@ import {
   rutaReporte,
 } from './ejecucion.js';
 import type { AccionPc, FasePc, ResultadoLimpieza } from './ejecucion.js';
+import { ejecutarCleanElevado, esFalloPermiso, esRutaAdmin } from './elevacion.js';
 import { hayScanEnCurso, leerReporte } from './scan.js';
 
 const execFileAsync = promisify(execFile);
@@ -129,11 +130,74 @@ export async function limpiarPc(seleccionRaw: unknown): Promise<ResultadoLimpiez
      * su estado y la poda solo retira lo realmente eliminado. */
     const { salida } = await correrClean(bin, args);
     const parte = parsearSalidaLimpieza(fase, salida);
-    acciones.push(...parte.filas);
-    liberadosGb += parte.liberados;
+    const reintento = await reintentarAdminSiProcede(bin, fase, flag, parte.filas);
+    acciones.push(...reintento.filas);
+    liberadosGb += parte.liberados + reintento.liberados;
   }
   podarReporte(acciones);
   return { acciones, liberadosGb };
+}
+
+/* Ruta real de una fila: área/tmp la traen (`--solo-ruta`); en el resto
+ * el CLI devuelve la clave y la ruta se resuelve en el reporte unido.
+ * [por que] Sin esto, esRutaAdmin('') es false y ModelZoo jamás
+ * calificaría para el reintento elevado. */
+function rutaDeFila(fase: FasePc, fila: FilaLimpieza): string {
+  if (fila.ruta !== '') return fila.ruta;
+  try {
+    const previas = leerReporte();
+    const hallada = previas?.entradas.find((e) => e.fase === fase && e.clave === fila.clave);
+    return hallada?.ruta ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/* Reintento elevado: las filas que fallaron por permiso fuera del perfil
+ * (ProgramData y demás ámbito de máquina) se repiten en UNA llamada con
+ * UAC, limitada a esas claves. Devuelve las filas fusionadas (el reintento
+ * sustituye a la fila fallida por clave) y lo liberado extra.
+ * [por que] Sin esto, ModelZoo y cía quedan en «fallo» eterno con os error
+ * 5; elevar todo el borrado pediría UAC hasta para el perfil. El diálogo
+ * de Windows lo acepta el usuario una vez por fase con este caso. */
+async function reintentarAdminSiProcede(
+  bin: string,
+  fase: FasePc,
+  flag: string,
+  filas: FilaLimpieza[],
+): Promise<{ filas: FilaLimpieza[]; liberados: number }> {
+  const candidatas = filas.filter(
+    (f) => f.estado === 'fallo' && esFalloPermiso(f.detalle) && esRutaAdmin(rutaDeFila(fase, f)),
+  );
+  if (candidatas.length === 0) return { filas, liberados: 0 };
+  const meta = FASES_PC[fase];
+  const args = [meta.clean, '--reporte', rutaCrudo(fase), '--json', '--ejecutar'];
+  for (const c of candidatas) {
+    /* En área/tmp el filtro es la ruta; en el resto, la clave del objetivo.
+     * Ambas vienen validadas (reporte o regex) antes de llegar aquí. */
+    args.push(flag, esPorRuta(fase) ? c.ruta : c.clave);
+  }
+  const { salida } = await ejecutarCleanElevado(bin, args).catch((err: unknown) => {
+    /* UAC denegado o lanzamiento imposible: no tumba el resto del borrado;
+     * las filas conservan su fallo original con el motivo del reintento,
+     * en forma de CLI para que el parseo las reconozca por su clave. */
+    const motivo = String(err instanceof Error ? err.message : err);
+    return {
+      salida: JSON.stringify({
+        acciones: candidatas.map((c) => ({
+          ...(esPorRuta(fase) ? { ruta: c.ruta } : { cache: c.clave }),
+          gb: c.gb,
+          estado: 'fallo',
+          detalle: `${c.detalle} | ${motivo}`.slice(0, 500),
+        })),
+        liberados_gb: 0,
+      }),
+    };
+  });
+  const parte = parsearSalidaLimpieza(fase, salida);
+  const nuevas = new Map(parte.filas.map((f) => [`${esPorRuta(fase) ? f.ruta : f.clave}`, f]));
+  const fusionadas = filas.map((f) => nuevas.get(esPorRuta(fase) ? f.ruta : f.clave) ?? f);
+  return { filas: fusionadas, liberados: parte.liberados };
 }
 
 /* Estados que retiran la entrada del reporte (el resto —fallo, rechazada,
@@ -340,8 +404,9 @@ async function ejecutarFaseLimpieza(
     for (const s of lote) args.push(flag, s);
     const { salida } = await ejecutarClean(bin, args);
     const parte = parsearSalidaLimpieza(fase, salida);
-    liberados += parte.liberados;
-    for (const f of parte.filas) porFila(f);
+    const reintento = await reintentarAdminSiProcede(bin, fase, flag, parte.filas);
+    liberados += parte.liberados + reintento.liberados;
+    for (const f of reintento.filas) porFila(f);
   }
   return liberados;
 }
