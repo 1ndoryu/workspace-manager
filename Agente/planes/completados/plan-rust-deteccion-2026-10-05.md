@@ -1,6 +1,6 @@
 # 05AA-2 — Detección de Rust mal configurado en el tablero (2026-10-05)
 
-> **ESTADO 2026-10-05: PLAN (pendiente de aprobación, no ejecutar).**
+> **ESTADO 2026-10-05: EJECUTADA (F1-F3 hechas y verificadas; commit sin push).**
 > Origen: pedido del usuario tras 05AA-1 («que el workspace detecte cuando un
 > proyecto Rust esté mal configurado»).
 
@@ -48,6 +48,20 @@ Formato del aviso: reutilizar los estados del mando (verde/degradado, exit
    chequeo en el backend `/api/workspace`. Criterio: lo que ya sepa resolver
    `targetDir` efectivo por proyecto con menos código nuevo. Registrar la
    decisión en este plan antes de programar.
+   **Decisión F1 (2026-10-05): sensor `detectarRust(registro)` en
+   `doctor.mjs`, misma forma que `detectarCompartidos` (función pura sobre el
+   registro + lecturas, campo `informe.rust`, exit 2, fail-open sin tocar
+   `errorSensor`/`--assert`).** Motivos: el backend (`vigilancia.ts`) solo
+   exige `informe.proyectos` array → campo extra ignorado sin romper nada;
+   `trampa.mjs` es caja negra por CLI → no se toca; `tsconfig` solo cubre
+   `src` → el sensor es JS plano sin fricción de tipos. El `target/` efectivo
+   se resuelve con la regla F0 de 05AA-1 (env entrada > env usuario > in-tree)
+   midiendo solo dirs que existen.
+   **Corrección DoD con evidencia:** la colisión MN/WANDORIUS es REAL hoy
+   (ambos en `main`, `C:\tmp\glory-target` sin subramas) → el sensor
+   ENCENDERÁ 1 aviso sobre el área real, no 0. Es el sensor haciendo su
+   trabajo (motiva F5 de 05AA-1); F3 verifica: resto de chequeos en silencio +
+   exactamente ese aviso esperado.
 2. **F2 sensor solo-lectura.** Implementar los 4 chequeos + tests contra
    fixture en `C:\tmp` (proyecto falso con `Cargo.toml` sin perfil y dir
    falso pesado). Prohibido: `rm`, `cargo`, `Start-Process` con escritura,
@@ -60,9 +74,17 @@ Formato del aviso: reutilizar los estados del mando (verde/degradado, exit
    `Agente/completados/tareas-YYYY-MM-DD.md`, y actualizar la skill
    `skills/dev-bootstrap/SKILL.md` solo si el sensor cambia el contrato del
    mando (si no, no tocar docs).
+   **Resultado F2+F3 (2026-10-05):** sensor implementado en `doctor.mjs`
+   (~150 líneas: `detectarRust` + cableado informe/tabla/exit) + tipos
+   `AvisoRust` en `src/shared/dev.ts`. Fixture `C:\tmp\fixture-05AA2.mjs`
+   6/6 (4 chequeos + determinismo + cache-low avisa / cache-ok calla). En
+   vivo: `doctor --all` exit 2 con exactamente 1 aviso (colisión de los 7
+   en `C:\tmp\glory-target`), `type-check` 0, sensor +2,5 s, skill sin
+   cambios (contrato intacto).
 
 ## Gate y DoD
 
 - Gate: `type-check` + `trampa.mjs` verdes (este repo no tiene gate Rust).
-- DoD: 4 avisos verificados sobre fixture + 0 avisos sobre el área real +
-  `doctor --all` no más de 5 s más lento + commit sin push.
+- DoD: 4 avisos verificados sobre fixture + 1 aviso esperado sobre el área
+  real (colisión MN/WANDORIUS, resto en silencio) + sensor solo +2,5 s en
+  `doctor --all` + commit sin push.

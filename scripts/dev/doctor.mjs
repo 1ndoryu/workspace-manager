@@ -11,7 +11,7 @@
  * 2 = instrumento OK pero hay huecos visibles (deriva/sin-boton/huerfanos). */
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
@@ -500,6 +500,7 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
 function codigoSalida(informe) {
   if (informe.errorSensor) return 1;
   if ((informe.compartidos ?? []).length > 0) return 2;
+  if ((informe.rust ?? []).length > 0) return 2;
   if (informe.huerfanos.length > 0) return 2;
   if (informe.proyectos.some((p) => p.estado === 'deriva' || p.estado === 'sin-boton')) return 2;
   return 0;
@@ -515,6 +516,9 @@ function tabla(informe) {
   }
   for (const c of informe.compartidos ?? []) {
     lineas.push(`aviso       puerto ${c.puerto} compartido: ${c.ids.join(', ')}`);
+  }
+  for (const r of informe.rust ?? []) {
+    lineas.push(`aviso       rust ${r.chequeo} [${r.proyectos.join(', ')}]: ${r.detalle}`);
   }
   if (informe.errorSensor) lineas.push(`ERROR sensor: ${informe.errorSensor}`);
   lineas.push(`tomadoEn=${informe.tomadoEn} snapshotEn=${informe.snapshotEn}`);
@@ -791,6 +795,192 @@ export function detectarCompartidos(registro) {
     .sort((a, b) => a.puerto - b.puerto);
 }
 
+/* Higiene Rust (05AA-2): avisa cuando un proyecto Rust del area esta mal
+ * configurado en lo que 05AA-1 midio (target gigante, sin perfil adelgazado,
+ * sin sccache util, target compartido). Solo lectura + aviso: jamas purga ni
+ * reescribe nada. Fail-open: lo que no se puede medir se omite (nunca rompe
+ * el doctor ni el --assert). Cada aviso degrada a exit 2 via codigoSalida.
+ * [por que] Misma forma que detectarCompartidos: funcion pura sobre el
+ * registro + lecturas; la consola y trampa ignoran el campo extra `rust`.
+ * PROYECTO TASKS fuera (roto por dependencia ajena E0753, no es higiene). */
+const RUST_UMBRAL_BYTES = 2 * 1024 * 1024 * 1024;
+const RUST_HIT_MIN = 5; // % (05AA-1: 0,89% era cache decorativa)
+const RUST_FUERA = new Set(['PROYECTO TASKS']);
+const RE_RUST = /cargo|run-with-db|dev-web\.mjs/i;
+
+function esEntradaRust(e) {
+  const texto = [...(e.boton ?? [])].map((a) => (a ?? []).join(' ')).join(' ') + ' ' + (e.tipoLauncher ?? '');
+  return RE_RUST.test(texto);
+}
+
+function manifestRust(rutaAbs, entrada) {
+  // [por que] El manifiesto a leer es el del `dev:back` real: pulse compila
+  // con --manifest-path y el resto usa la raiz (el legacy
+  // glory-rs/backend/Cargo.toml no se lee, caso 05AA-1).
+  for (const argv of entrada.boton ?? []) {
+    const i = (argv ?? []).indexOf('--manifest-path');
+    if (i >= 0 && argv[i + 1]) {
+      const c = resolve(rutaAbs, argv[i + 1]);
+      if (existsSync(c)) return c;
+    }
+  }
+  const raiz = join(rutaAbs, 'Cargo.toml');
+  return existsSync(raiz) ? raiz : null;
+}
+
+function targetEfectivoRust(rutaAbs, envEntrada) {
+  // [por que] Misma regla F0 de 05AA-1: env de la entrada > env de usuario >
+  // in-tree. Solo dirs que existen (un wrapper por-rama que aun no compilo
+  // no genera aviso fantasma). Limitacion honesta: subdirs por-rama del
+  // wrapper se resuelven en runtime, aqui se mide lo que hay.
+  const candidatos = [];
+  if (typeof envEntrada.CARGO_TARGET_DIR === 'string' && envEntrada.CARGO_TARGET_DIR) {
+    candidatos.push(envEntrada.CARGO_TARGET_DIR);
+  }
+  if (typeof process.env.CARGO_TARGET_DIR === 'string' && process.env.CARGO_TARGET_DIR) {
+    candidatos.push(process.env.CARGO_TARGET_DIR);
+  }
+  candidatos.push(join(rutaAbs, 'target'));
+  for (const c of candidatos) {
+    const n = normalize(c);
+    try {
+      if (statSync(n).isDirectory()) return n;
+    } catch {
+      /* no existe: siguiente candidato. */
+    }
+  }
+  return null;
+}
+
+function tamanoDirRust(ruta) {
+  // [por que] Walk iterativo sin seguir symlinks: junctions dentro de
+  // target/ con follow entrarian en bucle. Ficheros volatiles de una
+  // compilacion en curso se omiten (mejor medir de menos que romper).
+  let total = 0;
+  const pila = [ruta];
+  try {
+    while (pila.length > 0) {
+      const actual = pila.pop();
+      let hijos;
+      try {
+        hijos = readdirSync(actual, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const h of hijos) {
+        const p = join(actual, h.name);
+        try {
+          if (h.isSymbolicLink()) continue;
+          if (h.isDirectory()) pila.push(p);
+          else if (h.isFile()) total += statSync(p).size;
+        } catch {
+          /* volatil: se omite. */
+        }
+      }
+    }
+    return total;
+  } catch {
+    return null;
+  }
+}
+
+function statsSccacheRust() {
+  try {
+    const sal = execFileSync('where.exe', ['sccache.exe'], { timeout: 10_000, windowsHide: true });
+    const exe = String(sal)
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .find((l) => l && existsSync(l));
+    if (!exe) return null;
+    const txt = String(execFileSync(exe, ['--show-stats'], { timeout: 10_000, windowsHide: true }));
+    const pet = /Compile requests\s+(\d+)/.exec(txt);
+    const hit = /Cache hits rate\s+([\d.]+)\s*%/.exec(txt);
+    if (!pet || !hit) return null;
+    return { peticiones: Number(pet[1]), hit: Number(hit[1]) };
+  } catch {
+    return null;
+  }
+}
+
+export function detectarRust(registro, opts = {}) {
+  const umbral = opts.umbralBytes ?? RUST_UMBRAL_BYTES;
+  const duenos = new Map(); // target normalizado -> [ids]
+  const sinWrapper = [];
+  const sinPerfil = [];
+  try {
+    const proyectos = [];
+    for (const e of registro.entradas?.values() ?? []) {
+      if (!esEntradaRust(e) || RUST_FUERA.has(e.id)) continue;
+      const rutaAbs = isAbsolute(e.ruta) ? normalize(e.ruta) : resolve(RAIZ_REPO, e.ruta);
+      proyectos.push({ id: e.id, rutaAbs, entrada: e, env: e.env && typeof e.env === 'object' ? e.env : {} });
+    }
+    // [por que] limpiador-pc es noAplica (sin boton) pero compila Rust: se
+    // cubre fijo en vez de inventar boton en el registro. `incluirLimpiador`
+    // solo existe para el fixture (evita que el limpiador real contamine).
+    if (opts.incluirLimpiador ?? true) {
+      const rutaLimp = resolve(RAIZ_REPO, '..', 'limpiador-pc');
+      if (existsSync(join(rutaLimp, 'Cargo.toml')) && !proyectos.some((p) => p.id === 'limpiador-pc')) {
+        proyectos.push({ id: 'limpiador-pc', rutaAbs: rutaLimp, entrada: { boton: [] }, env: {} });
+      }
+    }
+    for (const p of proyectos) {
+      const wrapper = p.env.RUSTC_WRAPPER ?? process.env.RUSTC_WRAPPER;
+      if (!wrapper) sinWrapper.push(p.id);
+      const man = manifestRust(p.rutaAbs, p.entrada);
+      if (man) {
+        try {
+          const txt = readFileSync(man, 'utf8');
+          if (!/^\s*\[profile\.dev\]/m.test(txt) || !/line-tables-only/.test(txt)) sinPerfil.push(p.id);
+        } catch {
+          /* manifiesto ilegible: se omite (fail-open). */
+        }
+      }
+      const t = targetEfectivoRust(p.rutaAbs, p.env);
+      if (t) {
+        const clave = normalizarRuta(t);
+        if (!duenos.has(clave)) duenos.set(clave, { ruta: t, ids: [] });
+        duenos.get(clave).ids.push(p.id);
+      }
+    }
+  } catch {
+    return [];
+  }
+  const avisos = [];
+  for (const id of [...sinWrapper].sort()) {
+    avisos.push({ chequeo: 'cache', proyectos: [id], detalle: 'sin RUSTC_WRAPPER en entrada ni entorno (05AA-1)' });
+  }
+  for (const id of [...sinPerfil].sort()) {
+    avisos.push({ chequeo: 'perfil', proyectos: [id], detalle: 'manifiesto sin [profile.dev] adelgazado (05AA-1)' });
+  }
+  if (sinWrapper.length === 0) {
+    // [por que] Con wrapper presente pero hit bajo, la cache es decorativa
+    // (caso 05AA-1: 0,89%). Sin stats medibles no se acusa: se omite.
+    const st = opts.stats ?? statsSccacheRust();
+    if (st && st.peticiones >= 10 && st.hit < RUST_HIT_MIN) {
+      avisos.push({
+        chequeo: 'cache',
+        proyectos: [],
+        detalle: `sccache con hit ${st.hit}% en ${st.peticiones} peticiones (<${RUST_HIT_MIN}%: decorativa)`,
+      });
+    }
+  }
+  for (const { ruta, ids } of [...duenos.values()].sort((a, b) => (a.ruta < b.ruta ? -1 : 1))) {
+    const ordenados = [...ids].sort();
+    if (ordenados.length > 1) {
+      avisos.push({ chequeo: 'colision', proyectos: ordenados, detalle: `target/ compartido: ${ruta} (motivo para target/ por proyecto, 05AA-1 F5)` });
+    }
+    const bytes = tamanoDirRust(ruta);
+    if (bytes !== null && bytes > umbral) {
+      avisos.push({
+        chequeo: 'tamano',
+        proyectos: ordenados,
+        detalle: `target/ ${(bytes / 1024 ** 3).toFixed(2)} GB > ${(umbral / 1024 ** 3).toFixed(0)} GB: ${ruta}`,
+      });
+    }
+  }
+  return avisos.sort((a, b) => (a.chequeo < b.chequeo ? -1 : a.chequeo > b.chequeo ? 1 : a.proyectos.join().localeCompare(b.proyectos.join())));
+}
+
 async function arrancarUno(id, args, visitados) {
   if (visitados.has(id)) return { codigo: 1, resumen: `up ${id}: ciclo en requiere (omitido)` };
   visitados.add(id);
@@ -920,7 +1110,7 @@ export async function main(argv) {
       errorSensor = `clasificar: ${e.message}`;
     }
   }
-  const informe = { version: 1, tomadoEn, snapshotEn, ttlMs: TTL_MS, errorSensor, compartidos: detectarCompartidos(registro), ...clasif };
+  const informe = { version: 1, tomadoEn, snapshotEn, ttlMs: TTL_MS, errorSensor, compartidos: detectarCompartidos(registro), rust: detectarRust(registro), ...clasif };
 
   if (conAssert) {
     const fallos = [];
