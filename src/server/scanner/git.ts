@@ -65,6 +65,7 @@ export function git(ruta: string, args: string[]): string | null {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 10000,
+      windowsHide: true,
     }).trimEnd();
   } catch {
     return null;

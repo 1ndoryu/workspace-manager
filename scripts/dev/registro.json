@@ -21,7 +21,7 @@
       "id": "glory-pulse",
       "ruta": "../glory-pulse",
       "dominio": "pulse.localhost",
-      "boton": [["cargo", "run", "--manifest-path", "pulse/Cargo.toml"]],
+      "boton": [["C:\\tmp\\glory-target\\debug\\pulse.exe"]],
       "puertos": [3000],
       "healths": [{ "puerto": 3000, "ruta": "/health", "esperaJson": true }],
       "timeoutMs": 3000,
@@ -31,7 +31,7 @@
         "CARGO_INCREMENTAL": "0",
         "SCCACHE_BASEDIRS": "C:\\Users\\Owner\\OneDrive\\Documentos\\area-trabajo"
       },
-      "tipoLauncher": "cargo run (requiere PULSE_TOKEN>=32 en entorno; en local vale cualquiera, el real solo vive en Coolify)"
+      "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; tras cambiar codigo de pulse: cargo build con el CARGO_TARGET_DIR de siempre y luego up; requiere PULSE_TOKEN>=32 en entorno, en local vale cualquiera, el real solo vive en Coolify)"
     },
     {
       "id": "MN-Inmobiliaria",

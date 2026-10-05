@@ -34,7 +34,7 @@ function ejecutarDoctor(snapshotTmp: string): Promise<string> {
     execFile(
       process.execPath,
       [DOCTOR, '--all', '--json', '--snapshot-file', snapshotTmp],
-      { timeout: 30_000, maxBuffer: 4 * 1024 * 1024 },
+      { timeout: 30_000, maxBuffer: 4 * 1024 * 1024, windowsHide: true },
       (err, stdout) => {
         const conSalida = err as (Error & { stdout?: unknown }) | null;
         res(String(stdout ?? conSalida?.stdout ?? ''));

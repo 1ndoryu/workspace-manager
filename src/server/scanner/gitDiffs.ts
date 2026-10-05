@@ -21,6 +21,7 @@ function gitCodigo(ruta: string, args: string[]): { salida: string; codigo: numb
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 10000,
+      windowsHide: true,
     }).trimEnd();
     return { salida, codigo: 0 };
   } catch (e) {
