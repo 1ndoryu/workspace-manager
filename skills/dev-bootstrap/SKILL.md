@@ -22,6 +22,36 @@ Arranque open "<id>"            # mostrar URLs con nombre (http://<slug>.localho
 
 Los `<id>` válidos están en `scripts/dev/registro.json` (p. ej. `MN-Inmobiliaria`, `NAKOMI`, `WANDORIUS`, `PROYECTO TASKS`, `glory-pulse`, `gloryapi`).
 
+## Alta de proyecto nuevo
+
+Añadir una entrada en `scripts/dev/registro.json`. Campos admitidos (el `doctor` rechaza cualquier otro):
+
+```json
+{
+  "id": "mi-proyecto",
+  "ruta": "../mi-proyecto",
+  "dominio": "miproyecto.localhost",
+  "boton": [["npm", "run", "dev"]],
+  "puertos": [31xx],
+  "healths": [{ "puerto": 31xx, "ruta": "/health", "esperaJson": true }],
+  "timeoutMs": 3000,
+  "arranqueMs": 180000,
+  "expectedCmdline": "mi-proyecto",
+  "requiere": ["glory-pulse"],
+  "env": { "MI_VAR": "valor" },
+  "tipoLauncher": "descripción corta del lanzador"
+}
+```
+
+Reglas:
+
+- `id` único, `ruta` relativa al repo, `dominio` con el patrón `<slug>.localhost`.
+- `puertos`: nunca `8787/5174/5175` (protegidos) ni uno ya usado por otra entrada.
+- `boton`: el comando exacto que levanta el proyecto; `expectedCmdline`: subcadena que lo identifica en la lista de procesos.
+- `requiere`: solo si necesita otro servicio antes (p. ej. `glory-pulse`); `env`: objeto string→string no vacío (p. ej. `VITE_PORT`, vars de sccache) — llega al hijo vía `envPara()`/`lanzar()`, sin reiniciar el backend.
+- Sin servicio que levantar (solo docs o estático): no va en entradas, va en `noAplica` con motivo (`sin-servicio`).
+- Validar el alta con `Arranque doctor --all` (falla si la entrada está mal formada) y luego `status "<id>"`.
+
 ## Flujo ante "arranca X"
 
 0. Requisito: el backend del manager (`http://127.0.0.1:8787`) debe responder; si no, levántalo con `npm run server` (ligero, sin compilación pesada) y espera a que escuche el 8787. Sin backend usa `--snapshot-file` con snapshot fresco (`GET /api/workspace?forzar=1`); sin ninguno, el mando rehúsa a ciegas (es lo correcto).
