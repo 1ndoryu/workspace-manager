@@ -199,4 +199,79 @@ void describe('agente glory-pulse', () => {
     assert.equal(infra[0]?.sitio, null);
     assert.equal(infra[0]?.nombre, 'coolify');
   });
+
+  /* [309A-2] Detalle por sitio: pide /detalle?sitio=<uuid>, adapta filas
+   * (con imagen cuando pulse la sirve) y cachea por sitio. */
+  const FILA_DET = { ...FILA, imagen: 'ghcr.io/1ndoryu/glory-pulse:sha-804f306' };
+  const DET = {
+    schema: 1,
+    hostId: 'vps',
+    ts: 1000,
+    sitio: 'as0scgwg44wkkkccgwcwg8w0',
+    contenedores: [FILA_DET],
+    totalContenedores: 1,
+  };
+
+  void it('detalleSitio adapta el detalle y propaga la imagen', async () => {
+    let ruta: unknown = null;
+    const fetchImpl = (async (url: unknown, _init: unknown) => {
+      ruta = url;
+      return { ok: true, status: 200, json: async () => DET };
+    }) as unknown as typeof fetch;
+    const agente = crearAgente({ baseUrl: 'https://pulse.test', token: TOKEN, fetchImpl });
+    const r = await agente.detalleSitio('as0scgwg44wkkkccgwcwg8w0');
+    assert.equal(r.disponible, true);
+    assert.equal(r.error, null);
+    assert.equal(r.detalle?.sitio, 'as0scgwg44wkkkccgwcwg8w0');
+    assert.equal(r.detalle?.totalContenedores, 1);
+    assert.equal(r.detalle?.contenedores[0]?.imagen, 'ghcr.io/1ndoryu/glory-pulse:sha-804f306');
+    assert.ok(String(ruta).includes('/detalle?sitio=as0scgwg44wkkkccgwcwg8w0'));
+  });
+
+  void it('detalleSitio rechaza contrato inválido y comparte el breaker', async () => {
+    let llamadas = 0;
+    const fetchImpl = (async () => {
+      llamadas += 1;
+      return { ok: true, status: 200, json: async () => ({ ...DET, schema: 2 }) };
+    }) as unknown as typeof fetch;
+    const agente = crearAgente({
+      baseUrl: 'https://pulse.test',
+      token: TOKEN,
+      fetchImpl,
+      ahora: () => 0,
+      cacheMs: 0,
+      sondeoMs: 60_000,
+    });
+    assert.equal((await agente.detalleSitio('AAA')).error, 'agente-contrato');
+    assert.equal((await agente.detalleSitio('AAA')).error, 'agente-contrato');
+    assert.equal((await agente.detalleSitio('AAA')).error, 'agente-contrato');
+    assert.equal(llamadas, 3);
+    // Breaker abierto por el detalle: el snapshot tampoco toca red.
+    assert.equal((await agente.snapshot()).error, 'agente-abierto');
+    assert.equal(llamadas, 3);
+  });
+
+  void it('detalleSitio cachea por sitio sin mezclar A con B', async () => {
+    let llamadas = 0;
+    const fetchImpl = (async (url: unknown, _init: unknown) => {
+      llamadas += 1;
+      const u = String(url);
+      const sitio = u.includes('sitio=AAA') ? 'AAA' : 'BBB';
+      return { ok: true, status: 200, json: async () => ({ ...DET, sitio, contenedores: [] }) };
+    }) as unknown as typeof fetch;
+    let ahora = 0;
+    const agente = crearAgente({
+      baseUrl: 'https://pulse.test',
+      token: TOKEN,
+      fetchImpl,
+      ahora: () => ahora,
+    });
+    assert.equal((await agente.detalleSitio('AAA')).detalle?.sitio, 'AAA');
+    assert.equal((await agente.detalleSitio('BBB')).detalle?.sitio, 'BBB');
+    assert.equal(llamadas, 2);
+    ahora += 1000; // dentro de caché: repite sin red
+    assert.equal((await agente.detalleSitio('AAA')).detalle?.sitio, 'AAA');
+    assert.equal((await agente.detalleSitio('BBB')).detalle?.sitio, 'BBB');
+    assert.equal(llamadas, 2);
+  });
 });

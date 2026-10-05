@@ -175,6 +175,24 @@ export interface VpsAgenteRespuesta {
   error: string | null;
 }
 
+/* [309A-2] Detalle por sitio en una conexión: subconjunto del snapshot
+ * (mismas filas) servido por `GET /detalle?sitio=<uuid>` de pulse y
+ * proxificado en `/api/vps/agente-detalle?uuid=<uuid>`. */
+export interface VpsAgenteDetalle {
+  schema: 1;
+  hostId: string;
+  ts: number;
+  sitio: string;
+  contenedores: VpsAgenteContenedor[];
+  totalContenedores: number;
+}
+
+export interface VpsAgenteDetalleRespuesta {
+  disponible: boolean;
+  detalle: VpsAgenteDetalle | null;
+  error: string | null;
+}
+
 export interface EstadoGate {
   declarado: boolean;
   sentinel: 'config' | 'lock' | 'none';
