@@ -1,6 +1,7 @@
 # 05AA-1 — Rust: perfil dev adelgazado + purga con cuota (2026-10-05)
 
-> **ESTADO 2026-10-05: F0–F3 HECHOS + PROPAGACIÓN COMPLETA, F4/F5 PROPUESTA.**
+> **ESTADO 2026-10-05: F0–F5 HECHOS + PROPAGACIÓN COMPLETA (F5 = exclusión
+> Defender por el usuario, no Dev Drive). Pendiente solo F6 cierre.**
 > Hallazgo clave: `CARGO_TARGET_DIR=C:\tmp\glory-target` ya es variable de
 > usuario global (todo compila ahí, no in-tree). Piloto glory-pulse +
 > propagación a los 6 manifiestos (receta 124A-OPT1): 5 builds OK,
@@ -64,9 +65,13 @@ arranque abría una ventana de consola indistinguible.
    y temporales) en los wrappers `run-with-db.mjs`/equivalentes, nunca en
    config global. Medir rebuild frío tras purga con/sin caché (debe pasar
    de minutos a segundos en dependencias). Si no aporta, se revierte.
-6. **F5 PROPUESTA al humano (no ejecutar).** Config global
-   `%CARGO_HOME%\config.toml` + volumen Dev Drive (ReFS, Win11): se redacta
-   la propuesta con pros/contras y la ejecuta el usuario si la acepta.
+6. **F5 HECHA por el usuario (2026-10-05, sustituye Dev Drive).** Sin
+    espacio para Dev Drive: exclusión de Defender aplicada por el usuario
+    en PowerShell admin (`Add-MpPreference -ExclusionPath` sobre
+    `C:\tmp\glory-target` + `%LOCALAPPDATA%\sccache`) — mismo beneficio
+    (menos escaneo en artefactos regenerables), sin volumen nuevo.
+    No verificable sin admin (`Get-MpPreference` exige elevación); vale la
+    palabra del usuario.
 7. **F6 cierre.** `doctor --all --assert` + trampa + `type-check` en verde,
    commit por bloque, roadmap y docs actualizados.
 
