@@ -117,6 +117,9 @@ export function usePanelDetalle() {
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const analisis = useWorkspaceStore((s) => s.analisis);
   const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
+  const dev = useWorkspaceStore((s) => s.dev);
+  const devOcupado = useWorkspaceStore((s) => s.devOcupado);
+  const accionDev = useWorkspaceStore((s) => s.accionDev);
   const { ocupado: escaneando, escanearProyecto } = useEscanear();
 
   const proyecto = snapshot && seleccionadoId
@@ -125,12 +128,18 @@ export function usePanelDetalle() {
 
   const analisisProy = proyecto ? analisis[proyecto.clave] : undefined;
   const auditoriaProy = proyecto ? vulnerabilidades[proyecto.clave] : undefined;
+  /* Entrada del mando dev con botones (05AA-4): solo si tiene id
+   * (bajo-mando, deriva o parado; sin-boton/no-aplica no operan). */
+  const devInfo = proyecto ? (dev?.proyectos.find((d) => d.clave === proyecto.clave) ?? null) : null;
 
   return {
     proyecto,
     seleccionar,
     estado: proyecto ? estadoProyecto(proyecto) : '',
     filas: proyecto ? filasProyecto(proyecto) : [],
+    devInfo: devInfo?.id ? devInfo : null,
+    devOcupado,
+    accionDev,
     resumen: resumenAnalisis(analisisProy),
     resumenAudit: resumenAuditoria(auditoriaProy),
     analizadoEn: analisisProy?.analizadoEn,

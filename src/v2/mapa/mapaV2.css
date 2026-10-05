@@ -104,6 +104,16 @@
     pointer-events: none;
 }
 
+/* Punto verde de servicio en marcha (05AA-4): excepcion explicita del
+ * usuario a la regla monocroma, solo este punto lleva color. Sin eventos
+ * (el techo sigue siendo el unico capturador, ver gotcha de arriba). */
+.mapaV2PuntoVerde {
+    fill: #1a7f37;
+    stroke: var(--v2-fondo);
+    stroke-width: 1;
+    pointer-events: none;
+}
+
 /* Tooltip monocromo: caja negra con borde y texto blanco. La posicion la
  * publica el componente como CSS vars (sigue al cursor) para no tapar los
  * paneles laterales, sin estilos inline reales. */

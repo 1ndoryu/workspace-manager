@@ -24,7 +24,7 @@ Reglas:
 
 - Requisito: `status/up/stop/logs` hablan con el backend (`http://127.0.0.1:8787`, `npm run server`); sin backend, `--snapshot-file` con snapshot fresco (`GET /api/workspace?forzar=1`). Sin ninguno, el mando rehúsa a ciegas.
 - Los id son los de `scripts/dev/registro.json` (10 entradas + 7 `noAplica` = 17/17). Cada entrada tiene `dominio` (`<slug>.localhost`: pulse, inmobiliaria, nakomi, tareas, wandorius, gloryapi, laminal, coolify, harness, workspace). El navegador lo resuelve solo a tu PC, sin tocar `hosts` ni pedir administrador; el probe verifica el servicio con cabecera `Host` = dominio (Node/SO no resuelven `*.localhost`, solo el navegador). Si en el navegador ves `127.0.0.1`, fue arranque artesanal; si ves el nombre, pasó por el mando. Sin entrada no hay mando: `status`/`up` lo dicen, no inventan.
-- Exit codes: `0` verde, `2` degradado/deriva (visible en consola, nunca verde ambiguo), `1` instrumento roto o uso rehusado.
+- Exit codes: `0` verde, `2` degradado/deriva (visible en consola, nunca verde ambiguo), `1` instrumento roto o uso rehusado. `parado` = detenido normal (todo libre), exit `0`, línea con botones sin ser problema (05AA-4).
 - Protegidos: `8787/5174/5175` y procesos de opencode-propio — jamás matarlos ni tocar sus puertos.
 - Sin `up --all`: N `cargo build` en paralelo saturan la máquina. Uno por vez.
 - `up workspace-manager` auto-asegura `glory-pulse` (`requiere` en registro): si pulse está caído lo arranca solo (token local efímero si falta `PULSE_TOKEN`); si su puerto está ocupado por otro, sale 2 degradado con el pid ajeno, sin matar nada.

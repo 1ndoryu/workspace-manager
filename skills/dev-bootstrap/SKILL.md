@@ -55,7 +55,7 @@ Reglas:
 ## Flujo ante "arranca X"
 
 0. Requisito: el backend del manager (`http://127.0.0.1:8787`) debe responder; si no, levántalo con `npm run server` (ligero, sin compilación pesada) y espera a que escuche el 8787. Sin backend usa `--snapshot-file` con snapshot fresco (`GET /api/workspace?forzar=1`); sin ninguno, el mando rehúsa a ciegas (es lo correcto).
-1. `status "X"`: si ya está arriba, dilo y termina (no dupliques procesos).
+1. `status "X"`: si ya está arriba, dilo y termina (no dupliques procesos). `parado` = detenido normal (exit 0, no es caída): se arranca sin más trámite.
 2. Si está caído, `up "X"`. Primera vez en frío compila Rust (minutos): avisa, no lo mates.
 3. Si `up` rehúsa (exit 1) o deriva (exit 2), lee el motivo y repórtalo tal cual; no fuerces ni mates a ciegas.
 4. Verifica con `status` + `Get-NetTCPConnection -LocalPort <puerto> -State Listen`.

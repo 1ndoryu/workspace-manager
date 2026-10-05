@@ -98,7 +98,7 @@ export async function status(argv) {
   const r = await clasificarEntrada(ctx.proyecto, ctx.entrada, ctx.porPuerto, ctx.procs);
   if (comoJson) console.log(JSON.stringify({ id, estado: r.estado, motivo: r.motivo, detalle: r.detalle }));
   else console.log(`${r.estado.padEnd(11)} ${id}  ${r.motivo}`);
-  return r.estado === 'bajo-mando' ? 0 : r.estado === 'deriva' || r.estado === 'sin-boton' ? 2 : 1;
+  return r.estado === 'bajo-mando' || r.estado === 'parado' ? 0 : r.estado === 'deriva' || r.estado === 'sin-boton' ? 2 : 1;
 }
 
 /* F2 `logs <id> [--lineas N]`: cola acotada (defecto 50, tope 200) del log

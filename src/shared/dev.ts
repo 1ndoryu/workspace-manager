@@ -3,7 +3,7 @@
  * el CLI y la consola diverjan en estados o motivos. */
 // Estado por proyecto: exactamente uno. `bajo-mando` exige probe verde;
 // `deriva` y `sin-boton` son visibles en consola, nunca verde ambiguo.
-export type EstadoDev = 'bajo-mando' | 'deriva' | 'sin-boton' | 'no-aplica';
+export type EstadoDev = 'bajo-mando' | 'deriva' | 'sin-boton' | 'no-aplica' | 'parado';
 
 export interface ProyectoDev {
   clave: string;

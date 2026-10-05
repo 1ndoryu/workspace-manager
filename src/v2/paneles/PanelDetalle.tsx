@@ -23,12 +23,31 @@ const ETIQUETA_ESTADO: Record<string, string> = {
   carpeta: 'carpeta (no git)',
 };
 
+/* Etiquetas del mando dev (05AA-4): mismas 4 acciones que la consola
+ * (BOTONES_DEV en PanelConsola.tsx, canonico). Duplicado intencional de
+ * 4 literales estaticos para no crear modulo compartido por esto. */
+const BOTONES_DETALLE_DEV = [
+  { accion: 'up', etiqueta: 'arrancar', titulo: 'dev up: verifica o arranca (nunca duplica)' },
+  { accion: 'stop', etiqueta: 'detener', titulo: 'dev stop: solo propio no-protegido (nunca 8787/5174/5175)' },
+  { accion: 'logs', etiqueta: 'bitácora', titulo: 'dev logs: ultimas 50 lineas del arranque' },
+  { accion: 'open', etiqueta: 'abrir', titulo: 'dev open: abre las URLs servidas' },
+] as const;
+
+const ETIQUETA_DEV: Record<string, string> = {
+  'bajo-mando': 'en marcha',
+  parado: 'detenido',
+  deriva: 'deriva',
+};
+
 export function PanelDetalle() {
   const {
     proyecto,
     seleccionar,
     estado,
     filas,
+    devInfo,
+    devOcupado,
+    accionDev,
     resumen,
     resumenAudit,
     analizadoEn,
@@ -73,6 +92,30 @@ export function PanelDetalle() {
           </div>
         ))}
       </dl>
+
+      {/* Mando dev arriba del detalle (05AA-4): al clicar la caja se opera
+        * sin ir a la consola. Solo con entrada (id); sin-boton/no-aplica no
+        * operan y no muestran seccion. */}
+      {devInfo ? (
+        <div className="panelDetalleDev" aria-label="Mando dev del proyecto">
+          <div className="panelDetalleDevEstado" title={devInfo.motivo}>
+            dev: {ETIQUETA_DEV[devInfo.estado] ?? devInfo.estado} · {devInfo.motivo}
+          </div>
+          <div className="panelDetalleDevBotones">
+            {BOTONES_DETALLE_DEV.map((b) => (
+              <Button
+                key={b.accion}
+                pequeno
+                onClick={() => void accionDev(b.accion, devInfo.id as string)}
+                disabled={devOcupado}
+                title={b.titulo}
+              >
+                {devOcupado ? '…' : b.etiqueta}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* Un solo 'escanear' por proyecto: analisis (solo con puerta
         * sentinel) + auditoria de dependencias en secuencia. */}
