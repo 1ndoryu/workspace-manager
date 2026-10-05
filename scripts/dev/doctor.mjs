@@ -482,7 +482,7 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
         motivo = `puerto ${h.puerto} ocupado por desconocido`;
         detalle.push({ puerto: h.puerto, situacion: 'ocupado-desconocido', pids: oyentes.map((o) => o.pid) });
       } else {
-        motivo = `puerto ${h.puerto} libre (caido?)`;
+        motivo = `puerto ${h.puerto} libre (parado)`;
         detalle.push({ puerto: h.puerto, situacion: 'libre', pids: [] });
       }
       break;
@@ -504,6 +504,12 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
       break;
     }
     detalle.push({ puerto: h.puerto, situacion: 'arriba', pids: [propio.pid] });
+  }
+  if (estado === 'deriva' && detalle.length > 0 && detalle.every((d) => d.situacion === 'libre')) {
+    /* [05AA-4] Todo libre = detenido normal, no caida: 'parado' (exit 0,
+     * seriedad null con botones). Parcial (alguno arriba + alguno libre)
+     * sigue deriva (degradado visible). */
+    estado = 'parado';
   }
   return { estado, motivo, detalle, consumidos };
 }
@@ -1206,8 +1212,8 @@ export async function main(argv) {
       fallos.push(`cobertura: clasificados ${informe.proyectos.length} != snapshot ${proyectos.length}`);
     }
     // [por que] Anti-trampa: el enum de motivos rige la INTENCION humana
-    // (sin-boton/no-aplica: por que nadie lo gestiona); deriva/bajo-mando
-    // llevan EVIDENCIA del sensor (texto libre: que se vio), no intencion.
+    // (sin-boton/no-aplica: por que nadie lo gestiona); deriva/bajo-mando/
+    // parado llevan EVIDENCIA del sensor (texto libre: que se vio), no intencion.
     // Mezclarlos permitiria esconder proyectos tras 'otro' inventados o
     // motivos vacios. `otro` >20% = el registro dejo de describir el area.
     let otros = 0;
@@ -1221,7 +1227,7 @@ export async function main(argv) {
           fallos.push(e.message);
         }
         if (typeof p.motivo === 'string' && p.motivo.startsWith('otro{')) otros++;
-      } else if (p.estado === 'deriva' || p.estado === 'bajo-mando') {
+      } else if (p.estado === 'deriva' || p.estado === 'bajo-mando' || p.estado === 'parado') {
         if (typeof p.motivo !== 'string' || p.motivo.length === 0 || p.motivo.length > 200) {
           fallos.push(`${p.clave}: evidencia vacia o excesiva (${p.estado})`);
         }

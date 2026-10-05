@@ -24,8 +24,9 @@ export interface Entrada {
    * Null salvo en la categoria 'vulnerabilidad'. */
   vulnSeveridad?: SeveridadVuln;
   /* Id de la entrada del registro del mando dev (F3: el tablero lo usa para
-   * up/stop/logs/open). Solo en entradas 'dev' con entrada (bajo-mando o
-   * deriva); sin-boton/no-aplica y el resto de categorias no lo llevan. */
+   * up/stop/logs/open). Solo en entradas 'dev' con entrada (bajo-mando,
+   * deriva o parado [05AA-4]); sin-boton/no-aplica y el resto de
+   * categorias no lo llevan. */
   devId?: string | null;
 }
 
@@ -169,6 +170,10 @@ export function problemasDevDe(
      * (arrancar/ver, detener, logs): sin esta linea lo sano seria invisible
      * y el usuario no sabria que hay mando. Seriedad null (no es problema). */
     entradas.push({ categoria: 'dev', motivo: `dev bajo mando: ${info.motivo}`, seriedad: null, devId: info.id });
+  } else if (info?.estado === 'parado' && info.id) {
+    /* [05AA-4] Detenido normal: no es problema (seriedad null) pero lleva
+     * botones para arrancar/ver sin buscar la consola. */
+    entradas.push({ categoria: 'dev', motivo: `dev detenido: ${info.motivo}`, seriedad: null, devId: info.id });
   }
   if (dev?.errorSensor && esMando) {
     entradas.push({ categoria: 'dev', motivo: `dev: sensor falló: ${dev.errorSensor}`, seriedad: 'error' });

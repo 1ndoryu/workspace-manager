@@ -9,6 +9,7 @@ import { estadoProyecto, PESO_ESTADO } from '../estado.js';
 import {
   TILE,
   pathCuadricula,
+  posicionGrid,
   verticesParedDer,
   verticesParedIzq,
   verticesTecho,
@@ -21,6 +22,7 @@ import './mapaV2.css';
 
 export function MapaV2() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
+  const dev = useWorkspaceStore((s) => s.dev);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const abrirMenuContextual = useWorkspaceStore((s) => s.abrirMenuContextual);
   const {
@@ -57,6 +59,17 @@ export function MapaV2() {
       return { p, fila, col };
     });
   }, [proyectos]);
+
+  /* Claves con servicio en marcha (05AA-4): punto verde en su caja.
+   * [por que] Solo bajo-mando = probe verde real; parado/deriva/sin-boton
+   * no llevan punto. Excepcion explicita del usuario a la regla monocroma. */
+  const enMarcha = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of dev?.proyectos ?? []) {
+      if (d.estado === 'bajo-mando') set.add(d.clave);
+    }
+    return set;
+  }, [dev]);
 
   /* Rango de celdas ocupadas por las cajas (para extender la cuadricula). */
   const rangoCeldas = useMemo(() => {
@@ -176,6 +189,16 @@ export function MapaV2() {
               <polygon points={paredDer} className="mapaV2ParedDer" />
               <polygon points={paredIzq} className="mapaV2ParedIzq" />
               <polygon points={techo} className="mapaV2Piso" />
+              {enMarcha.has(p.clave) ? (
+                <circle
+                  cx={posicionGrid(col, fila).x}
+                  cy={posicionGrid(col, fila).y - TILE.altoPared}
+                  r={3.2}
+                  className="mapaV2PuntoVerde"
+                >
+                  <title>en marcha (dev bajo-mando)</title>
+                </circle>
+              ) : null}
             </g>
           );
         })}
