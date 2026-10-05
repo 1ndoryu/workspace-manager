@@ -23,15 +23,14 @@ con fila de mando dev arriba al seleccionar.
 - [x] F0 registrar (roadmap entrada 38 + este plan).
 - [x] F1 doctor: `parado` si todo el detalle es `libre`; assert lo acepta
       como evidencia; `codigoSalida` 0; `status` 0.
-- [x] F2 front consola: `parado` → línea `dev detenido:` seriedad null con
-      `devId` (botones visibles, no suma problema porque el conteo `todos`
-      ya incluye las líneas sanas `bajo-mando` igual — coherente).
+- [x] F2 front consola: `parado` NO genera entrada (correccion del
+      usuario: detenido no va en problemas); se opera desde el detalle.
 - [x] F3 mapa: `<circle>` verde en el techo si `bajo-mando` (clave del
       proyecto); tooltip/leyenda mínima. Excepción explícita del usuario a
       la regla monocroma (solo el punto).
-- [x] F4 detalle: sección mando dev arriba (estado + motivo + 4 botones;
-      literales duplicados de la consola con comentario de sincronía, sin
-      módulo nuevo).
+- [x] F4 detalle: sección mando dev pegada a la cabecera (estado +
+      motivo + 4 botones; literales duplicados de la consola con comentario
+      de sincronía, sin módulo nuevo).
 - [x] F5 verificar: `type-check` 0, `doctor --all` + `--assert` sin fallos,
       `status glory-harness` exit 0, trampa 7/8 (FAIL preexistente
       `pendiente-onboarding test-10-pasos-opencode`, verificado en HEAD sin
