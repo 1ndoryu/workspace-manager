@@ -7,6 +7,8 @@
  * 5 s para coalescer el poll del frontend. */
 import type {
   VpsAgenteContenedor,
+  VpsAgenteDetalle,
+  VpsAgenteDetalleRespuesta,
   VpsAgenteRespuesta,
   VpsAgenteSnapshot,
 } from '../../shared/types.js';
@@ -47,6 +49,7 @@ interface FilaPulse {
   puertos?: unknown;
   sitioUuid?: string | null;
   dominio?: string | null;
+  imagen?: string | null;
 }
 
 interface SnapshotPulse {
@@ -55,6 +58,18 @@ interface SnapshotPulse {
   ts: number;
   contenedores: FilaPulse[];
   truncado: boolean;
+  totalContenedores: number;
+}
+
+/* [309A-2] Detalle por sitio tal cual lo sirve pulse
+ * (`glory-pulse/schema/ejemplo-detalle.json`): mismas filas, sin
+ * `truncado` (un sitio cabe) y con `sitio` eco. */
+interface DetallePulse {
+  schema: number;
+  hostId: string;
+  ts: number;
+  sitio: string;
+  contenedores: FilaPulse[];
   totalContenedores: number;
 }
 
@@ -74,7 +89,7 @@ function esFila(v: unknown): v is FilaPulse {
   for (const k of ['cpuPct', 'memUsada', 'memLimite', 'blkRo', 'blkWo', 'netRx', 'netTx']) {
     if (!esNumero(rec[k])) return false;
   }
-  for (const k of ['sitioUuid', 'dominio'] as const) {
+  for (const k of ['sitioUuid', 'dominio', 'imagen'] as const) {
     const val = f[k];
     if (val !== undefined && val !== null && typeof val !== 'string') return false;
   }
@@ -93,6 +108,21 @@ function esSnapshot(v: unknown): v is SnapshotPulse {
     Array.isArray(s['contenedores']) &&
     (s['contenedores'] as unknown[]).every(esFila) &&
     typeof s['truncado'] === 'boolean' &&
+    esNumero(s['totalContenedores'])
+  );
+}
+
+/* [309A-2] Contrato del detalle: mismas filas, `sitio` eco obligatorio. */
+function esDetalle(v: unknown): v is DetallePulse {
+  if (!v || typeof v !== 'object') return false;
+  const s = v as Record<string, unknown>;
+  return (
+    s['schema'] === 1 &&
+    typeof s['hostId'] === 'string' &&
+    esNumero(s['ts']) &&
+    typeof s['sitio'] === 'string' &&
+    Array.isArray(s['contenedores']) &&
+    (s['contenedores'] as unknown[]).every(esFila) &&
     esNumero(s['totalContenedores'])
   );
 }
@@ -132,7 +162,7 @@ function adaptar(f: FilaPulse): VpsAgenteContenedor {
     id: f.id12,
     nombre: f.nombre,
     estado: f.estado.estado,
-    imagen: '',
+    imagen: typeof f.imagen === 'string' ? f.imagen : '',
     cpuPct: f.recursos.cpuPct,
     memMiB: f.recursos.memUsada / MIB,
     memLimiteMiB: limite,
@@ -146,7 +176,10 @@ function adaptar(f: FilaPulse): VpsAgenteContenedor {
   };
 }
 
-export function crearAgente(op: OpcionesAgente): { snapshot: () => Promise<VpsAgenteRespuesta> } {
+export function crearAgente(op: OpcionesAgente): {
+  snapshot: () => Promise<VpsAgenteRespuesta>;
+  detalleSitio: (uuid: string) => Promise<VpsAgenteDetalleRespuesta>;
+} {
   const timeoutMs = op.timeoutMs ?? 8000;
   const fallosParaAbrir = op.fallosParaAbrir ?? 3;
   const sondeoMs = op.sondeoMs ?? 60_000;
@@ -158,34 +191,49 @@ export function crearAgente(op: OpcionesAgente): { snapshot: () => Promise<VpsAg
   let fallos = 0;
   let abiertoHasta = 0;
   let cache: { cuando: number; snap: VpsAgenteSnapshot } | null = null;
+  /* [309A-2] Caché por sitio (el detalle no comparte la del snapshot:
+   * mezclarlas serviría el sitio A al pedir el B). Mismo breaker: si el
+   * agente cae, el detalle cae con él. */
+  const cacheDetalle = new Map<string, { cuando: number; det: VpsAgenteDetalle }>();
 
-  async function pedir(): Promise<VpsAgenteSnapshot> {
+  async function pedirConTimeout(ruta: string): Promise<unknown> {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
-      const res = await fetchImpl(`${base}/snapshot`, {
+      const res = await fetchImpl(`${base}${ruta}`, {
         headers: { authorization: `Bearer ${op.token}` },
         signal: ctrl.signal,
       });
       if (!res.ok) throw new Error(`agente-http-${res.status}`);
-      const crudo: unknown = await res.json();
-      if (!esSnapshot(crudo)) throw new Error('agente-contrato');
-      const servidoEn = ahora();
-      return {
-        schema: 1,
-        hostId: crudo.hostId,
-        ts: crudo.ts,
-        contenedores: crudo.contenedores.map(adaptar),
-        truncado: crudo.truncado,
-        totalContenedores: crudo.totalContenedores,
-        frescura: { fuente: 'agente', edadMs: Math.max(0, servidoEn - crudo.ts) },
-      };
+      return (await res.json()) as unknown;
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') throw new Error('agente-timeout');
       throw err;
     } finally {
       clearTimeout(t);
     }
+  }
+
+  function anotarFallo(err: unknown): string {
+    fallos += 1;
+    if (fallos >= fallosParaAbrir) abiertoHasta = ahora() + sondeoMs;
+    const codigo = err instanceof Error ? err.message : 'agente-fallo';
+    return codigo.slice(0, 120);
+  }
+
+  async function pedir(): Promise<VpsAgenteSnapshot> {
+    const crudo = await pedirConTimeout('/snapshot');
+    if (!esSnapshot(crudo)) throw new Error('agente-contrato');
+    const servidoEn = ahora();
+    return {
+      schema: 1,
+      hostId: crudo.hostId,
+      ts: crudo.ts,
+      contenedores: crudo.contenedores.map(adaptar),
+      truncado: crudo.truncado,
+      totalContenedores: crudo.totalContenedores,
+      frescura: { fuente: 'agente', edadMs: Math.max(0, servidoEn - crudo.ts) },
+    };
   }
 
   async function snapshot(): Promise<VpsAgenteRespuesta> {
@@ -202,14 +250,39 @@ export function crearAgente(op: OpcionesAgente): { snapshot: () => Promise<VpsAg
       cache = { cuando: t, snap };
       return { disponible: true, snapshot: snap, error: null };
     } catch (err) {
-      fallos += 1;
-      if (fallos >= fallosParaAbrir) abiertoHasta = t + sondeoMs;
-      const codigo = err instanceof Error ? err.message : 'agente-fallo';
-      return { disponible: false, snapshot: null, error: codigo.slice(0, 120) };
+      return { disponible: false, snapshot: null, error: anotarFallo(err) };
     }
   }
 
-  return { snapshot };
+  async function detalleSitio(uuid: string): Promise<VpsAgenteDetalleRespuesta> {
+    const t = ahora();
+    const previo = cacheDetalle.get(uuid);
+    if (previo && t - previo.cuando < cacheMs) {
+      return { disponible: true, detalle: previo.det, error: null };
+    }
+    if (t < abiertoHasta) {
+      return { disponible: false, detalle: null, error: 'agente-abierto' };
+    }
+    try {
+      const crudo = await pedirConTimeout(`/detalle?sitio=${encodeURIComponent(uuid)}`);
+      if (!esDetalle(crudo)) throw new Error('agente-contrato');
+      const det: VpsAgenteDetalle = {
+        schema: 1,
+        hostId: crudo.hostId,
+        ts: crudo.ts,
+        sitio: crudo.sitio,
+        contenedores: crudo.contenedores.map(adaptar),
+        totalContenedores: crudo.totalContenedores,
+      };
+      fallos = 0;
+      cacheDetalle.set(uuid, { cuando: t, det });
+      return { disponible: true, detalle: det, error: null };
+    } catch (err) {
+      return { disponible: false, detalle: null, error: anotarFallo(err) };
+    }
+  }
+
+  return { snapshot, detalleSitio };
 }
 
 /* Instancia desde env (PULSE_URL + PULSE_TOKEN>=32) o desde el token local
@@ -218,7 +291,10 @@ export function crearAgente(op: OpcionesAgente): { snapshot: () => Promise<VpsAg
  * Sin token (ni env ni fichero) la ruta responde `sin-configurar` y el
  * frontend usa legacy. Singleton perezoso (el null NO se cachea: reintenta
  * cada vez hasta que el token exista) y el token nunca se expone. */
-let prod: { snapshot: () => Promise<VpsAgenteRespuesta> } | null = null;
+let prod: {
+  snapshot: () => Promise<VpsAgenteRespuesta>;
+  detalleSitio: (uuid: string) => Promise<VpsAgenteDetalleRespuesta>;
+} | null = null;
 
 function leerTokenLocal(): string {
   try {
@@ -229,7 +305,10 @@ function leerTokenLocal(): string {
   }
 }
 
-export function agenteProd(): { snapshot: () => Promise<VpsAgenteRespuesta> } | null {
+export function agenteProd(): {
+  snapshot: () => Promise<VpsAgenteRespuesta>;
+  detalleSitio: (uuid: string) => Promise<VpsAgenteDetalleRespuesta>;
+} | null {
   const base = (process.env['PULSE_URL'] ?? '').trim() || 'http://127.0.0.1:3000';
   const token = (process.env['PULSE_TOKEN'] ?? '').trim() || leerTokenLocal();
   if (token.length < 32) return null;

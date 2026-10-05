@@ -4,6 +4,7 @@
  * con el recargar porque los datos remotos pueden haber cambiado). */
 import axios from 'axios';
 import type {
+  VpsAgenteDetalleRespuesta,
   VpsAgenteRespuesta,
   VpsConfig,
   VpsDetalle,
@@ -48,6 +49,16 @@ export async function detalleVps(sitio: string): Promise<VpsDetalle> {
   if (previo) return previo;
   const { data } = await axios.get<VpsDetalle>('/api/vps/detalle', { params: { sitio } });
   cacheDetalle.set(sitio, data);
+  return data;
+}
+
+/* [309A-2] Detalle por sitio en una conexión (vía agente). El llamante
+ * resuelve nombre→uuid desde su lista de sitios; 0110A-3 (drill-down UI)
+ * la preferirá cuando `disponible`, con `detalleVps` como fallback. */
+export async function detalleAgenteVps(uuid: string): Promise<VpsAgenteDetalleRespuesta> {
+  const { data } = await axios.get<VpsAgenteDetalleRespuesta>('/api/vps/agente-detalle', {
+    params: { uuid },
+  });
   return data;
 }
 

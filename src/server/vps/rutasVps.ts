@@ -215,6 +215,43 @@ export async function manejarRutasVps(
     return true;
   }
 
+  /* [309A-2] Detalle por sitio en una conexión: proxy a
+   * `GET /detalle?sitio=<uuid>` del agente. `uuid` fail-closed (misma
+   * regla que pulse: alfanumérico; el nombre legible lo resuelve el
+   * frontend desde su lista de sitios). Sin agente, `sin-configurar` y
+   * el llamante usa legacy. El legacy `/detalle` queda intacto. */
+  if (ruta === '/api/vps/agente-detalle') {
+    const uuid = url.searchParams.get('uuid') ?? '';
+    if (!/^[A-Za-z0-9]{1,64}$/.test(uuid)) {
+      json(res, 400, { error: 'uuid-invalido' });
+      return true;
+    }
+    const agente = agenteProd();
+    if (!agente) {
+      json(res, 200, { disponible: false, detalle: null, error: 'sin-configurar' });
+      return true;
+    }
+    if (mapaSitios.size === 0) {
+      sembrarMapaSettings();
+    }
+    if (mapaSitios.size === 0 || Date.now() - mapaSitiosTs > MAPA_SITIOS_MS) {
+      refrescarMapaSitios();
+    }
+    const r = await agente.detalleSitio(uuid);
+    if (r.disponible && r.detalle) {
+      json(res, 200, {
+        ...r,
+        detalle: {
+          ...r.detalle,
+          contenedores: enriquecerConSitios(r.detalle.contenedores, mapaSitios),
+        },
+      });
+      return true;
+    }
+    json(res, 200, r);
+    return true;
+  }
+
   if (ruta === '/api/vps/sitios') {
     if (!rutaBinario()) {
       json(res, 503, { error: 'sin-binario', ayuda: 'COOLIFY_MANAGER_BIN o C:\\Users\\Owner\\bin' });
