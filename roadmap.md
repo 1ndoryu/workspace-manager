@@ -149,6 +149,8 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md`, `PLAN-corregir-hallazgos-202
 
    40. `0110A-3` - **ACTIVA (2026-10-06): F2 HECHA, F3/F4 pendientes.** WIP encontrado sin registrar y registrado (era la siguiente en el orden de cierre tras 309A-2). F2: anillo por sitio (`src/v2/vps/historialSitios.ts` + test 4/4) + chips de rango y chispas por despliegue en el detalle lateral (reutiliza `RANGOS`/`Chispa` de `PanelVpsRecursos.tsx`); `type-check` 0 + `vite build` OK; commit sin push. F1 base preexistente. F3 = piezas pesadas bajo demanda (logs/inspección/eventos, timeout/abort); F4 = cierre con verificación en vivo. Refactor post-F2 (`642e630` sin push): lógica fuera de `PanelVps` (`useHistorialSitios.ts` hook + `HistorialSitioDetalle.tsx`) para no empeorar gate (`useState` 5=igual, líneas ef 306→316, sin errores nuevos); fix `memMiB` (era `memBytes` inexistente) y clave `sitio:<uuid>`/`infra` igual que la tabla. Plan: `PLAN-vps-detalle-despliegue-2026-10-01.md`. Evidencia: `Agente/completados/tareas-2026-10-06.md`.
 
+   41. `0610A-1` - **HECHA parcial (2026-10-06, zona libre; sin push).** Triaje 36 (0E/33W/1I/2H). Alcance propio HECHO: `limpieza.ts` 331→178 ef (`limpiezaBase.ts` 176 ef nueva) + `singleton-mutable-state` del split (Set→readonly+includes) + 20 huerfanas podadas de `paneles.css` + `todo-prosa` x2 libres + `css-hardcoded` x1 (token `--v2-punto-verde` [05AA-4]). Re-escaneo forzado 34W→12W (0E/12W/1I/2H); resto = zona concurrente 0110A-3 (no tocar) + diferidos. Diferido a F3 concurrente: `rutasVps.ts` 329 ef (`rutasVpsPiezas.ts` untracked ajeno en curso). Diferidos: `directorio-abarrotado paneles/` (colisión), `large-interface-isp` hint (fuera de alcance).
+
 
 ## Planes activos
 

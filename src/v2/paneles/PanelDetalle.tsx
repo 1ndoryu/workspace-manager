@@ -84,9 +84,10 @@ export function PanelDetalle() {
           ×
         </Button>
       </header>
-      {/* Mando dev PEGADO a la cabecera (05AA-4): al clicar la caja los
-        * botones quedan arriba del todo. Solo con entrada (id);
-        * sin-boton/no-aplica no operan y no muestran seccion. */}
+      {/* Mando dev PEGADO a la cabecera [05AA-4]: al clicar la caja los
+        * botones quedan los primeros, arriba de la seccion. Solo con
+        * entrada (id); sin-boton/no-aplica no operan y no muestran
+        * seccion. */}
       {devInfo ? (
         <div className="panelDetalleDev" aria-label="Mando dev del proyecto">
           <div className="panelDetalleDevEstado" title={devInfo.motivo}>

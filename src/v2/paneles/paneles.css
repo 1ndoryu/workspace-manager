@@ -328,34 +328,11 @@
  * usuario (FilaCajas persistida, defecto [1,1,1.6]); los flex fijos se
  * jubilaron. */
 
-.vpsFila {
-    display: flex;
-    align-items: center;
-    gap: var(--v2-spaceSm);
-    width: 100%;
-    padding: var(--v2-spaceSm) var(--v2-spaceMd);
-    border: none;
-    border-bottom: 1px solid var(--v2-borde);
-    background: var(--v2-fondo);
-    color: var(--v2-texto);
-    font-family: inherit;
-    font-size: var(--v2-textSm);
-    text-align: left;
-    cursor: pointer;
-}
-
-.vpsFila--elegida {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
-
-.vpsFila--apagada:not(.vpsFila--elegida) {
-    opacity: 0.65;
-}
-
-.vpsFilaNombre {
-    flex: none;
-}
+/* [0610A-1] .vpsFila/.vpsFila--elegida/.vpsFila--apagada/.vpsFilaNombre
+ * podadas (incluida la compuesta .vpsFila--elegida .vpsEstado--ok, cuyo
+ * equivalente vivo es .vpsTablaFila--elegida .vpsEstado--ok): solo las
+ * usaba la tabla legacy (hoy .vpsTablaFila); cero referencias en
+ * tsx/ts (testigo: .vpsLinea/.vpsFilaDominio si aparecen). */
 
 .vpsEstado {
     flex: none;
@@ -369,12 +346,6 @@
     background: var(--v2-texto);
     color: var(--v2-invertido);
     border-color: var(--v2-texto);
-}
-
-.vpsFila--elegida .vpsEstado--ok {
-    background: var(--v2-invertido);
-    color: var(--v2-texto);
-    border-color: var(--v2-invertido);
 }
 
 .vpsEstado--mal {
@@ -394,40 +365,8 @@
     font-size: var(--v2-textXs);
 }
 
-.vpsMetrica {
-    display: flex;
-    align-items: center;
-    gap: var(--v2-spaceSm);
-    padding: var(--v2-spaceSm) var(--v2-spaceMd);
-    border-bottom: 1px solid var(--v2-borde);
-    font-size: var(--v2-textSm);
-}
-
-.vpsMetricaNombre {
-    flex: none;
-    width: 64px;
-}
-
-.vpsMetricaBarra {
-    flex: 1;
-    height: 8px;
-    border: 1px solid var(--v2-borde);
-}
-
-.vpsMetricaRelleno {
-    /* Nivel de la barra (lo fija PanelVps por var: es dato remoto). */
-    --vps-nivel: 0%;
-    display: block;
-    width: var(--vps-nivel);
-    height: 100%;
-    background: var(--v2-texto);
-}
-
-.vpsMetricaPct {
-    flex: none;
-    min-width: 48px;
-    text-align: right;
-}
+/* [0610A-1] Familia .vpsMetrica* podada: barras del panel legacy (hoy
+ * chispas SVG en PanelVpsRecursos); cero referencias en tsx/ts. */
 
 .vpsLinea {
     padding: var(--v2-spaceSm) var(--v2-spaceMd);
@@ -437,7 +376,8 @@
 
 /* [2026-10-01] Tabla resumen por despliegue + detalle lateral: una fila
  * por despliegue (peor estado, cpu/ram sumadas, nº contenedores); el clic
- * abre el lateral con las filas por contenedor. Todo en vivo (tick 5 s).
+ * abre el lateral con las filas por contenedor. Siempre en vivo
+ * (tick 5 s).
  * [2026-10-01] Los tres paneles (tabla, recursos, detalle) son hijas
  * directas de FilaCajas: el ancho lo decide el usuario con el divisor
  * (persistido, defecto [3,1,1.2]); no hay envoltorios ni anchos fijos. */
@@ -513,65 +453,8 @@
     border-color: var(--v2-invertido);
 }
 
-.vpsLinea--mal {
-    border-left: 4px solid var(--v2-texto);
-}
-
-/* Cuerpo de una pieza del detalle (Seccion interna): el titulillo lo pone
- * la primitiva; aqui solo el aire del contenido. */
-.vpsPiezaCuerpo {
-    padding: var(--v2-spaceSm) var(--v2-spaceMd);
-}
-
-.vpsPiezaError {
-    font-size: var(--v2-textSm);
-    opacity: 0.65;
-}
-
-.vpsPre {
-    margin: 0;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    font-size: var(--v2-textXs);
-}
-
-.vpsJsonGrupo {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: var(--v2-textXs);
-}
-
-.vpsJsonFila {
-    display: flex;
-    gap: var(--v2-spaceSm);
-    min-width: 0;
-}
-
-.vpsJsonClave {
-    flex: none;
-    max-width: 40%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    opacity: 0.7;
-}
-
-.vpsJsonValor {
-    flex: 1;
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
-
-/* [299A-11] .vpsJsonItem compone la receta canonica .v2Guia (v2.css) en
- * el TSX: sin especificacion local. */
-.vpsJsonItem {
-}
-
-.vpsJsonTexto {
-    overflow-wrap: anywhere;
-}
-
-.vpsJsonNulo {
-    opacity: 0.6;
-}
+/* [0610A-1] Cola legacy podada (.vpsLinea--mal, .vpsPieza* de la
+ * Seccion interna, .vpsPre, familia .vpsJson* del detalle JSON): el
+ * detalle actual usa Seccion/Caja + .vpsLinea; cero referencias en
+ * tsx/ts (testigo calibrado en el mismo barrido). */
 

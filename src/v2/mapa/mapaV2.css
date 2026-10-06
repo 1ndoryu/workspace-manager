@@ -104,11 +104,12 @@
     pointer-events: none;
 }
 
-/* Punto verde de servicio en marcha (05AA-4): excepcion explicita del
- * usuario a la regla monocroma, solo este punto lleva color. Sin eventos
+/* Punto verde de servicio en marcha [05AA-4]: excepcion explicita del
+ * usuario a la regla monocroma, solo este punto lleva color. El valor
+ * vive en --v2-punto-verde (variables-v2.css), no aqui. Sin eventos
  * (el techo sigue siendo el unico capturador, ver gotcha de arriba). */
 .mapaV2PuntoVerde {
-    fill: #1a7f37;
+    fill: var(--v2-punto-verde);
     stroke: var(--v2-fondo);
     stroke-width: 1;
     pointer-events: none;
