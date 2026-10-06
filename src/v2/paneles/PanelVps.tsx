@@ -14,16 +14,10 @@ import type {
   VpsSitio,
 } from '../../shared/types.js';
 import { agenteVps, configVps, invalidarVps, recursosVps, sitiosVps } from '../vps/apiVps.js';
-import {
-  cargarHistorialSitios,
-  guardarHistorialSitios,
-  muestrearSitios,
-  serieEnRango,
-  type HistorialSitios,
-} from '../vps/historialSitios.js';
-import { guardarTexto, leerTexto } from '../../shared/storage.js';
+import { useHistorialSitios } from '../vps/useHistorialSitios.js';
+import { HistorialSitioDetalle } from '../vps/HistorialSitioDetalle.js';
 import { fmtBytes } from '../../shared/format.js';
-import { Chispa, PanelVpsRecursos, RANGOS } from './PanelVpsRecursos.js';
+import { PanelVpsRecursos } from './PanelVpsRecursos.js';
 import { FilaCajas } from '../ui/caja/FilaCajas.js';
 import { Button } from '../ui/form/Button.js';
 import { Caja } from '../ui/caja/Caja.js';
@@ -107,19 +101,11 @@ export function PanelVps() {
    * sin respuesta: se muestra solo lo vivo hasta entonces (fail-open). */
   const [sitios, setSitios] = useState<VpsSitio[] | null>(null);
 
-  /* [0110A-3 F2] Historial por despliegue (anillo propio, no el global):
-   * se muestrea de cada snapshot vivo y se pinta en el detalle lateral.
-   * Rango compartido entre sitios (uno solo elige, como el panel global). */
-  const CLAVE_RANGO_SITIO = 'workspaceManager:vps-sitios-rango-v1';
-  const historial = useRef<HistorialSitios>({});
-  const ultimoGuardadoSitios = useRef(0);
-  const [rangoSitioId, setRangoSitioId] = useState<string>(() => {
-    const r = leerTexto(CLAVE_RANGO_SITIO);
-    return r && RANGOS.some((x) => x.id === r) ? r : '30m';
-  });
-  const [, setVersionSitios] = useState(0);
-
   const snapAgente = agente?.disponible ? (agente.snapshot ?? null) : null;
+
+  /* [0110A-3 F2] Historial por despliegue (anillo propio, no el global):
+   * vive en el hook para no engordar este componente. */
+  const { rangoId, elegirRango, seriePara } = useHistorialSitios(snapAgente);
 
   async function tickAgente() {
     if (agenteEnVuelo.current || document.hidden) return;
@@ -191,42 +177,6 @@ export function PanelVps() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /* Historial por sitio: carga previa + volcado al cerrar (misma
-   * pauta que el panel global; el guardado periódico va en el muestreo). */
-  useEffect(() => {
-    historial.current = cargarHistorialSitios();
-    setVersionSitios((v) => v + 1);
-    const alCerrar = () => {
-      guardarHistorialSitios(historial.current);
-    };
-    window.addEventListener('beforeunload', alCerrar);
-    return () => window.removeEventListener('beforeunload', alCerrar);
-  }, []);
-
-  /* Muestra por tick de pulse: agrega lo vivo por despliegue (misma
-   * clave que la tabla) y guarda como mucho cada 60 s. Lo detenido no
-   * genera muestra y conserva su historia vieja. */
-  useEffect(() => {
-    if (!snapAgente) return;
-    const sumas = new Map<string, { cpu: number; mem: number }>();
-    for (const c of snapAgente.contenedores) {
-      const clave = c.sitio ? `sitio:${c.sitio}` : 'infra';
-      const previo = sumas.get(clave) ?? { cpu: 0, mem: 0 };
-      previo.cpu += c.cpuPct;
-      previo.mem += c.memMiB;
-      sumas.set(clave, previo);
-    }
-    const { siguiente, cambio } = muestrearSitios(historial.current, sumas, Date.now());
-    if (!cambio) return;
-    historial.current = siguiente;
-    if (Date.now() - ultimoGuardadoSitios.current > 60000) {
-      ultimoGuardadoSitios.current = Date.now();
-      guardarHistorialSitios(siguiente);
-    }
-    setVersionSitios((v) => v + 1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snapAgente?.ts]);
 
   /* Grupos por sitio (nombre legible del backend) en orden alfabético +
    * infra sin sitio al final: el id largo no se muestra nunca. La lista de
@@ -404,55 +354,13 @@ export function PanelVps() {
             <div className="vpsLinea">
               {selFila.n} contenedores · {selFila.cpu.toFixed(1)}% cpu · {Math.round(selFila.mem)} MiB
             </div>
-            {/* [0110A-3 F2] Historial del despliegue: el vivo va en la
-              * línea de arriba; aquí la historia guardada (misma chispa y
-              * mismos rangos que recursos). Sin muestras: se dice. */}
-            {(() => {
-              const rango = RANGOS.find((x) => x.id === rangoSitioId) ?? RANGOS[0];
-              const serie = serieEnRango(
-                historial.current[selFila.clave] ?? [],
-                rango.ms,
-                Date.now(),
-              );
-              return (
-                <>
-                  <div className="vpsLinea">
-                    <div className="vpsRangos" role="group" aria-label="Rango del historial del despliegue">
-                      {RANGOS.map((x) => (
-                        <button
-                          key={x.id}
-                          type="button"
-                          className={`navegadorRutaChip${x.id === rangoSitioId ? ' navegadorRutaChip--activo' : ''}`}
-                          onClick={() => {
-                            setRangoSitioId(x.id);
-                            guardarTexto(CLAVE_RANGO_SITIO, x.id);
-                          }}
-                          title={`Muestra ${x.etiqueta} de historial`}
-                        >
-                          {x.etiqueta}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {serie.length < 2 ? (
-                    <div className="vpsLinea">
-                      <div className="vpsFilaDominio">historial · recopilando…</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="vpsLinea">
-                        <div className="vpsFilaDominio">cpu · {rango.etiqueta}</div>
-                        <Chispa series={[serie.map((m) => m[1])]} />
-                      </div>
-                      <div className="vpsLinea">
-                        <div className="vpsFilaDominio">ram · {rango.etiqueta}</div>
-                        <Chispa series={[serie.map((m) => m[2])]} />
-                      </div>
-                    </>
-                  )}
-                </>
-              );
-            })()}
+            {/* [0110A-3 F2] Historial del despliegue (componente aparte;
+              * el vivo va en la línea de arriba). */}
+            <HistorialSitioDetalle
+              serie={seriePara(selFila.clave)}
+              rangoId={rangoId}
+              onRango={elegirRango}
+            />
             {selFilas.map((c) => (
               <div key={c.id} className="vpsLinea">
                 <span className={claseEstado(c.estado)} title={c.estado}>
