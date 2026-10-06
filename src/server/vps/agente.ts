@@ -57,6 +57,7 @@ interface SnapshotPulse {
   hostId: string;
   ts: number;
   contenedores: FilaPulse[];
+  discoHost?: unknown;
   truncado: boolean;
   totalContenedores: number;
 }
@@ -94,6 +95,15 @@ function esFila(v: unknown): v is FilaPulse {
     if (val !== undefined && val !== null && typeof val !== 'string') return false;
   }
   return true;
+}
+
+/* [0110A-1] IO del host: ausente en pulse <0.3.0 (sigue válido, se
+ * sirve null); presente = el par entero de números finitos, si no
+ * `agente-contrato`. Nunca se adapta a medias: o el par o null. */
+function esDiscoHost(v: unknown): v is { sectoresLeidos: number; sectoresEscritos: number } {
+  if (!v || typeof v !== 'object') return false;
+  const d = v as Record<string, unknown>;
+  return esNumero(d['sectoresLeidos']) && esNumero(d['sectoresEscritos']);
 }
 
 /* Contrato estricto: schema distinto de 1 o forma inesperada se rechaza
@@ -224,12 +234,22 @@ export function crearAgente(op: OpcionesAgente): {
   async function pedir(): Promise<VpsAgenteSnapshot> {
     const crudo = await pedirConTimeout('/snapshot');
     if (!esSnapshot(crudo)) throw new Error('agente-contrato');
+    const dhCrudo: unknown = crudo.discoHost;
+    let discoHost: VpsAgenteSnapshot['discoHost'] = null;
+    if (dhCrudo !== undefined) {
+      if (!esDiscoHost(dhCrudo)) throw new Error('agente-contrato');
+      discoHost = {
+        sectoresLeidos: dhCrudo.sectoresLeidos,
+        sectoresEscritos: dhCrudo.sectoresEscritos,
+      };
+    }
     const servidoEn = ahora();
     return {
       schema: 1,
       hostId: crudo.hostId,
       ts: crudo.ts,
       contenedores: crudo.contenedores.map(adaptar),
+      discoHost,
       truncado: crudo.truncado,
       totalContenedores: crudo.totalContenedores,
       frescura: { fuente: 'agente', edadMs: Math.max(0, servidoEn - crudo.ts) },

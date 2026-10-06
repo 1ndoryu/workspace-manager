@@ -172,6 +172,10 @@ export interface VpsAgenteSnapshot {
   hostId: string;
   ts: number;
   contenedores: VpsAgenteContenedor[];
+  /* [0110A-1] IO del host (`discoHost` de pulse, sectores acumulados de
+   * /proc/diskstats). null = pulse anterior a 0.3.0 (la UI lo dice, no
+   * pinta ceros). Sin lógica aquí: solo pasar el campo. */
+  discoHost: { sectoresLeidos: number; sectoresEscritos: number } | null;
   truncado: boolean;
   totalContenedores: number;
   frescura: { fuente: 'agente'; edadMs: number };

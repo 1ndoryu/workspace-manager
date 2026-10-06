@@ -69,9 +69,38 @@ void describe('agente glory-pulse', () => {
     assert.equal(c?.redRxBytes, 149332550);
     assert.equal(c?.sitioUuid, null); // sin meta Coolify
     assert.equal(c?.dominio, null);
+    assert.equal(r.snapshot?.discoHost, null); // pulse viejo sin discoHost: null, no roto
     ahora = 6000; // dentro de la caché de 5 s: no repide
     const r2 = await agente.snapshot();
     assert.equal(r2.snapshot?.frescura.edadMs, 1000);
+  });
+
+  /* [0110A-1] IO del host: se propaga el par tal cual; ausente = null
+   * (pulse viejo sigue válido); a medias = agente-contrato. */
+  void it('propaga discoHost y tolera su ausencia', async () => {
+    const conDisco = {
+      ...SNAP,
+      discoHost: { sectoresLeidos: 987654321, sectoresEscritos: 123456789 },
+    };
+    const a1 = crearAgente({
+      baseUrl: 'https://pulse.test',
+      token: TOKEN,
+      fetchImpl: respuestaSnap(conDisco),
+    });
+    const r1 = await a1.snapshot();
+    assert.equal(r1.disponible, true);
+    assert.deepEqual(r1.snapshot?.discoHost, {
+      sectoresLeidos: 987654321,
+      sectoresEscritos: 123456789,
+    });
+    const a2 = crearAgente({
+      baseUrl: 'https://pulse.test',
+      token: TOKEN,
+      fetchImpl: respuestaSnap({ ...SNAP, discoHost: { sectoresLeidos: 1 } }),
+    });
+    const r2 = await a2.snapshot();
+    assert.equal(r2.disponible, false);
+    assert.equal(r2.error, 'agente-contrato');
   });
 
   void it('envía el Bearer y rechaza contrato inválido sin exponer el token', async () => {
