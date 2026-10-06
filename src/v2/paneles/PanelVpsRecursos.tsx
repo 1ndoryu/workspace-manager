@@ -25,7 +25,9 @@ const MAX_MUESTRAS = 25000;
 const RETENCION_MS = 7 * 24 * 3600 * 1000;
 const MAX_PUNTOS = 240;
 
-const RANGOS = [
+/* [0110A-3 F2] Reutilizados por el detalle por sitio (misma chispa y
+ * mismos rangos que el panel global, sin variante local). */
+export const RANGOS = [
   { id: '30m', etiqueta: '30 min', ms: 30 * 60 * 1000 },
   { id: '1h', etiqueta: '1 h', ms: 3600 * 1000 },
   { id: '4h', etiqueta: '4 h', ms: 4 * 3600 * 1000 },
@@ -58,7 +60,7 @@ function leerRango(): string {
 }
 
 /* Minigráfico: una o dos series normalizadas al máximo. */
-function Chispa({ series, alto = 36 }: { series: number[][]; alto?: number }) {
+export function Chispa({ series, alto = 36 }: { series: number[][]; alto?: number }) {
   const plano = series.flat();
   const max = Math.max(1, ...plano);
   const n = Math.max(...series.map((s) => s.length), 1);
