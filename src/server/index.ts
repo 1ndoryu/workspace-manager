@@ -15,6 +15,7 @@ import { manejarRutasPc } from './rutas/rutasPc.js';
 import { manejarRutasDev } from './rutas/rutasDev.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutasVps.js';
+import { manejarRutasVpsPiezas } from './vps/rutasVpsPiezas.js';
 import { logger } from '../shared/logger.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
@@ -110,6 +111,11 @@ export function crearServidor() {
         /* Rutas de la tab vps (/api/vps/*, 299A-5, solo lectura via
          * coolify-manager-rs): viven en vps/rutasVps.ts. */
         if (await manejarRutasVps(req, res, url, ruta)) {
+          return;
+        }
+        /* Piezas pesadas bajo demanda (/api/vps/pieza, 0110A-3 F3):
+         * archivo aparte para no chocar con el refactor de rutasVps. */
+        if (await manejarRutasVpsPiezas(req, res, url, ruta)) {
           return;
         }
         /* Rutas de la tab PC (/api/pc/*): viven en rutasPc.ts. */

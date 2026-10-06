@@ -16,6 +16,7 @@ import type {
 import { agenteVps, configVps, invalidarVps, recursosVps, sitiosVps } from '../vps/apiVps.js';
 import { useHistorialSitios } from '../vps/useHistorialSitios.js';
 import { HistorialSitioDetalle } from '../vps/HistorialSitioDetalle.js';
+import { PiezasSitio } from '../vps/PiezasSitio.js';
 import { fmtBytes } from '../../shared/format.js';
 import { PanelVpsRecursos } from './PanelVpsRecursos.js';
 import { FilaCajas } from '../ui/caja/FilaCajas.js';
@@ -361,6 +362,9 @@ export function PanelVps() {
               rangoId={rangoId}
               onRango={elegirRango}
             />
+            {/* [0110A-3 F3] Piezas pesadas bajo demanda (una por clic,
+              * con timeout): solo sitios, nunca infra. */}
+            {selFila.clave !== 'infra' && <PiezasSitio sitio={selFila.nombre} />}
             {selFilas.map((c) => (
               <div key={c.id} className="vpsLinea">
                 <span className={claseEstado(c.estado)} title={c.estado}>

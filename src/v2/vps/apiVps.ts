@@ -8,6 +8,8 @@ import type {
   VpsAgenteRespuesta,
   VpsConfig,
   VpsDetalle,
+  VpsPieza,
+  VpsPiezaRespuesta,
   VpsRecursos,
   VpsSitios,
 } from '../../shared/types.js';
@@ -60,6 +62,22 @@ export async function detalleAgenteVps(uuid: string): Promise<VpsAgenteDetalleRe
     params: { uuid },
   });
   return data;
+}
+
+/* [0110A-3 F3] Una pieza pesada bajo demanda (sin caché: cada clic es
+ * fresco; el abort/timeout los pone el llamante con la señal). */
+export async function piezaVps(
+  sitio: string,
+  pieza: string,
+  opts?: { senal?: AbortSignal; objetivo?: string },
+): Promise<VpsPieza> {
+  const params: Record<string, string> = { sitio, pieza };
+  if (opts?.objetivo) params.objetivo = opts.objetivo;
+  const { data } = await axios.get<VpsPiezaRespuesta>('/api/vps/pieza', {
+    params,
+    signal: opts?.senal,
+  });
+  return data.resultado;
 }
 
 /* Snapshot del agente glory-pulse (299A-12 F3): sin caché de frontend (el

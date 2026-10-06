@@ -124,6 +124,14 @@ export interface VpsDetalle {
   piezas: Record<string, VpsPieza>;
 }
 
+/* Respuesta de /api/vps/pieza (0110A-3 F3): una sola pieza pesada bajo
+ * demanda, con la misma forma VpsPieza que el legacy. */
+export interface VpsPiezaRespuesta {
+  sitio: string;
+  pieza: string;
+  resultado: VpsPieza;
+}
+
 export interface VpsRecursos {
   piezas: Record<string, VpsPieza>;
 }
