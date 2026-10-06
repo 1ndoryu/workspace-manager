@@ -24,6 +24,10 @@
      * un solo origen): alias, no coincidencia. */
     --v2-invertido: var(--v2-fondo);      /* texto/relleno sobre negro */
     --v2-borde: var(--v2-texto);
+    /* [05AA-4] Punto verde de servicio en marcha: excepcion explicita del
+     * usuario a la regla monocroma (solo este punto lleva color). Un
+     * token, un lugar: el valor vive aqui, no en cada CSS. */
+    --v2-punto-verde: #1a7f37;
 
     /* Tipografia: Departure Mono (misma fuente del proyecto), sin bold */
     --v2-font: 'Departure Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
