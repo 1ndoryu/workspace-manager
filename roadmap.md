@@ -116,9 +116,7 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md`, `PLAN-corregir-hallazgos-202
   sesión). Nota: GloryTmpSweep purgó `C:\tmp\glory-target\coolify-manager`
   (debug+release); solo queda el legacy `C:\Users\Owner\bin\` sin
   set-compose/rust-image — rebuildear (~3 min) si se necesita operar.
-- Propuesto 309A-2 **APROBADO por el usuario (2026-10-05, no volver a preguntar)**: endpoint pulse de detalle por sitio en una sola
-  conexión (`/api/vps/detalle` legacy = 7 piezas SSH en serie, 120,6 s medidos,
-  inspeccion+eventos en falso).
+   39. `309A-2` - **ACTIVA (2026-10-05): detalle por sitio en una sola conexión.** El drill-down legacy (`/api/vps/detalle` = 7 piezas SSH en serie, 120,6 s medidos, inspeccion+eventos en falso) muere; `GET /detalle?sitio=<uuid>` en pulse (solo memoria) + proxy en manager + frontend lo prefiere. Plan: `Agente/planes/plan-detalle-sitio-2026-10-05.md`. Deploy a VPS = escritura remota, con sí explícito aparte.
 - 2026-10-01: tab vps solo-tiempo-real HECHA (commit `16a3555` sin push):
   backend resuelve sitio por uuid (`extraerUuidContenedor` + semilla
   `settings.json` + refresco `list`, 34/34 mapeados: 28 a 8 sitios, 6 infra
