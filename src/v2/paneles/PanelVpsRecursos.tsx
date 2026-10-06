@@ -7,17 +7,24 @@
  * de 5 s, poda >7 días) y el rango lo elige el usuario (30 min/1 h/4 h/
  * 1 día/1 semana). Red y disco-IO son contadores acumulados: la cifra
  * grande es la velocidad (delta entre muestras = tiempo real) y el
- * acumulado va etiquetado como tal. El % de disco del host no sale de
- * pulse (sus blk llegan a cero) y entra por prop desde el audit. */
+ * acumulado va etiquetado como tal. El disco-IO es del host (`discoHost`
+ * de pulse 0110A-1; antes por contenedor, siempre a cero en cgroup v2).
+ * El % de disco del host no sale de pulse y entra por prop desde el audit. */
 import { useEffect, useRef, useState } from 'react';
 import type { VpsAgenteSnapshot } from '../../shared/types.js';
 import { Caja } from '../ui/caja/Caja.js';
 import { guardarJson, guardarTexto, leerJson, leerTexto } from '../../shared/storage.js';
 import { fmtBytes } from '../../shared/format.js';
 
-/* Muestra como tupla [t, cpu, mem, rx, tx, br, bw]: compacta en el
- * localStorage (≈50 caracteres por muestra). */
-type Muestra = [number, number, number, number, number, number, number];
+/* Muestra como tupla [t, cpu, mem, rx, tx, br, bw, dr, dw]: compacta en
+ * el localStorage (≈60 caracteres por muestra). dr/dw = IO del host en
+ * bytes (sectores de pulse × 512); br/bw por contenedor se guardan pero
+ * ya no se pintan (cgroup v2 los devuelve a cero). */
+type Muestra = [number, number, number, number, number, number, number, number, number];
+
+/* Sector diskstats = 512 B (el kernel cuenta en sectores de 512 aunque el
+ * disco físico use otro tamaño). */
+const SECTOR_BYTES = 512;
 
 const CLAVE_HISTORIAL = 'workspaceManager:vps-recursos-historial-v1';
 const CLAVE_RANGO = 'workspaceManager:vps-recursos-rango-v1';
@@ -43,11 +50,14 @@ function leerHistorial(): Muestra[] {
   for (const x of lista) {
     if (
       Array.isArray(x) &&
-      x.length === 7 &&
+      (x.length === 7 || x.length === 9) &&
       x.every((v) => typeof v === 'number' && Number.isFinite(v)) &&
       (x[0] as number) >= corte
     ) {
-      limpias.push(x as Muestra);
+      /* [0110A-1] Migración: tuplas de 7 (sin IO del host) se rellenan
+       * con dr/dw a cero; las de contenedor ya eran cero, sin distorsión. */
+      const t = x.length === 7 ? [...(x as number[]), 0, 0] : x;
+      limpias.push(t as Muestra);
     }
   }
   return limpias.slice(-MAX_MUESTRAS);
@@ -98,19 +108,30 @@ export function Chispa({ series, alto = 36 }: { series: number[][]; alto?: numbe
  * reinician —p. ej. reinicio del host— sujetan a cero, nunca negativas).
  * Vale con muestras separadas (el dt normaliza), así que sirve sobre la
  * serie diezmada del rango. */
-function ritmos(m: Muestra[]): { rx: number[]; tx: number[]; br: number[]; bw: number[] } {
+function ritmos(m: Muestra[]): {
+  rx: number[];
+  tx: number[];
+  br: number[];
+  bw: number[];
+  dr: number[];
+  dw: number[];
+} {
   const rx: number[] = [];
   const tx: number[] = [];
   const br: number[] = [];
   const bw: number[] = [];
+  const dr: number[] = [];
+  const dw: number[] = [];
   for (let i = 1; i < m.length; i++) {
     const dt = Math.max(1, (m[i][0] - m[i - 1][0]) / 1000);
     rx.push(Math.max(0, (m[i][3] - m[i - 1][3]) / dt));
     tx.push(Math.max(0, (m[i][4] - m[i - 1][4]) / dt));
     br.push(Math.max(0, (m[i][5] - m[i - 1][5]) / dt));
     bw.push(Math.max(0, (m[i][6] - m[i - 1][6]) / dt));
+    dr.push(Math.max(0, (m[i][7] - m[i - 1][7]) / dt));
+    dw.push(Math.max(0, (m[i][8] - m[i - 1][8]) / dt));
   }
-  return { rx, tx, br, bw };
+  return { rx, tx, br, bw, dr, dw };
 }
 
 /* Diezmado por paso para no pintar más de MAX_PUNTOS (el dt de `ritmos`
@@ -135,6 +156,10 @@ export function PanelVpsRecursos({
   const muestras = useRef<Muestra[]>([]);
   const ultimoTs = useRef<number | null>(null);
   const ultimoGuardado = useRef(0);
+  /* [0110A-1] Último IO del host visto: mientras pulse no lo trae (null)
+   * se repite el anterior para no inventar deltas (plano = sin dato,
+   * no cero). */
+  const ultimoDisco = useRef<{ r: number; w: number } | null>(null);
   const [rangoId, setRangoId] = useState<string>(() => leerRango());
   /* Contador para repintar cuando entra una muestra o cambia el rango
    * (el ref no repinta solo). */
@@ -164,7 +189,15 @@ export function PanelVpsRecursos({
     const tx = Math.round(snap.contenedores.reduce((a, c) => a + c.redTxBytes, 0));
     const br = Math.round(snap.contenedores.reduce((a, c) => a + c.blkReadBytes, 0));
     const bw = Math.round(snap.contenedores.reduce((a, c) => a + c.blkWriteBytes, 0));
-    const nueva: Muestra = [Date.now(), cpu, mem, rx, tx, br, bw];
+    if (snap.discoHost) {
+      ultimoDisco.current = {
+        r: snap.discoHost.sectoresLeidos * SECTOR_BYTES,
+        w: snap.discoHost.sectoresEscritos * SECTOR_BYTES,
+      };
+    }
+    const dr = Math.round(ultimoDisco.current?.r ?? 0);
+    const dw = Math.round(ultimoDisco.current?.w ?? 0);
+    const nueva: Muestra = [Date.now(), cpu, mem, rx, tx, br, bw, dr, dw];
     muestras.current = [...muestras.current, nueva].slice(-MAX_MUESTRAS);
     if (Date.now() - ultimoGuardado.current > 30000) {
       ultimoGuardado.current = Date.now();
@@ -190,9 +223,9 @@ export function PanelVpsRecursos({
   const limite = snap
     ? snap.contenedores.reduce((a, c) => Math.max(a, c.memLimiteMiB ?? 0), 0)
     : 0;
-  /* El agente no trae contadores de bloques (todo a cero): se dice, no
-   * se pintan ceros que parecen dato. */
-  const hayDiscoIo = actual !== null && actual[5] + actual[6] > 0;
+  /* [0110A-1] La fila de IO es del host (`discoHost` de pulse 0.3+):
+   * sin él se dice, no se pintan ceros que parecen dato. */
+  const hayDiscoHost = snap?.discoHost != null;
 
   return (
     <Caja
@@ -260,14 +293,14 @@ export function PanelVpsRecursos({
             )}
           </div>
           <div className="vpsLinea">
-            <div className="vpsFilaDominio">disco IO · contenedores</div>
-            {hayDiscoIo ? (
+            <div className="vpsFilaDominio">disco IO · host</div>
+            {hayDiscoHost ? (
               <>
-                R {fmtBytes(r.br[r.br.length - 1] ?? 0)}/s W {fmtBytes(r.bw[r.bw.length - 1] ?? 0)}/s
+                R {fmtBytes(r.dr[r.dr.length - 1] ?? 0)}/s W {fmtBytes(r.dw[r.dw.length - 1] ?? 0)}/s
                 <div className="vpsFilaDominio">
-                  acumulado R {fmtBytes(actual[5])} W {fmtBytes(actual[6])}
+                  acumulado R {fmtBytes(actual[7])} W {fmtBytes(actual[8])}
                 </div>
-                <Chispa series={[r.br, r.bw]} />
+                <Chispa series={[r.dr, r.dw]} />
               </>
             ) : (
               'sin datos del agente'
