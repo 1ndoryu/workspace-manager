@@ -229,7 +229,7 @@ function localizarOut(): { ruta: string; mtime: number } | null {
  * actualiza aqui. Exportada para que el script de sync (E2) compare contra la
  * MISMA fuente de verdad. NO es condicion de ejecucion: `cliSentinelParaProyecto`
  * resuelve por el pin del manifest de cada proyecto. */
-export const VERSION_CURACION_SENTINEL = '0.7.15';
+export const VERSION_CURACION_SENTINEL = '0.7.19';
 
 /* Catalogo de reglas del gate: vive en el runtime si esta disponible, con
  * cache por version+mtime. Devuelve tambien la version y la fuente para que
