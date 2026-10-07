@@ -1,12 +1,16 @@
 /* Tarjeta arrastrable del kanban (07AA-15): checkbox completar + texto
  * (renombrable inline) + chips de nivel + boton ··· con MenuTarea.
- * [por que] Un solo useState objeto (vista: menu / editando / borrador /
- * confirmarBorrado) para no rozar usestate-excesivo. El arrastre es DnD
+ * [por que] Un solo useState objeto (vista: editando / borrador /
+ * confirmarBorrado) para no rozar usestate-excesivo. El menu flota en un
+ * portal al body (07AA-16: dentro de la tarjeta lo recortaba el scroll-X)
+ * con ancla del hook `useMenuTarjeta`. El arrastre es DnD
  * nativo sin librerias: la columna pone los datos (origen + id) y el
  * destino (delante de que tarjeta). Cada gesto escribe via el hook (proxy
  * + relectura); aqui solo se cablea. Las flechas ↑↓⇤⇥ se jubilaron: el
  * arrastre y el menu (con mover a vecina por teclado) las sustituyen. */
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { cuerpoDocumento } from '../../../shared/platform/plataforma.js';
 import { Button } from '../../ui/form/Button.js';
 import {
   ETIQUETAS_PRIORIDAD,
@@ -19,9 +23,9 @@ import {
   type TareaTab,
 } from '../../../shared/tareasTab.js';
 import { MenuTarea } from './MenuTarea.js';
+import { useMenuTarjeta } from './useMenuTarjeta.js';
 
 interface VistaTarjeta {
-  menu: boolean;
   editando: boolean;
   borrador: string;
   confirmarBorrado: boolean;
@@ -58,7 +62,8 @@ interface TarjetaTareaProps {
 }
 
 export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
-  const [vista, setVista] = useState<VistaTarjeta>({ menu: false, editando: false, borrador: '', confirmarBorrado: false });
+  const [vista, setVista] = useState<VistaTarjeta>({ editando: false, borrador: '', confirmarBorrado: false });
+  const menu = useMenuTarjeta();
   const texto = textoTarea(tarea);
   const hecha = completadoTarea(tarea);
   const pri = prioridadTarea(tarea);
@@ -92,7 +97,7 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
       }}
       onContextMenu={(ev) => {
         ev.preventDefault();
-        setVista((v) => ({ ...v, menu: true }));
+        menu.abrir(ev.currentTarget);
       }}
     >
       <input
@@ -148,32 +153,36 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
         <Button
           pequeno
           cuadrado
-          onClick={() => setVista((v) => ({ ...v, menu: !v.menu }))}
+          onClick={(ev) => menu.abrir(ev.currentTarget)}
           aria-haspopup="menu"
-          aria-expanded={vista.menu}
+          aria-expanded={menu.abierto}
           title="acciones de la tarea (también con clic derecho)"
           aria-label={`acciones de ${texto}`}
         >
           ···
         </Button>
       )}
-      {vista.menu && (
-        <MenuTarea
-          tarea={tarea}
-          puedeMoverAtras={g.vecina.atras}
-          puedeMoverAdelante={g.vecina.adelante}
-          urlTareas={g.urlTareas}
-          onCerrar={() => setVista((v) => ({ ...v, menu: false }))}
-          acciones={{
-            completar: (completado) => g.onEditar(conTexto({ completado })),
-            prioridad: (prioridad) => g.onEditar(conTexto({ prioridad })),
-            urgencia: (urgencia) => g.onEditar(conTexto({ urgencia })),
-            renombrar: () => setVista((v) => ({ ...v, editando: true, borrador: texto })),
-            moverVecina: g.onMoverVecina,
-            pedirEliminar: () => setVista((v) => ({ ...v, confirmarBorrado: true })),
-          }}
-        />
-      )}
+      {menu.abierto &&
+        menu.ancla &&
+        createPortal(
+          <MenuTarea
+            tarea={tarea}
+            puedeMoverAtras={g.vecina.atras}
+            puedeMoverAdelante={g.vecina.adelante}
+            urlTareas={g.urlTareas}
+            pos={menu.ancla}
+            onCerrar={menu.cerrar}
+            acciones={{
+              completar: (completado) => g.onEditar(conTexto({ completado })),
+              prioridad: (prioridad) => g.onEditar(conTexto({ prioridad })),
+              urgencia: (urgencia) => g.onEditar(conTexto({ urgencia })),
+              renombrar: () => setVista((v) => ({ ...v, editando: true, borrador: texto })),
+              moverVecina: g.onMoverVecina,
+              pedirEliminar: () => setVista((v) => ({ ...v, confirmarBorrado: true })),
+            }}
+          />,
+          cuerpoDocumento(),
+        )}
     </div>
   );
 }
