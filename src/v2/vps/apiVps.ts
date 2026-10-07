@@ -8,11 +8,13 @@ import type {
   VpsAgenteRespuesta,
   VpsConfig,
   VpsDetalle,
+  VpsHistorialSitio,
   VpsPieza,
   VpsPiezaRespuesta,
   VpsRecursos,
   VpsSitios,
 } from '../../shared/types.js';
+import { esMuestra, type MuestraHistorial } from '../../shared/historialVps.js';
 
 let cacheSitios: VpsSitios | null = null;
 let cacheRecursos: VpsRecursos | null = null;
@@ -86,4 +88,15 @@ export async function piezaVps(
 export async function agenteVps(senal?: AbortSignal): Promise<VpsAgenteRespuesta> {
   const { data } = await axios.get<VpsAgenteRespuesta>('/api/vps/agente', { signal: senal });
   return data;
+}
+
+/* [07AA-4] Base persistente del despliegue (una vez por montaje la pide el
+ * hook; sin caché de módulo para no servir historia vieja al remontar).
+ * Respuesta validada: lo que no sea tupla [t, cpu, mem] se descarta. */
+export async function historialSitioVps(clave: string): Promise<MuestraHistorial[]> {
+  const { data } = await axios.get<VpsHistorialSitio>('/api/vps/historial', {
+    params: { clave },
+  });
+  if (!data || !Array.isArray(data.muestras)) return [];
+  return data.muestras.filter(esMuestra);
 }

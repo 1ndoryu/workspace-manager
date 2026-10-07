@@ -205,6 +205,14 @@ export interface VpsAgenteDetalleRespuesta {
   error: string | null;
 }
 
+/* [07AA-4] Historial persistente por despliegue (`GET /api/vps/historial`):
+ * el backend anota las sumas por sitio de cada snapshot ya servido en un
+ * fichero acotado; mismas tuplas [t, cpuPct, memMiB] que la cola local. */
+export interface VpsHistorialSitio {
+  clave: string;
+  muestras: [t: number, cpuPct: number, memMiB: number][];
+}
+
 export interface EstadoGate {
   declarado: boolean;
   sentinel: 'config' | 'lock' | 'none';

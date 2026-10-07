@@ -58,6 +58,8 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md`, `PLAN-corregir-hallazgos-202
 
 ## Tareas pendientes (orden de dependencia)
 
+0. ~~`07AA-4` — historial VPS persistente en el servidor + % en gráficos.~~ **CERRADA (2026-10-07, sin push):** `data/vps-historial.json` (gitignored, 2000/clave, 7 d, 30 s) anotado desde `/api/vps/agente` sin consultas extra; `GET /api/vps/historial?clave=`; frente fusiona base + viva con `t` de pulse y el detalle muestra última CPU%/RAM. Evidencia: tests 9/9 + 20/20, type-check 0, en vivo 4 muestras creciendo, gate 0E/9W/1I/2H idéntico a base. Detalle en `Agente/completados/tareas-2026-10-07.md`.
+
 0. `07AA-3` — **ACTIVA (2026-10-07): barrido de la consola (142 → 0 accionable).** Resolver por repo lo atribuible (limpiador-pc 3, TASKS 2, gloryapi 23, NAKOMI 73, WM 12−bloqueados); lo ajeno/bloqueado (WIPs, sin-remoto, sin-push, huérfanos de sistema, gates sin declarar) se documenta, no se toca. Plan: `Agente/planes/plan-barrido-consola-2026-10-07.md`.
 
 0. ~~`07AA-1` — consola de problemas reproducible por comando.~~ **CERRADA (2026-10-07):** `GET /api/consola/problemas` + `Arranque problemas` reproducen el N con desglose; clasificadores compartidos `src/shared/clasificacionConsola.ts`; contrato `scripts/dev/consola.test.mjs`. Evidencia en `Agente/completados/tareas-2026-10-07.md`.
