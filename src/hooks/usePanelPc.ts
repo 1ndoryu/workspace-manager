@@ -19,6 +19,7 @@ import {
 import { gb } from '../shared/format.js';
 import {
   aGrupos,
+  esDelicada,
   plegadoInicial,
   rutaCorta,
   type Grupo,
@@ -72,7 +73,13 @@ export function usePanelPc() {
         setMedidoEn(est.reporte.medidoEn);
         const grupos = aGrupos(est.reporte.entradas);
         setPlegados(plegadoInicial(grupos));
-        setSeleccion(grupos.flatMap((g) => g.filas.map((f) => f.id)));
+        /* Las delicadas (sccache, node_modules de opencode-propio) salen
+         * desmarcadas por defecto (07AA-2): se marcan solo a mano. */
+        const marcadas = grupos
+          .flatMap((g) => g.filas)
+          .filter((f) => !esDelicada(f))
+          .map((f) => f.id);
+        setSeleccion(marcadas);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'no se pudo leer el estado');
@@ -119,7 +126,10 @@ export function usePanelPc() {
       });
       setTotalBytes((prev) => prev + ev.totalBytes);
       setSeleccion((prev) => {
-        const ids = aGrupos(ev.entradas).flatMap((g) => g.filas.map((f) => f.id));
+        const ids = aGrupos(ev.entradas)
+          .flatMap((g) => g.filas)
+          .filter((f) => !esDelicada(f))
+          .map((f) => f.id);
         return [...prev, ...ids.filter((id) => !prev.includes(id))];
       });
     } else if (ev.tipo === 'fin') {
