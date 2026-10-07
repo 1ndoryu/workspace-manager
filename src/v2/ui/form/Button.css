@@ -203,3 +203,45 @@
     background: var(--v2-texto);
     color: var(--v2-invertido);
 }
+
+/* Filas del menu contextual del kanban (07AA-17, precedente
+ * `.botonV2.v2SelectorOpcion`): espejo del `MenuContextual` de TASKS
+ * (icono + etiqueta + check + flecha + separadores + pie) con inversion
+ * monocroma v2 en hover/activo; el peligro es inversion permanente, nunca
+ * color. Button.css es el unico lugar permitido para estilos de boton. */
+.botonV2.tareasMenuOpcion {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--v2-spaceSm);
+    width: 100%;
+    height: auto;
+    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--v2-texto);
+    font-family: inherit;
+    font-size: var(--v2-textSm);
+    line-height: 1.4;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.botonV2.tareasMenuOpcion:hover:not(:disabled),
+.botonV2.tareasMenuOpcion:focus-visible {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    outline: none;
+}
+
+.botonV2.tareasMenuOpcion:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.botonV2.tareasMenuOpcion--peligro {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
