@@ -27,6 +27,20 @@ Reglas:
 - Exit codes: `0` verde, `2` degradado/deriva (visible en consola, nunca verde ambiguo), `1` instrumento roto o uso rehusado. `parado` = detenido normal (todo libre), exit `0`, sin línea en problemas (05AA-4).
 - Protegidos: `8787/5174/5175` y procesos de opencode-propio — jamás matarlos ni tocar sus puertos.
 - Sin `up --all`: N `cargo build` en paralelo saturan la máquina. Uno por vez.
+- Disciplina de arranque (2026-10-06, lección: un arranque artesanal deja
+  la app fuera del mapa aunque responda 200): los 10 proyectos del registro
+  se arrancan **solo** con `up <id>`. Prohibido `Start-Process`, `vite`,
+  `cargo run` o `node` a mano para ellos; lo artesanal no es visible para el
+  mando (`deriva ... ocupado por desconocido`) y otro agente no puede
+  distinguirlo de un proceso ajeno.
+- Si `status`/`up` rehúsan con `registro inválido`: no rodear el mando,
+  arreglar el registro primero. Causa típica: el exe ya no existe (el doctor
+  exige `existsSync`; `glory-pulse` vive en target por rama
+  `C:\tmp\glory-target\pulse-<rama>` y el sweep purga targets sin uso →
+  reconstruir con `cargo build` + `CARGO_TARGET_DIR` y actualizar `boton`).
+- `deriva ... ocupado por desconocido` = un artesanal ocupa el puerto:
+  detener solo si es propio y verificado, luego `up`; el mando nunca mata
+  a ciegas. Tras cambiar código de servidor compilado: `stop` + `up`.
 - `up workspace-manager` auto-asegura `glory-pulse` (`requiere` en registro): si pulse está caído lo arranca solo (token local efímero si falta `PULSE_TOKEN`); si su puerto está ocupado por otro, sale 2 degradado con el pid ajeno, sin matar nada.
 - Logs del mando en `<repo>/logs/dev-up-<id>.log` (gitignored); `C:\tmp` solo buffer.
 - Verificación: `doctor --all --assert` (requiere snapshot fresco de `/api/workspace`), trampa `node scripts/dev/trampa.mjs` (7/7).

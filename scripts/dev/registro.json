@@ -21,7 +21,7 @@
       "id": "glory-pulse",
       "ruta": "../glory-pulse",
       "dominio": "pulse.localhost",
-      "boton": [["C:\\tmp\\glory-target\\debug\\pulse.exe"]],
+      "boton": [["C:\\tmp\\glory-target\\pulse-main\\debug\\pulse.exe"]],
       "puertos": [3000],
       "healths": [{ "puerto": 3000, "ruta": "/health", "esperaJson": true }],
       "timeoutMs": 3000,
@@ -31,7 +31,7 @@
         "CARGO_INCREMENTAL": "0",
         "SCCACHE_BASEDIRS": "C:\\Users\\Owner\\OneDrive\\Documentos\\area-trabajo"
       },
-      "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; tras cambiar codigo de pulse: cargo build con el CARGO_TARGET_DIR de siempre y luego up; requiere PULSE_TOKEN>=32 en entorno, en local vale cualquiera, el real solo vive en Coolify)"
+      "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; el exe vive en el target por rama C:\\tmp\\glory-target\\pulse-<rama>\\debug\\pulse.exe [05AA-1]: tras cambiar de rama o si el sweep lo purga, reconstruir con cargo build + CARGO_TARGET_DIR=C:\\tmp\\glory-target\\pulse-<rama> y actualizar esta ruta; el doctor exige que el exe EXISTA, si no todo el mando rehusa; requiere PULSE_TOKEN>=32 en entorno, en local vale cualquiera, el real solo vive en Coolify)"
     },
     {
       "id": "MN-Inmobiliaria",
