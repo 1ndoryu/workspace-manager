@@ -67,9 +67,13 @@ subir/bajar/migrar (sin drag-and-drop), bulk+relectura vía proxy.
   (`session_id` HttpOnly + `csrf_token`/`x-csrf-token`), re-login con lock
   al caducar. Sin credenciales el tab degrada a `sin-credenciales` con
   reintentar (nunca datos falsos).
-- Activar: esas dos vars SOLO entran reiniciando el backend 8787 (lo hace el
-  usuario: `stop` rehúsa 8787 por protegido y el mando no inyecta env en
-  caliente; `env` del registro solo aplica a hijos que `up` lanza).
+- Activar: esas dos vars SOLO entran reiniciando el backend 8787 (hecho el
+  2026-10-07 con autorización del usuario: `tsx watch src/` relanzado idéntico
+  con `TASKS_EMAIL`/`TASKS_PASSWORD` admin local; verificado
+  `disponible:true` + ciclo proxy con datos). OJO: cualquier reinicio del
+  8787 sin esas vars devuelve el tab a `sin-credenciales` (`stop` rehúsa 8787
+  por protegido y el mando no inyecta env en caliente; `env` del registro
+  solo aplica a hijos que `up` lanza).
 - Stack permanente TASKS (repo `PROYECTO TASKS`, fuera del mando: sin entrada
   en registro): backend `127.0.0.1:4190` (binario
   `.runtime/target/debug/glory-backend.exe`) + Vite `4191`, BD
