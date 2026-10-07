@@ -68,7 +68,30 @@ Reglas:
 - Editar `scripts/quality-sync.mjs` y `sentinel.lock.json.bak` (ruido ajeno sin commitear).
 - Tocar código de otros repos para que algo arranque (p. ej. `glory-harness-core`).
 
+## Tareas kanban (07AA-5, sin comando de mando: se consume el proxy)
+
+No se creó comando `tareas` en el mando (decisión: el proxy + tab cubren el
+uso; el mando no gestiona credenciales de usuario y `stop` jamás toca 8787).
+Acceso para agentes vía proxy del backend WM (`src/server/tareas/`):
+
+```text
+GET  /api/tareas/estado                  # {disponible, motivo} honesto
+GET  /api/tareas/proyecto?legacy_id=9001 # tareas de la columna
+POST /api/tareas/reordenar               # {movimientos:[{legacyId,orden,proyectoId?}]} (bulk ≤200)
+```
+
+- Requiere backend 8787 con `TASKS_EMAIL`/`TASKS_PASSWORD` en SU entorno (solo
+  las aplica al arrancar; lo reinicia el usuario; sin ellas: 503
+  `sin-credenciales`, nunca datos falsos).
+- TASKS permanente: `127.0.0.1:4190` (+Vite 4191), auth cookie+CSRF (D1);
+  restart SOLO con `.freebuff/start-permanente.ps1` de `PROYECTO TASKS`
+  (idempotente; rebuild con `CARGO_TARGET_DIR=.runtime/target` parando el
+  backend antes por el lock del linker). OJO: fetch global → `bad port` en
+  4190 (Fetch-spec); usar `node:http` o `curl.exe`.
+- Núcleo agnóstico: `src/server/tareas/nucleo/` (pin tasks-core + `PIN.md`).
+
 ## Bloqueos conocidos (decirlos, no esconderlos)
 
-- `PROYECTO TASKS`: no compila por `glory-harness-core` E0753 (ajeno). Su `up` fallará hasta que se arregle allí.
+- ~~`PROYECTO TASKS`: no compila por `glory-harness-core` E0753 (ajeno).~~
+  Obsoleto 2026-10-07: compila y corre (permanente 4190 con F1, live 13/13).
 - Puerto `5173` ocupado por opencode-propio mientras esté abierto: frontends en 5173 esperan.

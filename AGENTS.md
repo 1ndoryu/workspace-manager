@@ -49,8 +49,43 @@ Reglas:
 - Logs del mando en `<repo>/logs/dev-up-<id>.log` (gitignored); `C:\tmp` solo buffer.
 - Verificación: `doctor --all --assert` (requiere snapshot fresco de `/api/workspace`), trampa `node scripts/dev/trampa.mjs` (9 checks: 8/9, FAIL preexistente `plugins-opencode` pendiente-onboarding).
 
+## Tareas (kanban con TASKS como fuente única, 07AA-5)
+
+Tab `tareas` (NavBar icono `Kanban`): columnas = `legacy_id` de proyecto
+manuales (defecto seed `9001/9002`, clave `workspaceManager:tareas:columnas`
+en localStorage; F1 no expone listar-proyectos, sin descubrimiento), botones
+subir/bajar/migrar (sin drag-and-drop), bulk+relectura vía proxy.
+
+- Proxy backend (`src/server/tareas/rutasTareas.ts`): `GET /api/tareas/estado`
+  (disponibilidad+motivo, nunca 500), `GET /api/tareas/proyecto?legacy_id=`
+  (400 sin id), `POST /api/tareas/reordenar` (422 validación/duplicado,
+  404 no-encontrado, 429+Retry-After en cuota, 503 sin-credenciales/red,
+  502 servidor). Núcleo agnóstico vendorizado en `src/server/tareas/nucleo/`
+  (pin `tasks-core@<hash>` + `PIN.md` con cómo re-vendorizar; prohibido `file:`).
+- Sesión D1: el backend guarda `TASKS_EMAIL`/`TASKS_PASSWORD` de su propio
+  entorno (jamás al front ni a git), login programático contra TASKS
+  (`session_id` HttpOnly + `csrf_token`/`x-csrf-token`), re-login con lock
+  al caducar. Sin credenciales el tab degrada a `sin-credenciales` con
+  reintentar (nunca datos falsos).
+- Activar: esas dos vars SOLO entran reiniciando el backend 8787 (lo hace el
+  usuario: `stop` rehúsa 8787 por protegido y el mando no inyecta env en
+  caliente; `env` del registro solo aplica a hijos que `up` lanza).
+- Stack permanente TASKS (repo `PROYECTO TASKS`, fuera del mando: sin entrada
+  en registro): backend `127.0.0.1:4190` (binario
+  `.runtime/target/debug/glory-backend.exe`) + Vite `4191`, BD
+  `glory_backend_local`. Arranque/restart SOLO vía
+  `.freebuff/start-permanente.ps1` (idempotente; watchdog
+  `watchdog-permanente.ps1` cada 15 s + tarea `task-app-permanente` solo
+  logon); rebuild `CARGO_TARGET_DIR=.runtime/target cargo build --bin
+  glory-backend` (el exe en curso bloquea el linker: parar el backend
+  primero; el watchdog relanza el viejo en ~15 s: pausarlo durante el build).
+  OJO: el fetch global (undici) NUNCA habla con el 4190 (`bad port` por
+  Fetch-spec): producción usa `node:http` (`transporte-tareas.ts`).
+
 ## Bloqueos conocidos (2026-10-01, fuera de este repo)
 
-- `PROYECTO TASKS` no compila: dependencia ajena `glory-harness-core` (E0753). Su `up` falla hasta que se arregle allí.
+- ~~`PROYECTO TASKS` no compila: dependencia ajena `glory-harness-core` (E0753).~~
+  Obsoleto 2026-10-07: compila y corre (rebuild+restart permanente 4190
+  verificado con F1 en vivo 13/13).
 - Puerto `5173` ocupado por opencode-propio mientras esté abierto: frontends en 5173 no arrancan hasta cerrarlo.
 - Primera compilación Rust en frío tarda varios minutos; es la máquina compilando, no el mando.
