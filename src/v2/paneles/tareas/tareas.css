@@ -1,7 +1,10 @@
-/* Tab tareas (07AA-5 F3): filas del kanban + alta de columna + error.
+/* Tab tareas (07AA-5 F3, scroll + DnD + menu 07AA-15): filas del kanban +
+ * alta de columna + error.
  * Idioma repos.css (borde 1px, tokens v2, sin color): la tarea en vuelo se
  * marca con relleno invertido (igual que reposFila--seleccionada), no con
- * color. Todas las clases las usa PanelTareas/ColumnaTareas. */
+ * color. Todas las clases las usa PanelTareas/ColumnaTareas/TarjetaTarea.
+ * Las columnas van en fila con scroll horizontal propio (ancho fijo por
+ * columna, como un kanban): FilaCajas repartia el ancho y las aplastaba. */
 
 .tareasContenedor {
     display: flex;
@@ -17,12 +20,47 @@
     color: var(--v2-invertido);
 }
 
+/* Fila de columnas con scroll horizontal (07AA-15): cada columna mide lo
+ * mismo y la fila desborda con scroll en vez de aplastarlas. */
+.tareasColumnas {
+    display: flex;
+    align-items: stretch;
+    gap: var(--v2-gapPanel);
+    overflow-x: auto;
+    flex: 1;
+    min-height: 0;
+    padding-bottom: var(--v2-spaceXs);
+}
+
+.tareasColumna {
+    flex: none;
+    width: 300px;
+    min-width: 280px;
+    max-width: 85vw;
+    display: flex;
+    min-height: 0;
+}
+
+.tareasColumna > .caja {
+    flex: 1;
+    min-width: 0;
+}
+
 .tareasLista {
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.tareasVacia {
+    padding: var(--v2-spaceMd);
+    font-size: var(--v2-textSm);
+    border: 1px dashed var(--v2-borde);
 }
 
 .tareasFila {
+    position: relative;
     display: flex;
     align-items: center;
     gap: var(--v2-spaceSm);
@@ -34,6 +72,31 @@
     font-size: var(--v2-textXs);
 }
 
+.tareasFila[draggable='true'] {
+    cursor: grab;
+}
+
+/* Destino del arrastre: borde superior grueso (sin color). */
+.tareasFila--destino {
+    border-top: 2px solid var(--v2-texto);
+}
+
+.tareasDestino {
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    font-size: var(--v2-textXs);
+    border-top: 2px solid var(--v2-texto);
+}
+
+/* Completada: texto tachado (sin color: el estado se lee, no se adivina). */
+.tareasFila--hecha .tareasTexto {
+    text-decoration: line-through;
+}
+
+.tareasCheck {
+    flex: none;
+    accent-color: var(--v2-texto);
+}
+
 .tareasTexto {
     flex: 1;
     min-width: 0;
@@ -41,6 +104,25 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: var(--v2-textSm);
+}
+
+.tareasRenombre {
+    flex: 1;
+    min-width: 0;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-texto);
+    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    font-family: inherit;
+    font-size: var(--v2-textSm);
+}
+
+.tareasChip {
+    flex: none;
+    white-space: nowrap;
+    border: 1px solid var(--v2-borde);
+    padding: 0 var(--v2-spaceXs);
+    font-size: var(--v2-textXs);
 }
 
 .tareasMeta {
@@ -57,6 +139,59 @@
 
 .tareasVolando {
     font-size: var(--v2-textSm);
+}
+
+/* Menu contextual: fondo que captura el clic + caja pegada a la tarjeta. */
+.tareasMenuFondo {
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: default;
+    z-index: 40;
+}
+
+/* Menu contextual: posicion y layout locales; la superficie (fondo, borde,
+ * relleno) la pone la receta canonica `.v2Superficie` (css canónico 299A-11:
+ * componer por className, nada de especificacion local). */
+.tareasMenu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 41;
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+    min-width: 200px;
+    max-width: 260px;
+}
+
+.tareasMenuItem {
+    justify-content: flex-start;
+    width: 100%;
+    text-align: left;
+}
+
+.tareasMenuEnlace {
+    display: block;
+    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    color: var(--v2-texto);
+    font-size: var(--v2-textSm);
+    text-decoration: underline;
+}
+
+.tareasMenuGrupo {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+    border-top: 1px solid var(--v2-borde);
+    padding-top: var(--v2-spaceXs);
+}
+
+.tareasMenuTitulo {
+    font-size: var(--v2-textXs);
+    padding: 0 var(--v2-spaceSm);
 }
 
 .tareasAlta {

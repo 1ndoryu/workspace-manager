@@ -9,6 +9,7 @@ import {json, leerBody} from '../http.js';
 import type {ErrorKanban} from './nucleo/tipos.js';
 import {esIdValido, validarLote} from './nucleo/validaciones.js';
 import {crearPuenteTareas, puenteTareas, type PuenteTareas} from './puente-tareas.js';
+import {validarParche} from './tarea-unitaria.js';
 
 const CODIGOS_KANBAN = [
   'no-autenticado',
@@ -32,7 +33,7 @@ function esErrorKanban(e: unknown): e is ErrorKanban {
 }
 
 /* Traduce el error del nucleo a HTTP honesto (nunca 200 con error). */
-function responderKanban(res: ServerResponse, e: unknown): void {
+function responderKanban(res: ServerResponse, e: unknown, noEncontrado = 'proyecto-no-encontrado'): void {
   if (!esErrorKanban(e)) {
     json(res, 500, {error: 'error-interno-tareas'});
     return;
@@ -43,7 +44,7 @@ function responderKanban(res: ServerResponse, e: unknown): void {
       json(res, 422, {error: 'lote-invalido', detalle: e.mensaje});
       return;
     case 'no-encontrado':
-      json(res, 404, {error: 'proyecto-no-encontrado', detalle: e.mensaje});
+      json(res, 404, {error: noEncontrado, detalle: e.mensaje});
       return;
     case 'cuota': {
       const segs = Math.max(1, Math.ceil((e.reintentarEnMs ?? 1000) / 1000));
@@ -92,8 +93,7 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
       }
       return true;
     }
-    if (ruta === '/api/tareas/reordenar' && req.method === 'POST') {
-      let cuerpo: unknown;
+    if (ruta === '/api/tareas/reordenar' && req.method === 'POST') {      let cuerpo: unknown;
       try {
         cuerpo = await leerCuerpo(req);
       } catch {
@@ -114,6 +114,45 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
         json(res, 200, {actualizadas});
       } catch (e) {
         responderKanban(res, e);
+      }
+      return true;
+    }
+    /* Edición inline de una tarea (07AA-15): PUT actualiza (upsert F1),
+     * DELETE elimina (204 como F1). El id viaja en la ruta, el parche en el
+     * body; el puente firma con la sesión D1. */
+    if (ruta.startsWith('/api/tareas/tarea/') && (req.method === 'PUT' || req.method === 'DELETE')) {
+      const legacyId = Number(ruta.slice('/api/tareas/tarea/'.length));
+      if (!esIdValido(legacyId)) {
+        json(res, 400, {error: 'legacy_id-invalido'});
+        return true;
+      }
+      if (req.method === 'DELETE') {
+        try {
+          await puente.eliminar(legacyId);
+          res.writeHead(204);
+          res.end();
+        } catch (e) {
+          responderKanban(res, e, 'tarea-no-encontrada');
+        }
+        return true;
+      }
+      let cuerpo: unknown;
+      try {
+        cuerpo = await leerCuerpo(req);
+      } catch {
+        json(res, 400, {error: 'body-invalido'});
+        return true;
+      }
+      const validado = validarParche(cuerpo);
+      if (!validado.ok) {
+        json(res, 422, {error: 'parche-invalido', detalle: validado.errores});
+        return true;
+      }
+      try {
+        const tarea = await puente.actualizar(legacyId, validado.valor);
+        json(res, 200, {tarea});
+      } catch (e) {
+        responderKanban(res, e, 'tarea-no-encontrada');
       }
       return true;
     }
