@@ -68,6 +68,17 @@ const EN_CONFIG_ANALIZADOR: Alternativas = [['analyzers', '*', 'config']];
       },
     },
     guard: { objeto: { directCommands: { mapa: strArr(), necesidad: 'opcional' } }, necesidad: 'recomendada' },
+    /* Tope físico anti-espiral de validaciones pesadas (07AA-6 F2/F5):
+     * el runtime lo declara en `HeavyBudgets` (`out/core/config.d.ts`) y lo
+     * lee `readBudgets` con defaults observe. [por que] Sin esta entrada la
+     * consola marcaba `budgets` como clave desconocida. */
+    budgets: {
+      objeto: {
+        mode: enumX(['observe', 'enforce'], 'observe', 'opcional'),
+        limits: { mapa: num(5, 'opcional', 'tope por clase pesada'), necesidad: 'opcional' },
+      },
+      necesidad: 'opcional',
+    },
     runtime: {
       objeto: {
         minimumVersion: text('', 'recomendada', 'versión mínima de sentinel'),
