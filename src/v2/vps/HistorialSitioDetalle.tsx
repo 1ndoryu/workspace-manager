@@ -11,6 +11,9 @@ export function HistorialSitioDetalle({ serie, rangoId, onRango }: {
   onRango: (id: string) => void;
 }) {
   const rango = RANGOS.find((x) => x.id === rangoId) ?? RANGOS[0];
+  /* [07AA-4] Última muestra con sus porcentajes: el gráfico ya dibujaba la
+   * forma pero no decía el valor. */
+  const ultima = serie.length > 0 ? serie[serie.length - 1] : null;
   return (
     <>
       <div className="vpsLinea">
@@ -28,6 +31,13 @@ export function HistorialSitioDetalle({ serie, rangoId, onRango }: {
           ))}
         </div>
       </div>
+      {ultima && (
+        <div className="vpsLinea">
+          <div className="vpsFilaDominio">
+            última · {ultima[1].toFixed(1)}% cpu · {Math.round(ultima[2])} MiB ram
+          </div>
+        </div>
+      )}
       {serie.length < 2 ? (
         <div className="vpsLinea">
           <div className="vpsFilaDominio">historial · recopilando…</div>

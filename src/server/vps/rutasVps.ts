@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { json } from '../http.js';
 import type { VpsAviso, VpsConfig, VpsDetalle, VpsPieza, VpsSitio } from '../../shared/types.js';
 import { agenteProd, enriquecerConSitios, type InfoSitio } from './agente.js';
+import { historialProd } from './historial.js';
 import {
   auditoria,
   dbStatsJson,
@@ -202,12 +203,13 @@ export async function manejarRutasVps(
     }
     const r = await agente.snapshot();
     if (r.disponible && r.snapshot) {
+      const contenedores = enriquecerConSitios(r.snapshot.contenedores, mapaSitios);
+      /* [07AA-4] Persiste las sumas por sitio de lo YA servido (cero
+       * consultas extra; best-effort, nunca rompe la respuesta). */
+      historialProd().anotar(contenedores, r.snapshot.ts);
       json(res, 200, {
         ...r,
-        snapshot: {
-          ...r.snapshot,
-          contenedores: enriquecerConSitios(r.snapshot.contenedores, mapaSitios),
-        },
+        snapshot: { ...r.snapshot, contenedores },
       });
       return true;
     }

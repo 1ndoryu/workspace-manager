@@ -16,6 +16,7 @@ import { manejarRutasDev } from './rutas/rutasDev.js';
 import { manejarRutasConsola } from './rutas/rutasConsola.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutasVps.js';
+import { manejarRutasVpsHistorial } from './vps/rutasVpsHistorial.js';
 import { manejarRutasVpsPiezas } from './vps/rutasVpsPiezas.js';
 import { logger } from '../shared/logger.js';
 
@@ -117,6 +118,11 @@ export function crearServidor() {
         /* Piezas pesadas bajo demanda (/api/vps/pieza, 0110A-3 F3):
          * archivo aparte para no chocar con el refactor de rutasVps. */
         if (await manejarRutasVpsPiezas(req, res, url, ruta)) {
+          return;
+        }
+        /* Historial persistente por despliegue (/api/vps/historial, 07AA-4):
+         * archivo aparte para no engordar rutasVps (límite de líneas). */
+        if (await manejarRutasVpsHistorial(req, res, url, ruta)) {
           return;
         }
         /* Rutas de la tab PC (/api/pc/*): viven en rutasPc.ts. */
