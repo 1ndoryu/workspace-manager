@@ -5,6 +5,7 @@
 import { Button } from '../../ui/form/Button.js';
 import { EditorJson } from '../../ui/form/EditorJson.js';
 import { EditorEsquema } from '../../EditorEsquema.js';
+import { VistaGuard } from './VistaGuard.js';
 import { ARCHIVO_A_TOOL, badgesDe, type DatosPanelSentinel } from './usePanelSentinel.js';
 
 export function VistaProyecto({ datos }: { datos: DatosPanelSentinel }) {
@@ -70,6 +71,10 @@ export function VistaProyecto({ datos }: { datos: DatosPanelSentinel }) {
           </span>
         ))}
       </div>
+
+      {/* Guard del tope físico anti-espiral (07AA-6 F6): solo con proyecto a
+       * la vista; si no usa sentinel la sección se oculta sola. */}
+      {claveVisor && <VistaGuard clave={claveVisor} />}
 
       {!gate || gate.archivos.length === 0 ? (
         <div className="docsVacio">este proyecto no declara archivos de gate (sentinel/varsense)</div>

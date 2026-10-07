@@ -63,7 +63,7 @@ Ampliación: `lote-extra.md` en el dir de la tarea (+3, con motivo, auditable).
 - **F7 Observe → enforce.** Global primero en observe (solo avisa), luego enforce.
 
 ## Estado
-F0 CERRADA + F1 CERRADA + F1b CERRADA + F2 CERRADA + F3 CERRADA + **F4-NAKOMI CERRADA** + **F5 CERRADA** (2026-10-07, evidencia abajo). Próximo paso: F6 panel Guard.
+F0 CERRADA + F1 CERRADA + F1b CERRADA + F2 CERRADA + F3 CERRADA + **F4-NAKOMI CERRADA** + **F5 CERRADA** + **F6 CERRADA** (2026-10-07, evidencia abajo). Siguiente F7.
 
 ## F5 — piloto e2e NAKOMI (cerrada 2026-10-07, Sentinel 0.7.19 `c69d368`)
 Matriz completa con `cargo check` real vía CLI directo (`task-check.mjs` ignora `--stages`, siempre `stages.json`; piloto con `stages-check-only.json`):
@@ -74,6 +74,22 @@ Matriz completa con `cargo check` real vía CLI directo (`task-check.mjs` ignora
 - **Hallazgo deInteraction caché↔tope:** el fingerprint incluye `qualityConfig` + archivos del scope, así que cada ejecución real requirió un cambio de árbol (notas de roadmap); documentado como comportamiento correcto, no bug.
 - **Hallazgo previo del piloto:** `validateSentinelConfig` rechazaba `budgets` (exit 2) → fix core `0.7.18` (clave conocida, validación estricta paridad `readBudgets`); teardown `removeTmpRoots` → `0.7.19`.
 - **Límite honesto:** fail-open solo cubierto por unit (9 tests); sin probe vivo (dirección segura: en fallo permite, nunca bloquea). Temporales revertidos en NAKOMI (`sentinel.config.json` sin `budgets`, `lote-extra.md` eliminado); gate final `quality:check 07AA-11` PASS 0E/13W/53I preexistentes.
+
+## F6 — panel Guard (cerrada 2026-10-07)
+Backend `src/server/guard/`: `lector.ts` (lee `sentinel.config.json`→política
+con la tolerancia de `readBudgets`, `lote-extra.md`→extra efectivo,
+`.quality-reports/<etapa>/<tarea>/runs.jsonl`→diario por tarea; topes
+MAX_TAREAS=100, MAX_LINEAS=5000; sin secretos) + `rutasGuard.ts`
+(`GET estado?clave`, `GET estado-todo`, `POST modo`, `POST lote-extra` con
+motivo obligatorio) + wiring en `index.ts` + `lector.test.ts` 10/10.
+Curación: `budgets{mode,l limits}` en ESQUEMA_SENTINEL (`sync:gate` ya no
+reporta FALTAN: solo aviso preexistente de versión curación 0.7.15 vs runtime
+0.7.19). Frontend: `VistaGuard.tsx` + `useVistaGuard.ts` en VistaProyecto (sin
+pestaña nueva; reusa Button/clases gate/config/fj; inputs con `fjInput`).
+Evidencia: API viva NAKOMI (07AA-11 3 iniciados/1 bloqueo/límite 2/extra 1;
+07AA-10 observe), 4 negativos 400/404, `estado-todo` 18 proyectos (6 no
+elegibles), DOM en vivo (toggle modo + form ampliación), re-análisis 0
+hallazgos en ficheros F6 (9W preexistentes ajenos intactos).
 
 ## F1b — matriz de bypasses (cerrada)
 1. Binario real directo (`C:\Users\Owner\.cargo\bin\cargo.exe`, revelado por
