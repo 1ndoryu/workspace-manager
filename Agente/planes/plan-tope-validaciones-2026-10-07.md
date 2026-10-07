@@ -63,7 +63,7 @@ Ampliación: `lote-extra.md` en el dir de la tarea (+3, con motivo, auditable).
 - **F7 Observe → enforce.** Global primero en observe (solo avisa), luego enforce.
 
 ## Estado
-F0 CERRADA + F1 CERRADA + F1b CERRADA + F2 CERRADA + **F3 CERRADA** (2026-10-07, evidencia abajo). Próximo paso: F4 propagación.
+F0 CERRADA + F1 CERRADA + F1b CERRADA + F2 CERRADA + F3 CERRADA + **F4-NAKOMI CERRADA** (2026-10-07, evidencia abajo). Próximo paso: F5 piloto e2e.
 
 ## F1b — matriz de bypasses (cerrada)
 1. Binario real directo (`C:\Users\Owner\.cargo\bin\cargo.exe`, revelado por
@@ -167,6 +167,22 @@ durante observe solo se registra (log) sin bloquear.
   mantenimiento en `area-trabajo/Agente/documentacion/mantenimiento-herramientas-calidad-2026-10-06.md`.
 - Poda runtime local: `versions/0.7.12` eliminada (cierra bypass F1b-5 en este
   equipo); activa `0.7.13` verificada. Consumidores siguen pineados hasta F4.
+
+## F4 — propagación NAKOMI (cerrada 2026-10-07, NAKOMI `50eb62b8`)
+- Checkout compartido `.quality-tools/sentinel` → tag `v0.7.17` (`bcbfd53`),
+  recompilado (`tsc` limpio, CLI 0.7.17). Nota: `fetch` avisó `v0.7.6 would
+  clobber existing tag` (tag local divergente preexistente, no tocado).
+- `bump.mjs --tool sentinel --only NAKOMI --write`: pin cambiado
+  dfc2947/0.7.16 → bcbfd53/0.7.17 (`quality-tools.json` + `sentinel.lock.json`
+  con sha nuevo), lock ok. Setup re-ejecutó la suite del staging (fail-closed,
+  sin certificación válida): 1 fallo ambiental calibrado (`shellMatrix`
+  after-all EPERM) → reintento verde 733+1, certificación registrada.
+- `quality:doctor` NAKOMI `ready:true`, `readyForGate:true`, `issues:[]`;
+  `quality:check 07AA-9` PASS (0E/13W/53I en archivos no tocados).
+- Límite honesto: el gate no ejercitó el hook (scope sin compilables, 16 s →
+  sin `runs.jsonl`, correcto); hook verificado presente en el build
+  provisionado (`structuredTool.js` → `heavyBudget`/`budget-exhausted`).
+  E2E real en F5.
 
 ## Verificación
 Tests Sentinel verdes + gate propio; en piloto: 6º intento bloqueado sin gastar
