@@ -14,6 +14,7 @@ import type {
   PeticionHttp,
   RespuestaHttp,
 } from './nucleo/tipos.js';
+import {crearHttpNativo} from './transporte-tareas.js';
 
 export const BASE_DEFECTO_TAREAS = 'http://127.0.0.1:4190';
 const RUTA_LOGIN = '/api/auth/login';
@@ -49,7 +50,9 @@ export interface RespuestaPuente extends RespuestaHttp {
 
 export type FetchPuente = (url: string, init: PeticionHttp) => Promise<RespuestaPuente>;
 
-/* Transporte de produccion: fetch global con timeout y cookies separadas. */
+  /* Transporte de produccion: HTTP nativo (el fetch global bloquea el
+   * puerto 4190 por Fetch-spec: `bad port` sin tocar red; ver
+   * `transporte-tareas.ts`). Se conserva `crearFetchGlobal` para inyeccion. */
 export function crearFetchGlobal(timeoutMs: number): FetchPuente {
   return async (url, init) => {
     const ctrl = new AbortController();
@@ -127,7 +130,7 @@ export interface PuenteTareas {
 
 export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
   const config = deps.config ?? leerConfigPuente();
-  const transporte = deps.transporte ?? crearFetchGlobal(config.timeoutMs);
+  const transporte = deps.transporte ?? crearHttpNativo(config.timeoutMs);
   const dormir = deps.dormir ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   const azar = deps.azar ?? Math.random;
   const ahora = deps.ahora ?? Date.now;

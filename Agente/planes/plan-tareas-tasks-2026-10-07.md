@@ -224,8 +224,20 @@ Falta tu palabra; F1 (endpoints) puede avanzar sin esto, F1b no.
   VERDE contra stub con sesión (D1, firma cookie+CSRF, re-login con lock,
   404/429/503 honestos; gotcha `getSetCookie` en Headers); type-check 0 en
   alcance propio; gate sin hallazgos nuevos propios.
-- [ ] F3: tab kanban propio sobre el núcleo; `type-check` 0 + build OK +
-  round-trip persistencia.
+- [x] F3 CERRADA (2026-10-07): tab `tareas` sobre el proxy F2 (alta en
+  `PanelCentral` + whitelist `persistencia.ts` + `NavBar.tsx` (icono `Kanban`)
+  + `AppV2.tsx`); `paneles/tareas/{PanelTareas,ColumnaTareas}.tsx` +
+  `usePanelTareas.ts` (reducer, cero useState, single-flight) +
+  `v2/tareas/apiTareas.ts` (axios sin cache, error con motivo) +
+  `shared/tareasTab.ts` (puras + columnas en localStorage) + `tareas.css`
+  (tokens, cero inline). Desvíos del spec: columnas = legacy_id manuales
+  (defecto seed F1 9001/9002; F1 no expone listar-proyectos, sin
+  descubrimiento) y botones en vez de drag-and-drop (teclado+contraste);
+  `PanelTareas.tsx` vive en `tareas/` (tope `paneles/` max 10). Evidencia:
+  type-check 0, puras 14/14, F2 14/14 sin regresión, `build` + `build:server`
+  OK, gate 0E/9W/1I/2H cero en tocados (ISP de props partida en 3 +
+  `PanelTareas` a `tareas/` corregidos en el acto). Live vs BD rama sigue
+  bloqueado por PID ajeno en 3110.
 - [ ] F4/F5: docs agentes + gates en tocados + completadas + commits sin push.
 
 **SIGUIENTE ACCIÓN:** F3 (tab kanban propio sobre el núcleo + round-trip

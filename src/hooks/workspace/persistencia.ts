@@ -42,6 +42,7 @@ function uiGuardada(): { panelCentral: PanelCentral; visibles: VisibilidadPanele
   const panelCentral: PanelCentral =
     d.panelCentral === 'docs' ||
     d.panelCentral === 'repos' ||
+    d.panelCentral === 'tareas' ||
     d.panelCentral === 'navegador' ||
     d.panelCentral === 'config' ||
     d.panelCentral === 'sentinel' ||

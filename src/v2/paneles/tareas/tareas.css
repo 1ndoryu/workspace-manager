@@ -1,0 +1,78 @@
+/* Tab tareas (07AA-5 F3): filas del kanban + alta de columna + error.
+ * Idioma repos.css (borde 1px, tokens v2, sin color): la tarea en vuelo se
+ * marca con relleno invertido (igual que reposFila--seleccionada), no con
+ * color. Todas las clases las usa PanelTareas/ColumnaTareas. */
+
+.tareasContenedor {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+}
+
+.tareasError {
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    font-size: var(--v2-textSm);
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+.tareasLista {
+    display: flex;
+    flex-direction: column;
+}
+
+.tareasFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    border: none;
+    border-bottom: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    font-size: var(--v2-textXs);
+}
+
+.tareasTexto {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--v2-textSm);
+}
+
+.tareasMeta {
+    flex: none;
+    white-space: nowrap;
+}
+
+.tareasBotones {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+}
+
+.tareasVolando {
+    font-size: var(--v2-textSm);
+}
+
+.tareasAlta {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+}
+
+.tareasAltaEntrada {
+    flex: 1;
+    min-width: 0;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    font-family: inherit;
+    font-size: var(--v2-textSm);
+}
