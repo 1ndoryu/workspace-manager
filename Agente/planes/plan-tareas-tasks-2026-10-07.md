@@ -211,20 +211,25 @@ Falta tu palabra; F1 (endpoints) puede avanzar sin esto, F1b no.
 - [x] F1 (repo TASKS): endpoints kanban NUEVOS + seed + tests — CERRADA
   2026-10-07, pin `14bbe8a` (quedó pendiente la sesión D1 programática:
   verificada a mano con cookie+CSRF; el puente F2 la automatiza).
-- [~] F1b EN CURSO (código listo 2026-10-07): `tasks-core/` 0.1.0 (tipos,
+- [x] F1b CERRADA (código 2026-10-07, pin `ba7dfd4` pusheado): `tasks-core/` 0.1.0 (tipos,
   validaciones, cliente, ops, jerarquía; puerta veto+tsc+17 tests VERDE; fachada
-  `jerarquiaTareas.ts`; type-check front 0; stub e2e VERDE). Falta pin
-  commit tras push. Live contra BD rama pendiente (binario ajeno 04:48 en 3110
-  bloquea rebuild; no atribuible a F1b).
-- [ ] F2: puente + proxy + breaker + backoff con jitter; 503 honesto + botón
-  con dueño (status→health→`up` solo si libre). Esqueleto con fetch inyectado
-  en paralelo a F1/F1b.
+  `jerarquiaTareas.ts`; type-check front 0; stub e2e VERDE). Live contra BD rama
+  pendiente (binario ajeno 04:48 en 3110 bloquea rebuild; no atribuible a F1b;
+  reintentar al liberarse el puerto, sin matar PID ajeno).
+- [x] F2 CERRADA (2026-10-07): puente + proxy + breaker + backoff con jitter;
+  503 honesto + botón con dueño (status→health→`up` solo si libre; el botón ya
+  existe en PanelDetalle vía `/api/dev/up`). Evidencia: pin vendorizado
+  `tasks-core@ba7dfd4` en `src/server/tareas/nucleo/` (lógica idéntica salvo
+  cabecera PIN y sufijo `.js`) + `PIN.md`; 14/14 tests sin red + e2e 13/13
+  VERDE contra stub con sesión (D1, firma cookie+CSRF, re-login con lock,
+  404/429/503 honestos; gotcha `getSetCookie` en Headers); type-check 0 en
+  alcance propio; gate sin hallazgos nuevos propios.
 - [ ] F3: tab kanban propio sobre el núcleo; `type-check` 0 + build OK +
   round-trip persistencia.
 - [ ] F4/F5: docs agentes + gates en tocados + completadas + commits sin push.
 
-**SIGUIENTE ACCIÓN:** F1b (núcleo extraído con pin) + F2 (puente WM, incluye
-sesión D1 programática). **AUTORIZADO PARA EJECUTAR** todo el
+**SIGUIENTE ACCIÓN:** F3 (tab kanban propio sobre el núcleo + round-trip
+persistencia). **AUTORIZADO PARA EJECUTAR** todo el
 ciclo local (editar, probar contra BD de rama — jamás la permanente —, gate,
 commit sin push); deploy/producción nunca implícitos.
 

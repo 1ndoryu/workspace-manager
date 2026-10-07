@@ -18,6 +18,7 @@ import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutasVps.js';
 import { manejarRutasVpsHistorial } from './vps/rutasVpsHistorial.js';
 import { manejarRutasVpsPiezas } from './vps/rutasVpsPiezas.js';
+import { manejarRutasTareas } from './tareas/rutasTareas.js';
 import { logger } from '../shared/logger.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
@@ -136,6 +137,11 @@ export function crearServidor() {
         /* Consola de problemas agregada (/api/consola/*, 07AA-1): mismo
          * conteo que la cabecera, con desglose. Viven en rutasConsola.ts. */
         if (await manejarRutasConsola(req, res, url, ruta)) {
+          return;
+        }
+        /* Proxy de la tab tareas (/api/tareas/*, 07AA-5 F2): el front no
+         * toca TASKS; el puente custodia la sesion D1 en el servidor. */
+        if (await manejarRutasTareas(req, res, url, ruta)) {
           return;
         }
         json(res, 404, { error: 'Ruta no encontrada', ruta });
