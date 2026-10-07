@@ -13,6 +13,7 @@ import { manejarRutasDocumentos } from './rutas/rutasDocumentos.js';
 import { manejarRutasArchivos } from './rutas/rutasArchivos.js';
 import { manejarRutasPc } from './rutas/rutasPc.js';
 import { manejarRutasDev } from './rutas/rutasDev.js';
+import { manejarRutasConsola } from './rutas/rutasConsola.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutasVps.js';
 import { manejarRutasVpsPiezas } from './vps/rutasVpsPiezas.js';
@@ -124,6 +125,11 @@ export function crearServidor() {
         }
         /* Rutas del mando dev (/api/dev/*, F0b): viven en rutasDev.ts. */
         if (await manejarRutasDev(req, res, url, ruta)) {
+          return;
+        }
+        /* Consola de problemas agregada (/api/consola/*, 07AA-1): mismo
+         * conteo que la cabecera, con desglose. Viven en rutasConsola.ts. */
+        if (await manejarRutasConsola(req, res, url, ruta)) {
           return;
         }
         json(res, 404, { error: 'Ruta no encontrada', ruta });

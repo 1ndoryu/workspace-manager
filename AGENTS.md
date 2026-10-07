@@ -7,7 +7,7 @@ Tablero del área: frontend React+Vite + backend Node que muestra estado, consol
 
 ## Mando `dev` (arrancar/parar/ver cualquier proyecto del área)
 
-Fuente: `scripts/dev/` (`dev.mjs` dispatcher, `doctor.mjs` sensores, `acciones.mjs`, `registro.json`, `trampa.mjs`). Skill: `skills/dev-bootstrap/SKILL.md`.
+Fuente: `scripts/dev/` (`dev.mjs` dispatcher, `doctor.mjs` sensores, `acciones.mjs`, `consola.mjs`, `registro.json`, `trampa.mjs`). Skill: `skills/dev-bootstrap/SKILL.md`.
 
 ```text
 Arranque doctor --all            # estado honesto de todo (exit 0 verde / 2 degradado / 1 sensor roto)
@@ -16,13 +16,14 @@ Arranque status ["<id>"]         # estado + salud sin tocar nada
 Arranque stop "<id>"             # detiene solo listeners propios verificados (PID revalidado <500 ms antes)
 Arranque logs "<id>" [--cola N]  # últimas líneas (defecto 50, tope 200)
 Arranque open "<id>"             # imprime URLs con nombre (http://<slug>.localhost:<puerto>), sin abrir nada
+Arranque problemas [--forzar] [--categoria <cat>] [--proyecto <clave>] [--json]  # consola agregada: mismo N + desglose (07AA-1)
 ```
 
 `Arranque` = atajo global (`C:\Users\Owner\bin\Arranque.cmd` en el PATH de usuario, terminal nueva para verlo). Canónico sin atajo: `node scripts/dev/dev.mjs ...` desde este repo.
 
 Reglas:
 
-- Requisito: `status/up/stop/logs` hablan con el backend (`http://127.0.0.1:8787`, `npm run server`); sin backend, `--snapshot-file` con snapshot fresco (`GET /api/workspace?forzar=1`). Sin ninguno, el mando rehúsa a ciegas.
+- Requisito: `status/up/stop/logs/problemas` hablan con el backend (`http://127.0.0.1:8787`, `npm run server`); sin backend, `--snapshot-file` con snapshot fresco (`GET /api/workspace?forzar=1`). Sin ninguno, el mando rehúsa a ciegas. `problemas` consume `GET /api/consola/problemas` (clasificadores compartidos `src/shared/clasificacionConsola.ts`, contrato en `scripts/dev/consola.test.mjs`): itera `proyectos`, nunca hardcodea claves; `--forzar` re-escanea.
 - Los id son los de `scripts/dev/registro.json` (10 entradas + 7 `noAplica` = 17/17). Cada entrada tiene `dominio` (`<slug>.localhost`: pulse, inmobiliaria, nakomi, tareas, wandorius, gloryapi, laminal, coolify, harness, workspace). El navegador lo resuelve solo a tu PC, sin tocar `hosts` ni pedir administrador; el probe verifica el servicio con cabecera `Host` = dominio (Node/SO no resuelven `*.localhost`, solo el navegador). Si en el navegador ves `127.0.0.1`, fue arranque artesanal; si ves el nombre, pasó por el mando. Sin entrada no hay mando: `status`/`up` lo dicen, no inventan.
 - Exit codes: `0` verde, `2` degradado/deriva (visible en consola, nunca verde ambiguo), `1` instrumento roto o uso rehusado. `parado` = detenido normal (todo libre), exit `0`, sin línea en problemas (05AA-4).
 - Protegidos: `8787/5174/5175` y procesos de opencode-propio — jamás matarlos ni tocar sus puertos.

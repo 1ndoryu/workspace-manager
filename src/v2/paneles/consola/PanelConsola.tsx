@@ -12,7 +12,7 @@ import {
   type Categoria,
   type Problema,
   type SeveridadSentinel,
-} from './clasificacionConsola.js';
+} from '../../../shared/clasificacionConsola.js';
 import type { AccionDevNombre } from '../../../hooks/workspace/tipos.js';
 import './consola.css';
 

@@ -1,9 +1,10 @@
 /* Clasificacion pura de problemas del workspace para la consola.
- * [por que] Salio de PanelConsola.tsx: el componente debe quedar solo con JSX
- * (regla componente-sin-hook-glory) y esta clasificacion se deriva del snapshot
- * sin llamada extra al server, asi que vive como funciones puras testeables. */
-import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../../../shared/types.js';
-import type { InformeDev } from '../../../shared/dev.js';
+ * [por que] Vive en shared para que la use el cliente (consola) y el servidor
+ * (ruta /api/consola/problemas, 07AA-1 F1): una sola clasificacion en ambos
+ * lados, sin tuberia paralela. Solo tipos de shared/types.js y shared/dev.js;
+ * sin DOM ni Node, para importar desde cualquier entry. */
+import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from './types.js';
+import type { InformeDev } from './dev.js';
 
 export type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad' | 'dev';
 

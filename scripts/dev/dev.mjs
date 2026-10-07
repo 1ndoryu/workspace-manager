@@ -4,6 +4,7 @@
  * responde con su fase, nunca con verde ambiguo. */
 import { main as doctor, up } from './doctor.mjs';
 import { logs, open, status, stop } from './acciones.mjs';
+import { problemas } from './consola.mjs';
 
 const AYUDA = `uso: dev <comando>
   doctor --all [--json] [--snapshot-file <ruta>] [--assert]   clasifica (F0)
@@ -11,7 +12,8 @@ const AYUDA = `uso: dev <comando>
   status [id] [--snapshot-file <ruta>] [--registro <ruta>] [--json]  estado (F2)
   logs <id> [--lineas N] [--registro <ruta>]                  cola del log (F2)
   open <id> [--registro <ruta>]                               imprime URLs (F2)
-  stop <id> [--snapshot-file <ruta>] [--registro <ruta>] [--json]    detiene (F2)`;
+  stop <id> [--snapshot-file <ruta>] [--registro <ruta>] [--json]    detiene (F2)
+  problemas [--forzar] [--categoria <cat>] [--proyecto <clave>] [--json]  consola agregada (07AA-1)`;
 
 export async function main(argv) {
   const args = argv ?? process.argv.slice(2);
@@ -22,6 +24,7 @@ export async function main(argv) {
   if (cmd === 'logs') return logs(resto);
   if (cmd === 'open') return open(resto);
   if (cmd === 'stop') return stop(resto);
+  if (cmd === 'problemas') return problemas(resto);
   console.log(AYUDA);
   return cmd ? 1 : 0;
 }

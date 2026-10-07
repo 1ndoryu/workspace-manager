@@ -58,7 +58,7 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md`, `PLAN-corregir-hallazgos-202
 
 ## Tareas pendientes (orden de dependencia)
 
-0. `07AA-1` — **ACTIVA (2026-10-07): consola de problemas reproducible por comando.** Un endpoint `GET /api/consola/problemas` + mando `Arranque problemas` que reproduzcan el `problemas (N)` con desglose, sin hardcodear claves (hoy el N solo lo calcula el navegador desde 4 fuentes). Plan: `Agente/planes/plan-consola-problemas-reproducible-2026-10-07.md`.
+0. ~~`07AA-1` — consola de problemas reproducible por comando.~~ **CERRADA (2026-10-07):** `GET /api/consola/problemas` + `Arranque problemas` reproducen el N con desglose; clasificadores compartidos `src/shared/clasificacionConsola.ts`; contrato `scripts/dev/consola.test.mjs`. Evidencia en `Agente/completados/tareas-2026-10-07.md`.
 
 1. ~~`308A-2 / S2-05` — resolver VarSense por fuente oficial o documentar limitación.~~ **RESUELTO (stale):** VarSense ya está provisionado y compilado en el checkout compartido (`88f281f` v2.2.1, `tools/varsense` de RESTAURANTE); el bloqueo era un supuesto stale (ver 308A-1 F1 y PLAN-centralizar-gate.md).
 2. ~~`308A-2 / S2-12` — refactors de código: Glory-Laminal 12→0 (eebe026); **gloryapi COMPLETO 8→0** (F5, `4e97e2a`, 315/315 tests OK); RESTAURANTE piso honesto **120** pusheado; **PROYECTO TASKS 500→23** (console-production 86→0 con logger central `ac5d4c4`; restante = excepciones legítimas: emoji 9, inline-style 5, monolitos de API 9); **WANDORIUS COMPLETO 410→0** (`c1af8af6`, analizador 0.7.4 = 0/481; único matiz: primaria `wandorius` vs rama real `main`).~~ **RESUELTO — los 5 frentes a su piso honesto con evidencia** en el historial 1408 de `PLAN-corregir-hallazgos-2026-09-06.md` §1.
