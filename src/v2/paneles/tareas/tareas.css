@@ -176,6 +176,10 @@
     max-width: min(280px, calc(100vw - 16px));
     max-height: calc(100vh - 16px);
     overflow-y: auto;
+    /* (07AA-18) El portal vive en `body`, fuera de `.v2App` que fija la
+     * fuente: sin esto el menu hereda la del navegador (precedente TASKS:
+     * variables en `:root` para lo portaleado). */
+    font-family: var(--v2-font);
 }
 
 /* Compuesto `.botonV2.tareasMenuOpcion` vive en `ui/form/Button.css`
