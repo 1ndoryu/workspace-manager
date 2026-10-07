@@ -206,14 +206,16 @@ Falta tu palabra; F1 (endpoints) puede avanzar sin esto, F1b no.
 ## Checklist (SIGUIENTE ACCIÓN primero)
 
 - [x] NÚCLEO: casa = capa agnóstica dentro de TASKS (2026-10-07).
-- [ ] GOBERNANZA: excepción TASKS o glory-rs (puede ir en paralelo a F1).
+- [x] GOBERNANZA: excepción FIRMADA en TASKS (opción 1, 2026-10-07): `tasks-core/`
+  vive allí por ser lógica de producto-tareas, no framework; `AGENTS.md:18` no aplica.
 - [x] F1 (repo TASKS): endpoints kanban NUEVOS + seed + tests — CERRADA
   2026-10-07, pin `14bbe8a` (quedó pendiente la sesión D1 programática:
   verificada a mano con cookie+CSRF; el puente F2 la automatiza).
-- [ ] F1b: núcleo extraído (import-ban verde, pin git tag/commit, sin
-  `file:`); editor TASKS migrado. Arranque parcial en paralelo a F1:
-  tipos/validaciones de lo que YA existe (`UpsertTaskRequest`,
-  `DashboardReadResponse`); solo bulk/reorden esperan a F1.
+- [~] F1b EN CURSO (código listo 2026-10-07): `tasks-core/` 0.1.0 (tipos,
+  validaciones, cliente, ops, jerarquía; puerta veto+tsc+17 tests VERDE; fachada
+  `jerarquiaTareas.ts`; type-check front 0; stub e2e VERDE). Falta pin
+  commit tras push. Live contra BD rama pendiente (binario ajeno 04:48 en 3110
+  bloquea rebuild; no atribuible a F1b).
 - [ ] F2: puente + proxy + breaker + backoff con jitter; 503 honesto + botón
   con dueño (status→health→`up` solo si libre). Esqueleto con fetch inyectado
   en paralelo a F1/F1b.
