@@ -158,6 +158,11 @@
 /* Menu contextual: posicion y layout locales; la superficie (fondo, borde,
  * relleno) la pone la receta canonica `.v2Superficie` (css canónico 299A-11:
  * componer por className, nada de especificacion local). */
+/* Menu contextual: posicion y layout locales; la superficie (fondo, borde,
+ * relleno) la pone la receta canonica `.v2Superficie` (css canónico 299A-11:
+ * componer por className, nada de especificacion local).
+ * (07AA-17) Filas espejo del `MenuContextual` de TASKS (icono + etiqueta +
+ * check + flecha + separadores + pie) con inversion monocroma v2. */
 .tareasMenu {
     --tareas-menu-x: 0px;
     --tareas-menu-y: 0px;
@@ -167,38 +172,60 @@
     z-index: 41;
     display: flex;
     flex-direction: column;
-    gap: var(--v2-spaceXs);
-    min-width: 200px;
+    min-width: 220px;
     max-width: min(280px, calc(100vw - 16px));
     max-height: calc(100vh - 16px);
     overflow-y: auto;
 }
 
-.tareasMenuItem {
-    justify-content: flex-start;
+/* Compuesto `.botonV2.tareasMenuOpcion` vive en `ui/form/Button.css`
+ * (precedente `.botonV2.v2SelectorOpcion`): Button.css es el unico lugar
+ * permitido para estilos de boton. Aqui solo layout del menu. */
+.tareasMenuIcono {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    flex: none;
+}
+
+.tareasMenuEtiqueta {
+    flex: 1;
+}
+
+.tareasMenuMarca,
+.tareasMenuFlecha {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 16px;
+    flex: none;
+}
+
+.tareasMenuSeparador {
+    height: 1px;
+    margin: var(--v2-spaceXs) 0;
+    background: var(--v2-borde);
+}
+
+.tareasMenuEnvoltorio {
+    position: relative;
     width: 100%;
-    text-align: left;
 }
 
-.tareasMenuEnlace {
-    display: block;
-    padding: var(--v2-spaceXs) var(--v2-spaceSm);
-    color: var(--v2-texto);
-    font-size: var(--v2-textSm);
-    text-decoration: underline;
-}
-
-.tareasMenuGrupo {
+.tareasMenuSub {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    z-index: 42;
     display: flex;
     flex-direction: column;
-    gap: var(--v2-spaceXs);
-    border-top: 1px solid var(--v2-borde);
-    padding-top: var(--v2-spaceXs);
+    min-width: 180px;
+    margin-left: 4px;
 }
 
-.tareasMenuTitulo {
-    font-size: var(--v2-textXs);
-    padding: 0 var(--v2-spaceSm);
+.tareasMenuPie {
+    width: 100%;
 }
 
 .tareasAlta {
