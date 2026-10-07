@@ -213,7 +213,8 @@ durante observe solo se registra (log) sin bloquear.
 ## F7 — observe→enforce global (cerrada 2026-10-07)
 - Mecanismo: `budgets {"mode":"enforce"}` explícito por repo (sin `limits` = default 5/clase). Descartado flip del default en core: exigiría release+propagación con riesgo; lo explícito es auditable y reversible vía panel/API Guard.
 - Activados 10/12 elegibles (todos ya `mode:enforce` pero sin `budgets`): coolify-manager-rs `c1631b3`, glory-agent `5c502fd`, Glory-Laminal `b33e6ca`, gloryapi `cfaa87a`, GLORYINSPECTOR `97b88b5`, GLORYPORT `9a3061d`, limpiador-pc `7ef3595` (commit local, sin remoto configurado), NAKOMI `c41bca90`, PROYECTO TASKS `886ae4b`, workspace-manager (este bloque). Push con standing 2026-10-06 (diff revisado: solo hunk budgets, 3 líneas).
-- Excluidos con motivo: `glory-harness` (runtime propio `../.quality-tools-harness/sentinel` 0.7.12) y `WANDORIUS` (`tools/sentinel` 0.7.16 `dfc2947`); su validador no conoce `budgets` → quedan `observe config=ok` (tarea aparte `07AA-12`).
+- Excluidos con motivo: `glory-harness` (runtime propio `../.quality-tools-harness/sentinel` 0.7.12) y `WANDORIUS` (`tools/sentinel` 0.7.16 `dfc2947`); su validador no conoce `budgets` → quedan `observe config=ok` (tarea aparte `07AA-12`, CERRADA 2026-10-07:
+  ambos propagados a 0.7.19/`c69d368` con `budgets enforce`; estado-todo 12/12).
 - Seguro para familia-A: ejecutan el compartido `c69d368` 0.7.19 con soporte `budgets` (confirma `/api/gate/sincronizacion`: `RUNTIME-DESFASADO` pin viejo pero ejecuta c69d368); pins viejos preexistentes intactos.
 - Curación realineada: `VERSION_CURACION_SENTINEL` 0.7.15→0.7.19 (`src/server/gate/proveedor.ts:232`); `npm run sync:gate` OK (runtime 0.7.19 / curación 0.7.19, EXIT 0).
 - Prueba forma exacta en runtime 0.7.19: 5×`started` allowed (used 0–4/limit 5/observe) + 6º blocked (used 5/limit 5); script temporal eliminado.
