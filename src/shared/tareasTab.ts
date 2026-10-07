@@ -8,13 +8,21 @@
  * descubrimiento: la tab parte de las columnas del seed F1 (9001/9002). */
 import { guardarJson, leerJson } from './storage.js';
 
-/* Tarea tal como la sirve GET /api/tareas/proyecto (envoltorio F2 sobre
- * ItemVersionado del nucleo: id + orden + proyecto + campos libres). */
+/* Tarea normalizada para la tab (la que pintan las columnas). */
 export interface TareaTab {
   legacyId: number;
   orden: number;
   proyectoId?: number;
   campos: Record<string, unknown>;
+}
+
+/* Item tal como lo sirve GET /api/tareas/proyecto (envoltorio F2 sobre
+ * ItemVersionado del nucleo tasks-core: id + item + updatedAt). La tab
+ * nunca ve esta forma: tareasDeRespuesta la normaliza a TareaTab. */
+export interface TareaPuente {
+  id: unknown;
+  item: unknown;
+  updatedAt?: unknown;
 }
 
 export interface TareasProyectoRespuesta {
@@ -28,7 +36,7 @@ export interface TareasMovimientoTab {
 }
 
 export interface TareasReordenarRespuesta {
-  actualizadas: number;
+  actualizadas: unknown;
 }
 
 /* GET /api/tareas/estado: el puente dice si puede operar y por que no. */
@@ -49,13 +57,39 @@ export function esTareaTab(v: unknown): v is TareaTab {
   );
 }
 
-/* Respuesta validada: lo que no sea tarea se descarta (igual que
- * historialSitioVps descarta lo que no sea tupla). */
+/* Normaliza un item del puente a TareaTab (null si no es item valido).
+ * [por que] El proxy sirve {id, item:{orden, proyectoId, texto, ...}} y la
+ * tab trabaja con {legacyId, orden, proyectoId, campos}: sin esta
+ * normalizacion el filtro de esTareaTab descarta el 100% (bug 2026-10-07:
+ * las columnas salian siempre vacias aunque el proxy trajera tareas). */
+export function tareaDePuente(v: unknown): TareaTab | null {
+  if (typeof v !== 'object' || v === null) return null;
+  const p = v as Record<string, unknown>;
+  if (!Number.isInteger(p.id)) return null;
+  if (typeof p.item !== 'object' || p.item === null) return null;
+  const item = p.item as Record<string, unknown>;
+  if (!Number.isInteger(item.orden)) return null;
+  const t: TareaTab = {
+    legacyId: p.id as number,
+    orden: item.orden as number,
+    campos: item as Record<string, unknown>,
+  };
+  if (Number.isInteger(item.proyectoId)) t.proyectoId = item.proyectoId as number;
+  return t;
+}
+
+/* Respuesta validada: normaliza cada item del puente y descarta lo que no
+ * sea tarea (igual que historialSitioVps descarta lo que no sea tupla). */
 export function tareasDeRespuesta(datos: unknown): TareaTab[] {
   if (typeof datos !== 'object' || datos === null) return [];
   const lista = (datos as { tareas?: unknown }).tareas;
   if (!Array.isArray(lista)) return [];
-  return lista.filter(esTareaTab);
+  const normalizadas: TareaTab[] = [];
+  for (const v of lista) {
+    const t = tareaDePuente(v);
+    if (t !== null) normalizadas.push(t);
+  }
+  return normalizadas;
 }
 
 /* Texto visible de la fila: primer campo textual conocido; sin texto,

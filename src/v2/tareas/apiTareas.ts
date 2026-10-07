@@ -48,6 +48,9 @@ export async function reordenarTareas(movimientos: TareasMovimientoTab[]): Promi
     const { data } = await axios.post<{ actualizadas?: unknown }>('/api/tareas/reordenar', {
       movimientos,
     });
+    /* El proxy devuelve {actualizadas: ItemVersionado[]}; el conteo es su
+     * longitud (antes se esperaba number y siempre daba 0). */
+    if (Array.isArray(data.actualizadas)) return data.actualizadas.length;
     return typeof data.actualizadas === 'number' ? data.actualizadas : 0;
   } catch (err) {
     throw mensajeFallo('reordenar', err);
