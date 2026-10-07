@@ -12,7 +12,7 @@ import {
   problemasVulnerabilidadDe,
   type Categoria,
   type Problema,
-} from './clasificacionConsola.js';
+} from '../../../shared/clasificacionConsola.js';
 
 export function usePanelConsola() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);

@@ -74,7 +74,9 @@ desglose por proyecto y categoría, **sin hardcodear nombres de proyecto** en ni
 
 ## Estado
 
-- ACTIVA (2026-10-07). Plan creado + tarea `07AA-1` registrada en `roadmap.md`.
+- CERRADA (2026-10-07). F1–F3 verificados; evidencia en
+  `Agente/completados/tareas-2026-10-07.md`. Archivo movido a
+  `Agente/planes/completados/`; roadmap enlaza la completada.
 - Próximo paso: F1a (mover clasificadores, type-check).
 
 ## Verificación global (Definition of Done)
