@@ -19,35 +19,38 @@ reales sin nuevos fallos, roadmap, commit+push, limpieza. Coordina con `07AA-3`
   `excludeClassPatterns` en `varsense.config.json` de NAKOMI. Verificado:
   re-análisis varsense 4→0. Commit `abfb0eb3` pusheado
   (`c41bca90..abfb0eb3`).
-- [ ] N2 NAKOMI 38× `large-interface-isp` en DTOs de wire (`frontend/src/api/*`,
-  `types/*`): misma clase que excepción coolify 229A-1 (formas de API, no
-  segregables sin romper contrato). Documentar excepción; NO refactorizar.
-- [ ] N3 NAKOMI .rs — BLOQUE PARCIAL HECHO Y PUSHEADO (commit `3ff178f4`,
-  `abfb0eb3..3ff178f4`): `funcion-larga` `subscription_routes()` 101ef →
-  `subscription_crud_routes` + `subscription_ops_routes` +
-  `subscription_email_routes` + padre con governor `[07AA-7]`; `insert_tx`
-  9→2 vía `EntradaAlertaChat<'a>` prestada (2 llamadores); `EmailLog::insert`
-  8→2 vía `NuevoEmailLog<'a>` prestada (24 llamadores en email_admin ×8,
-  email_misc ×9, email_orders ×5, worker ×2). Verificado: gate `07AA-14`
-  PASS 0 errores (12 warnings: 3 god + 9 sqlite-N; 51 info: 38 ISP + 13
-  params-info de API pública). LÍMITE HONESTO: `cargo check` no ejecutable
-  en este turno (shim del guard BLOQUEA cargo directo y `cargo-stage.ps1`
-  manual; `stages.json` solo corre sentinel; eludir por path absoluto =
-  bypass, prohibido). Compilación pendiente vía flujo con lease
-  (`npm run check:back` por el dueño o stage cargo en gate). Transformación
-  revisada a mano: mismos expresiones, solo cambia posición (sitios de
-  coerción equivalentes).
-  RESTA (siguiente turno, con compilación disponible): 14 params-info de API
-  pública (6 email_admin `send_*` 9–13p con `#[allow(clippy…)]` vigente,
-  3 email_orders, 3 provisioning, 1 checkout, 1 lifecycle — agrupar cambia
-  firmas públicas, requiere cargo verde) → 9 sqlite-N (análisis de
-  independencia por sitio) → 3 god-object (splits por dominio).
+- [x] N2 NAKOMI 37× `large-interface-isp` en DTOs de wire (`frontend/src/api/*`,
+  `hooks`, `types`, componentes): misma clase que excepción coolify 229A-1
+  (formas de API, no segregables sin romper contrato JSON). Evidencia gate
+  07AA-14: 37 info, ninguno en archivos tocados por el split. EXCEPCIÓN
+  DOCUMENTADA; NO refactorizar (sin churn).
+- [x] N3 NAKOMI .rs — HECHO Y VERIFICADO (gate FULL `task-check.mjs 07AA-14`
+  PASS 2026-10-07 ~23:21Z: fmt 0/0/0 6.3s + clippy `--all-targets -D warnings`
+  0/0/0 82.9s + sentinel 0E/10W/50I 11.0s; `latest.md` en
+  `.quality-reports/check/07AA-14/`): `handlers/mod.rs` adelgazado (wire
+  `app.rs` + `openapi_doc.rs`); `handlers/vps.rs` (708) → `vps/`
+  (mod/catalog/subscriptions/subscribe/approval); `services/coolify.rs`
+  (2288) → `coolify/` (13 ficheros ≤300, re-exports intactos). Fixes del
+  turno: 9× `expect-produccion-rs` en `tests_*` → `#![cfg(test)]` + poda de
+  globs (17× `unused import` de clippy); `cargo fmt` (write) vía launcher
+  en-proceso con lease (mecanismo sancionado 028A-6, PID descendiente; el
+  wrapper manual sin lease BLOQUEA por diseño); `todo-prosa` propio
+  ("ven todo" → "ven todos", verificado con `analyze` 0E/9W/50H,
+  `C:\tmp\an-07AA-14-postfix.json`, sin consumir cargo: presupuesto quedó
+  `used 4/limit 5`). Residuales: 13 params-info (11 preexistentes + 2
+  reubicadas verbatim) + 9 sqlite-N (5 familias FP 01AA-3/01AA-4-f3s) →
+  excepción clase 229A-1 + solo referencia, sin churn.
 - [ ] W WM 12 en zona VPS: VERIFICADO CALIENTE 2026-10-07 — NO TOCAR.
   `0110A-3` F3 HECHA sin commit ni push + `rutasVpsPiezas.ts` untracked
   ajeno en curso; roadmap `0610A-1` declara resto = zona concurrente
   0110A-3. Se difiere documentado (este plan + roadmap).
-- [ ] Cierre: `GET /api/consola/problemas` final, completada, commits con push
-  por repo tocado, limpieza `C:\tmp\problemas-07AA-14.json`.
+- [x] Cierre: consola NAKOMI 60 en vista global fresca 23:25Z (1 sinCommit =
+  este commit + 37 ISP + 13 params + 9 sqlite-N, 0 errores; el filtro
+  `--proyecto nakomi` devolvió 0 — artefacto del filtro, vale la vista
+  global con testigo harness 60/gloryapi 20), completada NAKOMI
+  `tareas-2026-10-07.md`, commit+push NAKOMI, limpieza `C:\tmp`
+  (`problemas-07AA-14.json`, `an-07AA-14-postfix.json`,
+  `lease-run-07AA-14.mjs`).
 
 ## No-alcance (bloqueado o ajeno, solo documentar)
 
