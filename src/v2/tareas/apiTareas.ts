@@ -5,7 +5,9 @@
  * motivo, 429 cuota, 404 proyecto) para pintarlo tal cual. */
 import axios from 'axios';
 import {
+  tareaDePuente,
   tareasDeRespuesta,
+  type ParcheTareaTab,
   type TareaTab,
   type TareasEstado,
   type TareasMovimientoTab,
@@ -54,5 +56,28 @@ export async function reordenarTareas(movimientos: TareasMovimientoTab[]): Promi
     return typeof data.actualizadas === 'number' ? data.actualizadas : 0;
   } catch (err) {
     throw mensajeFallo('reordenar', err);
+  }
+}
+
+/* Edicion inline (07AA-15): PUT al proxy (upsert F1: actualiza) y normaliza
+ * la respuesta igual que proyectoTareas. */
+export async function actualizarTarea(legacyId: number, parche: ParcheTareaTab): Promise<TareaTab> {
+  try {
+    const { data } = await axios.put<{ tarea?: unknown }>(`/api/tareas/tarea/${legacyId}`, parche);
+    const t = tareaDePuente(data.tarea);
+    if (t === null) throw new Error(`actualizar ${legacyId}: respuesta inesperada del servidor`);
+    return t;
+  } catch (err) {
+    throw mensajeFallo(`actualizar ${legacyId}`, err);
+  }
+}
+
+/* Borrado (07AA-15): DELETE al proxy (204 F1, idempotente: repetir da 204,
+ * nunca 404 — semántica del frente, no del proxy). */
+export async function eliminarTarea(legacyId: number): Promise<void> {
+  try {
+    await axios.delete(`/api/tareas/tarea/${legacyId}`);
+  } catch (err) {
+    throw mensajeFallo(`eliminar ${legacyId}`, err);
   }
 }

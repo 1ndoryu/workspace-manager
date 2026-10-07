@@ -4,13 +4,21 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   COLUMNAS_DEFECTO_TAREAS,
+  completadoTarea,
   construirMovimientos,
   esTareaTab,
+  ETIQUETAS_PRIORIDAD,
+  ETIQUETAS_URGENCIA,
   normalizarColumnas,
   parsearLegacyId,
+  parcheConColumna,
+  PRIORIDADES_TAREA,
+  prioridadTarea,
   tareaDePuente,
   tareasDeRespuesta,
   textoTarea,
+  URGENCIAS_TAREA,
+  urgenciaTarea,
   type TareaTab,
 } from './tareasTab.js';
 
@@ -119,5 +127,48 @@ describe('normalizarColumnas', () => {
     assert.deepEqual(normalizarColumnas([]), COLUMNAS_DEFECTO_TAREAS);
     assert.deepEqual(normalizarColumnas(null), COLUMNAS_DEFECTO_TAREAS);
     assert.deepEqual(normalizarColumnas(undefined), COLUMNAS_DEFECTO_TAREAS);
+  });
+});
+
+describe('parcheConColumna (07AA-15, anti-huerfanas)', () => {
+  it('inyecta la columna como proyectoId sin tocar el resto', () => {
+    const parche = { texto: 'hola', completado: true };
+    assert.deepEqual(parcheConColumna(9505, parche), {
+      texto: 'hola',
+      completado: true,
+      proyectoId: 9505,
+    });
+    assert.deepEqual(parche, { texto: 'hola', completado: true });
+  });
+});
+
+describe('niveles (07AA-15, espejo TASKS)', () => {
+  it('vocabulario exacto del frente (5 + 4)', () => {
+    assert.deepEqual([...PRIORIDADES_TAREA], ['muy_alta', 'alta', 'media', 'baja', 'muy_baja']);
+    assert.deepEqual([...URGENCIAS_TAREA], ['bloqueante', 'urgente', 'normal', 'chill']);
+    for (const p of PRIORIDADES_TAREA) assert.match(ETIQUETAS_PRIORIDAD[p], /\S/);
+    for (const u of URGENCIAS_TAREA) assert.match(ETIQUETAS_URGENCIA[u], /\S/);
+  });
+  it('lee completado/prioridad/urgencia con defecto honesto', () => {
+    const t = tareaDePuente(ITEM_PUENTE)!;
+    assert.equal(completadoTarea(t), false);
+    assert.equal(prioridadTarea(t), null);
+    assert.equal(urgenciaTarea(t), 'normal');
+    const hecha: TareaTab = {
+      legacyId: 1,
+      orden: 0,
+      campos: { texto: 'x', completado: true, prioridad: 'alta', urgencia: 'chill' },
+    };
+    assert.equal(completadoTarea(hecha), true);
+    assert.equal(prioridadTarea(hecha), 'alta');
+    assert.equal(urgenciaTarea(hecha), 'chill');
+    const rota: TareaTab = {
+      legacyId: 2,
+      orden: 0,
+      campos: { completado: 'si', prioridad: 'maxima', urgencia: 'ya' },
+    };
+    assert.equal(completadoTarea(rota), false);
+    assert.equal(prioridadTarea(rota), null);
+    assert.equal(urgenciaTarea(rota), 'normal');
   });
 });

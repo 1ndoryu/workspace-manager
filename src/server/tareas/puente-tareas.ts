@@ -6,7 +6,8 @@
  * entrada aunque caduque en rafaga); backoff con jitter y tope ante 429; el
  * breaker se abre ante red/login-roto y deja pasar un intento tras el
  * enfriamiento. Transporte inyectable: los tests no tocan red. */
-import {crearClienteKanban, type ClienteKanban} from './nucleo/cliente.js';
+import {crearClienteKanban, CABECERA_CSRF, type ClienteKanban} from './nucleo/cliente.js';
+import {esIdValido} from './nucleo/validaciones.js';
 import type {
   BulkReorderRequest,
   ErrorKanban,
@@ -15,6 +16,7 @@ import type {
   RespuestaHttp,
 } from './nucleo/tipos.js';
 import {crearHttpNativo} from './transporte-tareas.js';
+import {mapearErrorTarea, type ParcheTarea} from './tarea-unitaria.js';
 
 export const BASE_DEFECTO_TAREAS = 'http://127.0.0.1:4190';
 const RUTA_LOGIN = '/api/auth/login';
@@ -126,6 +128,8 @@ export interface PuenteTareas {
   estado(): EstadoPuente;
   listar(legacyId: number): Promise<ItemVersionado[]>;
   reordenar(lote: BulkReorderRequest): Promise<ItemVersionado[]>;
+  actualizar(legacyId: number, parche: ParcheTarea): Promise<ItemVersionado>;
+  eliminar(legacyId: number): Promise<void>;
 }
 
 export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
@@ -196,6 +200,44 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
     return transporte(url, {...init, headers: cabezas});
   }
 
+  /* PUT/DELETE sobre /api/tasks/:legacy_id (F1 upsert_task/delete_task).
+   * No pasa por el cliente vendorizado (solo GET/POST). */
+  async function pedirTarea(
+    method: 'PUT' | 'DELETE',
+    legacyId: number,
+    cuerpo?: Record<string, unknown>,
+  ): Promise<unknown> {
+    let respuesta: RespuestaHttp;
+    try {
+      respuesta = await fetchConSesion(`${config.base}/api/tasks/${legacyId}`, {
+        method,
+        headers: {
+          'content-type': 'application/json',
+          ...(sesion === null ? {} : {[CABECERA_CSRF]: sesion.csrf}),
+        },
+        body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+      });
+    } catch {
+      throw {codigo: 'red', mensaje: 'Error de red'} satisfies ErrorKanban;
+    }
+    let datos: unknown = null;
+    try {
+      datos = await respuesta.json();
+    } catch {
+      datos = null;
+    }
+    if (!respuesta.ok) {
+      const cab = respuesta.cabeceras.obtener('retry-after');
+      const segs = cab === null ? NaN : Number(cab);
+      throw mapearErrorTarea(
+        respuesta.estado,
+        datos,
+        Number.isFinite(segs) && segs >= 0 ? segs * 1000 : undefined,
+      );
+    }
+    return datos;
+  }
+
   const cliente: ClienteKanban = crearClienteKanban({
     base: config.base,
     fetchFn: fetchConSesion,
@@ -258,6 +300,24 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
     },
     listar: (legacyId) => operar(() => cliente.listarTareasProyecto(legacyId)),
     reordenar: (lote) => operar(() => cliente.reordenarBulk(lote)),
+    actualizar: (legacyId, parche) =>
+      operar(async () => {
+        if (!esIdValido(legacyId)) {
+          throw {codigo: 'validacion', mensaje: 'legacyId debe ser un entero positivo'} satisfies ErrorKanban;
+        }
+        const datos = await pedirTarea('PUT', legacyId, {...parche});
+        if (typeof datos !== 'object' || datos === null || typeof (datos as {id?: unknown}).id !== 'number') {
+          throw {codigo: 'servidor', mensaje: 'Respuesta inesperada del servidor'} satisfies ErrorKanban;
+        }
+        return datos as ItemVersionado;
+      }),
+    eliminar: (legacyId) =>
+      operar(async () => {
+        if (!esIdValido(legacyId)) {
+          throw {codigo: 'validacion', mensaje: 'legacyId debe ser un entero positivo'} satisfies ErrorKanban;
+        }
+        await pedirTarea('DELETE', legacyId);
+      }),
   };
 }
 

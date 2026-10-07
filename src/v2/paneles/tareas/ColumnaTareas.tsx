@@ -1,10 +1,30 @@
-/* Columna del kanban: una Caja por proyecto TASKS (07AA-5 F3).
- * [por que] Render puro (sin estado): todo lo decide usePanelTareas. Los
- * movimientos son botones (teclado nativo + contraste monocromo), no
- * drag-and-drop: misma operacion, cero dependencias y accesible. */
+/* Columna del kanban: una Caja por proyecto TASKS (07AA-5 F3, DnD 07AA-15).
+ * [por que] Casi render puro (un useState para el indicador de destino):
+ * todo lo decide usePanelTareas. El arrastre es DnD nativo sin librerias:
+ * la tarjeta arrastra {origen, legacyId} y la columna suelta
+ * delante de otra tarjeta (o al final en zona vacia); el hook hace el bulk
+ * transaccional + relectura. Sin botones de flechas: el arrastre y el menu
+ * (mover a vecina por teclado) los sustituyen. */
+import { useState } from 'react';
 import { Button } from '../../ui/form/Button.js';
 import { Caja } from '../../ui/caja/Caja.js';
-import { textoTarea, type TareaTab } from '../../../shared/tareasTab.js';
+import type { ParcheTareaTab, TareaTab } from '../../../shared/tareasTab.js';
+import { TarjetaTarea } from './TarjetaTarea.js';
+
+/* Carga util del arrastre (misma tab: el drop ajeno se ignora). */
+const TIPO_ARRASTRE = 'text/tarea-kanban';
+
+export function leerArrastre(ev: React.DragEvent): { origen: number; legacyId: number } | null {
+  try {
+    const v = JSON.parse(ev.dataTransfer.getData(TIPO_ARRASTRE)) as unknown;
+    if (typeof v !== 'object' || v === null) return null;
+    const { origen, legacyId } = v as Record<string, unknown>;
+    if (!Number.isInteger(origen) || !Number.isInteger(legacyId)) return null;
+    return { origen: origen as number, legacyId: legacyId as number };
+  } catch {
+    return null;
+  }
+}
 
 /* Identidad de la columna dentro de la fila (posicion para las flechas). */
 interface ColumnaIdentidad {
@@ -18,13 +38,15 @@ interface ColumnaDatos {
   tareas: TareaTab[] | null;
   cargando: boolean;
   moviendo: string | null;
+  urlTareas: string;
 }
 
-/* Gestos (los ejecuta el hook; aqui solo se cablean a botones). */
+/* Gestos (los ejecuta el hook; aqui solo se cablean al DnD y al menu). */
 interface ColumnaGestos {
-  onSubir: (indice: number) => void;
-  onBajar: (indice: number) => void;
-  onMigrar: (legacyId: number, dir: -1 | 1) => void;
+  onSoltar: (origen: number, legacyId: number, antesDe: number | null) => void;
+  onEditar: (legacyId: number, parche: ParcheTareaTab) => void;
+  onEliminar: (legacyId: number) => void;
+  onMoverVecina: (legacyId: number, dir: -1 | 1) => void;
   onMoverColumna: (dir: -1 | 1) => void;
   onQuitar: () => void;
 }
@@ -34,6 +56,18 @@ interface ColumnaTareasProps extends ColumnaIdentidad, ColumnaDatos, ColumnaGest
 export function ColumnaTareas(p: ColumnaTareasProps) {
   const lista = p.tareas ?? [];
   const ocupada = p.moviendo !== null || p.cargando;
+  /* Tarjeta bajo el cursor (id) o 'fin' (zona vacia): solo indicador. */
+  const [sobre, setSobre] = useState<number | 'fin' | null>(null);
+
+  const soltar = (ev: React.DragEvent, antesDe: number | null) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    setSobre(null);
+    const arrastre = leerArrastre(ev);
+    if (arrastre === null || ocupada) return;
+    p.onSoltar(arrastre.origen, arrastre.legacyId, antesDe);
+  };
+
   return (
     <Caja
       titulo={`columna ${p.legacyId}`}
@@ -54,35 +88,56 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
       }
     >
       {p.tareas === null && <div className="docsVacio">{p.cargando ? 'cargando…' : 'sin datos'}</div>}
-      {p.tareas !== null && lista.length === 0 && <div className="docsVacio">columna vacía</div>}
+      {p.tareas !== null && lista.length === 0 && (
+        <div
+          className="tareasVacia"
+          onDragOver={(ev) => {
+            ev.preventDefault();
+            setSobre('fin');
+          }}
+          onDragLeave={() => setSobre(null)}
+          onDrop={(ev) => soltar(ev, null)}
+        >
+          columna vacía — suelta aquí
+        </div>
+      )}
       {lista.length > 0 && (
-        <div className="tareasLista" role="list" aria-label={`Tareas de la columna ${p.legacyId}`}>
-          {lista.map((t, i) => {
-            const enVuelo = p.moviendo === `${p.legacyId}:${t.legacyId}`;
-            return (
-              <div key={t.legacyId} className="tareasFila" role="listitem">
-                <span className="tareasTexto" title={`#${t.legacyId} · orden ${t.orden}`}>
-                  {textoTarea(t)}
-                </span>
-                <span className="tareasMeta">#{t.legacyId}</span>
-                <span className="tareasBotones" role="group" aria-label={`Mover ${textoTarea(t)}`}>
-                  <Button pequeno cuadrado onClick={() => p.onSubir(i)} disabled={ocupada || i === 0} title="subir en la columna" aria-label="subir en la columna">
-                    ↑
-                  </Button>
-                  <Button pequeno cuadrado onClick={() => p.onBajar(i)} disabled={ocupada || i === lista.length - 1} title="bajar en la columna" aria-label="bajar en la columna">
-                    ↓
-                  </Button>
-                  <Button pequeno cuadrado onClick={() => p.onMigrar(t.legacyId, -1)} disabled={ocupada || p.primera} title="mover a la columna anterior" aria-label="mover a la columna anterior">
-                    ⇤
-                  </Button>
-                  <Button pequeno cuadrado onClick={() => p.onMigrar(t.legacyId, 1)} disabled={ocupada || p.ultima} title="mover a la columna siguiente" aria-label="mover a la columna siguiente">
-                    ⇥
-                  </Button>
-                  {enVuelo && <span className="tareasVolando" aria-hidden="true">…</span>}
-                </span>
-              </div>
-            );
-          })}
+        <div
+          className="tareasLista"
+          role="list"
+          aria-label={`Tareas de la columna ${p.legacyId} (arrastra para mover)`}
+          onDragOver={(ev) => {
+            ev.preventDefault();
+            setSobre('fin');
+          }}
+          onDragLeave={() => setSobre(null)}
+          onDrop={(ev) => soltar(ev, null)}
+        >
+          {lista.map((t) => (
+            <TarjetaTarea
+              key={t.legacyId}
+              tarea={t}
+              gestos={{
+                arrastrable: !ocupada,
+                resaltada: sobre === t.legacyId,
+                enVuelo: p.moviendo === `${p.legacyId}:${t.legacyId}`,
+                vecina: {atras: !p.primera, adelante: !p.ultima},
+                urlTareas: p.urlTareas,
+                arrastre: {
+                  inicio: (ev) => {
+                    ev.dataTransfer.effectAllowed = 'move';
+                    ev.dataTransfer.setData(TIPO_ARRASTRE, JSON.stringify({ origen: p.legacyId, legacyId: t.legacyId }));
+                  },
+                  encima: (ev) => soltar(ev, t.legacyId),
+                  pasar: () => setSobre(t.legacyId),
+                },
+                onEditar: (parche) => p.onEditar(t.legacyId, parche),
+                onEliminar: () => p.onEliminar(t.legacyId),
+                onMoverVecina: (dir) => p.onMoverVecina(t.legacyId, dir),
+              }}
+            />
+          ))}
+          {sobre === 'fin' && <div className="tareasDestino" aria-hidden="true">soltar al final</div>}
         </div>
       )}
     </Caja>

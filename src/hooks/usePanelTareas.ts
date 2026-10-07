@@ -1,8 +1,9 @@
-/* Hook de la tab tareas (07AA-5 F3): estado + carga + movimientos.
+/* Hook de la tab tareas (07AA-5 F3, DnD + edicion 07AA-15): estado +
+ * carga + movimientos.
  * [por que] Extraido antes de nacer (leccion usePanelRepos): el componente
  * renderiza, el hook posee el reducer y los thunks. Un solo useReducer
  * (cero useState) para no rozar usestate-excesivo. Single-flight con ref:
- * nunca dos cargas ni dos reordenes concurrentes (el bulk es
+ * nunca dos cargas ni dos escrituras concurrentes (el bulk es
  * transaccional y el doble clic duplicaria el POST).
  * [D2] El orden de las tareas se escribe en TASKS via bulk y se relee tras
  * cada movimiento (la recarga es la prueba de persistencia en la UI); el
@@ -12,11 +13,19 @@ import {
   construirMovimientos,
   guardarColumnasTareas,
   leerColumnasTareas,
+  parcheConColumna,
   textoTarea,
+  type ParcheTareaTab,
   type TareaTab,
   type TareasEstado,
 } from '../shared/tareasTab.js';
-import { estadoTareas, proyectoTareas, reordenarTareas } from '../v2/tareas/apiTareas.js';
+import {
+  actualizarTarea,
+  eliminarTarea,
+  estadoTareas,
+  proyectoTareas,
+  reordenarTareas,
+} from '../v2/tareas/apiTareas.js';
 
 interface EstadoPanelTareas {
   columnas: number[];
@@ -73,9 +82,12 @@ export function usePanelTareas() {
   const enVuelo = useRef(false);
   const columnasRef = useRef<number[]>([]);
 
-  async function cargar(columnas: number[]): Promise<void> {
-    if (enVuelo.current) return;
-    enVuelo.current = true;
+  /* Cuerpo de carga sin single-flight (lo envuelve cargar; operar lo
+   * llama directo porque ya posee el flag: si pasara por cargar, el
+   * early-return por enVuelo saltaria la relectura post-escritura y la tab
+   * quedaria con el orden anterior hasta F5 — bug 2026-10-07 cazado en
+   * UI viva: el bulk persistia en TASKS pero la lista no se repintaba). */
+  async function cargarInner(columnas: number[]): Promise<void> {
     dispatch({ tipo: 'cargando' });
     try {
       const estado = await estadoTareas();
@@ -86,6 +98,14 @@ export function usePanelTareas() {
       dispatch({ tipo: 'cargado', estado, tareas });
     } catch (err) {
       dispatch({ tipo: 'fallo', error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  async function cargar(columnas: number[]): Promise<void> {
+    if (enVuelo.current) return;
+    enVuelo.current = true;
+    try {
+      await cargarInner(columnas);
     } finally {
       enVuelo.current = false;
     }
@@ -127,17 +147,17 @@ export function usePanelTareas() {
     fijarColumnas(movida(columnasRef.current, i, j));
   }
 
-  /* Reordena dentro de una columna y relee (la relectura confirma que TASKS
-   * persistio el orden: sobrevive a recargas). */
-  async function reordenar(columna: number, de: number, a: number): Promise<void> {
-    const lista = s.tareas[columna] ?? [];
-    if (enVuelo.current || de === a || !lista[de] || !lista[a]) return;
+  /* Escritura con single-flight: marca la tarjeta en vuelo, ejecuta,
+   * relee todo (la relectura confirma que TASKS persistio) y libera. La
+   * relectura usa cargarInner: con el flag en la mano, cargar rehusaria. */
+  async function operar(clave: string, fn: () => Promise<void>): Promise<void> {
+    if (enVuelo.current) return;
     enVuelo.current = true;
-    dispatch({ tipo: 'moviendo', clave: `${columna}:${lista[de].legacyId}` });
+    dispatch({ tipo: 'moviendo', clave });
     try {
-      await reordenarTareas(construirMovimientos(movida(lista, de, a), columna));
+      await fn();
       dispatch({ tipo: 'movido' });
-      await cargar(columnasRef.current);
+      await cargarInner(columnasRef.current);
     } catch (err) {
       dispatch({ tipo: 'fallo', error: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -145,34 +165,49 @@ export function usePanelTareas() {
     }
   }
 
-  /* Mueve a la columna vecina (un solo bulk con ambas columnas: el servidor
-   * lo aplica transaccional) y relee ambas. */
-  async function migrar(columna: number, legacyId: number, dir: -1 | 1): Promise<void> {
-    const cols = columnasRef.current;
-    const j = cols.indexOf(columna) + dir;
-    if (enVuelo.current || j < 0 || j >= cols.length) return;
-    const destino = cols[j];
-    const origen = (s.tareas[columna] ?? []).filter((t) => t.legacyId !== legacyId);
-    const movil = (s.tareas[columna] ?? []).find((t) => t.legacyId === legacyId);
+  /* Suelta de DnD (07AA-15): mueve legacyId de `origen` a `destino` delante
+   * de `antesDe` (null = al final). Origen = destino es reorden interno;
+   * el bulk cubre ambas columnas y es transaccional en el servidor. */
+  async function soltar(
+    origen: number,
+    destino: number,
+    legacyId: number,
+    antesDe: number | null,
+  ): Promise<void> {
+    if (antesDe === legacyId) return;
+    const movil = (s.tareas[origen] ?? []).find((t) => t.legacyId === legacyId);
     if (!movil) return;
-    const destLista = [...(s.tareas[destino] ?? []), movil];
-    enVuelo.current = true;
-    dispatch({ tipo: 'moviendo', clave: `${columna}:${legacyId}` });
-    try {
-      await reordenarTareas([
-        ...construirMovimientos(origen, columna),
-        ...construirMovimientos(destLista, destino),
-      ]);
-      dispatch({ tipo: 'movido' });
-      await cargar(columnasRef.current);
-    } catch (err) {
-      dispatch({ tipo: 'fallo', error: err instanceof Error ? err.message : String(err) });
-    } finally {
-      enVuelo.current = false;
-    }
+    const restoOrigen = (s.tareas[origen] ?? []).filter((t) => t.legacyId !== legacyId);
+    const baseDestino = origen === destino ? restoOrigen : [...(s.tareas[destino] ?? [])];
+    const pos = antesDe === null ? baseDestino.length : baseDestino.findIndex((t) => t.legacyId === antesDe);
+    const destinoNuevo = [...baseDestino];
+    destinoNuevo.splice(pos < 0 ? baseDestino.length : pos, 0, movil);
+    const movimientos =
+      origen === destino
+        ? construirMovimientos(destinoNuevo, origen)
+        : [
+            ...construirMovimientos(restoOrigen, origen),
+            ...construirMovimientos(destinoNuevo, destino),
+          ];
+    await operar(`${destino}:${legacyId}`, () => reordenarTareas(movimientos).then(() => undefined));
   }
 
-  return { ...s, recargar, agregarColumna, quitarColumna, moverColumna, reordenar, migrar, textoTarea };
+  /* Edicion inline del menu (07AA-15): el texto viaja siempre (F1 exige
+   * `texto`) y la columna tambien como proyectoId: el PUT F1 es upsert de
+   * reemplazo y sin proyectoId TASKS lo pone a null (huerfana invisible —
+   * bug 2026-10-07: completar desde el menu "borraba" la tarjeta). */
+  async function editar(columna: number, legacyId: number, parche: ParcheTareaTab): Promise<void> {
+    await operar(`${columna}:${legacyId}`, () =>
+      actualizarTarea(legacyId, parcheConColumna(columna, parche)).then(() => undefined),
+    );
+  }
+
+  /* Borrado del menu (07AA-15): DELETE idempotente + relectura. */
+  async function eliminar(columna: number, legacyId: number): Promise<void> {
+    await operar(`${columna}:${legacyId}`, () => eliminarTarea(legacyId));
+  }
+
+  return { ...s, recargar, agregarColumna, quitarColumna, moverColumna, soltar, editar, eliminar, textoTarea };
 }
 
 export type PanelTareasApi = ReturnType<typeof usePanelTareas>;

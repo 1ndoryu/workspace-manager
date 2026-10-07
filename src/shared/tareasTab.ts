@@ -92,8 +92,64 @@ export function tareasDeRespuesta(datos: unknown): TareaTab[] {
   return normalizadas;
 }
 
-/* Texto visible de la fila: primer campo textual conocido; sin texto,
- * el id (nunca celda vacia). */
+/* Parche de edicion inline (07AA-15): espejo del body de PUT
+ * /api/tareas/tarea/:id (el proxy revalida con validarParche; TASKS
+ * revalida con UpsertTaskRequest). `texto` siempre va (F1 lo exige). */
+export interface ParcheTareaTab {
+  texto: string;
+  completado?: boolean;
+  prioridad?: string | null;
+  urgencia?: string;
+  proyectoId?: number | null;
+  orden?: number;
+}
+
+/* El PUT F1 es upsert de reemplazo: sin proyectoId TASKS lo pone a null
+ * y la tarjeta se vuelve huerfana invisible (bug 2026-10-07: completar
+ * desde el menu "borraba" la tarjeta). El hook inyecta su columna con
+ * esta pura para que el invariante quede cubierto por test. */
+export function parcheConColumna(columna: number, parche: ParcheTareaTab): ParcheTareaTab {
+  return {...parche, proyectoId: columna};
+}
+
+/* Vocabulario de niveles (07AA-15): espejo exacto de TASKS
+ * frontend/src/app/utils/constantes.ts (OPCIONES_PRIORIDAD/URGENCIA) y
+ * types/tarea.ts (NivelPrioridad/NivelUrgencia). El proxy solo acepta
+ * estos ids (validarParche) y TASKS los valida en dataService.ts:351-355:
+ * inventar uno nuevo daria 422 en el frente. */
+export const PRIORIDADES_TAREA = ['muy_alta', 'alta', 'media', 'baja', 'muy_baja'] as const;
+export const URGENCIAS_TAREA = ['bloqueante', 'urgente', 'normal', 'chill'] as const;
+
+export const ETIQUETAS_PRIORIDAD: Record<string, string> = {
+  muy_alta: 'Muy Alta',
+  alta: 'Alta',
+  media: 'Media',
+  baja: 'Baja',
+  muy_baja: 'Muy Baja',
+};
+
+export const ETIQUETAS_URGENCIA: Record<string, string> = {
+  bloqueante: 'Bloqueante',
+  urgente: 'Urgente',
+  normal: 'Normal',
+  chill: 'Chill',
+};
+
+/* Lecturas honestas de los campos (campos es Record<string, unknown>):
+ * lo ausente o roto cae al defecto, nunca rompe el render. */
+export function completadoTarea(t: TareaTab): boolean {
+  return t.campos.completado === true;
+}
+
+export function prioridadTarea(t: TareaTab): string | null {
+  const v = t.campos.prioridad;
+  return typeof v === 'string' && (PRIORIDADES_TAREA as readonly string[]).includes(v) ? v : null;
+}
+
+export function urgenciaTarea(t: TareaTab): string {
+  const v = t.campos.urgencia;
+  return typeof v === 'string' && (URGENCIAS_TAREA as readonly string[]).includes(v) ? v : 'normal';
+}
 export function textoTarea(t: TareaTab): string {
   for (const k of ['texto', 'titulo', 'nombre', 'name']) {
     const v = t.campos[k];

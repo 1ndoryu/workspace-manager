@@ -4,6 +4,7 @@
 import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 import {crearPuenteTareas, type FetchPuente, type RespuestaPuente} from './puente-tareas.js';
+import {validarParche} from './tarea-unitaria.js';
 import type {PeticionHttp} from './nucleo/tipos.js';
 
 const CONF = {
@@ -124,6 +125,39 @@ void describe('puente-tareas', () => {
     avanzar(CONF.enfriamientoMs);
     await assert.rejects(puente.listar(9));
     assert.equal(llamadas.length, 2);
+  });
+
+  void it('actualizar hace PUT con csrf y devuelve el item (07AA-15)', async () => {
+    const ITEM = {id: 5, item: {texto: 'nuevo'}, updatedAt: 'hoy'};
+    const {llamadas, puente} = fakes([LOGIN_OK, resp(200, ITEM)]);
+    const got = await puente.actualizar(5, {texto: 'nuevo', completado: true});
+    assert.deepEqual(got, ITEM);
+    assert.ok(llamadas[1].url.endsWith('/api/tasks/5'));
+    assert.equal(llamadas[1].init.method, 'PUT');
+    const cab = llamadas[1].init.headers as Record<string, string>;
+    assert.equal(cab['x-csrf-token'], 'BBB');
+    assert.deepEqual(JSON.parse(String(llamadas[1].init.body)), {texto: 'nuevo', completado: true});
+  });
+
+  void it('actualizar mapea 404 a no-encontrado (07AA-15)', async () => {
+    const {puente} = fakes([LOGIN_OK, resp(404, {message: 'no hay'})]);
+    await assert.rejects(puente.actualizar(5, {texto: 'x'}), (e: unknown) => (e as {codigo: string}).codigo === 'no-encontrado');
+  });
+
+  void it('eliminar hace DELETE y acepta 204 sin cuerpo (07AA-15)', async () => {
+    const {llamadas, puente} = fakes([LOGIN_OK, resp(204, null)]);
+    await puente.eliminar(5);
+    assert.ok(llamadas[1].url.endsWith('/api/tasks/5'));
+    assert.equal(llamadas[1].init.method, 'DELETE');
+  });
+
+  void it('validarParche rechaza texto vacio y enums rotos (07AA-15)', async () => {
+    assert.deepEqual(validarParche(null), {ok: false, errores: ['parche-vacio']});
+    assert.deepEqual(validarParche({texto: '  '}), {ok: false, errores: ['texto-requerido-max-1000']});
+    assert.deepEqual(validarParche({texto: 'ok', prioridad: 'maxima'}), {ok: false, errores: ['prioridad-invalida']});
+    assert.deepEqual(validarParche({texto: 'ok', urgencia: 'ya'}), {ok: false, errores: ['urgencia-invalida']});
+    const v = validarParche({texto: 'ok', completado: true, prioridad: 'alta', urgencia: 'chill', proyectoId: 9});
+    assert.equal(v.ok, true);
   });
 
   void it('sin credenciales informa motivo sin tocar red', async () => {

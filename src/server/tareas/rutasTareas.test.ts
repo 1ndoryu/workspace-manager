@@ -40,6 +40,13 @@ function fakePuente(cambios: Partial<PuenteTareas> & {llamadas?: string[]}): Pue
       llamadas.push(`reordenar:${lote.movimientos.length}`);
       return TAREAS;
     },
+    actualizar: async (legacyId) => {
+      llamadas.push(`actualizar:${legacyId}`);
+      return TAREAS[0];
+    },
+    eliminar: async (legacyId) => {
+      llamadas.push(`eliminar:${legacyId}`);
+    },
     ...cambios,
   };
 }
@@ -143,5 +150,41 @@ void describe('/api/tareas', () => {
     assert.equal(estado, 429);
     assert.equal(cabeceras['Retry-After'], '2');
     assert.equal((datos as {error: string}).error, 'cuota-tasks');
+  });
+
+  void it('PUT tarea actualiza con parche valido y traduce 404/422 (07AA-15)', async () => {
+    const llamadas: string[] = [];
+    const manejar = manejarCon(fakePuente({llamadas}), {texto: 'nuevo', completado: true});
+    const r1 = await llamar(manejar, '/api/tareas/tarea/5', 'PUT');
+    assert.equal(r1.estado, 200);
+    assert.deepEqual(llamadas, ['actualizar:5']);
+    assert.deepEqual((r1.datos as {tarea: unknown}).tarea, TAREAS[0]);
+
+    const malo = manejarCon(fakePuente({llamadas}), {texto: '  '});
+    const r2 = await llamar(malo, '/api/tareas/tarea/5', 'PUT');
+    assert.equal(r2.estado, 422);
+    assert.equal((r2.datos as {error: string}).error, 'parche-invalido');
+
+    const no = manejarCon(fakePuente({actualizar: async () => { throw kanban('no-encontrado', 'Tarea no encontrada'); }}), {texto: 'x'});
+    const r3 = await llamar(no, '/api/tareas/tarea/5', 'PUT');
+    assert.equal(r3.estado, 404);
+    assert.equal((r3.datos as {error: string}).error, 'tarea-no-encontrada');
+
+    const cero = manejarCon(fakePuente({llamadas}), {texto: 'x'});
+    const r4 = await llamar(cero, '/api/tareas/tarea/0', 'PUT');
+    assert.equal(r4.estado, 400);
+  });
+
+  void it('DELETE tarea responde 204 y traduce errores (07AA-15)', async () => {
+    const llamadas: string[] = [];
+    const manejar = manejarCon(fakePuente({llamadas}));
+    const r1 = await llamar(manejar, '/api/tareas/tarea/5', 'DELETE');
+    assert.equal(r1.estado, 204);
+    assert.deepEqual(llamadas, ['eliminar:5']);
+
+    const no = manejarCon(fakePuente({eliminar: async () => { throw kanban('no-encontrado', 'ya borrada'); }}));
+    const r2 = await llamar(no, '/api/tareas/tarea/5', 'DELETE');
+    assert.equal(r2.estado, 404);
+    assert.equal((r2.datos as {error: string}).error, 'tarea-no-encontrada');
   });
 });
