@@ -1,0 +1,171 @@
+# Plan: tope físico cross-proyecto a validaciones pesadas (anti-espiral) — 2026-10-07
+
+## Objetivo
+Que ningún agente pueda quemar 10 corridas de `cargo check` / `tsc --noEmit` (70–90s
+c/u) por microcambio, en NINGÚN proyecto del área. Cumplir la regla 11 por
+mecanismo (conteo + negativa + ampliación auditable), no por disciplina.
+Además: auditar las vías para saltarse el guard y darle al usuario visibilidad
+y control desde este tablero (solo lo controlable se entiende).
+
+Origen: NAKOMI 07AA-7 consumió ~10 checks (fixes sueltos + una corrida por fix,
+más un `sqlx prepare` contra DB rota que borró `.sqlx/`). Trasladado desde NAKOMI
+(07AA-8) porque el alcance es todo el área.
+
+## Semántica del tope (decidido)
+**5 por TAREA, sin caducidad temporal.** El contador vive en el dir de reportes de
+la tarea; tarea nueva = contador nuevo. No caduca por días: una tarea larga no
+pierde presupuesto por lenta y una tarea nueva no hereda gasto ajeno. Por tiempo
+(por día) castigaría tareas paralelas y permitiría espirales interminables.
+Ampliación: `lote-extra.md` en el dir de la tarea (+3, con motivo, auditable).
+
+## Alcance / no alcance
+- SÍ: conteo y tope en el **orquestador Sentinel** (emite el lease por etapa, conoce
+  proyecto + tarea + comando), config `budgets` por proyecto, override auditable.
+- SÍ: auditoría de bypasses (F1b, matriz vía→resultado; cerrar o registrar cada una).
+- SÍ: panel Guard en este tablero (F6: intentos bloqueados, modo y budgets por
+  proyecto, contadores por tarea; lectura + control).
+- SÍ: release + propagación a checkouts consumidores (skill `quality-gate-setup`).
+- NO: tocar el shim/guard (`cargo.cmd` intacto), partir crates, VPS/producción.
+
+## Dependencias
+- Checkout canónico fuente de Sentinel (F0 lo localiza; NO asumir path).
+- Skill `quality-gate-setup` (release, lock, propagación) y doc de NAKOMI
+  `Agente/documentacion/mantenimiento-herramientas-calidad-2026-10-06.md`.
+- Política v2 por proyecto (extender a `budgets`, ver F1).
+- Mando `dev` de este repo para operar proyectos durante el piloto.
+
+## Fases verificables
+- **F0 Inventario.** Checkout fuente Sentinel, schema política v2, lista de
+  consumidores con checkout declarado, emisor de lease (`out/core/lease.js`) y
+  runner de etapas. Evidencia: rutas + versiones, sin adivinar.
+- **F1 Diseño.** Contador `runs.jsonl` por tarea (incluye fallidos); default
+  `check: 5`; comandos contados: `cargo check`, `tsc --noEmit`; override
+  `lote-extra.md` (+3); fail open sin tarea; mensaje estilo guard + `Next:`.
+  Sin conteo para fmt/prepare/scans.
+- **F1b Auditoría de bypasses.** Probar cada vía: binario real directo (`where
+  cargo.exe` —el propio shim lo revela—), token legacy `GLORY_QUALITY_GATE_TOKEN`,
+  stages custom que omiten etapas, policy observe/pass-through, CLI viejo 0.7.12,
+  edición manual de reportes, `npx tsc` directo. Matriz vía→resultado; cada
+  hallazgo se cierra en código o queda como riesgo aceptado con detección (log).
+  Sin esto, el tope es teatro.
+- **F2 Implementación + tests Sentinel.** Unit: conteo, tope exacto, override +3,
+  fail open, comandos fuera de lista. E2E en fixture: 6º `check` bloqueado con
+  mensaje (sin compilar), override lo desbloquea.
+- **F3 Release.** Lock, doctor, tests y gate del propio Sentinel en verde; bump
+  versión; nota en doc de mantenimiento-herramientas.
+- **F4 Propagación.** Checkouts consumidores (NAKOMI primero como piloto).
+- **F5 Piloto NAKOMI.** En tarea real: contador incrementa, mensaje legible,
+  override funciona, fail open verificado.
+- **F6 Panel Guard en este tablero.** Backend: log de decisiones del guard,
+  lectura de política/modo/budgets por proyecto y cambio de modo + budgets (red
+  local, sin secretos en respuestas). Frontend: sección Guard (quién, qué, cuándo,
+  por qué), estado por proyecto, contadores por tarea, controles.
+- **F7 Observe → enforce.** Global primero en observe (solo avisa), luego enforce.
+
+## Estado
+F0 CERRADA + F1 CERRADA + F1b CERRADA + **F2 CERRADA** (2026-10-07, evidencia abajo). Próximo paso: F3 release.
+
+## F1b — matriz de bypasses (cerrada)
+1. Binario real directo (`C:\Users\Owner\.cargo\bin\cargo.exe`, revelado por
+   `where.exe cargo`; el shim es `...\GlorySentinel\shims\cargo.cmd` primero en
+   PATH): VÍA ABIERTA por diseño (un shim PATH no puede interceptar ruta
+   completa). Mitigación: el guard ya bloquea `cargo` por nombre (exit 78 sin
+   lease); detección F6: tarea con `.rs` modificados y 0 runs en `runs.jsonl`
+   = sospechosa. Riesgo aceptado con detección, no cierre técnico posible.
+2. Token legacy `GLORY_QUALITY_GATE_TOKEN`: NO es bypass práctico — se genera
+   aleatorio por ejecución (`gateRun.ts:125-126`) y solo vive en el árbol de
+   procesos del gate (`toolRunner.ts` allowlist). Robarlo exige acceso al
+   proceso. Cerrada por código.
+3. Stages custom que omiten pesados (p. ej. nuestro `stages-check-only.json`):
+   legítimo por diseño (etapas declarativas por tarea); el reporte lista las
+   etapas corridas → detectable. Menos etapas = menos conteo, no evasión.
+4. `observe`/`pass-through`: declarados en política, visibles en identidad del
+   reporte (`policyHash` + modo). Detección incorporada.
+5. CLI viejo (`versions/0.7.12` presente junto a `0.7.13` activo): invocable vía
+   `node .../0.7.12/out/cli/index.js`. Mitigación: higiene de release (F3: podar
+   versiones viejas) + misma detección que (1). Registrado, cierre en F3.
+6. Edición manual de reportes: son salidas; cualquier re-run reproduce el
+   veredicto. Aceptado.
+7. `npx tsc` / `cargo.exe` directos: misma clase que (1), misma detección.
+
+## F0 — evidencia
+- Fuente canónica: `glory-sentinel/` (área), rama `main` limpia, v`0.7.16`
+  (runtime instalado `0.7.13`: va 3 minors por detrás → F3/F4 ya necesarios).
+- Orquestador: `src/core/gateRun.ts` `runCheck()` (línea 107): emite lease por
+  ejecución (`issueLease`, líneas 132-147) con `projectRoot` + `taskId`; el campo
+  `command` va hardcodeado a `'gate'` (línea 138) → el tope NO puede vivir en el
+  lease: va en la ejecución de etapa.
+- Ejecución de etapa: `runCheckWithToken` (línea 160) → `runBoundedStages` +
+  `runStructuredTool(declaration, {projectRoot, reportRoot, logsRoot})`
+  (líneas 222-245); `StructuredToolDefinition {name, executable, args[]}`
+  (`src/core/structuredTool.ts:23-31`) → el punto de conteo es ANTES de
+  `runProcess` (`src/core/toolRunner.ts`), donde executable+args ya se conocen.
+- Contador natural: `reportRoot` ya es por tarea
+  (`.quality-reports/check/<task-id>`, línea 202) → `runs.jsonl` vive ahí, sin
+  plumbing nuevo de task-id.
+- Política v2: `sentinel.config.json` (`schemaVersion: 2`, `mode`,
+  `gate.taskIdRequired`); lector `readV2GuardPolicy` (`guardCommand.ts`);
+  modos en `src/core/policyDecision.ts:6` (`enforce/observe/pass-through`).
+- Consumidores con gate declarado (14): GLORYINSPECTOR, limpiador-pc, GLORYPORT,
+  workspace-manager, coolify-manager-rs, gloryapi, NAKOMI, Glory-Laminal,
+  WANDORIUS, glory-harness, glory-agent, freebuff-bridge, PROYECTO TASKS,
+  RESTAURANTE.
+
+## F1 — diseño (cerrado)
+Hook en `runStructuredTool` (o wrapper en el loop de `runCheckWithToken`):
+antes de ejecutar, clasificar `executable+args` contra lista pesada
+(`cargo check`, `tsc --noEmit` inicial); leer `budgets` de la política v2 del
+workspace (default `check: 5`); leer/append `<reportRoot>/runs.jsonl` (cuenta
+también fallidos); si agotado → NO ejecutar, veredicto de etapa con mensaje
+estilo guard + `Next:` (juntar cambios o `lote-extra.md` +3). Override:
+`lote-extra.md` en el dir de la tarea suma +3 con motivo (auditable en el propio
+reporte). Sin task-id (`taskIdRequired` lo exige; si falta) → fail open con
+aviso. fmt/prepare/scans/reporte no cuentan. Modo global observe primero:
+durante observe solo se registra (log) sin bloquear.
+
+## F2 — implementación (cerrada 2026-10-07, glory-sentinel `main`)
+- Nuevo `src/core/heavyBudget.ts` (~160 líneas): `classifyHeavy` (cargo
+  check/clippy/test directo + wrapper `cargo-stage.ps1 <report> <stage>` + `tsc
+  --noEmit`; fmt/fmt-write/bench/node/vitest → null, fail open),
+  `readBudgets` (clave `budgets` opcional en `sentinel.config.json`, ignorada por
+  `readV2GuardPolicy` → añadirla no cambia el guard; default observe 5/clase),
+  `checkAndRecordHeavyRun` (cuenta `started` por clase en
+  `<reportRoot>/runs.jsonl`, incluye fallidos y bloqueados; override
+  `<projectRoot>/lote-extra.md` primer entero; líneas corruptas se ignoran;
+  cualquier fallo de E/S → allow, fail open).
+- Hook en `runStructuredTool` (`src/core/structuredTool.ts`): tras containment,
+  antes de `runProcess`. Agotado en enforce → NO ejecuta, outcome `status
+  error / state 'budget-exhausted' / ruleId 'quality-budget-exhausted'` (exit 2
+  SETUP ERROR vía `finalDecision`, `Next:` accionable). Cache-hit no cuenta
+  (retorna antes del hook). Modo observe por defecto: comportamiento idéntico a
+  hoy + aviso y registro (cero cambios para los 14 consumidores hasta F7).
+- Tests `src/test/suite/heavyBudget.test.ts`: 9/9 verdes (clasificación,
+  defaults/fail-open, budgets custom, cupo exacto 5+bloqueo 6º, clases
+  independientes, observe avisa-permite, `lote-extra.md +3` → 8+bloqueo 9º,
+  línea corrupta).
+- Regresión: suite completa 733 passing + 1 pending; 1 failing SOLO en hook
+  `after all` de `shellMatrix` (EPERM al borrar su Temp; 8/8 tests pasan;
+  suite sin imports compartidos con el cambio → ambiental preexistente, no
+  atribuible). `tsc` limpio, `eslint` 0 errores, `check:core` OK.
+- Límite honesto: e2e contra compilador real no ejecutado (quemaría presupuesto
+  de verdad); el bloqueo 6º se verifica a nivel `checkAndRecordHeavyRun` + hook.
+  E2E real en F5 piloto (NAKOMI).
+
+## Verificación
+Tests Sentinel verdes + gate propio; en piloto: 6º intento bloqueado sin gastar
+compilación, override +3 efectivo, runs baratos sin conteo; panel muestra eventos
+reales.
+
+## Definition of Done
+Release publicado y propagado, piloto OK en NAKOMI, doc actualizada, ningún gate
+de consumidor con hallazgos nuevos, matriz de bypasses sin vías abiertas no
+registradas, panel Guard visible y operable.
+
+## Decisiones (tomadas, recomendación aplicada)
+- **D1 Tope default: 5 por tarea.**
+- **D2 Rollout: observe-primero global.**
+- **D3 Comandos contados: `cargo check` + `tsc --noEmit` inicial.**
+- **D4 Panel Guard: lectura + control desde el inicio.**
+
+## Referencia
+NAKOMI roadmap §Barrido consola 07AA (07AA-8 trasladada aquí); lección 07AA-7.
