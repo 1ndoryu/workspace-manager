@@ -78,55 +78,126 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
     throw new Error('registro: noAplica no es objeto');
   }
   for (const [clave, motivo] of Object.entries(noAplica)) validarMotivo(motivo, `noAplica.${clave}`);
+  // [por que 06AA-1] Dependencia colgada = aviso de la entrada dependiente,
+  // no error global: el resto del mando sigue clasificando y `up` la
+  // rehusara con ese motivo si se la pide.
   for (const e of entradas.values()) {
-    for (const d of e.requiere ?? []) {
-      if (!entradas.has(d)) throw new Error(`registro: '${e.id}' requiere id inexistente '${d}'`);
+    for (const d of Array.isArray(e.requiere) ? e.requiere : []) {
+      if (!entradas.has(d) && !e._avisoRegistro) {
+        e._avisoRegistro = `registro: '${e.id}' requiere id inexistente '${d}'`;
+      }
     }
   }
   return { version: 1, entradas, noAplica };
 }
 
 function validarEntrada(e) {
+  // [por que 06AA-1] Un desvio en UNA entrada jamas bloquea el mando global:
+  // se anota en `e._avisoRegistro` (la entrada queda no-actuable: ni `up` ni
+  // `status` la tocan, sale como deriva con ese motivo) y el resto sigue.
+  // Solo lo estructural sin id atribuible (no-objeto, sin id, id duplicado)
+  // sigue siendo error global: sin id no hay a quien anotar.
+  if (typeof e !== 'object' || e === null) throw new Error('registro: entrada no objeto');
   for (const k of ['id', 'ruta', 'boton', 'puertos', 'expectedCmdline']) {
-    if (!(k in e)) throw new Error(`registro: entrada sin '${k}' (${JSON.stringify(e).slice(0, 80)})`);
+    if (!(k in e)) {
+      if (typeof e.id === 'string' && e.id.length > 0) {
+        if (!e._avisoRegistro) e._avisoRegistro = `registro: '${e.id}' entrada sin '${k}'`;
+        return;
+      }
+      throw new Error(`registro: entrada sin '${k}' (${JSON.stringify(e).slice(0, 80)})`);
+    }
   }
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env']);
+  const mal = (motivo) => {
+    if (!e._avisoRegistro) e._avisoRegistro = motivo;
+  };
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir']);
   for (const k of Object.keys(e)) {
-    if (!conocidas.has(k)) throw new Error(`registro: clave desconocida '${k}' en '${e.id}'`);
+    if (!conocidas.has(k)) {
+      mal(`registro: clave desconocida '${k}' en '${e.id}'`);
+      return;
+    }
   }
   const rutaAbs = isAbsolute(e.ruta) ? normalize(e.ruta) : resolve(RAIZ_REPO, e.ruta);
   // [por que] El mando gestiona proyectos hermanos (glory-pulse, ...): el
   // area valida es area-trabajo, no solo este repo.
   const areaNorm = normalize(resolve(RAIZ_REPO, '..'));
   if (rutaAbs !== areaNorm && !rutaAbs.startsWith(areaNorm + sep)) {
-    throw new Error(`registro: '${e.id}' ruta fuera del area (${e.ruta})`);
+    mal(`registro: '${e.id}' ruta fuera del area (${e.ruta})`);
+    return;
   }
-  if (!existsSync(rutaAbs)) throw new Error(`registro: '${e.id}' ruta inexistente (${e.ruta})`);
+  if (!existsSync(rutaAbs)) {
+    mal(`registro: '${e.id}' ruta inexistente (${e.ruta})`);
+    return;
+  }
+  // [por que 06AA-1] `reconstruir` = auto-reparacion declarada: si el exe del
+  // boton falta (p. ej. el sweep purgo el target por rama), `up` recompila
+  // solo con `cargo build --manifest-path` + CARGO_TARGET_DIR declarado, en
+  // vez de rehusar todo el mando. Manifest siempre bajo la ruta de la
+  // entrada (nunca fuera del area); targetDir absoluta (vive en C:\tmp por
+  // regla del area, nunca en el arbol). Sin `reconstruir`, el exe ausente
+  // sigue siendo aviso no-actuable (fail-closed por entrada).
+  if ('reconstruir' in e) {
+    const r = e.reconstruir;
+    if (typeof r !== 'object' || r === null || Array.isArray(r)) {
+      mal(`registro: '${e.id}' reconstruir no es objeto`);
+      return;
+    }
+    for (const k of Object.keys(r)) {
+      if (!['manifest', 'targetDir'].includes(k)) {
+        mal(`registro: '${e.id}' reconstruir con clave desconocida '${k}'`);
+        return;
+      }
+    }
+    if (typeof r.manifest !== 'string' || r.manifest.length === 0) {
+      mal(`registro: '${e.id}' reconstruir sin manifest`);
+      return;
+    }
+    const manAbs = resolve(rutaAbs, r.manifest);
+    if (manAbs !== rutaAbs && !manAbs.startsWith(rutaAbs + sep)) {
+      mal(`registro: '${e.id}' reconstruir manifest fuera de la ruta (${r.manifest})`);
+      return;
+    }
+    if (!existsSync(manAbs)) {
+      mal(`registro: '${e.id}' reconstruir manifest inexistente (${r.manifest})`);
+      return;
+    }
+    if (typeof r.targetDir !== 'string' || !isAbsolute(r.targetDir)) {
+      mal(`registro: '${e.id}' reconstruir targetDir debe ser absoluta`);
+      return;
+    }
+    e._manifestAbs = manAbs;
+    e._targetDirAbs = normalize(r.targetDir);
+  }
   // [por que] El binario absoluto no necesita args (longitud 1 vale); el resto
   // exige exe + args para que el `up` sepa que lanzar sin suposiciones.
   if (!Array.isArray(e.boton) || e.boton.length === 0 || e.boton.some((a) => !Array.isArray(a) || a.some((t) => typeof t !== 'string' || t.length === 0) || (a.length < 2 && !(/^[a-z]:[\\/]/i.test(a[0]) && a[0].toLowerCase().endsWith('.exe'))))) {
-    throw new Error(`registro: '${e.id}' boton debe ser array de argv (arrays de >=2 strings)`);
+    mal(`registro: '${e.id}' boton debe ser array de argv (arrays de >=2 strings)`);
+    return;
   }
   if (!Array.isArray(e.puertos) || e.puertos.some((p) => !Number.isInteger(p) || p < 1 || p > 65535)) {
-    throw new Error(`registro: '${e.id}' puertos invalidos`);
+    mal(`registro: '${e.id}' puertos invalidos`);
+    return;
   }
   // [por que] `env` fija puertos/URLs por proyecto sin tocar sus repos
   // (PORT/VITE_API_URL/VITE_PORT): el mando compone el entorno, cada repo
   // conserva sus defaults. Solo strings no vacios; nada de objetos.
   if ('env' in e) {
     if (typeof e.env !== 'object' || e.env === null || Array.isArray(e.env)) {
-      throw new Error(`registro: '${e.id}' env no es objeto`);
+      mal(`registro: '${e.id}' env no es objeto`);
+      return;
     }
     for (const [k, v] of Object.entries(e.env)) {
       if (typeof v !== 'string' || v.length === 0) {
-        throw new Error(`registro: '${e.id}' env['${k}'] debe ser string no vacio`);
+        mal(`registro: '${e.id}' env['${k}'] debe ser string no vacio`);
+        return;
       }
     }
   }
   // [por que] argv[i] <-> puertos[i]: sin igualdad posicional el `up` no sabe
   // que lanzar ante un puerto caido y cualquier suposicion seria verde fingido.
   if (e.boton.length !== e.puertos.length) {
-    throw new Error(`registro: '${e.id}' boton (${e.boton.length}) y puertos (${e.puertos.length}) deben alinearse 1:1`);
+    mal(`registro: '${e.id}' boton (${e.boton.length}) y puertos (${e.puertos.length}) deben alinearse 1:1`);
+    return;
   }
   for (const argv of e.boton) {
     const exe = argv[0].toLowerCase();
@@ -136,44 +207,72 @@ function validarEntrada(e) {
     // igual que los scripts node de la allowlist.
     const esBinarioAbsoluto =
       /^[a-z]:[\\/]/i.test(argv[0]) && exe.endsWith('.exe') && existsSync(resolve(argv[0]));
+    // [por que 06AA-1] Exe con forma valida pero ausente + `reconstruir`
+    // declarado = aviso accionable (el motivo dice el remedio: `up`), no
+    // un "fuera de allowlist" que esconderia la causa real. Sin
+    // `reconstruir`, el ausente es aviso no-actuable igualmente (fail-closed
+    // por entrada, nunca bloqueo global).
+    const esExeAbsoluto = /^[a-z]:[\\/]/i.test(argv[0]) && exe.endsWith('.exe');
+    if (esExeAbsoluto && !existsSync(resolve(argv[0]))) {
+      if (e._manifestAbs) {
+        mal(`registro: '${e.id}' exe ausente, reconstruible con up (${argv[0]})`);
+        e._exeAusente = argv[0];
+      } else {
+        mal(`registro: '${e.id}' exe inexistente (${argv[0]})`);
+      }
+      return;
+    }
     if (!EXES_PERMITIDOS.has(exe) && !(exe.endsWith('/node') || exe.endsWith('\\node')) && !esBinarioAbsoluto) {
-      throw new Error(`registro: '${e.id}' exe fuera de allowlist (${argv[0]})`);
+      mal(`registro: '${e.id}' exe fuera de allowlist (${argv[0]})`);
+      return;
     }
     if ((exe === 'node' || exe.endsWith('/node') || exe.endsWith('\\node')) && argv[1] !== '-e') {
       const nombre = argv[1].split('/').pop().split('\\').pop();
       const esServidorCompilado = argv[1].replace(/\\/g, '/') === 'dist-server/server/index.js';
       if (!esServidorCompilado && !SCRIPTS_NODO_VALIDOS.has(nombre)) {
-        throw new Error(`registro: '${e.id}' script node fuera de allowlist (${argv[1]})`);
+        mal(`registro: '${e.id}' script node fuera de allowlist (${argv[1]})`);
+        return;
       }
       const rutaScript = resolve(rutaAbs, argv[1]);
-      if (!existsSync(rutaScript)) throw new Error(`registro: '${e.id}' script inexistente (${argv[1]})`);
+      if (!existsSync(rutaScript)) {
+        mal(`registro: '${e.id}' script inexistente (${argv[1]})`);
+        return;
+      }
     }
   }
   for (const p of e.puertos) {
     // [por que] 8787/5175 son del propio manager y 5174 de opencode-propio:
     // ningun OTRO proyecto puede reclamarlos; la entrada raiz si (self).
     if (PUERTOS_PROTEGIDOS.has(p) && rutaAbs !== normalize(RAIZ_REPO)) {
-      throw new Error(`registro: '${e.id}' usa puerto protegido ${p}`);
+      mal(`registro: '${e.id}' usa puerto protegido ${p}`);
+      return;
     }
   }
   const healths = e.healths ?? [];
-  if (!Array.isArray(healths)) throw new Error(`registro: '${e.id}' healths no es array`);
+  if (!Array.isArray(healths)) {
+    mal(`registro: '${e.id}' healths no es array`);
+    return;
+  }
   for (const h of healths) {
     if (!Number.isInteger(h?.puerto) || !e.puertos.includes(h.puerto)) {
-      throw new Error(`registro: '${e.id}' health con puerto fuera de la entrada`);
+      mal(`registro: '${e.id}' health con puerto fuera de la entrada`);
+      return;
     }
     // [por que] Health sin ruta valida = probe contra el(Query) puerto sin
     // saber que pedir: el verde seria fingido. Sin validacion, un typo
     // (`ruta: 'api/x'` sin barra) pasa callado y el probe falla como deriva.
     if (typeof h.ruta !== 'string' || !h.ruta.startsWith('/')) {
-      throw new Error(`registro: '${e.id}' health sin ruta absoluta (puerto ${h.puerto})`);
+      mal(`registro: '${e.id}' health sin ruta absoluta (puerto ${h.puerto})`);
+      return;
     }
     if ('esperaJson' in h && typeof h.esperaJson !== 'boolean') {
-      throw new Error(`registro: '${e.id}' health esperaJson no booleano (puerto ${h.puerto})`);
+      mal(`registro: '${e.id}' health esperaJson no booleano (puerto ${h.puerto})`);
+      return;
     }
     for (const k of Object.keys(h)) {
       if (!['puerto', 'ruta', 'esperaJson'].includes(k)) {
-        throw new Error(`registro: '${e.id}' health con clave desconocida '${k}'`);
+        mal(`registro: '${e.id}' health con clave desconocida '${k}'`);
+        return;
       }
     }
   }
@@ -181,7 +280,8 @@ function validarEntrada(e) {
   // hosts ni pedir administrador (el navegador lo resuelve a loopback).
   // Formato cerrado: solo <slug>.localhost; nada publico, nada configurable.
   if ('dominio' in e && (typeof e.dominio !== 'string' || !/^[a-z0-9-]{1,40}\.localhost$/.test(e.dominio))) {
-    throw new Error(`registro: '${e.id}' dominio debe ser <slug>.localhost`);
+    mal(`registro: '${e.id}' dominio debe ser <slug>.localhost`);
+    return;
   }
   // [por que] `requiere` = dependencias de arranque (p. ej.
   // workspace-manager necesita pulse: sin el, el panel VPS se queda en
@@ -190,27 +290,35 @@ function validarEntrada(e) {
   // (aqui aun no se conocen todos los ids) y los ciclos en `up`.
   if ('requiere' in e) {
     if (!Array.isArray(e.requiere) || e.requiere.some((d) => typeof d !== 'string' || d.length === 0)) {
-      throw new Error(`registro: '${e.id}' requiere debe ser array de ids (strings no vacios)`);
+      mal(`registro: '${e.id}' requiere debe ser array de ids (strings no vacios)`);
+      return;
     }
-    if (e.requiere.includes(e.id)) throw new Error(`registro: '${e.id}' se requiere a si mismo`);
+    if (e.requiere.includes(e.id)) {
+      mal(`registro: '${e.id}' se requiere a si mismo`);
+      return;
+    }
   }
   // [por que] F0d: nuevo launcher = campo tipoLauncher + checklist, no `if`
   // en codigo. Si viene, debe decir algo (string no vacio); el contenido lo
   // documenta el onboarding, el doctor solo exige que exista con forma.
   if ('tipoLauncher' in e && (typeof e.tipoLauncher !== 'string' || e.tipoLauncher.length === 0)) {
-    throw new Error(`registro: '${e.id}' tipoLauncher vacio`);
+    mal(`registro: '${e.id}' tipoLauncher vacio`);
+    return;
   }
   if ('timeoutMs' in e && (!Number.isInteger(e.timeoutMs) || e.timeoutMs < 500 || e.timeoutMs > 30000)) {
-    throw new Error(`registro: '${e.id}' timeoutMs fuera de 500..30000`);
+    mal(`registro: '${e.id}' timeoutMs fuera de 500..30000`);
+    return;
   }
   // [por que] timeoutMs = probe puntual; arranqueMs = compilacion fria
   // (cargo). Confundirlos deja un arranque real fuera de tiempo o un probe
   // colgado minutos. Tope 5 min: mas alla es pipeline, no `up`.
   if ('arranqueMs' in e && (!Number.isInteger(e.arranqueMs) || e.arranqueMs < 5000 || e.arranqueMs > 300000)) {
-    throw new Error(`registro: '${e.id}' arranqueMs fuera de 5000..300000`);
+    mal(`registro: '${e.id}' arranqueMs fuera de 5000..300000`);
+    return;
   }
   if (typeof e.expectedCmdline !== 'string' && !Array.isArray(e.expectedCmdline)) {
-    throw new Error(`registro: '${e.id}' expectedCmdline vacio`);
+    mal(`registro: '${e.id}' expectedCmdline vacio`);
+    return;
   }
   // [por que] Servicios con hijos heterogeneos (backend Rust compilado en
   // C:\tmp + frontend Vite bajo la ruta) no comparten ningun substring en
@@ -219,13 +327,18 @@ function validarEntrada(e) {
   // cuando un marcador cubre todos (compat v1).
   if (Array.isArray(e.expectedCmdline)) {
     if (e.expectedCmdline.length !== e.puertos.length) {
-      throw new Error(`registro: '${e.id}' expectedCmdline (${e.expectedCmdline.length}) y puertos (${e.puertos.length}) deben alinearse 1:1`);
+      mal(`registro: '${e.id}' expectedCmdline (${e.expectedCmdline.length}) y puertos (${e.puertos.length}) deben alinearse 1:1`);
+      return;
     }
     for (const m of e.expectedCmdline) {
-      if (typeof m !== 'string' || m.length === 0) throw new Error(`registro: '${e.id}' expectedCmdline con marcador vacio`);
+      if (typeof m !== 'string' || m.length === 0) {
+        mal(`registro: '${e.id}' expectedCmdline con marcador vacio`);
+        return;
+      }
     }
   } else if (e.expectedCmdline.length === 0) {
-    throw new Error(`registro: '${e.id}' expectedCmdline vacio`);
+    mal(`registro: '${e.id}' expectedCmdline vacio`);
+    return;
   }
 }
 
@@ -409,8 +522,14 @@ export async function clasificar(proyectos, registro, escucha) {
   const resultado = [];
   const consumidos = new Set();
   for (const p of proyectos) {
+    // [por que 06AA-1] La entrada marcada puede traer `ruta` rota: sin guarda
+    // el isAbsolute romperia TODO el --all. Y se casa tambien por id==clave
+    // para que el aviso salga como deriva atribuida, no como sin-boton mudo.
     const entrada = [...registro.entradas.values()].find(
-      (e) => normalizarRuta(isAbsolute(e.ruta) ? e.ruta : resolve(RAIZ_REPO, e.ruta)) === normalizarRuta(p.ruta),
+      (e) =>
+        (typeof e.ruta === 'string' &&
+          normalizarRuta(isAbsolute(e.ruta) ? e.ruta : resolve(RAIZ_REPO, e.ruta)) === normalizarRuta(p.ruta)) ||
+        (e._avisoRegistro && e.id === p.clave),
     );
     if (!entrada) {
       if (p.clave in registro.noAplica) {
@@ -457,6 +576,12 @@ export async function clasificar(proyectos, registro, escucha) {
  * arriba | libre | ocupado-desconocido | duplicado | no-verificable |
  * sin-probe. Solo `libre` autoriza arrancar; el resto rehusa en voz alta. */
 export async function clasificarEntrada(p, entrada, porPuerto, procs) {
+  // [por que 06AA-1] Entrada con aviso de registro = no-actuable: deriva con
+  // el motivo del aviso, sin mirar puertos (ni `up` ni `status` la tocan;
+  // `up` solo la reanima por la via `reconstruir` en arrancarUno).
+  if (entrada._avisoRegistro) {
+    return { estado: 'deriva', motivo: entrada._avisoRegistro, detalle: [], consumidos: new Set() };
+  }
   const timeoutMs = entrada.timeoutMs ?? 2000;
   const healths = entrada.healths?.length ? entrada.healths : entrada.puertos.map((puerto) => ({ puerto }));
   const consumidos = new Set();
@@ -802,6 +927,10 @@ export async function contextoEntrada(id, args) {
   const esDeAlgunProyecto = (pr) => {
     if (!pr) return false;
     for (const t of todas) {
+      // [por que 06AA-1] La marcada no atribuye: sus marcadores no son de
+      // confianza y su ruta puede estar rota (el isAbsolute no debe tumbar
+      // el contexto de OTRA entrada sana).
+      if (t._avisoRegistro || typeof t.ruta !== 'string') continue;
       const rAbs = isAbsolute(t.ruta) ? normalize(t.ruta) : resolve(RAIZ_REPO, t.ruta);
       if (pr.exe && normalizarRuta(pr.exe).startsWith(normalizarRuta(rAbs) + '\\')) return true;
       const marcas = Array.isArray(t.expectedCmdline) ? t.expectedCmdline : [t.expectedCmdline];
@@ -1005,6 +1134,9 @@ export function detectarRust(registro, opts = {}) {
     const proyectos = [];
     for (const e of registro.entradas?.values() ?? []) {
       if (!esEntradaRust(e) || RUST_FUERA.has(e.id)) continue;
+      // [por que 06AA-1] Sin ruta string no hay nada que medir (la marcada
+      // con ruta rota se omite: fail-open documentado de esta higiene).
+      if (typeof e.ruta !== 'string') continue;
       const rutaAbs = isAbsolute(e.ruta) ? normalize(e.ruta) : resolve(RAIZ_REPO, e.ruta);
       proyectos.push({ id: e.id, rutaAbs, entrada: e, env: e.env && typeof e.env === 'object' ? e.env : {} });
     }
@@ -1075,6 +1207,74 @@ export function detectarRust(registro, opts = {}) {
   return avisos.sort((a, b) => (a.chequeo < b.chequeo ? -1 : a.chequeo > b.chequeo ? 1 : a.proyectos.join().localeCompare(b.proyectos.join())));
 }
 
+/* Auto-reconstruccion del exe (06AA-1): si la entrada quedo marcada solo por
+ * exe ausente (`_exeAusente`) y declara `reconstruir` valido, `up` recompila
+ * con `cargo build --manifest-path` + CARGO_TARGET_DIR declarado antes de
+ * arrancar, en vez de rehusar. Recompilar no toca procesos (el exe falta:
+ * nada nuestro corre); el arranque posterior sigue las reglas normales
+ * (si el puerto esta ocupado, rehusa). Sin shell: execFile directo; el build
+ * loguea a logs/dev-up-<id>.log (mismo destino que lanzar). */
+/* Cargo para `reconstruir`: el `cargo` de PATH puede ser un shim .cmd
+ * (GlorySentinel) que CreateProcess no ejecuta directo; se prefieren los
+ * cargo.exe reales conocidos y solo al final el resolver generico. */
+async function resolverCargo() {
+  const home = process.env.USERPROFILE || process.env.HOME || '';
+  const fijos = [
+    join(home, '.cargo', 'bin', 'cargo.exe'),
+    join(home, '.rustup', 'toolchains', 'stable-x86_64-pc-windows-msvc', 'bin', 'cargo.exe'),
+  ];
+  for (const c of fijos) {
+    try {
+      if (c && existsSync(c)) return c;
+    } catch {
+      /* Ruta inutil, se sigue. */
+    }
+  }
+  return (await resolverExe('cargo')).exe;
+}
+
+async function asegurarExe(id, entrada, rutaAbs) {
+  if (!entrada._exeAusente) return null;
+  if (existsSync(resolve(entrada._exeAusente))) {
+    entrada._avisoRegistro = null;
+    entrada._exeAusente = null;
+    return null;
+  }
+  let cargo;
+  try {
+    cargo = await resolverCargo();
+  } catch (e) {
+    return `up ${id}: exe ausente y cargo irresoluble (${e.message}): reconstruir a mano`;
+  }
+  const dirLog = join(rutaAbs, 'logs');
+  mkdirSync(dirLog, { recursive: true });
+  const rutaLog = join(dirLog, `dev-up-${id}.log`);
+  appendFileSync(rutaLog, `--- up ${new Date().toISOString()} :: reconstruir ${entrada._exeAusente}\n`);
+  const hijo = await new Promise((res) => {
+    const p = execFile(
+      cargo,
+      ['build', '--manifest-path', entrada._manifestAbs],
+      {
+        cwd: rutaAbs,
+        timeout: 600_000,
+        maxBuffer: 8 * 1024 * 1024,
+        windowsHide: true,
+        env: { ...process.env, CARGO_TARGET_DIR: entrada._targetDirAbs },
+      },
+      (err, stdout, stderr) => res({ err, stdout: String(stdout ?? ''), stderr: String(stderr ?? '') }),
+    );
+    void p;
+  });
+  appendFileSync(rutaLog, `${hijo.stdout.slice(-4000)}\n${hijo.stderr.slice(-4000)}\n`);
+  if (hijo.err || !existsSync(resolve(entrada._exeAusente))) {
+    const causa = hijo.err ? String(hijo.err.message ?? hijo.err).slice(0, 160) : 'exe sigue ausente tras compilar';
+    return `up ${id}: reconstruccion fallo (${causa}, log ${rutaLog}): nada arrancado`;
+  }
+  entrada._avisoRegistro = null;
+  entrada._exeAusente = null;
+  return null;
+}
+
 async function arrancarUno(id, args, visitados) {
   if (visitados.has(id)) return { codigo: 1, resumen: `up ${id}: ciclo en requiere (omitido)` };
   visitados.add(id);
@@ -1083,6 +1283,16 @@ async function arrancarUno(id, args, visitados) {
     return { codigo: 1, resumen: `up ${id}: ${ctx.resumen}` };
   }
   const { entrada, proyecto, rutaAbs, porPuerto, procs } = ctx;
+  // [por que 06AA-1] Via de reanimacion: exe ausente + `reconstruir`
+  // declarado recompila antes de clasificar. Otra marca = rehusado con el
+  // motivo del aviso (la entrada no se toca).
+  if (entrada._avisoRegistro) {
+    if (!entrada._exeAusente) {
+      return { codigo: 1, resumen: `up ${id}: rehusado (${entrada._avisoRegistro}): el mando no toca entradas marcadas` };
+    }
+    const fallo = await asegurarExe(id, entrada, rutaAbs);
+    if (fallo) return { codigo: 1, resumen: fallo };
+  }
   const r = await clasificarEntrada(proyecto, entrada, porPuerto, procs);
   if (r.estado === 'bajo-mando') {
     return await conDependencias(id, entrada, args, visitados, 0, `up ${id}: ya-arriba (${r.motivo})`);
@@ -1148,7 +1358,9 @@ async function arrancarUno(id, args, visitados) {
  * no se persiguen dependencias: el motivo principal manda y no se enmascara. */
 async function conDependencias(id, entrada, args, visitados, codigoPropio, resumenPropio) {
   if (codigoPropio !== 0) return { codigo: codigoPropio, resumen: resumenPropio };
-  const deps = entrada.requiere ?? [];
+  // [por que 06AA-1] La marcada nunca llega aqui (arrancarUno rehusa antes),
+  // pero un `requiere` con forma rota no debe iterar caracteres: array o nada.
+  const deps = Array.isArray(entrada.requiere) ? entrada.requiere : [];
   if (deps.length === 0) return { codigo: 0, resumen: resumenPropio };
   const partes = [resumenPropio];
   let codigo = 0;

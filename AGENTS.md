@@ -34,16 +34,19 @@ Reglas:
   mando (`deriva ... ocupado por desconocido`) y otro agente no puede
   distinguirlo de un proceso ajeno.
 - Si `status`/`up` rehúsan con `registro inválido`: no rodear el mando,
-  arreglar el registro primero. Causa típica: el exe ya no existe (el doctor
-  exige `existsSync`; `glory-pulse` vive en target por rama
-  `C:\tmp\glory-target\pulse-<rama>` y el sweep purga targets sin uso →
-  reconstruir con `cargo build` + `CARGO_TARGET_DIR` y actualizar `boton`).
+  arreglar el registro primero. Desde 06AA-1 el doctor ya no bloquea global:
+  una entrada podrida queda marcada (`_avisoRegistro`, sale deriva con motivo)
+  y el resto sigue; si falta el exe y la entrada declara `reconstruir`, `up`
+  recompila solo (`cargo build` + `CARGO_TARGET_DIR`) antes de arrancar.
+  Error global solo si es estructural sin id atribuible. Causa típica: el exe
+  ya no existe (`glory-pulse` vive en target por rama
+  `C:\tmp\glory-target\pulse-<rama>` y el sweep purga targets sin uso).
 - `deriva ... ocupado por desconocido` = un artesanal ocupa el puerto:
   detener solo si es propio y verificado, luego `up`; el mando nunca mata
   a ciegas. Tras cambiar código de servidor compilado: `stop` + `up`.
 - `up workspace-manager` auto-asegura `glory-pulse` (`requiere` en registro): si pulse está caído lo arranca solo (token local efímero si falta `PULSE_TOKEN`); si su puerto está ocupado por otro, sale 2 degradado con el pid ajeno, sin matar nada.
 - Logs del mando en `<repo>/logs/dev-up-<id>.log` (gitignored); `C:\tmp` solo buffer.
-- Verificación: `doctor --all --assert` (requiere snapshot fresco de `/api/workspace`), trampa `node scripts/dev/trampa.mjs` (7/7).
+- Verificación: `doctor --all --assert` (requiere snapshot fresco de `/api/workspace`), trampa `node scripts/dev/trampa.mjs` (9 checks: 8/9, FAIL preexistente `plugins-opencode` pendiente-onboarding).
 
 ## Bloqueos conocidos (2026-10-01, fuera de este repo)
 
