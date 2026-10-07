@@ -35,13 +35,25 @@ export function rutaCorta(ruta: string): string {
   return ruta.startsWith('\\\\?\\') ? ruta.slice(4) : ruta;
 }
 
+/* Filas delicadas: grupo propio y desmarcadas por defecto (07AA-2). La
+ * caché sccache y los targets de compilación aceleran las builds, y el
+ * node_modules de opencode-propio tarda en reinstalarse; limpiar sin
+ * miedo no debe tocarlos. */
+export function esDelicada(f: { fase: EntradaPc['fase']; clave: string; ruta: string }): boolean {
+  if (f.fase === 'caches' && f.clave === 'sccache') return true;
+  if (f.fase === 'tmp' && f.clave === 'tmp-target') return true;
+  return f.fase === 'area' && f.clave === 'node_modules' && /opencode-propio/i.test(f.ruta);
+}
+
 /* Grupos ordenados: área y tmp por tipo (de mayor a menor peso), el resto
- * un grupo por origen en orden de fase. El id de fila de área y tmp es su
+ * un grupo por origen en orden de fase, y las delicadas al final cada una
+ * en su grupo propio (07AA-2). El id de fila de área y tmp es su
  * ruta suelta (el filtro `--solo-ruta`); en el resto, fase+clave. */
 export function aGrupos(entradas: EntradaPc[]): Grupo[] {
   const grupos: Grupo[] = [];
+  const normales = entradas.filter((e) => !esDelicada(e));
   const porTipo = new Map<string, { fase: EntradaPc['fase']; tipo: string; filas: Fila[] }>();
-  for (const e of entradas) {
+  for (const e of normales) {
     if (e.fase !== 'area' && e.fase !== 'tmp') continue;
     const k = `${e.fase}::${e.clave}`;
     let g = porTipo.get(k);
@@ -60,7 +72,7 @@ export function aGrupos(entradas: EntradaPc[]): Grupo[] {
   }
   for (const fase of ORDEN_FASE) {
     if (fase === 'area' || fase === 'tmp') continue;
-    const filas = entradas
+    const filas = normales
       .filter((e) => e.fase === fase)
       .sort((a, b) => b.bytes - a.bytes)
       .map((e) => ({
@@ -74,6 +86,30 @@ export function aGrupos(entradas: EntradaPc[]): Grupo[] {
     if (filas.length > 0) {
       grupos.push({ id: fase, titulo: TITULO_FASE[fase], filas, bytes: filas.reduce((x, f) => x + f.bytes, 0) });
     }
+  }
+  /* Lo delicado va junto en un solo grupo primero (07AA-2): sccache y el
+   * node_modules de opencode-propio aceleran las builds y salen
+   * desmarcados por defecto; limpiar sin miedo no los toca. */
+  const protegidas: Fila[] = [];
+  for (const e of entradas.filter(esDelicada)) {
+    const deCache = e.fase === 'caches';
+    protegidas.push({
+      id: deCache ? `${e.fase}::${e.clave}` : `${e.fase}::${e.ruta}`,
+      fase: e.fase,
+      clave: e.clave,
+      ruta: e.ruta,
+      bytes: e.bytes,
+      detalle: e.detalle,
+    });
+  }
+  if (protegidas.length > 0) {
+    protegidas.sort((a, b) => b.bytes - a.bytes);
+    grupos.unshift({
+      id: 'protegidas',
+      titulo: 'builds rápidas (desmarcado por defecto)',
+      filas: protegidas,
+      bytes: protegidas.reduce((x, f) => x + f.bytes, 0),
+    });
   }
   return grupos;
 }
