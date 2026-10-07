@@ -63,7 +63,7 @@ Ampliación: `lote-extra.md` en el dir de la tarea (+3, con motivo, auditable).
 - **F7 Observe → enforce.** Global primero en observe (solo avisa), luego enforce.
 
 ## Estado
-F0 CERRADA + F1 CERRADA + F1b CERRADA + **F2 CERRADA** (2026-10-07, evidencia abajo). Próximo paso: F3 release.
+F0 CERRADA + F1 CERRADA + F1b CERRADA + F2 CERRADA + **F3 CERRADA** (2026-10-07, evidencia abajo). Próximo paso: F4 propagación.
 
 ## F1b — matriz de bypasses (cerrada)
 1. Binario real directo (`C:\Users\Owner\.cargo\bin\cargo.exe`, revelado por
@@ -83,7 +83,9 @@ F0 CERRADA + F1 CERRADA + F1b CERRADA + **F2 CERRADA** (2026-10-07, evidencia ab
    reporte (`policyHash` + modo). Detección incorporada.
 5. CLI viejo (`versions/0.7.12` presente junto a `0.7.13` activo): invocable vía
    `node .../0.7.12/out/cli/index.js`. Mitigación: higiene de release (F3: podar
-   versiones viejas) + misma detección que (1). Registrado, cierre en F3.
+    versiones viejas) + misma detección que (1). Registrado, cierre en F3.
+    Cerrado en F3 (2026-10-07): `versions/0.7.12` podada del runtime de este
+    equipo; `doctor` `ready:true`, `issues:[]`, activa `0.7.13` verificada.
 6. Edición manual de reportes: son salidas; cualquier re-run reproduce el
    veredicto. Aceptado.
 7. `npx tsc` / `cargo.exe` directos: misma clase que (1), misma detección.
@@ -150,6 +152,21 @@ durante observe solo se registra (log) sin bloquear.
 - Límite honesto: e2e contra compilador real no ejecutado (quemaría presupuesto
   de verdad); el bloqueo 6º se verifica a nivel `checkAndRecordHeavyRun` + hook.
   E2E real en F5 piloto (NAKOMI).
+
+## F3 — release (cerrada 2026-10-07, glory-sentinel `0.7.17`)
+- Baseline certificada en el commit: `tsc` limpio, `check:core` OK,
+  `smoke:lsp` OK, suite completa 733 passing + 1 pending (EXIT 0, cero fallos
+  nuevos; el EPERM de `shellMatrix` del run F2 no repitió — flake ambiental
+  confirmado), `eslint` 0 errores (12 warnings preexistentes, ninguno en
+  archivos F2/F3), `doctor --json` `ready:true`, `issues:[]`
+  (`readyForGate:false` esperado: el repo herramienta no declara gate).
+- Independencia calibrada del fallo F2: `shellMatrix` solo importa
+  `guardMatrixCommon` → `interceptorShims` → `atomicFile`; ningún import
+  compartido con `structuredTool`/`heavyBudget`.
+- Bump `package.json` 0.7.16→0.7.17 + entrada `CHANGELOG.md`; nota de
+  mantenimiento en `area-trabajo/Agente/documentacion/mantenimiento-herramientas-calidad-2026-10-06.md`.
+- Poda runtime local: `versions/0.7.12` eliminada (cierra bypass F1b-5 en este
+  equipo); activa `0.7.13` verificada. Consumidores siguen pineados hasta F4.
 
 ## Verificación
 Tests Sentinel verdes + gate propio; en piloto: 6º intento bloqueado sin gastar
