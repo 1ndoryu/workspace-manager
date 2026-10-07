@@ -31,7 +31,8 @@
         "CARGO_INCREMENTAL": "0",
         "SCCACHE_BASEDIRS": "C:\\Users\\Owner\\OneDrive\\Documentos\\area-trabajo"
       },
-      "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; el exe vive en el target por rama C:\\tmp\\glory-target\\pulse-<rama>\\debug\\pulse.exe [05AA-1]: tras cambiar de rama o si el sweep lo purga, reconstruir con cargo build + CARGO_TARGET_DIR=C:\\tmp\\glory-target\\pulse-<rama> y actualizar esta ruta; el doctor exige que el exe EXISTA, si no todo el mando rehusa; requiere PULSE_TOKEN>=32 en entorno, en local vale cualquiera, el real solo vive en Coolify)"
+      "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; exe en target por rama C:\\tmp\\glory-target\\pulse-<rama> [05AA-1]; si falta, `up` lo reconstruye solo vía `reconstruir`; requiere PULSE_TOKEN>=32 en entorno, en local vale cualquiera, el real solo vive en Coolify)",
+      "reconstruir": { "manifest": "pulse/Cargo.toml", "targetDir": "C:\\tmp\\glory-target\\pulse-main" }
     },
     {
       "id": "MN-Inmobiliaria",

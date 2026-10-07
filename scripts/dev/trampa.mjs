@@ -139,7 +139,7 @@ async function main() {
     ok('senuelo escucha', true, `puerto ${puertoReal}`);
     const conSenuelo = await correrDoctor(tmp);
     const visto = conSenuelo.informe.huerfanos.find((h) => h.puerto === puertoReal);
-    ok('senuelo reportado sin proyecto', visto !== undefined && visto.clave === null, `puerto ${puertoReal ?? '?'}`);
+    ok('senuelo reportado sin proyecto', !conSenuelo.informe.errorSensor && visto !== undefined && visto.clave === null, `puerto ${puertoReal ?? '?'}`);
     /* Adopcion completa: con el registro real no debe quedar ningun
      * pendiente-onboarding. Y la ruta sin-boton se prueba en negativo:
      * registro recortado temporalmente (backup+restore en finally) debe
@@ -147,7 +147,7 @@ async function main() {
     const pendientes = conSenuelo.informe.proyectos.filter(
       (p) => p.estado === 'sin-boton' && p.motivo === 'pendiente-onboarding',
     );
-    ok('adopcion completa (0 pendiente-onboarding)', pendientes.length === 0, `${pendientes.length} pendientes`);
+    ok('adopcion completa (0 pendiente-onboarding)', !conSenuelo.informe.errorSensor && pendientes.length === 0, `${pendientes.length} pendientes`);
     const backup = readFileSync(REGISTRO, 'utf8');
     let recortadoOk = false;
     let nSinBoton = -1;
@@ -157,8 +157,9 @@ async function main() {
       rec.noAplica = {};
       // [por que] El recorte simula "proyectos sin entrada": las
       // dependencias `requiere` que apunten fuera del recorte se podan para
-      // que el registro recortado siga valido (un requiere colgado en
-      // produccion SI debe fallar cerrado en leerRegistro).
+      // que el registro recortado siga enfocado en la ruta sin-boton (un
+      // requiere colgado en produccion es aviso de la entrada [06AA-1], no
+      // error global, asi que podar no esconde nada).
       const idsRec = new Set(rec.proyectos.map((p) => p.id));
       for (const p of rec.proyectos) {
         if (Array.isArray(p.requiere)) p.requiere = p.requiere.filter((d) => idsRec.has(d));
@@ -167,11 +168,41 @@ async function main() {
       const recortado = await correrDoctor(tmp);
       const sb = recortado.informe.proyectos.filter((p) => p.estado === 'sin-boton');
       nSinBoton = sb.length;
-      recortadoOk = sb.length === nSnap - 1 && sb.every((p) => p.motivo === 'pendiente-onboarding');
+      recortadoOk = !recortado.informe.errorSensor && sb.length === nSnap - 1 && sb.every((p) => p.motivo === 'pendiente-onboarding');
     } finally {
       writeFileSync(REGISTRO, backup);
     }
     ok('ruta sin-boton punta a punta', recortadoOk, `${nSinBoton} sin-boton (esperado ${nSnap - 1})`);
+
+    /* Regresion 06AA-1: una entrada podrida (exe ausente, el caso real que
+     * dejo al mando ciego) jamas bloquea el global. Caja negra con el
+     * registro real: se rompe el boton de glory-pulse (backup+restore en
+     * finally) y el doctor debe seguir clasificando (exit != 1, sin
+     * errorSensor) con pulse en deriva y el resto intacto. */
+    const backupPodrida = readFileSync(REGISTRO, 'utf8');
+    let podridaOk = false;
+    let detallePodrida = '';
+    try {
+      const roto = JSON.parse(backupPodrida);
+      const gp = roto.proyectos.find((p) => p.id === 'glory-pulse');
+      gp.boton = [['C:\\tmp\\wm-trampa-noexiste\\pulse.exe']];
+      delete gp.reconstruir;
+      writeFileSync(REGISTRO, JSON.stringify(roto));
+      const conPodrida = await correrDoctor(tmp);
+      const gpEstado = conPodrida.informe.proyectos.find((p) => p.clave === 'glory-pulse');
+      const wmEstado = conPodrida.informe.proyectos.find((p) => p.clave === 'workspace-manager');
+      const wmBase = base.informe.proyectos.find((p) => p.clave === 'workspace-manager')?.estado;
+      podridaOk =
+        conPodrida.codigo !== 1 &&
+        !conPodrida.informe.errorSensor &&
+        gpEstado?.estado === 'deriva' &&
+        /exe inexistente|fuera de allowlist/.test(gpEstado?.motivo ?? '') &&
+        wmEstado?.estado === wmBase;
+      detallePodrida = `exit ${conPodrida.codigo}, pulse=${gpEstado?.estado} (${gpEstado?.motivo ?? '?'}) wm=${wmEstado?.estado}`;
+    } finally {
+      writeFileSync(REGISTRO, backupPodrida);
+    }
+    ok('podrida no bloquea (06AA-1)', podridaOk, detallePodrida);
 
     /* Deteccion de choques (03AA-3): dos entradas no pueden reclamar el mismo
      * puerto. Caja negra: el informe trae `compartidos`; debe venir vacio. */
@@ -189,7 +220,7 @@ async function main() {
     const trasMatar = await correrDoctor(tmp);
     ok(
       'negativo: senuelo desaparece',
-      !trasMatar.informe.huerfanos.some((h) => h.puerto === puertoReal),
+      !trasMatar.informe.errorSensor && !trasMatar.informe.huerfanos.some((h) => h.puerto === puertoReal),
       `huerfanos ${trasMatar.informe.huerfanos.length}`,
     );
   } finally {
