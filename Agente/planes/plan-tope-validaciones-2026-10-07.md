@@ -63,7 +63,7 @@ Ampliación: `lote-extra.md` en el dir de la tarea (+3, con motivo, auditable).
 - **F7 Observe → enforce.** Global primero en observe (solo avisa), luego enforce.
 
 ## Estado
-F0 CERRADA + F1 CERRADA + F1b CERRADA + F2 CERRADA + F3 CERRADA + **F4-NAKOMI CERRADA** + **F5 CERRADA** + **F6 CERRADA** (2026-10-07, evidencia abajo). Siguiente F7.
+F0 CERRADA + F1 CERRADA + F1b CERRADA + F2 CERRADA + F3 CERRADA + **F4-NAKOMI CERRADA** + **F5 CERRADA** + **F6 CERRADA** (2026-10-07, evidencia abajo). **F7 CERRADA** (2026-10-07, evidencia abajo).
 
 ## F5 — piloto e2e NAKOMI (cerrada 2026-10-07, Sentinel 0.7.19 `c69d368`)
 Matriz completa con `cargo check` real vía CLI directo (`task-check.mjs` ignora `--stages`, siempre `stages.json`; piloto con `stages-check-only.json`):
@@ -209,6 +209,16 @@ durante observe solo se registra (log) sin bloquear.
   sin `runs.jsonl`, correcto); hook verificado presente en el build
   provisionado (`structuredTool.js` → `heavyBudget`/`budget-exhausted`).
   E2E real en F5.
+
+## F7 — observe→enforce global (cerrada 2026-10-07)
+- Mecanismo: `budgets {"mode":"enforce"}` explícito por repo (sin `limits` = default 5/clase). Descartado flip del default en core: exigiría release+propagación con riesgo; lo explícito es auditable y reversible vía panel/API Guard.
+- Activados 10/12 elegibles (todos ya `mode:enforce` pero sin `budgets`): coolify-manager-rs `c1631b3`, glory-agent `5c502fd`, Glory-Laminal `b33e6ca`, gloryapi `cfaa87a`, GLORYINSPECTOR `97b88b5`, GLORYPORT `9a3061d`, limpiador-pc `7ef3595` (commit local, sin remoto configurado), NAKOMI `c41bca90`, PROYECTO TASKS `886ae4b`, workspace-manager (este bloque). Push con standing 2026-10-06 (diff revisado: solo hunk budgets, 3 líneas).
+- Excluidos con motivo: `glory-harness` (runtime propio `../.quality-tools-harness/sentinel` 0.7.12) y `WANDORIUS` (`tools/sentinel` 0.7.16 `dfc2947`); su validador no conoce `budgets` → quedan `observe config=ok` (tarea aparte `07AA-12`).
+- Seguro para familia-A: ejecutan el compartido `c69d368` 0.7.19 con soporte `budgets` (confirma `/api/gate/sincronizacion`: `RUNTIME-DESFASADO` pin viejo pero ejecuta c69d368); pins viejos preexistentes intactos.
+- Curación realineada: `VERSION_CURACION_SENTINEL` 0.7.15→0.7.19 (`src/server/gate/proveedor.ts:232`); `npm run sync:gate` OK (runtime 0.7.19 / curación 0.7.19, EXIT 0).
+- Prueba forma exacta en runtime 0.7.19: 5×`started` allowed (used 0–4/limit 5/observe) + 6º blocked (used 5/limit 5); script temporal eliminado.
+- Estado vivo: `GET /api/guard/estado-todo` 10×`enforce config=ok` + 2×`observe`; re-análisis WM forzado 0E/9W/1I/2H, cero en ficheros F7 (hint `large-interface-isp ColumnaTareas` ajeno desapareció por edición de otro frente).
+- `npm run type-check` EXIT 0; `npm run build:server` EXIT 0 (dist-server reconstruido).
 
 ## Verificación
 Tests Sentinel verdes + gate propio; en piloto: 6º intento bloqueado sin gastar
