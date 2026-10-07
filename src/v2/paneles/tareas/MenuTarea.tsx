@@ -5,7 +5,11 @@
  * opciones espejean el frente (TareaItem + CampoPrioridad/CampoUrgencia):
  * completar, prioridad (5 niveles), urgencia (4), mover a columna vecina
  * (via de teclado del DnD), renombrar, eliminar y abrir en TASKS. El
- * cierre es render puro: fondo que captura el clic + Escape, sin efectos. */
+ * cierre es render puro: fondo que captura el clic + Escape, sin efectos.
+ * (07AA-16) Flota en un portal al body con posicion fija: dentro de la
+ * tarjeta se recortaba por el `overflow-x:auto` de las columnas
+ * (precedente `EtiquetaDeRuta.tsx`); la posicion llega por CSS vars. */
+import type { CSSProperties } from 'react';
 import { Button } from '../../ui/form/Button.js';
 import {
   ETIQUETAS_PRIORIDAD,
@@ -30,11 +34,19 @@ export interface AccionesTareaMenu {
   pedirEliminar: () => void;
 }
 
+/* Posicion fija del menu en el viewport (07AA-16): la calcula el hook
+ * `useMenuTarjeta` desde la tarjeta; el CSS la consume por vars. */
+export interface PosMenuTarea {
+  x: number;
+  y: number;
+}
+
 export interface MenuTareaProps {
   tarea: TareaTab;
   puedeMoverAtras: boolean;
   puedeMoverAdelante: boolean;
   urlTareas: string;
+  pos: PosMenuTarea;
   onCerrar: () => void;
   acciones: AccionesTareaMenu;
 }
@@ -58,6 +70,7 @@ export function MenuTarea(p: MenuTareaProps) {
       <div
         className="tareasMenu v2Superficie"
         role="menu"
+        style={{ '--tareas-menu-x': `${p.pos.x}px`, '--tareas-menu-y': `${p.pos.y}px` } as CSSProperties}
         aria-label={`Acciones de ${textoTarea(p.tarea)}`}
         onKeyDown={(ev) => {
           if (ev.key === 'Escape') p.onCerrar();

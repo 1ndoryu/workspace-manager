@@ -141,7 +141,10 @@
     font-size: var(--v2-textSm);
 }
 
-/* Menu contextual: fondo que captura el clic + caja pegada a la tarjeta. */
+/* Menu contextual: fondo que captura el clic + caja flotante en portal.
+ * (07AA-16) `.tareasMenu` va en un portal al body con posicion fija (vars
+ * --tareas-menu-x/y desde el hook `useMenuTarjeta`, precedente
+ * `EtiquetaDeRuta.tsx`): dentro de la tarjeta lo recortaba el scroll-X. */
 .tareasMenuFondo {
     position: fixed;
     inset: 0;
@@ -156,15 +159,19 @@
  * relleno) la pone la receta canonica `.v2Superficie` (css canónico 299A-11:
  * componer por className, nada de especificacion local). */
 .tareasMenu {
-    position: absolute;
-    top: 100%;
-    right: 0;
+    --tareas-menu-x: 0px;
+    --tareas-menu-y: 0px;
+    position: fixed;
+    left: var(--tareas-menu-x);
+    top: var(--tareas-menu-y);
     z-index: 41;
     display: flex;
     flex-direction: column;
     gap: var(--v2-spaceXs);
     min-width: 200px;
-    max-width: 260px;
+    max-width: min(280px, calc(100vw - 16px));
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
 }
 
 .tareasMenuItem {
