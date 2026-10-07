@@ -63,7 +63,17 @@ Ampliación: `lote-extra.md` en el dir de la tarea (+3, con motivo, auditable).
 - **F7 Observe → enforce.** Global primero en observe (solo avisa), luego enforce.
 
 ## Estado
-F0 CERRADA + F1 CERRADA + F1b CERRADA + F2 CERRADA + F3 CERRADA + **F4-NAKOMI CERRADA** (2026-10-07, evidencia abajo). Próximo paso: F5 piloto e2e.
+F0 CERRADA + F1 CERRADA + F1b CERRADA + F2 CERRADA + F3 CERRADA + **F4-NAKOMI CERRADA** + **F5 CERRADA** (2026-10-07, evidencia abajo). Próximo paso: F6 panel Guard.
+
+## F5 — piloto e2e NAKOMI (cerrada 2026-10-07, Sentinel 0.7.19 `c69d368`)
+Matriz completa con `cargo check` real vía CLI directo (`task-check.mjs` ignora `--stages`, siempre `stages.json`; piloto con `stages-check-only.json`):
+- **Fase-observe** (NAKOMI `07AA-10`, `budgets observe limit 0`): aviso `[sentinel-budget] cargo-check supera el tope (0/0) en modo observe: la etapa corre igual`, gate PASS exit 0, `runs.jsonl` 1×`started` (used 0/limit 0/observe). Log `C:\tmp\f5-A-observe.log` (35.3s, 0E).
+- **Fase-enforce** (NAKOMI `07AA-11`, `budgets enforce limit 2`): 2 ejecuciones PASS (8.1s, 7.6s); 3er intento BLOQUEADO (`check ERROR 0ms tope agotado 2/2`, `quality-budget-exhausted` exit 2 con `Next:`); `runs.jsonl` 2×`started` + 1×`blocked`.
+- **Override** (`lote-extra.md +1`): 3ª ejecución PASS 8.1s (`started` used 2/limit 2/extra 1).
+- **Cache-hit no consume** (B2 `PASS (cached)`, sin registro): correcto por diseño, el tope cuenta ejecuciones.
+- **Hallazgo deInteraction caché↔tope:** el fingerprint incluye `qualityConfig` + archivos del scope, así que cada ejecución real requirió un cambio de árbol (notas de roadmap); documentado como comportamiento correcto, no bug.
+- **Hallazgo previo del piloto:** `validateSentinelConfig` rechazaba `budgets` (exit 2) → fix core `0.7.18` (clave conocida, validación estricta paridad `readBudgets`); teardown `removeTmpRoots` → `0.7.19`.
+- **Límite honesto:** fail-open solo cubierto por unit (9 tests); sin probe vivo (dirección segura: en fallo permite, nunca bloquea). Temporales revertidos en NAKOMI (`sentinel.config.json` sin `budgets`, `lote-extra.md` eliminado); gate final `quality:check 07AA-11` PASS 0E/13W/53I preexistentes.
 
 ## F1b — matriz de bypasses (cerrada)
 1. Binario real directo (`C:\Users\Owner\.cargo\bin\cargo.exe`, revelado por
