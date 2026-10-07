@@ -20,6 +20,7 @@ import { PanelNavegador } from './paneles/PanelNavegador.js';
 import { PanelPc } from './paneles/PanelPc.js';
 import { MenuContextual } from './ui/menu/MenuContextual.js';
 import { PanelRepos } from './paneles/PanelRepos.js';
+import { PanelTareas } from './paneles/tareas/PanelTareas.js';
 import { PanelVps } from './paneles/PanelVps.js';
 import { Resizer } from './ui/overlay/Resizer.js';
 import { Toaster } from './ui/overlay/Toaster.js';
@@ -53,6 +54,7 @@ export function AppV2() {
     mapa: <MapaV2 />,
     docs: <PanelDocs />,
     repos: <PanelRepos />,
+    tareas: <PanelTareas />,
     navegador: <PanelNavegador />,
     config: <PanelConfig />,
     sentinel: <PanelSentinel />,
