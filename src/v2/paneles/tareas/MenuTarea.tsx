@@ -17,8 +17,6 @@
 import { useState, type CSSProperties, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ArrowLeft,
-  ArrowRight,
   Check,
   ChevronRight,
   ExternalLink,
@@ -41,14 +39,15 @@ import {
   type TareaTab,
 } from '../../../shared/tareasTab.js';
 
-/* Acciones del menu agrupadas (07AA-15): seis callbacks en un objeto para
- * no rozar large-interface-isp; el menu solo cablea el proxy via el hook. */
+/* Acciones del menu agrupadas (07AA-15): cuatro callbacks en un objeto para
+ * no rozar large-interface-isp; el menu solo cablea el proxy via el hook.
+ * (08AA-5) Sin `moverVecina`: mover con botones no es necesario, el DnD
+ * cubre el cambio de columna. */
 export interface AccionesTareaMenu {
   completar: (completado: boolean) => void;
   prioridad: (prioridad: string | null) => void;
   urgencia: (urgencia: string) => void;
   renombrar: () => void;
-  moverVecina: (dir: -1 | 1) => void;
   pedirEliminar: () => void;
 }
 
@@ -61,8 +60,6 @@ export interface PosMenuTarea {
 
 export interface MenuTareaProps {
   tarea: TareaTab;
-  puedeMoverAtras: boolean;
-  puedeMoverAdelante: boolean;
   urlTareas: string;
   pos: PosMenuTarea;
   onCerrar: () => void;
@@ -171,32 +168,6 @@ export function MenuTarea(p: MenuTareaProps) {
             </span>
           </Button>
         </div>
-        <Button
-          pequeno
-          className="tareasMenuOpcion"
-          role="menuitem"
-          disabled={!p.puedeMoverAtras}
-          onClick={cerrarCon(() => p.acciones.moverVecina(-1))}
-          onMouseEnter={() => setSubmenu(null)}
-        >
-          <span className="tareasMenuIcono">
-            <ArrowLeft size={12} />
-          </span>
-          <span className="tareasMenuEtiqueta">columna anterior</span>
-        </Button>
-        <Button
-          pequeno
-          className="tareasMenuOpcion"
-          role="menuitem"
-          disabled={!p.puedeMoverAdelante}
-          onClick={cerrarCon(() => p.acciones.moverVecina(1))}
-          onMouseEnter={() => setSubmenu(null)}
-        >
-          <span className="tareasMenuIcono">
-            <ArrowRight size={12} />
-          </span>
-          <span className="tareasMenuEtiqueta">columna siguiente</span>
-        </Button>
         <Button
           pequeno
           className="tareasMenuOpcion"

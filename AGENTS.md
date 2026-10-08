@@ -53,8 +53,10 @@ Reglas:
 
 Tab `tareas` (NavBar icono `Kanban`): columnas = `legacy_id` de proyecto
 manuales (defecto seed `9001/9002`, clave `workspaceManager:tareas:columnas`
-en localStorage; F1 no expone listar-proyectos, sin descubrimiento), botones
-subir/bajar/migrar (sin drag-and-drop), bulk+relectura vía proxy.
+en localStorage; F1 no expone listar-proyectos, sin descubrimiento),
+movimiento de tareas solo por arrastre DnD nativo (08AA-5: sin botones de
+mover, ni en el menú ni en la cabecera; orden de columnas fijo),
+bulk+relectura vía proxy.
 
 - Proxy backend (`src/server/tareas/rutasTareas.ts`): `GET /api/tareas/estado`
   (disponibilidad+motivo, nunca 500), `GET /api/tareas/proyecto?legacy_id=`

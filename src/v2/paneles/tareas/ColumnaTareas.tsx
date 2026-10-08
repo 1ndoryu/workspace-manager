@@ -3,10 +3,11 @@
  * todo lo decide usePanelTareas. El arrastre es DnD nativo sin librerias:
  * la tarjeta arrastra {origen, legacyId} y la columna suelta
  * delante de otra tarjeta (o al final en zona vacia); el hook hace el bulk
- * transaccional + relectura. Sin botones de flechas: el arrastre y el menu
- * (mover a vecina por teclado) los sustituyen. */
+ * transaccional + relectura. (08AA-5) Sin botones de mover: ni las flechas
+ * de la cabecera ni las filas del menu de la tarjeta son necesarias; el
+ * arrastre cubre el cambio de columna y el orden de columnas es fijo. */
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from '../../ui/form/Button.js';
 import { Caja } from '../../ui/caja/Caja.js';
 import type { ParcheTareaTab, TareaTab } from '../../../shared/tareasTab.js';
@@ -27,11 +28,9 @@ export function leerArrastre(ev: React.DragEvent): { origen: number; legacyId: n
   }
 }
 
-/* Identidad de la columna dentro de la fila (posicion para las flechas). */
+/* Identidad de la columna dentro de la fila. */
 interface ColumnaIdentidad {
   legacyId: number;
-  primera: boolean;
-  ultima: boolean;
 }
 
 /* Datos que pinta: tareas ya ordenadas por la API + flags de vuelo. */
@@ -47,8 +46,6 @@ interface ColumnaGestos {
   onSoltar: (origen: number, legacyId: number, antesDe: number | null) => void;
   onEditar: (legacyId: number, parche: ParcheTareaTab) => void;
   onEliminar: (legacyId: number) => void;
-  onMoverVecina: (legacyId: number, dir: -1 | 1) => void;
-  onMoverColumna: (dir: -1 | 1) => void;
   onQuitar: () => void;
 }
 
@@ -76,12 +73,6 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
       etiqueta={`Columna ${p.legacyId} del kanban`}
       acciones={
         <>
-          <Button pequeno cuadrado onClick={() => p.onMoverColumna(-1)} disabled={p.primera} title={`mover la columna ${p.legacyId} a la izquierda`} aria-label={`mover la columna ${p.legacyId} a la izquierda`}>
-            <ArrowLeft size={12} aria-hidden />
-          </Button>
-          <Button pequeno cuadrado onClick={() => p.onMoverColumna(1)} disabled={p.ultima} title={`mover la columna ${p.legacyId} a la derecha`} aria-label={`mover la columna ${p.legacyId} a la derecha`}>
-            <ArrowRight size={12} aria-hidden />
-          </Button>
           <Button pequeno cuadrado onClick={p.onQuitar} title={`quitar la columna ${p.legacyId} (solo la oculta en esta tab)`} aria-label={`quitar la columna ${p.legacyId}`}>
             <X size={12} aria-hidden />
           </Button>
@@ -122,7 +113,6 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
                 arrastrable: !ocupada,
                 resaltada: sobre === t.legacyId,
                 enVuelo: p.moviendo === `${p.legacyId}:${t.legacyId}`,
-                vecina: {atras: !p.primera, adelante: !p.ultima},
                 urlTareas: p.urlTareas,
                 arrastre: {
                   inicio: (ev) => {
@@ -134,7 +124,6 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
                 },
                 onEditar: (parche) => p.onEditar(t.legacyId, parche),
                 onEliminar: () => p.onEliminar(t.legacyId),
-                onMoverVecina: (dir) => p.onMoverVecina(t.legacyId, dir),
               }}
             />
           ))}
