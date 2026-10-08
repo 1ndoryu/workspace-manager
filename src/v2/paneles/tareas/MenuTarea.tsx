@@ -3,13 +3,13 @@
  * proxy via los callbacks del hook).
  * [por que] Espeja el `MenuContextual` de TASKS
  * (`opcionesMenuTarea.tsx`: fila con icono + etiqueta + check del valor
- * actual + flecha de submenu + separadores + pie) con el diseno v2
+ * actual + flecha de submenu + pie) con el diseno v2
  * (monocromo estricto: inversion de relleno en hover/activo, sin sombras
- * ni radios; el peligro se marca por inversion permanente, nunca por
- * color). Prioridad (5 niveles) y urgencia (4) vuelan en un portal al body
+ * ni radios; sin separadores ni fila de peligro destacada por decision
+ * del usuario, 08AA-4). Prioridad (5 niveles) y urgencia (4) vuelan en un portal al body
  * con posicion fija medida de la fila (08AA-2: dentro del menu las
- * recortaba el `overflow-y:auto`); `Abrir en TASKS` va en el pie con
- * separador (precedente `footer` de TASKS), con las mismas clases de fila
+ * recortaba el `overflow-y:auto`); `Abrir en TASKS` va en el pie
+ * (precedente `footer` de TASKS), con las mismas clases de fila
  * que el resto (08AA-2: el `<a>` suelto desentonaba).
  * (07AA-16) Flota en un portal al body con posicion fija: dentro de la
  * tarjeta se recortaba por el `overflow-x:auto` de las columnas
@@ -171,7 +171,6 @@ export function MenuTarea(p: MenuTareaProps) {
             </span>
           </Button>
         </div>
-        <div className="tareasMenuSeparador" />
         <Button
           pequeno
           className="tareasMenuOpcion"
@@ -212,7 +211,7 @@ export function MenuTarea(p: MenuTareaProps) {
         </Button>
         <Button
           pequeno
-          className="tareasMenuOpcion tareasMenuOpcion--peligro"
+          className="tareasMenuOpcion"
           role="menuitem"
           onClick={cerrarCon(p.acciones.pedirEliminar)}
           onMouseEnter={() => setSubmenu(null)}
@@ -222,7 +221,6 @@ export function MenuTarea(p: MenuTareaProps) {
           </span>
           <span className="tareasMenuEtiqueta">eliminar</span>
         </Button>
-        <div className="tareasMenuSeparador" />
         <div className="tareasMenuPie" role="none">
           <a
             className="botonV2 botonV2--pequeno tareasMenuOpcion"
