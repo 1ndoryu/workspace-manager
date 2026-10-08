@@ -1,5 +1,6 @@
 /* Tarjeta arrastrable del kanban (07AA-15): checkbox completar + texto
- * (renombrable inline) + chips de nivel + boton ··· con MenuTarea.
+ * (renombrable inline) + chips de nivel + boton de menu (MoreHorizontal)
+ * con MenuTarea.
  * [por que] Un solo useState objeto (vista: editando / borrador /
  * confirmarBorrado) para no rozar usestate-excesivo. El menu flota en un
  * portal al body (07AA-16: dentro de la tarjeta lo recortaba el scroll-X)
@@ -10,6 +11,7 @@
  * arrastre y el menu (con mover a vecina por teclado) las sustituyen. */
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { MoreHorizontal, X } from 'lucide-react';
 import { cuerpoDocumento } from '../../../shared/platform/plataforma.js';
 import { Button } from '../../ui/form/Button.js';
 import {
@@ -146,7 +148,7 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
             title="cancelar el borrado"
             aria-label="cancelar el borrado"
           >
-            ×
+            <X size={12} aria-hidden />
           </Button>
         </span>
       ) : (
@@ -159,7 +161,7 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
           title="acciones de la tarea (también con clic derecho)"
           aria-label={`acciones de ${texto}`}
         >
-          ···
+          <MoreHorizontal size={12} aria-hidden />
         </Button>
       )}
       {menu.abierto &&

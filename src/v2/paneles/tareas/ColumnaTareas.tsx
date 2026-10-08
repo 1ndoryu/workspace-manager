@@ -6,6 +6,7 @@
  * transaccional + relectura. Sin botones de flechas: el arrastre y el menu
  * (mover a vecina por teclado) los sustituyen. */
 import { useState } from 'react';
+import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { Button } from '../../ui/form/Button.js';
 import { Caja } from '../../ui/caja/Caja.js';
 import type { ParcheTareaTab, TareaTab } from '../../../shared/tareasTab.js';
@@ -76,13 +77,13 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
       acciones={
         <>
           <Button pequeno cuadrado onClick={() => p.onMoverColumna(-1)} disabled={p.primera} title={`mover la columna ${p.legacyId} a la izquierda`} aria-label={`mover la columna ${p.legacyId} a la izquierda`}>
-            ←
+            <ArrowLeft size={12} aria-hidden />
           </Button>
           <Button pequeno cuadrado onClick={() => p.onMoverColumna(1)} disabled={p.ultima} title={`mover la columna ${p.legacyId} a la derecha`} aria-label={`mover la columna ${p.legacyId} a la derecha`}>
-            →
+            <ArrowRight size={12} aria-hidden />
           </Button>
           <Button pequeno cuadrado onClick={p.onQuitar} title={`quitar la columna ${p.legacyId} (solo la oculta en esta tab)`} aria-label={`quitar la columna ${p.legacyId}`}>
-            ×
+            <X size={12} aria-hidden />
           </Button>
         </>
       }
