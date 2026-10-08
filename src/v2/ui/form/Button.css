@@ -215,6 +215,11 @@
     justify-content: flex-start;
     gap: var(--v2-spaceSm);
     width: 100%;
+    /* (08AA-2) Las filas cuadran con padding incluido: los `<button>` lo
+     * heredaban del UA (`border-box`) pero un `<a>` con estas clases
+     * (pie `abrir en TASKS`) caia en `content-box` y sobresalia 15px,
+     * abriendo scroll horizontal en el menu. */
+    box-sizing: border-box;
     height: auto;
     padding: var(--v2-spaceXs) var(--v2-spaceSm);
     border: none;
