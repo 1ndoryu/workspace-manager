@@ -70,13 +70,6 @@ function reductor(prev: EstadoPanelTareas, a: AccionTareas): EstadoPanelTareas {
   }
 }
 
-function movida<T>(lista: T[], de: number, a: number): T[] {
-  const copia = [...lista];
-  const [x] = copia.splice(de, 1);
-  copia.splice(a, 0, x);
-  return copia;
-}
-
 export function usePanelTareas() {
   const [s, dispatch] = useReducer(reductor, ESTADO_INICIAL);
   const enVuelo = useRef(false);
@@ -140,13 +133,6 @@ export function usePanelTareas() {
     fijarColumnas(columnasRef.current.filter((c) => c !== legacyId));
   }
 
-  function moverColumna(legacyId: number, dir: -1 | 1): void {
-    const i = columnasRef.current.indexOf(legacyId);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= columnasRef.current.length) return;
-    fijarColumnas(movida(columnasRef.current, i, j));
-  }
-
   /* Escritura con single-flight: marca la tarjeta en vuelo, ejecuta,
    * relee todo (la relectura confirma que TASKS persistio) y libera. La
    * relectura usa cargarInner: con el flag en la mano, cargar rehusaria. */
@@ -207,7 +193,7 @@ export function usePanelTareas() {
     await operar(`${columna}:${legacyId}`, () => eliminarTarea(legacyId));
   }
 
-  return { ...s, recargar, agregarColumna, quitarColumna, moverColumna, soltar, editar, eliminar, textoTarea };
+  return { ...s, recargar, agregarColumna, quitarColumna, soltar, editar, eliminar, textoTarea };
 }
 
 export type PanelTareasApi = ReturnType<typeof usePanelTareas>;

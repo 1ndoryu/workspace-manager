@@ -7,8 +7,9 @@
  * con ancla del hook `useMenuTarjeta`. El arrastre es DnD
  * nativo sin librerias: la columna pone los datos (origen + id) y el
  * destino (delante de que tarjeta). Cada gesto escribe via el hook (proxy
- * + relectura); aqui solo se cablea. Las flechas ↑↓⇤⇥ se jubilaron: el
- * arrastre y el menu (con mover a vecina por teclado) las sustituyen. */
+ * + relectura); aqui solo se cablea. (08AA-5) Sin mover a vecina: ni las
+ * flechas de la tarjeta ni las filas del menu son necesarias, el
+ * arrastre cubre el cambio de columna. */
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreHorizontal, X } from 'lucide-react';
@@ -33,12 +34,8 @@ interface VistaTarjeta {
   confirmarBorrado: boolean;
 }
 
-/* Gestos de la tarjeta agrupados (07AA-15): vecina y arrastre viajan en
- * sub-objetos para no rozar large-interface-isp; la columna los construye. */
-export interface VecinaTarjeta {
-  atras: boolean;
-  adelante: boolean;
-}
+/* Gestos de la tarjeta agrupados (07AA-15): el arrastre viaja en
+ * sub-objeto para no rozar large-interface-isp; la columna los construye. */
 
 export interface ArrastreTarjeta {
   inicio: (ev: React.DragEvent) => void;
@@ -50,12 +47,10 @@ export interface TarjetaGestos {
   arrastrable: boolean;
   resaltada: boolean;
   enVuelo: boolean;
-  vecina: VecinaTarjeta;
   urlTareas: string;
   arrastre: ArrastreTarjeta;
   onEditar: (parche: ParcheTareaTab) => void;
   onEliminar: () => void;
-  onMoverVecina: (dir: -1 | 1) => void;
 }
 
 interface TarjetaTareaProps {
@@ -169,8 +164,6 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
         createPortal(
           <MenuTarea
             tarea={tarea}
-            puedeMoverAtras={g.vecina.atras}
-            puedeMoverAdelante={g.vecina.adelante}
             urlTareas={g.urlTareas}
             pos={menu.ancla}
             onCerrar={menu.cerrar}
@@ -179,7 +172,6 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
               prioridad: (prioridad) => g.onEditar(conTexto({ prioridad })),
               urgencia: (urgencia) => g.onEditar(conTexto({ urgencia })),
               renombrar: () => setVista((v) => ({ ...v, editando: true, borrador: texto })),
-              moverVecina: g.onMoverVecina,
               pedirEliminar: () => setVista((v) => ({ ...v, confirmarBorrado: true })),
             }}
           />,

@@ -63,24 +63,14 @@ export function PanelTareas() {
     setNueva('');
   };
 
-  /* Via de teclado del DnD (el menu la ofrece): suelta al final de la
-   * columna vecina. */
-  const moverVecina = (col: number, legacyId: number, dir: -1 | 1) => {
-    const j = t.columnas.indexOf(col) + dir;
-    if (j < 0 || j >= t.columnas.length) return;
-    void t.soltar(col, t.columnas[j], legacyId, null);
-  };
-
   return (
     <div className="tareasContenedor">
       {t.error && <div className="tareasError" role="alert">{t.error}</div>}
       <div className="tareasColumnas">
-        {t.columnas.map((col, ci) => (
+        {t.columnas.map((col) => (
           <div key={col} className="tareasColumna">
             <ColumnaTareas
               legacyId={col}
-              primera={ci === 0}
-              ultima={ci === t.columnas.length - 1}
               tareas={t.tareas[col] ?? null}
               cargando={t.cargando}
               moviendo={t.moviendo}
@@ -88,8 +78,6 @@ export function PanelTareas() {
               onSoltar={(origen, legacyId, antesDe) => void t.soltar(origen, col, legacyId, antesDe)}
               onEditar={(legacyId, parche) => void t.editar(col, legacyId, parche)}
               onEliminar={(legacyId) => void t.eliminar(col, legacyId)}
-              onMoverVecina={(legacyId, dir) => moverVecina(col, legacyId, dir)}
-              onMoverColumna={(dir) => t.moverColumna(col, dir)}
               onQuitar={() => t.quitarColumna(col)}
             />
           </div>
