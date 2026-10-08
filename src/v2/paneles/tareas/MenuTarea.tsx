@@ -6,13 +6,16 @@
  * actual + flecha de submenu + separadores + pie) con el diseno v2
  * (monocromo estricto: inversion de relleno en hover/activo, sin sombras
  * ni radios; el peligro se marca por inversion permanente, nunca por
- * color). Prioridad (5 niveles) y urgencia (4) son submenus al hover como
- * en TASKS; `Abrir en TASKS` va en el pie con separador (precedente
- * `footer` de TASKS), no como enlace suelto.
+ * color). Prioridad (5 niveles) y urgencia (4) vuelan en un portal al body
+ * con posicion fija medida de la fila (08AA-2: dentro del menu las
+ * recortaba el `overflow-y:auto`); `Abrir en TASKS` va en el pie con
+ * separador (precedente `footer` de TASKS), con las mismas clases de fila
+ * que el resto (08AA-2: el `<a>` suelto desentonaba).
  * (07AA-16) Flota en un portal al body con posicion fija: dentro de la
  * tarjeta se recortaba por el `overflow-x:auto` de las columnas
  * (precedente `EtiquetaDeRuta.tsx`); la posicion llega por CSS vars. */
-import { useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,6 +28,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Button } from '../../ui/form/Button.js';
+import { cuerpoDocumento, anchoVentana, altoVentana } from '../../../shared/platform/plataforma.js';
 import {
   ETIQUETAS_PRIORIDAD,
   ETIQUETAS_URGENCIA,
@@ -78,6 +82,24 @@ export function MenuTarea(p: MenuTareaProps) {
     fn();
     p.onCerrar();
   };
+  /* (08AA-2) Posicion del submenu volador, medida de la fila que lo abre:
+   * hover abre (como en TASKS) y clic alterna (teclado/tactil). */
+  const [posSub, setPosSub] = useState<PosMenuTarea | null>(null);
+  const abrirSub = (id: Exclude<SubmenuTarea, null>) => (ev: MouseEvent<HTMLElement>) => {
+    const r = ev.currentTarget.getBoundingClientRect();
+    setPosSub({
+      x: Math.max(8, Math.min(r.right + 4, anchoVentana() - 196)),
+      y: Math.max(8, Math.min(r.top, altoVentana() - 180)),
+    });
+    setSubmenu(id);
+  };
+  const pulsarSub = (id: Exclude<SubmenuTarea, null>) => (ev: MouseEvent<HTMLElement>) => {
+    if (submenu === id) {
+      setSubmenu(null);
+      return;
+    }
+    abrirSub(id)(ev);
+  };
   return (
     <>
       <button
@@ -109,7 +131,7 @@ export function MenuTarea(p: MenuTareaProps) {
         </Button>
         <div
           className="tareasMenuEnvoltorio"
-          onMouseEnter={() => setSubmenu('prioridad')}
+          onMouseEnter={abrirSub('prioridad')}
         >
           <Button
             pequeno
@@ -117,7 +139,7 @@ export function MenuTarea(p: MenuTareaProps) {
             role="menuitem"
             aria-haspopup="menu"
             aria-expanded={submenu === 'prioridad'}
-            onClick={() => setSubmenu(submenu === 'prioridad' ? null : 'prioridad')}
+            onClick={pulsarSub('prioridad')}
           >
             <span className="tareasMenuIcono">
               <Flag size={12} />
@@ -127,32 +149,10 @@ export function MenuTarea(p: MenuTareaProps) {
               <ChevronRight size={12} />
             </span>
           </Button>
-          {submenu === 'prioridad' && (
-            <div className="tareasMenuSub v2Superficie" role="menu" aria-label="prioridad">
-              {PRIORIDADES_TAREA.map((nivel) => (
-                <Button
-                  key={nivel}
-                  pequeno
-                  className="tareasMenuOpcion"
-                  role="menuitemradio"
-                  aria-checked={pri === nivel}
-                  onClick={cerrarCon(() => p.acciones.prioridad(pri === nivel ? null : nivel))}
-                >
-                  <span className="tareasMenuIcono" />
-                  <span className="tareasMenuEtiqueta">{ETIQUETAS_PRIORIDAD[nivel]}</span>
-                  {pri === nivel && (
-                    <span className="tareasMenuMarca">
-                      <Check size={12} />
-                    </span>
-                  )}
-                </Button>
-              ))}
-            </div>
-          )}
         </div>
         <div
           className="tareasMenuEnvoltorio"
-          onMouseEnter={() => setSubmenu('urgencia')}
+          onMouseEnter={abrirSub('urgencia')}
         >
           <Button
             pequeno
@@ -160,7 +160,7 @@ export function MenuTarea(p: MenuTareaProps) {
             role="menuitem"
             aria-haspopup="menu"
             aria-expanded={submenu === 'urgencia'}
-            onClick={() => setSubmenu(submenu === 'urgencia' ? null : 'urgencia')}
+            onClick={pulsarSub('urgencia')}
           >
             <span className="tareasMenuIcono">
               <Zap size={12} />
@@ -170,28 +170,6 @@ export function MenuTarea(p: MenuTareaProps) {
               <ChevronRight size={12} />
             </span>
           </Button>
-          {submenu === 'urgencia' && (
-            <div className="tareasMenuSub v2Superficie" role="menu" aria-label="urgencia">
-              {URGENCIAS_TAREA.map((nivel) => (
-                <Button
-                  key={nivel}
-                  pequeno
-                  className="tareasMenuOpcion"
-                  role="menuitemradio"
-                  aria-checked={urg === nivel}
-                  onClick={cerrarCon(() => p.acciones.urgencia(nivel))}
-                >
-                  <span className="tareasMenuIcono" />
-                  <span className="tareasMenuEtiqueta">{ETIQUETAS_URGENCIA[nivel]}</span>
-                  {urg === nivel && (
-                    <span className="tareasMenuMarca">
-                      <Check size={12} />
-                    </span>
-                  )}
-                </Button>
-              ))}
-            </div>
-          )}
         </div>
         <div className="tareasMenuSeparador" />
         <Button
@@ -247,7 +225,7 @@ export function MenuTarea(p: MenuTareaProps) {
         <div className="tareasMenuSeparador" />
         <div className="tareasMenuPie" role="none">
           <a
-            className="tareasMenuOpcion"
+            className="botonV2 botonV2--pequeno tareasMenuOpcion"
             role="menuitem"
             href={p.urlTareas}
             target="_blank"
@@ -261,6 +239,44 @@ export function MenuTarea(p: MenuTareaProps) {
           </a>
         </div>
       </div>
+      {/* (08AA-2) Submenu volador en portal: fuera del `.tareasMenu` para
+        * que su `overflow-y:auto` no lo recorte; posicion fija de `posSub`. */}
+      {submenu !== null && posSub !== null && createPortal(
+        <div
+          className="tareasMenuSub v2Superficie"
+          role="menu"
+          aria-label={submenu}
+          style={{ '--tareas-sub-x': `${posSub.x}px`, '--tareas-sub-y': `${posSub.y}px` } as CSSProperties}
+        >
+          {(submenu === 'prioridad' ? PRIORIDADES_TAREA : URGENCIAS_TAREA).map((nivel) => {
+            const marcado = submenu === 'prioridad' ? pri === nivel : urg === nivel;
+            const etiqueta = (submenu === 'prioridad' ? ETIQUETAS_PRIORIDAD : ETIQUETAS_URGENCIA)[nivel];
+            return (
+              <Button
+                key={nivel}
+                pequeno
+                className="tareasMenuOpcion"
+                role="menuitemradio"
+                aria-checked={marcado}
+                onClick={cerrarCon(() =>
+                  submenu === 'prioridad'
+                    ? p.acciones.prioridad(pri === nivel ? null : nivel)
+                    : p.acciones.urgencia(nivel),
+                )}
+              >
+                <span className="tareasMenuIcono" />
+                <span className="tareasMenuEtiqueta">{etiqueta}</span>
+                {marcado && (
+                  <span className="tareasMenuMarca">
+                    <Check size={12} />
+                  </span>
+                )}
+              </Button>
+            );
+          })}
+        </div>,
+        cuerpoDocumento(),
+      )}
     </>
   );
 }
