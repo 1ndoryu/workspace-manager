@@ -2,13 +2,9 @@
  * [por que] El front no toca TASKS: habla con el proxy del server F2, que
  * custodia la sesion D1. Formas aqui (no en el componente) para que el
  * contrato sea testeable sin React y la tab solo renderice. Columnas =
- * proyectos TASKS por legacy_id, elegidas por el usuario y persistidas en
- * localStorage (presentacion WM); el orden de las TAREAS vive en TASKS (D2).
- * Límite honesto: sin endpoint de listar-proyectos en F1, no hay
- * descubrimiento: la tab parte de las columnas del seed F1 (9001/9002). */
-import { guardarJson, leerJson } from './storage.js';
-
-/* Tarea normalizada para la tab (la que pintan las columnas). */
+ * columnas fijas del proxy (08AA-6: una por repo WM no-ignorado, en orden de
+ * snapshot; el servidor sincroniza WM->TASKS por `wmClave`); el orden de las
+ * TAREAS vive en TASKS (D2). */
 export interface TareaTab {
   legacyId: number;
   orden: number;
@@ -166,30 +162,49 @@ export function construirMovimientos(
   return ordenados.map((t, i) => ({ legacyId: t.legacyId, orden: i, proyectoId }));
 }
 
-/* Entrada manual de columna: entero positivo o nada. */
-export function parsearLegacyId(texto: string): number | null {
-  const n = Number(texto.trim());
-  return Number.isInteger(n) && n > 0 ? n : null;
+/* Columna fija tal como la sirve GET /api/tareas/proyectos (08AA-6 sync):
+ * `clave` = repo WM (estable), `nombre` = lo que se pinta, `legacyId` =
+ * proyecto TASKS donde viven/crear las tareas. Sin `legacyId` entero no hay
+ * columna donde operar: se descarta (el servidor nunca la emite). */
+export interface ColumnaTab {
+  clave: string;
+  nombre: string;
+  legacyId: number;
 }
 
-/* Columnas vistas en la tab, persistidas en localStorage (presentacion WM:
- * anadir/quitar/reordenar columnas no toca TASKS). Defecto = seed F1. */
-export const COLUMNAS_DEFECTO_TAREAS = [9001, 9002];
-const CLAVE_COLUMNAS_TAREAS = 'workspaceManager:tareas:columnas';
+export function esColumnaTab(v: unknown): v is ColumnaTab {
+  if (typeof v !== 'object' || v === null) return false;
+  const c = v as Record<string, unknown>;
+  return (
+    typeof c.clave === 'string' &&
+    c.clave !== '' &&
+    typeof c.nombre === 'string' &&
+    c.nombre !== '' &&
+    Number.isInteger(c.legacyId) &&
+    (c.legacyId as number) > 0
+  );
+}
 
-export function normalizarColumnas(v: unknown): number[] {
-  if (!Array.isArray(v)) return [...COLUMNAS_DEFECTO_TAREAS];
-  const ids: number[] = [];
-  for (const x of v) {
-    if (Number.isInteger(x) && (x as number) > 0 && !ids.includes(x as number)) ids.push(x as number);
+export function columnasDeRespuesta(datos: unknown): ColumnaTab[] {
+  if (typeof datos !== 'object' || datos === null) return [];
+  const lista = (datos as { proyectos?: unknown }).proyectos;
+  if (!Array.isArray(lista)) return [];
+  const columnas: ColumnaTab[] = [];
+  const vistas = new Set<string>();
+  for (const v of lista) {
+    if (!esColumnaTab(v) || vistas.has(v.clave)) continue;
+    vistas.add(v.clave);
+    columnas.push({ clave: v.clave, nombre: v.nombre, legacyId: v.legacyId });
   }
-  return ids.length > 0 ? ids : [...COLUMNAS_DEFECTO_TAREAS];
+  return columnas;
 }
 
-export function leerColumnasTareas(): number[] {
-  return normalizarColumnas(leerJson(CLAVE_COLUMNAS_TAREAS, 'no se pudieron leer las columnas de tareas:'));
-}
+/* Id legacy nuevo espejo de TASKS `generarIdTarea` (`Date.now()*1000 +
+ * resto`): el PUT del proxy es upsert y asi el alta inline no colisiona con
+ * los ids que crea el front TASKS. Contador de modulo (como TASKS). */
+let restoIdTarea = 0;
 
-export function guardarColumnasTareas(columnas: number[]): void {
-  guardarJson(CLAVE_COLUMNAS_TAREAS, columnas, 'no se pudieron guardar las columnas de tareas:');
+export function generarIdTarea(ahora: number = Date.now()): number {
+  restoIdTarea = (restoIdTarea + 1) % 1000;
+  return Math.floor(ahora) * 1000 + restoIdTarea;
 }

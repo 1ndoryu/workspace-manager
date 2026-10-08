@@ -16,7 +16,8 @@ import type {
   RespuestaHttp,
 } from './nucleo/tipos.js';
 import {crearHttpNativo} from './transporte-tareas.js';
-import {mapearErrorTarea, type ParcheTarea} from './tarea-unitaria.js';
+import {pedirProyectosPuente} from './proyectos-puente.js';
+import {mapearErrorTarea, type ParcheTarea, type ProyectoPuente} from './tarea-unitaria.js';
 
 export const BASE_DEFECTO_TAREAS = 'http://127.0.0.1:4190';
 const RUTA_LOGIN = '/api/auth/login';
@@ -127,6 +128,8 @@ export interface EstadoPuente {
 export interface PuenteTareas {
   estado(): EstadoPuente;
   listar(legacyId: number): Promise<ItemVersionado[]>;
+  proyectos(): Promise<ProyectoPuente[]>;
+  crearProyecto(legacyId: number, nombre: string, wmClave: string): Promise<number>;
   reordenar(lote: BulkReorderRequest): Promise<ItemVersionado[]>;
   actualizar(legacyId: number, parche: ParcheTarea): Promise<ItemVersionado>;
   eliminar(legacyId: number): Promise<void>;
@@ -200,16 +203,18 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
     return transporte(url, {...init, headers: cabezas});
   }
 
-  /* PUT/DELETE sobre /api/tasks/:legacy_id (F1 upsert_task/delete_task).
+  /* PUT/DELETE sobre /api/tasks/:legacy_id (F1 upsert_task/delete_task) o
+   * PUT sobre /api/projects/:legacy_id (08AA-6 upsert_project con payload).
    * No pasa por el cliente vendorizado (solo GET/POST). */
-  async function pedirTarea(
+  async function pedirApi(
+    recurso: 'tasks' | 'projects',
     method: 'PUT' | 'DELETE',
     legacyId: number,
     cuerpo?: Record<string, unknown>,
   ): Promise<unknown> {
     let respuesta: RespuestaHttp;
     try {
-      respuesta = await fetchConSesion(`${config.base}/api/tasks/${legacyId}`, {
+      respuesta = await fetchConSesion(`${config.base}/api/${recurso}/${legacyId}`, {
         method,
         headers: {
           'content-type': 'application/json',
@@ -237,6 +242,10 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
     }
     return datos;
   }
+
+  /* Proyectos via modulo extraido (08AA-6; el gate limita a 300 lineas). */
+  const pedirProyectos = (): Promise<ProyectoPuente[]> =>
+    pedirProyectosPuente({base: config.base, csrf: sesion?.csrf ?? null, llamar: fetchConSesion});
 
   const cliente: ClienteKanban = crearClienteKanban({
     base: config.base,
@@ -299,13 +308,27 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
       return {disponible: true, motivo: null, base: config.base, conCredenciales: true};
     },
     listar: (legacyId) => operar(() => cliente.listarTareasProyecto(legacyId)),
+    proyectos: () => operar(pedirProyectos),
+    /* Crea el proyecto TASKS espejo de un repo WM (08AA-6 sync): upsert por
+     * id generado + `payload.wmClave` como llave de emparejado futuro. Sin
+     * `estado` (TASKS lo deja en `activo` por defecto). Devuelve el id. */
+    crearProyecto: (legacyId, nombre, wmClave) => {
+      /* Valida antes de operar (sin gastar sesion en un id imposible). */
+      if (!esIdValido(legacyId)) {
+        return Promise.reject({codigo: 'validacion', mensaje: 'legacyId debe ser un entero positivo'} satisfies ErrorKanban);
+      }
+      return operar(async () => {
+        await pedirApi('projects', 'PUT', legacyId, {nombre, payload: {wmClave}});
+        return legacyId;
+      });
+    },
     reordenar: (lote) => operar(() => cliente.reordenarBulk(lote)),
     actualizar: (legacyId, parche) =>
       operar(async () => {
         if (!esIdValido(legacyId)) {
           throw {codigo: 'validacion', mensaje: 'legacyId debe ser un entero positivo'} satisfies ErrorKanban;
         }
-        const datos = await pedirTarea('PUT', legacyId, {...parche});
+        const datos = await pedirApi('tasks', 'PUT', legacyId, {...parche});
         if (typeof datos !== 'object' || datos === null || typeof (datos as {id?: unknown}).id !== 'number') {
           throw {codigo: 'servidor', mensaje: 'Respuesta inesperada del servidor'} satisfies ErrorKanban;
         }
@@ -316,7 +339,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
         if (!esIdValido(legacyId)) {
           throw {codigo: 'validacion', mensaje: 'legacyId debe ser un entero positivo'} satisfies ErrorKanban;
         }
-        await pedirTarea('DELETE', legacyId);
+        await pedirApi('tasks', 'DELETE', legacyId);
       }),
   };
 }

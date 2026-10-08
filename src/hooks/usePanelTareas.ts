@@ -1,26 +1,28 @@
-/* Hook de la tab tareas (07AA-5 F3, DnD + edicion 07AA-15): estado +
- * carga + movimientos.
+/* Hook de la tab tareas (07AA-5 F3, DnD + edicion 07AA-15, columnas fijas +
+ * alta inline 08AA-6): estado + carga + movimientos.
  * [por que] Extraido antes de nacer (leccion usePanelRepos): el componente
  * renderiza, el hook posee el reducer y los thunks. Un solo useReducer
  * (cero useState) para no rozar usestate-excesivo. Single-flight con ref:
  * nunca dos cargas ni dos escrituras concurrentes (el bulk es
  * transaccional y el doble clic duplicaria el POST).
  * [D2] El orden de las tareas se escribe en TASKS via bulk y se relee tras
- * cada movimiento (la recarga es la prueba de persistencia en la UI); el
- * orden de las COLUMNAS es presentacion WM (localStorage, sin server). */
+ * cada movimiento (la recarga es la prueba de persistencia en la UI); las
+ * COLUMNAS son fijas del proxy (08AA-6: el servidor sincroniza WM->TASKS,
+ * ni anadir ni quitar a mano). */
 import { useEffect, useReducer, useRef } from 'react';
 import {
   construirMovimientos,
-  guardarColumnasTareas,
-  leerColumnasTareas,
+  generarIdTarea,
   parcheConColumna,
   textoTarea,
+  type ColumnaTab,
   type ParcheTareaTab,
   type TareaTab,
   type TareasEstado,
 } from '../shared/tareasTab.js';
 import {
   actualizarTarea,
+  columnasTareas,
   eliminarTarea,
   estadoTareas,
   proyectoTareas,
@@ -28,7 +30,7 @@ import {
 } from '../v2/tareas/apiTareas.js';
 
 interface EstadoPanelTareas {
-  columnas: number[];
+  columnas: ColumnaTab[];
   tareas: Record<number, TareaTab[]>;
   estado: TareasEstado | null;
   cargando: boolean;
@@ -38,11 +40,10 @@ interface EstadoPanelTareas {
 
 type AccionTareas =
   | { tipo: 'cargando' }
-  | { tipo: 'cargado'; estado: TareasEstado; tareas: Record<number, TareaTab[]> }
+  | { tipo: 'cargado'; estado: TareasEstado; columnas: ColumnaTab[]; tareas: Record<number, TareaTab[]> }
   | { tipo: 'fallo'; error: string }
   | { tipo: 'moviendo'; clave: string }
-  | { tipo: 'movido' }
-  | { tipo: 'columnas'; columnas: number[] };
+  | { tipo: 'movido' };
 
 const ESTADO_INICIAL: EstadoPanelTareas = {
   columnas: [],
@@ -58,79 +59,56 @@ function reductor(prev: EstadoPanelTareas, a: AccionTareas): EstadoPanelTareas {
     case 'cargando':
       return { ...prev, cargando: true, error: null };
     case 'cargado':
-      return { ...prev, cargando: false, error: null, estado: a.estado, tareas: a.tareas };
+      return { ...prev, cargando: false, error: null, estado: a.estado, columnas: a.columnas, tareas: a.tareas };
     case 'fallo':
       return { ...prev, cargando: false, moviendo: null, error: a.error };
     case 'moviendo':
       return { ...prev, moviendo: a.clave, error: null };
     case 'movido':
       return { ...prev, moviendo: null };
-    case 'columnas':
-      return { ...prev, columnas: a.columnas };
   }
 }
 
 export function usePanelTareas() {
   const [s, dispatch] = useReducer(reductor, ESTADO_INICIAL);
   const enVuelo = useRef(false);
-  const columnasRef = useRef<number[]>([]);
+  const columnasRef = useRef<ColumnaTab[]>([]);
 
-  /* Cuerpo de carga sin single-flight (lo envuelve cargar; operar lo
-   * llama directo porque ya posee el flag: si pasara por cargar, el
-   * early-return por enVuelo saltaria la relectura post-escritura y la tab
-   * quedaria con el orden anterior hasta F5 — bug 2026-10-07 cazado en
-   * UI viva: el bulk persistia en TASKS pero la lista no se repintaba). */
-  async function cargarInner(columnas: number[]): Promise<void> {
+  /* Carga completa: estado + columnas fijas del proxy + tareas por columna.
+   * Las columnas llegan del servidor (08AA-6: ya sincronizadas WM->TASKS),
+   * asi que cada recarga refleja ignorados y repos nuevos sin estado local. */
+  async function cargarInner(): Promise<void> {
     dispatch({ tipo: 'cargando' });
     try {
       const estado = await estadoTareas();
+      const columnas = estado.disponible ? await columnasTareas() : [];
       const tareas: Record<number, TareaTab[]> = {};
-      if (estado.disponible) {
-        for (const col of columnas) tareas[col] = await proyectoTareas(col);
-      }
-      dispatch({ tipo: 'cargado', estado, tareas });
+      for (const col of columnas) tareas[col.legacyId] = await proyectoTareas(col.legacyId);
+      columnasRef.current = columnas;
+      dispatch({ tipo: 'cargado', estado, columnas, tareas });
     } catch (err) {
       dispatch({ tipo: 'fallo', error: err instanceof Error ? err.message : String(err) });
     }
   }
 
-  async function cargar(columnas: number[]): Promise<void> {
+  async function cargar(): Promise<void> {
     if (enVuelo.current) return;
     enVuelo.current = true;
     try {
-      await cargarInner(columnas);
+      await cargarInner();
     } finally {
       enVuelo.current = false;
     }
   }
 
-  /* Columnas iniciales una vez (localStorage o defecto seed F1). */
+  /* Columnas fijas: una sola carga al montar (sin localStorage 08AA-6). */
   useEffect(() => {
-    const iniciales = leerColumnasTareas();
-    columnasRef.current = iniciales;
-    dispatch({ tipo: 'columnas', columnas: iniciales });
-    void cargar(iniciales);
+    void cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function fijarColumnas(columnas: number[]): void {
-    columnasRef.current = columnas;
-    guardarColumnasTareas(columnas);
-    dispatch({ tipo: 'columnas', columnas });
-    void cargar(columnas);
-  }
-
   function recargar(): void {
-    void cargar(columnasRef.current);
-  }
-
-  function agregarColumna(legacyId: number): void {
-    if (columnasRef.current.includes(legacyId)) return;
-    fijarColumnas([...columnasRef.current, legacyId]);
-  }
-
-  function quitarColumna(legacyId: number): void {
-    fijarColumnas(columnasRef.current.filter((c) => c !== legacyId));
+    void cargar();
   }
 
   /* Escritura con single-flight: marca la tarjeta en vuelo, ejecuta,
@@ -143,7 +121,7 @@ export function usePanelTareas() {
     try {
       await fn();
       dispatch({ tipo: 'movido' });
-      await cargarInner(columnasRef.current);
+      await cargarInner();
     } catch (err) {
       dispatch({ tipo: 'fallo', error: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -193,7 +171,22 @@ export function usePanelTareas() {
     await operar(`${columna}:${legacyId}`, () => eliminarTarea(legacyId));
   }
 
-  return { ...s, recargar, agregarColumna, quitarColumna, soltar, editar, eliminar, textoTarea };
+  /* Alta rapida inline (08AA-6): PUT-upsert con id espejo-TASKS al final
+   * de la columna (orden = longitud actual). El texto viaja siempre (F1 lo
+   * exige) con su proyectoId (anti-huerfanas 07AA-15); la relectura de
+   * operar confirma que TASKS persistio. */
+  async function crear(columna: ColumnaTab, texto: string): Promise<void> {
+    const limpio = texto.trim();
+    if (limpio === '') return;
+    const orden = (s.tareas[columna.legacyId] ?? []).length;
+    await operar(`${columna.legacyId}:nueva`, () =>
+      actualizarTarea(generarIdTarea(), { texto: limpio, proyectoId: columna.legacyId, orden }).then(
+        () => undefined,
+      ),
+    );
+  }
+
+  return { ...s, recargar, crear, soltar, editar, eliminar, textoTarea };
 }
 
 export type PanelTareasApi = ReturnType<typeof usePanelTareas>;
