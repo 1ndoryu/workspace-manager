@@ -11,10 +11,12 @@
  * de pulse 0110A-1; antes por contenedor, siempre a cero en cgroup v2).
  * El % de disco del host no sale de pulse y entra por prop desde el audit. */
 import { useEffect, useRef, useState } from 'react';
-import type { VpsAgenteSnapshot } from '../../shared/types.js';
-import { Caja } from '../ui/caja/Caja.js';
-import { guardarJson, guardarTexto, leerJson, leerTexto } from '../../shared/storage.js';
-import { fmtBytes } from '../../shared/format.js';
+import type { CSSProperties } from 'react';
+import type { VpsAgenteSnapshot } from '../../../shared/types.js';
+import { Caja } from '../../ui/caja/Caja.js';
+import { guardarJson, guardarTexto, leerJson, leerTexto } from '../../../shared/storage.js';
+import { fmtBytes } from '../../../shared/format.js';
+import { bajarVentana, suscribirVentana } from '../../../shared/platform/plataforma.js';
 
 /* Muestra como tupla [t, cpu, mem, rx, tx, br, bw, dr, dw]: compacta en
  * el localStorage (≈60 caracteres por muestra). dr/dw = IO del host en
@@ -90,14 +92,16 @@ export function Chispa({ series, alto = 36 }: { series: number[][]; alto?: numbe
       preserveAspectRatio="none"
       aria-hidden="true"
     >
-      {series.map((s, i) => (
+      {/* El orden de las series es fijo (serie 1 sólida, serie 2
+        * punteada): la clave deriva del contenido, nunca del índice. */}
+      {series.map((s) => (
         <polyline
-          key={i}
+          key={puntos(s)}
           points={puntos(s)}
           fill="none"
           stroke="currentColor"
-          strokeWidth={i === 0 ? 1.5 : 1}
-          strokeDasharray={i === 0 ? undefined : '3 2'}
+          strokeWidth={s === series[0] ? 1.5 : 1}
+          strokeDasharray={s === series[0] ? undefined : '3 2'}
         />
       ))}
     </svg>
@@ -173,8 +177,8 @@ export function PanelVpsRecursos({
       /* Cierre sin almacenamiento: se pierde la cola sin romper nada. */
       guardarJson(CLAVE_HISTORIAL, muestras.current.slice(-MAX_MUESTRAS));
     };
-    window.addEventListener('beforeunload', alCerrar);
-    return () => window.removeEventListener('beforeunload', alCerrar);
+    suscribirVentana('beforeunload', alCerrar);
+    return () => bajarVentana('beforeunload', alCerrar);
   }, []);
 
   /* Muestra nueva por tick de pulse (guardada como tupla redondeada;
@@ -287,7 +291,12 @@ export function PanelVpsRecursos({
                   aria-valuemax={100}
                   aria-label="Uso de disco del host"
                 >
-                  <div className="vpsBarraRelleno" style={{ width: `${discoPct}%` }} />
+                  <div
+                    className="vpsBarraRelleno"
+                    /* Solo variable CSS, nunca valor en línea (varsense
+                     * cssInlineReact + gate inline-style-prohibido). */
+                    style={{ '--vps-barra': `${discoPct}%` } as CSSProperties}
+                  />
                 </div>
               </>
             )}

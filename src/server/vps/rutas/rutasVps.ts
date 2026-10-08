@@ -1,16 +1,17 @@
 /* Rutas de la tab vps (/api/vps/*): despliegues Coolify en solo lectura.
- * [por que] Mismo patron que rutasRepos.ts: el puente (puente.ts) ejecuta y
- * aqui solo se parsea/responde. Parseo estricto del texto humano del manager
- * (list/health/audit/logs no tienen --json): lo no reconocido es
- * 'desconocido', nunca un estado inventado. Devuelve true si atendio. */
+ * [por que] Mismo patron que rutasRepos.ts: el puente (puente.ts) ejecuta,
+ * respuestasVps.ts parsea y aqui solo se enruta/responde. Parseo estricto
+ * del texto humano del manager (list/health/audit/logs no tienen --json):
+ * lo no reconocido es 'desconocido', nunca un estado inventado. Devuelve
+ * true si atendio. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { json } from '../http.js';
-import type { VpsAviso, VpsConfig, VpsDetalle, VpsPieza, VpsSitio } from '../../shared/types.js';
-import { agenteProd, enriquecerConSitios, type InfoSitio } from './agente.js';
-import { historialProd } from './historial.js';
+import { json } from '../../http.js';
+import type { VpsAviso, VpsConfig, VpsDetalle, VpsPieza, VpsSitio } from '../../../shared/types.js';
+import { agenteProd, enriquecerConSitios, type InfoSitio } from '../agente.js';
+import { historialProd } from '../historial.js';
 import {
   auditoria,
   dbStatsJson,
@@ -20,29 +21,12 @@ import {
   listarSitios,
   logs,
   NOMBRE_OK,
-  redactar,
   rutaBinario,
   salud,
   statsJson,
   versionBinario,
-} from './puente.js';
-const MAX_TEXTO = 4000;
-/* Claves cuyo valor nunca viaja al frontend (el --json puede traer env con
- * secretos y el visor generico lo mostraria todo). */
-const CLAVE_SECRETA = /api[_-]?key|token|secret|password|passwd|authorization/i;
-
-function sanearJson(v: unknown): unknown {
-  if (typeof v === 'string') return redactar(v);
-  if (Array.isArray(v)) return v.map(sanearJson);
-  if (v && typeof v === 'object') {
-    const limpio: Record<string, unknown> = {};
-    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
-      limpio[k] = CLAVE_SECRETA.test(k) ? '···' : sanearJson(val);
-    }
-    return limpio;
-  }
-  return v;
-}
+} from '../puente.js';
+import { parsearListado, pieza, resumirAuditoria, sanearJson } from '../respuestasVps.js';
 
 /* Nombres vistos en el ultimo /sitios: el /detalle exige pertenencia cuando
  * hay lista (anti-sondeo de nombres ajenos); sin lista previa, regex. */
@@ -113,57 +97,6 @@ function refrescarMapaSitios(): void {
 export function leerRefreshMs(): number {
   const n = Number.parseInt(process.env.VPS_REFRESH_MS ?? '0', 10);
   return Number.isFinite(n) && n > 0 ? n : 0;
-}
-
-function recortar(texto: string): string {
-  const t = texto.trim();
-  return t.length > MAX_TEXTO ? `${t.slice(0, MAX_TEXTO)}\n…(recortado)` : t;
-}
-
-/* Parsea la tabla NOMBRE DOMINIO TARGET «STACK UUID» [ESTADO] del `list`:
- * columnas por posicion del header (separador 2+ espacios; el header del
- * UUID es "STACK UUID", asi que se busca por inclusion). Filas que no
- * cuadran se saltan (la seccion Minecraft tiene otra forma). */
-function parsearListado(texto: string, conEstado: boolean): VpsSitio[] {
-  const lineas = texto.split('\n');
-  const cab = lineas.findIndex((l) => /NOMBRE/.test(l) && /DOMINIO/.test(l));
-  if (cab < 0) return [];
-  const cols = lineas[cab].split(/\s{2,}/).map((c) => c.trim());
-  const i = (n: string) => cols.findIndex((c) => c.includes(n));
-  const iNombre = i('NOMBRE');
-  const iDominio = i('DOMINIO');
-  const iTarget = i('TARGET');
-  const iUuid = i('UUID');
-  const iEstado = i('ESTADO');
-  if (iNombre < 0) return [];
-  const sitios: VpsSitio[] = [];
-  for (const l of lineas.slice(cab + 1)) {
-    if (!l.trim() || /^(Minecraft|─|═|=)/i.test(l.trim())) continue;
-    const c = l.split(/\s{2,}/).map((x) => x.trim());
-    const nombre = c[iNombre] ?? '';
-    if (!nombre || !NOMBRE_OK.test(nombre)) continue;
-    sitios.push({
-      nombre,
-      dominio: iDominio >= 0 ? (c[iDominio] ?? '') : '',
-      target: iTarget >= 0 ? (c[iTarget] ?? '') : '',
-      uuid: iUuid >= 0 ? (c[iUuid] ?? '') : '',
-      estadoReal: conEstado && iEstado >= 0 && c[iEstado] ? c[iEstado] : '',
-    });
-  }
-  return sitios;
-}
-
-async function pieza<T>(fn: () => Promise<T>, texto = false): Promise<VpsPieza> {
-  try {
-    const datos = await fn();
-    return {
-      ok: true,
-      datos: texto && typeof datos === 'string' ? recortar(datos) : datos,
-      error: null,
-    };
-  } catch (err) {
-    return { ok: false, datos: null, error: String(err).slice(0, 200) };
-  }
 }
 
 export async function manejarRutasVps(
@@ -331,55 +264,11 @@ export async function manejarRutasVps(
       return true;
     }
     const texto = await pieza(() => auditoria(), true);
-    /* Formato real del audit (verificado 2026-09-29): lineas
-     * `Load:`, `CPU: sampleN busy=X%`, `Memoria: used=A free=B total=C`,
-     * `Disco: ... use=N%` y `nombre=Up <tiempo> [(healthy)]` por contenedor.
-     * Si el formato cambia, el resumen cae a no-disponible y queda el texto. */
-    let resumen: VpsPieza = { ok: false, datos: null, error: 'sin-metricas' };
-    if (texto.ok) {
-      const crudo = String(texto.datos);
-      const metricas: { metrica: string; pct: number }[] = [];
-      const busys = [...crudo.matchAll(/busy=([0-9.]+)%/g)].map((m) => Number(m[1]));
-      if (busys.length > 0) {
-        metricas.push({
-          metrica: 'cpu',
-          pct: Math.round((busys.reduce((a, b) => a + b, 0) / busys.length) * 10) / 10,
-        });
-      }
-      const mem = /Memoria:\s*used=(\d+)MB\s*free=\d+MB\s*total=(\d+)MB/.exec(crudo);
-      if (mem) {
-        metricas.push({
-          metrica: 'memoria',
-          pct: Math.round((Number(mem[1]) / Number(mem[2])) * 1000) / 10,
-        });
-      }
-      const disco = /Disco:.*use=(\d+)%/.exec(crudo);
-      if (disco) metricas.push({ metrica: 'disco', pct: Number(disco[1]) });
-      const carga = /Load:\s*([0-9.]+ [0-9.]+ [0-9.]+)/.exec(crudo);
-      const contenedores: { nombre: string; actividad: string; saludable: boolean }[] = [];
-      for (const m of crudo.matchAll(/^(\S+)=Up\s+([^(]+?)(\(healthy\))?\s*$/gm)) {
-        contenedores.push({
-          nombre: m[1],
-          actividad: m[2].trim(),
-          saludable: !!m[3],
-        });
-      }
-      if (metricas.length > 0 || contenedores.length > 0) {
-        resumen = {
-          ok: true,
-          datos: {
-            metricas,
-            carga: carga ? carga[1] : null,
-            contenedores: {
-              total: contenedores.length,
-              sanos: contenedores.filter((c) => c.saludable).length,
-              noSanos: contenedores.filter((c) => !c.saludable).map((c) => c.nombre),
-            },
-          },
-          error: null,
-        };
-      }
-    }
+    const resumen: VpsPieza = texto.ok ? resumirAuditoria(String(texto.datos)) : {
+      ok: false,
+      datos: null,
+      error: 'sin-metricas',
+    };
     json(res, 200, { piezas: { resumen, texto } });
     return true;
   }

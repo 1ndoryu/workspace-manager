@@ -1,5 +1,5 @@
 /* Test de /api/vps/pieza (0110A-3 F3): se corre con
- * `node node_modules/tsx/dist/cli.mjs --test src/server/vps/rutasVpsPiezas.test.ts`.
+ * `node node_modules/tsx/dist/cli.mjs --test src/server/vps/rutas/rutasVpsPiezas.test.ts`.
  * Dependencias inyectadas: ningun test toca el binario ni la VPS. */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';

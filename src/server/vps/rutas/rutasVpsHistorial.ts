@@ -3,9 +3,9 @@
  * aviso de limite-lineas) y la factoría con historial inyectado se testea sin
  * tocar el fichero de producción. Solo lectura del fichero acotado. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { json } from '../http.js';
-import type { VpsHistorialSitio } from '../../shared/types.js';
-import { claveValida, crearHistorial, historialProd } from './historial.js';
+import { json } from '../../http.js';
+import type { VpsHistorialSitio } from '../../../shared/types.js';
+import { claveValida, crearHistorial, historialProd } from '../historial.js';
 
 export interface DepsHistorial {
   historial?: ReturnType<typeof crearHistorial>;

@@ -16,9 +16,9 @@ import { manejarRutasPc } from './rutas/rutasPc.js';
 import { manejarRutasDev } from './rutas/rutasDev.js';
 import { manejarRutasConsola } from './rutas/rutasConsola.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
-import { manejarRutasVps } from './vps/rutasVps.js';
-import { manejarRutasVpsHistorial } from './vps/rutasVpsHistorial.js';
-import { manejarRutasVpsPiezas } from './vps/rutasVpsPiezas.js';
+import { manejarRutasVps } from './vps/rutas/rutasVps.js';
+import { manejarRutasVpsHistorial } from './vps/rutas/rutasVpsHistorial.js';
+import { manejarRutasVpsPiezas } from './vps/rutas/rutasVpsPiezas.js';
 import { manejarRutasTareas } from './tareas/rutasTareas.js';
 import { logger } from '../shared/logger.js';
 
@@ -118,7 +118,7 @@ export function crearServidor() {
           return;
         }
         /* Rutas de la tab vps (/api/vps/*, 299A-5, solo lectura via
-         * coolify-manager-rs): viven en vps/rutasVps.ts. */
+         * coolify-manager-rs): viven en vps/rutas/rutasVps.ts. */
         if (await manejarRutasVps(req, res, url, ruta)) {
           return;
         }

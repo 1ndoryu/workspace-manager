@@ -415,6 +415,10 @@
 
 .vpsBarraRelleno {
     height: 100%;
+    /* Valor por defecto (el % real entra por variable desde el
+     * componente): declarada aqui para varsense variableNoDefinida. */
+    --vps-barra: 0%;
+    width: var(--vps-barra);
     background: currentColor;
 }
 
