@@ -251,6 +251,10 @@ export function MenuTarea(p: MenuTareaProps) {
           {(submenu === 'prioridad' ? PRIORIDADES_TAREA : URGENCIAS_TAREA).map((nivel) => {
             const marcado = submenu === 'prioridad' ? pri === nivel : urg === nivel;
             const etiqueta = (submenu === 'prioridad' ? ETIQUETAS_PRIORIDAD : ETIQUETAS_URGENCIA)[nivel];
+            /* (08AA-3) Icono por nivel como en TASKS (`Flag`/`Zap` en
+             * `nivelesConfig.tsx`), en monocromo: sin `color`, hereda e
+             * invierte con la fila (la v2 no usa color). */
+            const esPrioridad = submenu === 'prioridad';
             return (
               <Button
                 key={nivel}
@@ -259,12 +263,14 @@ export function MenuTarea(p: MenuTareaProps) {
                 role="menuitemradio"
                 aria-checked={marcado}
                 onClick={cerrarCon(() =>
-                  submenu === 'prioridad'
+                  esPrioridad
                     ? p.acciones.prioridad(pri === nivel ? null : nivel)
                     : p.acciones.urgencia(nivel),
                 )}
               >
-                <span className="tareasMenuIcono" />
+                <span className="tareasMenuIcono">
+                  {esPrioridad ? <Flag size={12} aria-hidden /> : <Zap size={12} aria-hidden />}
+                </span>
                 <span className="tareasMenuEtiqueta">{etiqueta}</span>
                 {marcado && (
                   <span className="tareasMenuMarca">
