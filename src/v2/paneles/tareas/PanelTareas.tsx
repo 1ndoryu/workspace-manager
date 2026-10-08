@@ -8,6 +8,7 @@
  * fila con scroll horizontal propio (ancho fijo por columna, como un
  * kanban): FilaCajas reparte el ancho y las aplasta, no sirve aqui. */
 import { useState } from 'react';
+import { Plus, RotateCw } from 'lucide-react';
 import { Button } from '../../ui/form/Button.js';
 import { Caja } from '../../ui/caja/Caja.js';
 import { usePanelTareas } from '../../../hooks/usePanelTareas.js';
@@ -31,7 +32,7 @@ export function PanelTareas() {
         <div className="docsVacio">{t.error ?? 'cargando…'}</div>
         {t.error && (
           <Button pequeno onClick={t.recargar} title="Reintentar la conexión con PROYECTO TASKS">
-            ⟳ reintentar
+            <RotateCw size={12} aria-hidden /> reintentar
           </Button>
         )}
       </Caja>
@@ -49,7 +50,7 @@ export function PanelTareas() {
           8787) y reinícialo; las columnas por defecto (9001/9002) son el seed F1 en BD de rama
         </div>
         <Button pequeno onClick={t.recargar} title="Reintentar la conexión con PROYECTO TASKS">
-          ⟳ reintentar
+          <RotateCw size={12} aria-hidden /> reintentar
         </Button>
       </Caja>
     );
@@ -108,7 +109,7 @@ export function PanelTareas() {
                 aria-label="legacy_id del proyecto a agregar como columna"
               />
               <Button pequeno onClick={agregar} disabled={parsearLegacyId(nueva) === null} title="Agregar la columna">
-                + agregar
+                <Plus size={12} aria-hidden /> agregar
               </Button>
             </div>
             <div className="docsVacio">las columnas son proyectos TASKS; quitarlas solo las oculta aquí</div>
