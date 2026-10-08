@@ -1,5 +1,5 @@
 /* Tab kanban de tareas: columnas fijas = repos WM via proxy (07AA-5 F3,
- * DnD + menu 07AA-15, columnas fijas + alta inline 08AA-6).
+ * DnD + menu 07AA-15, columnas fijas 08AA-6, alta por modal 08AA-7).
  * [por que] Componente fino (sin estado): estado y red en usePanelTareas.
  * Degradado visible, nunca verde ambiguo: si el puente no esta disponible
  * se pinta el motivo + reintentar, no un kanban vacio. El orden de columnas
@@ -69,7 +69,7 @@ export function PanelTareas() {
               onSoltar={(origen, legacyId, antesDe) => void t.soltar(origen, col.legacyId, legacyId, antesDe)}
               onEditar={(legacyId, parche) => void t.editar(col.legacyId, legacyId, parche)}
               onEliminar={(legacyId) => void t.eliminar(col.legacyId, legacyId)}
-              onCrear={(texto) => void t.crear(col, texto)}
+              onCrear={(datos) => t.crear(col, datos)}
             />
           </div>
         ))}

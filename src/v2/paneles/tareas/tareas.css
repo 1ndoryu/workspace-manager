@@ -1,5 +1,5 @@
-/* Tab tareas (07AA-5 F3, scroll + DnD + menu 07AA-15): filas del kanban +
- * alta de columna + error.
+/* Tab tareas (07AA-5 F3, scroll + DnD + menu 07AA-15, alta por modal
+ * 08AA-7): filas del kanban + modal + error.
  * Idioma repos.css (borde 1px, tokens v2, sin color): la tarea en vuelo se
  * marca con relleno invertido (igual que reposFila--seleccionada), no con
  * color. Todas las clases las usa PanelTareas/ColumnaTareas/TarjetaTarea.
@@ -53,18 +53,19 @@
     min-height: 0;
 }
 
+/* Zona vacia (08AA-7): texto sin bordes; sigue siendo destino de drop
+ * (los gestos viven en ColumnaTareas, aqui solo el aspecto). */
 .tareasVacia {
     padding: var(--v2-spaceMd);
     font-size: var(--v2-textSm);
-    border: 1px dashed var(--v2-borde);
 }
 
 .tareasFila {
     position: relative;
     display: flex;
     align-items: center;
-    gap: var(--v2-spaceSm);
-    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    gap: var(--v2-spaceXs);
+    padding: var(--v2-spaceXs);
     border: none;
     border-bottom: 1px solid var(--v2-borde);
     background: var(--v2-fondo);
@@ -93,18 +94,13 @@
     text-decoration: line-through;
 }
 
-.tareasCheck {
-    flex: none;
-    accent-color: var(--v2-texto);
-}
-
 .tareasTexto {
     flex: 1;
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: var(--v2-textSm);
+    font-size: var(--v2-textXs);
 }
 
 .tareasRenombre {
@@ -115,7 +111,7 @@
     border: 1px solid var(--v2-texto);
     padding: var(--v2-spaceXs) var(--v2-spaceSm);
     font-family: inherit;
-    font-size: var(--v2-textSm);
+    font-size: var(--v2-textXs);
 }
 
 .tareasChip {
@@ -124,11 +120,6 @@
     border: 1px solid var(--v2-borde);
     padding: 0 var(--v2-spaceXs);
     font-size: var(--v2-textXs);
-}
-
-.tareasMeta {
-    flex: none;
-    white-space: nowrap;
 }
 
 .tareasBotones {
@@ -235,20 +226,72 @@
     width: 100%;
 }
 
-.tareasAlta {
+/* Modal de alta rapida (08AA-7): espejo minimalista del
+ * ModalCreacionRapida de TASKS con estetica monocroma v2 (sin velos de
+ * color, sin radios, sin sombras). Fondo transparente que captura el clic
+ * (como `.tareasMenuFondo`) + caja ancha centrada verticalmente con la
+ * receta canonica `.v2Superficie`. La entrada no lleva bordes (como
+ * `.creacionRapidaInput` de TASKS: fondo transparente, placeholder en
+ * cursiva apagada) y la fila de opciones lleva iconos fantasma (Flag/Zap,
+ * como los `Boton variante="opcion"` de TASKS) con menus desplegables en
+ * el arbol. La fuente v2 se fija aqui (07AA-18). */
+.tareasModalFondo {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: default;
+    z-index: 50;
+    font-family: var(--v2-font);
+}
+
+.tareasModal {
+    position: relative;
+    width: min(600px, calc(100vw - 32px));
+    padding: var(--v2-spaceMd);
+}
+
+.tareasModalFila {
     display: flex;
     align-items: center;
     gap: var(--v2-spaceSm);
-    padding: var(--v2-spaceXs) var(--v2-spaceMd);
 }
 
-.tareasAltaEntrada {
+.tareasModalEntrada {
     flex: 1;
     min-width: 0;
-    background: var(--v2-fondo);
+    background: transparent;
     color: var(--v2-texto);
-    border: 1px solid var(--v2-borde);
-    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    border: none;
+    outline: none;
+    padding: var(--v2-spaceSm);
     font-family: inherit;
     font-size: var(--v2-textSm);
+}
+
+.tareasModalEntrada::placeholder {
+    opacity: 0.7;
+    font-style: italic;
+}
+
+.tareasModalOpciones {
+    display: flex;
+    gap: var(--v2-spaceSm);
+    padding-top: var(--v2-spaceSm);
+}
+
+/* Menu desplegable de prioridad/urgencia: anclado a la caja (que es
+ * `position:relative`), superficie canonica compuesta en el className. */
+.tareasModalMenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    max-width: calc(100vw - 32px);
 }
