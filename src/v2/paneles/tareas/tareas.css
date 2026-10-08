@@ -163,7 +163,8 @@
  * relleno) la pone la receta canonica `.v2Superficie` (css canónico 299A-11:
  * componer por className, nada de especificacion local).
  * (07AA-17) Filas espejo del `MenuContextual` de TASKS (icono + etiqueta +
- * check + flecha + separadores + pie) con inversion monocroma v2. */
+ * check + flecha + pie) con inversion monocroma v2 (08AA-4: sin
+ * separadores por decision del usuario). */
 .tareasMenu {
     --tareas-menu-x: 0px;
     --tareas-menu-y: 0px;
@@ -205,12 +206,6 @@
     justify-content: flex-end;
     width: 16px;
     flex: none;
-}
-
-.tareasMenuSeparador {
-    height: 1px;
-    margin: var(--v2-spaceXs) 0;
-    background: var(--v2-borde);
 }
 
 .tareasMenuEnvoltorio {
