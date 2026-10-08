@@ -208,3 +208,65 @@ export function generarIdTarea(ahora: number = Date.now()): number {
   restoIdTarea = (restoIdTarea + 1) % 1000;
   return Math.floor(ahora) * 1000 + restoIdTarea;
 }
+
+/* Foto local del kanban (08AA-8: stale-while-revalidate).
+ * [por que] La carga fresca tarda ~4s (18 columnas en serie contra TASKS);
+ * el hook pinta esta foto al montar y revalida en fondo. Solo datos JSON:
+ * clonar filtra con los mismos guardianes que la red (esColumnaTab /
+ * esTareaTab) y restaurar devuelve null ante cualquier forma ajena en vez
+ * de pintar basura. Las claves de `tareas` se validan enteras (en JSON
+ * viajan como texto). */
+export interface CacheTareasTab {
+  guardadoEn: number;
+  estado: TareasEstado;
+  columnas: ColumnaTab[];
+  tareas: Record<number, TareaTab[]>;
+}
+
+export function clonarCacheTareas(
+  estado: TareasEstado,
+  columnas: ColumnaTab[],
+  tareas: Record<number, TareaTab[]>,
+): CacheTareasTab {
+  const copia: Record<number, TareaTab[]> = {};
+  for (const [k, lista] of Object.entries(tareas)) {
+    if (!Array.isArray(lista)) continue;
+    copia[Number(k)] = lista.filter(esTareaTab);
+  }
+  return {
+    guardadoEn: Date.now(),
+    estado: {
+      configurado: estado.configurado === true,
+      disponible: estado.disponible === true,
+      motivo: typeof estado.motivo === 'string' ? estado.motivo : null,
+    },
+    columnas: columnas.filter(esColumnaTab).map((c) => ({ clave: c.clave, nombre: c.nombre, legacyId: c.legacyId })),
+    tareas: copia,
+  };
+}
+
+export function restaurarCacheTareas(v: unknown): CacheTareasTab | null {
+  if (typeof v !== 'object' || v === null) return null;
+  const c = v as Record<string, unknown>;
+  if (!Number.isInteger(c.guardadoEn)) return null;
+  if (typeof c.estado !== 'object' || c.estado === null) return null;
+  const e = c.estado as Record<string, unknown>;
+  if (typeof e.configurado !== 'boolean' || typeof e.disponible !== 'boolean') return null;
+  if (!Array.isArray(c.columnas) || !c.columnas.every(esColumnaTab)) return null;
+  if (typeof c.tareas !== 'object' || c.tareas === null || Array.isArray(c.tareas)) return null;
+  const tareas: Record<number, TareaTab[]> = {};
+  for (const [k, lista] of Object.entries(c.tareas as Record<string, unknown>)) {
+    if (!Number.isInteger(Number(k)) || !Array.isArray(lista)) return null;
+    tareas[Number(k)] = lista.filter(esTareaTab);
+  }
+  return {
+    guardadoEn: c.guardadoEn as number,
+    estado: {
+      configurado: e.configurado as boolean,
+      disponible: e.disponible as boolean,
+      motivo: typeof e.motivo === 'string' ? (e.motivo as string) : null,
+    },
+    columnas: (c.columnas as ColumnaTab[]).map((col) => ({ clave: col.clave, nombre: col.nombre, legacyId: col.legacyId })),
+    tareas,
+  };
+}

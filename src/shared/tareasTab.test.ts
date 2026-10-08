@@ -3,6 +3,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  clonarCacheTareas,
   columnasDeRespuesta,
   completadoTarea,
   construirMovimientos,
@@ -14,6 +15,7 @@ import {
   parcheConColumna,
   PRIORIDADES_TAREA,
   prioridadTarea,
+  restaurarCacheTareas,
   tareaDePuente,
   tareasDeRespuesta,
   textoTarea,
@@ -194,5 +196,30 @@ describe('niveles (07AA-15, espejo TASKS)', () => {
     assert.equal(completadoTarea(rota), false);
     assert.equal(prioridadTarea(rota), null);
     assert.equal(urgenciaTarea(rota), 'normal');
+  });
+});
+
+describe('cacheTareas (08AA-8)', () => {
+  const ESTADO = { configurado: true, disponible: true, motivo: null };
+  const COLS = [{ clave: 'gloryapi', nombre: 'gloryapi', legacyId: 9001 }];
+  const TAREAS = { 9001: [TAREA] };
+
+  it('clonar+restaurar hace roundtrip (via JSON, como localStorage)', () => {
+    const foto = clonarCacheTareas(ESTADO, COLS, TAREAS);
+    const got = restaurarCacheTareas(JSON.parse(JSON.stringify(foto)));
+    assert.deepEqual(got?.columnas, COLS);
+    assert.deepEqual(got?.tareas, TAREAS);
+    assert.equal(got?.estado.disponible, true);
+  });
+  it('clonar filtra tareas invalidas sin romper la foto', () => {
+    const foto = clonarCacheTareas(ESTADO, COLS, { 9001: [TAREA, { legacyId: 'x' } as unknown as TareaTab] });
+    assert.equal(foto.tareas[9001].length, 1);
+  });
+  it('restaurar rechaza formas ajenas', () => {
+    for (const v of [null, 42, 'x', [], {}, { guardadoEn: 1 }, { guardadoEn: 1, estado: ESTADO }]) {
+      assert.equal(restaurarCacheTareas(v), null);
+    }
+    assert.equal(restaurarCacheTareas({ guardadoEn: 1, estado: ESTADO, columnas: [{ clave: 'a' }], tareas: {} }), null);
+    assert.equal(restaurarCacheTareas({ guardadoEn: 1, estado: ESTADO, columnas: [], tareas: { x: [] } }), null);
   });
 });

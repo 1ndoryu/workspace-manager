@@ -55,8 +55,13 @@ Tab `tareas` (NavBar icono `Kanban`): columnas fijas = un repo no-ignorado
 del snapshot WM (08AA-6: sin caja agregar, sin X, sin localStorage; el orden
 lo fija el snapshot), movimiento de tareas solo por arrastre DnD nativo
 (08AA-5: sin botones de mover, ni en el menú ni en la cabecera),
-alta rápida inline por columna (Enter o `añadir` → PUT-upsert con id
-espejo-TASKS), bulk+relectura vía proxy.
+alta por modal estilo TASKS (08AA-7: `+` sin texto en la cabecera en lugar
+del contador, sin contador, zona vacía sin bordes; el modal pide texto +
+prioridad/urgencia y crea vía PUT-upsert con id espejo-TASKS),
+carga optimista + caché local stale-while-revalidate (08AA-8: el modal
+cierra al instante con tarjeta fantasma, columnas en paralelo, cola en
+serie en vez de single-flight),
+bulk+relectura vía proxy.
 
 - Proxy backend (`src/server/tareas/rutasTareas.ts`): `GET /api/tareas/estado`
   (disponibilidad+motivo, nunca 500), `GET /api/tareas/proyectos` (sincroniza

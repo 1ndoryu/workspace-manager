@@ -246,3 +246,62 @@
     opacity: 0.35;
     cursor: default;
 }
+
+/* Alta rapida del kanban (08AA-7): flecha de envio fantasma e iconos de
+ * opcion (Flag/Zap), espejo del `.creacionRapidaBotonEnviar` y los `Boton
+ * variante="opcion"` de TASKS con inversion monocroma v2. Sin fondo ni
+ * borde: la caja del modal ya da el contexto visual. El estado `activo`
+ * (valor elegido) invierte el relleno como el resto del v2. Button.css es
+ * el unico lugar permitido para estilos de boton. */
+.botonV2.tareasModalEnviar,
+.botonV2.tareasModalFantasma {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    color: var(--v2-texto);
+    flex: none;
+}
+
+.botonV2.tareasModalEnviar:hover:not(:disabled),
+.botonV2.tareasModalFantasma:hover:not(:disabled),
+.botonV2.tareasModalEnviar:focus-visible,
+.botonV2.tareasModalFantasma:focus-visible {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    outline: none;
+}
+
+.botonV2.tareasModalEnviar:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Kanban de tareas: casilla cuadrada propia (14px, sin radio) y boton de
+ * 3 puntos sin borde. [por que] Diseno propio a pedido del usuario (sin
+ * checkbox nativo): la casilla vacia es solo el borde, completada invierte
+ * el relleno y muestra el check en invertido; los 3 puntos van sin borde
+ * para no pesar en la fila. Button.css es el unico lugar permitido para
+ * estilos de boton. */
+.botonV2.tareasCasilla {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    margin: 2px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--v2-texto);
+    border-radius: 0;
+    color: var(--v2-invertido);
+}
+
+.botonV2.tareasCasilla:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.botonV2.tareasPuntos {
+    border: none;
+}

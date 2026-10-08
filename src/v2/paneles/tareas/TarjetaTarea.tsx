@@ -1,8 +1,11 @@
-/* Tarjeta arrastrable del kanban (07AA-15): checkbox completar + texto
- * (renombrable inline) + chips de nivel + boton de menu (MoreHorizontal)
- * con MenuTarea.
+/* Tarjeta arrastrable del kanban (07AA-15): casilla cuadrada propia +
+ * texto (renombrable inline) + chips de nivel + boton de menu
+ * (MoreHorizontal) con MenuTarea.
  * [por que] Un solo useState objeto (vista: editando / borrador /
- * confirmarBorrado) para no rozar usestate-excesivo. El menu flota en un
+ * confirmarBorrado) para no rozar usestate-excesivo. La casilla es un
+ * <Button> con el compuesto `.botonV2.tareasCasilla` (cuadrado de 14px sin
+ * radio, inversion monocroma al completar: diseno propio a pedido del
+ * usuario, sin checkbox nativo). El menu flota en un
  * portal al body (07AA-16: dentro de la tarjeta lo recortaba el scroll-X)
  * con ancla del hook `useMenuTarjeta`. El arrastre es DnD
  * nativo sin librerias: la columna pone los datos (origen + id) y el
@@ -12,7 +15,7 @@
  * arrastre cubre el cambio de columna. */
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreHorizontal, X } from 'lucide-react';
+import { Check, MoreHorizontal, X } from 'lucide-react';
 import { cuerpoDocumento } from '../../../shared/platform/plataforma.js';
 import { Button } from '../../ui/form/Button.js';
 import {
@@ -97,14 +100,17 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
         menu.abrir(ev.currentTarget);
       }}
     >
-      <input
-        type="checkbox"
-        className="tareasCheck"
-        checked={hecha}
+      <Button
+        className="tareasCasilla"
+        activo={hecha}
         disabled={!g.arrastrable}
+        aria-pressed={hecha}
         aria-label={hecha ? `reabrir ${texto}` : `completar ${texto}`}
-        onChange={() => g.onEditar(conTexto({ completado: !hecha }))}
-      />
+        title={hecha ? `reabrir ${texto}` : `completar ${texto}`}
+        onClick={() => g.onEditar(conTexto({ completado: !hecha }))}
+      >
+        {hecha && <Check size={8} aria-hidden />}
+      </Button>
       {vista.editando ? (
         <input
           className="tareasRenombre"
@@ -119,13 +125,12 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
           }}
         />
       ) : (
-        <span className="tareasTexto" title={`#${tarea.legacyId} · orden ${tarea.orden}`}>
+        <span className="tareasTexto">
           {texto}
         </span>
       )}
       {pri && <span className="tareasChip" title={`prioridad ${ETIQUETAS_PRIORIDAD[pri]}`}>{ETIQUETAS_PRIORIDAD[pri]}</span>}
       {urg !== 'normal' && <span className="tareasChip" title={`urgencia ${ETIQUETAS_URGENCIA[urg]}`}>{ETIQUETAS_URGENCIA[urg]}</span>}
-      <span className="tareasMeta">#{tarea.legacyId}</span>
       {g.enVuelo && <span className="tareasVolando" aria-hidden="true">…</span>}
       {vista.confirmarBorrado ? (
         <span className="tareasBotones" role="group" aria-label={`confirmar borrado de ${texto}`}>
@@ -150,6 +155,7 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
         <Button
           pequeno
           cuadrado
+          className="tareasPuntos"
           onClick={(ev) => menu.abrir(ev.currentTarget)}
           aria-haspopup="menu"
           aria-expanded={menu.abierto}
