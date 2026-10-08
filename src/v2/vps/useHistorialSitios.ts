@@ -8,7 +8,8 @@ import {
   type MuestraSitio,
 } from './historialSitios.js';
 import { guardarTexto, leerTexto } from '../../shared/storage.js';
-import { RANGOS } from '../paneles/PanelVpsRecursos.js';
+import { bajarVentana, suscribirVentana } from '../../shared/platform/plataforma.js';
+import { RANGOS } from '../paneles/vps/PanelVpsRecursos.js';
 import type { VpsAgenteSnapshot } from '../../shared/types.js';
 /* [07AA-4] Base persistente del servidor: se fusiona con la cola viva para
  * que el detalle sobreviva a recargas y cambios de origen. */
@@ -49,8 +50,8 @@ export function useHistorialSitios(snap: VpsAgenteSnapshot | null): {
     function alSalir() {
       guardarHistorialSitios(historial.current);
     }
-    window.addEventListener('beforeunload', alSalir);
-    return () => window.removeEventListener('beforeunload', alSalir);
+    suscribirVentana('beforeunload', alSalir);
+    return () => bajarVentana('beforeunload', alSalir);
   }, []);
 
   /* Una muestra por sitio y tick (el muestreo decide si toca). El t es el

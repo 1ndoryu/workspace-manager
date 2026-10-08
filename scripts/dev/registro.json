@@ -140,7 +140,7 @@
       "id": "glory-harness",
       "ruta": "../glory-harness",
       "dominio": "harness.localhost",
-      "boton": [["cargo", "run", "-p", "glory-harness", "--", "web", "--puerto", "8799"]],
+      "boton": [["cargo", "run", "-p", "glory-harness", "--", "web", "--puerto", "8799", "--dir-ui", "desktop/ui/dist"]],
       "puertos": [8799],
       "healths": [{ "puerto": 8799, "ruta": "/healthz", "esperaJson": true }],
       "timeoutMs": 3000,

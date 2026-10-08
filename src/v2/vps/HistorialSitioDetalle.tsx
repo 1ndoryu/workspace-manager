@@ -1,4 +1,4 @@
-import { Chispa, RANGOS } from '../paneles/PanelVpsRecursos.js';
+import { Chispa, RANGOS } from '../paneles/vps/PanelVpsRecursos.js';
 import type { MuestraSitio } from './historialSitios.js';
 
 /* [0110A-3 F2] Bloque de historial dentro del detalle por sitio:

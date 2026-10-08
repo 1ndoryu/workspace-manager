@@ -6,8 +6,8 @@
  * rutasVps.ts) para no chocar con el refactor concurrente de esa ruta:
  * solo reutiliza el puente (puente.ts), nunca sus internos. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { json } from '../http.js';
-import type { VpsPieza } from '../../shared/types.js';
+import { json } from '../../http.js';
+import type { VpsPieza } from '../../../shared/types.js';
 import {
   NOMBRE_OK,
   dbStatsJson,
@@ -19,7 +19,7 @@ import {
   rutaBinario,
   salud,
   statsJson,
-} from './puente.js';
+} from '../puente.js';
 
 /* Timeout propio por pieza (plan F3: 15-20 s): si el SSH se cuelga se
  * responde timeout-pieza y el trabajo de fondo muere solo (el puente

@@ -21,7 +21,7 @@ import { PanelPc } from './paneles/PanelPc.js';
 import { MenuContextual } from './ui/menu/MenuContextual.js';
 import { PanelRepos } from './paneles/PanelRepos.js';
 import { PanelTareas } from './paneles/tareas/PanelTareas.js';
-import { PanelVps } from './paneles/PanelVps.js';
+import { PanelVps } from './paneles/vps/PanelVps.js';
 import { Resizer } from './ui/overlay/Resizer.js';
 import { Toaster } from './ui/overlay/Toaster.js';
 import './styles/v2.css';
