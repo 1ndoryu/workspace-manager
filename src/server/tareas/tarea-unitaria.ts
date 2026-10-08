@@ -41,6 +41,56 @@ export function validarParche(parche: unknown): {ok: true; valor: ParcheTarea} |
   return {ok: true, valor: p as unknown as ParcheTarea};
 }
 
+/* Proyecto TASKS tal como lo sirve GET /api/dashboard (data.proyectos):
+ * `object_with_id` fija `id` = legacy_id numerico (models/dashboard.rs) y
+ * `project_object` aporta `nombre`/`estado`/`orden` (proyeccion.rs:209). El
+ * `payload` del proyecto se mezcla a raiz, asi que `payload.wmClave` (llave
+ * del sync 08AA-6: clave WM que origino el proyecto) llega como `wmClave`
+ * a raiz. Sin `wmClave` el proyecto no es de ningun repo WM (p. ej. demos)
+ * y no genera columna, pero queda intacto. */
+export interface ProyectoPuente {
+  legacyId: number;
+  nombre: string;
+  estado: string | null;
+  orden: number | null;
+  wmClave: string | null;
+}
+
+function enteroPositivo(v: unknown): number | null {
+  return Number.isInteger(v) && (v as number) > 0 ? (v as number) : null;
+}
+
+function textoNoVacio(v: unknown): string | null {
+  return typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
+}
+
+/* Normaliza data.proyectos del agregado a ProyectoPuente (descarta lo que no
+ * sea proyecto: sin id entero positivo no hay columna posible). `nombre`
+ * admite `nombre`/`name`; sin nombre queda '' y nunca empareja (no se
+ * inventa etiqueta). `wmClave` admite raiz o `payload.wmClave` (el agregado
+ * ya lo mezcla a raiz; se aceptan ambas formas por robustez). */
+export function proyectosDeAgregado(datos: unknown): ProyectoPuente[] {
+  if (typeof datos !== 'object' || datos === null) return [];
+  const data = (datos as {data?: unknown}).data;
+  if (typeof data !== 'object' || data === null) return [];
+  const lista = (data as {proyectos?: unknown}).proyectos;
+  if (!Array.isArray(lista)) return [];
+  const normalizados: ProyectoPuente[] = [];
+  for (const v of lista) {
+    if (typeof v !== 'object' || v === null) continue;
+    const p = v as Record<string, unknown>;
+    const id = enteroPositivo(p.id) ?? enteroPositivo(p.legacy_id) ?? enteroPositivo(p.legacyId);
+    if (id === null) continue;
+    const nombre = textoNoVacio(p.nombre) ?? textoNoVacio(p.name) ?? '';
+    const estado = textoNoVacio(p.estado);
+    const orden = Number.isInteger(p.orden) ? (p.orden as number) : null;
+    const anidado =
+      typeof p.payload === 'object' && p.payload !== null ? (p.payload as Record<string, unknown>).wmClave : null;
+    normalizados.push({legacyId: id, nombre, estado, orden, wmClave: textoNoVacio(p.wmClave) ?? textoNoVacio(anidado)});
+  }
+  return normalizados;
+}
+
 /* Mapa de errores PUT/DELETE sobre /api/tasks/:legacy_id: el mismo
  * vocabulario ErrorKanban para que las rutas respondan igual que el resto. */
 export function mapearErrorTarea(estado: number, cuerpo: unknown, reintentar?: number): ErrorKanban {

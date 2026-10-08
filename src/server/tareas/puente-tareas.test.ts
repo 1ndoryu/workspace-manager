@@ -4,7 +4,7 @@
 import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 import {crearPuenteTareas, type FetchPuente, type RespuestaPuente} from './puente-tareas.js';
-import {validarParche} from './tarea-unitaria.js';
+import {proyectosDeAgregado, validarParche} from './tarea-unitaria.js';
 import type {PeticionHttp} from './nucleo/tipos.js';
 
 const CONF = {
@@ -174,5 +174,66 @@ void describe('puente-tareas', () => {
     });
     await assert.rejects(puente.listar(9));
     assert.equal(llamadas.length, 0);
+  });
+
+  void it('proyectosDeAgregado normaliza data.proyectos y descarta lo roto (08AA-6)', async () => {
+    assert.deepEqual(proyectosDeAgregado(null), []);
+    assert.deepEqual(proyectosDeAgregado({data: {}}), []);
+    assert.deepEqual(
+      proyectosDeAgregado({data: {proyectos: [
+        {id: 9, nombre: ' Nueve ', estado: 'activo', orden: 2, wmClave: 'nueve'},
+        {id: 10, name: 'Diez', payload: {wmClave: 'diez'}},
+        {id: 11, nombre: 'Once'},
+        {id: 0, nombre: 'sin-id'},
+        {nombre: 'sin-id-2'},
+        'roto',
+      ]}}),
+      [
+        {legacyId: 9, nombre: 'Nueve', estado: 'activo', orden: 2, wmClave: 'nueve'},
+        {legacyId: 10, nombre: 'Diez', estado: null, orden: null, wmClave: 'diez'},
+        {legacyId: 11, nombre: 'Once', estado: null, orden: null, wmClave: null},
+      ],
+    );
+  });
+
+  void it('proyectos pide el dashboard con sesion y normaliza (08AA-6)', async () => {
+    const agregado = {data: {proyectos: [{id: 9, nombre: 'Nueve', estado: 'activo', orden: 0}]}};
+    const {llamadas, puente} = fakes([LOGIN_OK, resp(200, agregado)]);
+    const proyectos = await puente.proyectos();
+    assert.deepEqual(proyectos, [{legacyId: 9, nombre: 'Nueve', estado: 'activo', orden: 0, wmClave: null}]);
+    assert.equal(llamadas.length, 2);
+    assert.ok(llamadas[1].url.endsWith('/api/dashboard'));
+    assert.equal(llamadas[1].init.method, 'GET');
+    assert.equal((llamadas[1].init.headers as Record<string, string>)['x-csrf-token'], 'BBB');
+  });
+
+  void it('crearProyecto hace PUT a /api/projects con payload.wmClave (08AA-6)', async () => {
+    const {llamadas, puente} = fakes([LOGIN_OK, resp(200, {ok: true})]);
+    const id = await puente.crearProyecto(1700000000000000, 'gloryapi', 'gloryapi');
+    assert.equal(id, 1700000000000000);
+    assert.ok(llamadas[1].url.endsWith('/api/projects/1700000000000000'));
+    assert.equal(llamadas[1].init.method, 'PUT');
+    assert.deepEqual(JSON.parse(String(llamadas[1].init.body)), {nombre: 'gloryapi', payload: {wmClave: 'gloryapi'}});
+  });
+
+  void it('crearProyecto rechaza id invalido sin tocar red (08AA-6)', async () => {
+    const {llamadas, puente} = fakes([LOGIN_OK]);
+    await assert.rejects(
+      puente.crearProyecto(0, 'x', 'x'),
+      (e: unknown) => (e as {codigo: string}).codigo === 'validacion',
+    );
+    assert.equal(llamadas.length, 0);
+  });
+
+  void it('proyectos ante 401 re-hace login y reintenta (08AA-6)', async () => {
+    const agregado = {data: {proyectos: []}};
+    const {llamadas, puente} = fakes([
+      LOGIN_OK,
+      resp(401, {message: 'caducada'}),
+      LOGIN_OK,
+      resp(200, agregado),
+    ]);
+    assert.deepEqual(await puente.proyectos(), []);
+    assert.equal(llamadas.filter((l) => l.url.endsWith('/api/auth/login')).length, 2);
   });
 });

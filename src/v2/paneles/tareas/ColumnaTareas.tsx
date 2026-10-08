@@ -1,13 +1,16 @@
-/* Columna del kanban: una Caja por proyecto TASKS (07AA-5 F3, DnD 07AA-15).
- * [por que] Casi render puro (un useState para el indicador de destino):
- * todo lo decide usePanelTareas. El arrastre es DnD nativo sin librerias:
- * la tarjeta arrastra {origen, legacyId} y la columna suelta
+/* Columna del kanban: una Caja por repo WM con su proyecto TASKS (07AA-5
+ * F3, DnD 07AA-15, columnas fijas + alta inline 08AA-6).
+ * [por que] Casi render puro (dos useState: indicador de destino + texto del
+ * alta): todo lo decide usePanelTareas. El arrastre es DnD nativo sin
+ * librerias: la tarjeta arrastra {origen, legacyId} y la columna suelta
  * delante de otra tarjeta (o al final en zona vacia); el hook hace el bulk
  * transaccional + relectura. (08AA-5) Sin botones de mover: ni las flechas
  * de la cabecera ni las filas del menu de la tarjeta son necesarias; el
- * arrastre cubre el cambio de columna y el orden de columnas es fijo. */
+ * arrastre cubre el cambio de columna y el orden de columnas es fijo.
+ * (08AA-6) Sin X de quitar (columnas fijas del servidor) y con alta rapida
+ * inline al pie: Enter crea via PUT-upsert y la relectura la confirma. */
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '../../ui/form/Button.js';
 import { Caja } from '../../ui/caja/Caja.js';
 import type { ParcheTareaTab, TareaTab } from '../../../shared/tareasTab.js';
@@ -31,6 +34,7 @@ export function leerArrastre(ev: React.DragEvent): { origen: number; legacyId: n
 /* Identidad de la columna dentro de la fila. */
 interface ColumnaIdentidad {
   legacyId: number;
+  nombre: string;
 }
 
 /* Datos que pinta: tareas ya ordenadas por la API + flags de vuelo. */
@@ -46,7 +50,7 @@ interface ColumnaGestos {
   onSoltar: (origen: number, legacyId: number, antesDe: number | null) => void;
   onEditar: (legacyId: number, parche: ParcheTareaTab) => void;
   onEliminar: (legacyId: number) => void;
-  onQuitar: () => void;
+  onCrear: (texto: string) => void;
 }
 
 interface ColumnaTareasProps extends ColumnaIdentidad, ColumnaDatos, ColumnaGestos {}
@@ -56,6 +60,7 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
   const ocupada = p.moviendo !== null || p.cargando;
   /* Tarjeta bajo el cursor (id) o 'fin' (zona vacia): solo indicador. */
   const [sobre, setSobre] = useState<number | 'fin' | null>(null);
+  const [texto, setTexto] = useState('');
 
   const soltar = (ev: React.DragEvent, antesDe: number | null) => {
     ev.preventDefault();
@@ -66,18 +71,17 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
     p.onSoltar(arrastre.origen, arrastre.legacyId, antesDe);
   };
 
+  const crear = () => {
+    if (texto.trim() === '' || ocupada) return;
+    p.onCrear(texto.trim());
+    setTexto('');
+  };
+
   return (
     <Caja
-      titulo={`columna ${p.legacyId}`}
+      titulo={p.nombre}
       meta={`${lista.length} tareas`}
-      etiqueta={`Columna ${p.legacyId} del kanban`}
-      acciones={
-        <>
-          <Button pequeno cuadrado onClick={p.onQuitar} title={`quitar la columna ${p.legacyId} (solo la oculta en esta tab)`} aria-label={`quitar la columna ${p.legacyId}`}>
-            <X size={12} aria-hidden />
-          </Button>
-        </>
-      }
+      etiqueta={`Columna ${p.nombre} del kanban`}
     >
       {p.tareas === null && <div className="docsVacio">{p.cargando ? 'cargando…' : 'sin datos'}</div>}
       {p.tareas !== null && lista.length === 0 && (
@@ -97,7 +101,7 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
         <div
           className="tareasLista"
           role="list"
-          aria-label={`Tareas de la columna ${p.legacyId} (arrastra para mover)`}
+          aria-label={`Tareas de la columna ${p.nombre} (arrastra para mover)`}
           onDragOver={(ev) => {
             ev.preventDefault();
             setSobre('fin');
@@ -130,6 +134,23 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
           {sobre === 'fin' && <div className="tareasDestino" aria-hidden="true">soltar al final</div>}
         </div>
       )}
+      <div className="tareasAlta">
+        <input
+          className="tareasAltaEntrada"
+          value={texto}
+          onChange={(ev) => setTexto(ev.target.value)}
+          onKeyDown={(ev) => {
+            if (ev.key === 'Enter') crear();
+          }}
+          placeholder="+ Añadir tarea"
+          maxLength={1000}
+          disabled={ocupada}
+          aria-label={`Añadir tarea en ${p.nombre}`}
+        />
+        <Button pequeno onClick={crear} disabled={texto.trim() === '' || ocupada} title={`Añadir tarea en ${p.nombre}`}>
+          <Plus size={12} aria-hidden /> añadir
+        </Button>
+      </div>
     </Caja>
   );
 }

@@ -19,7 +19,7 @@ import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutas/rutasVps.js';
 import { manejarRutasVpsHistorial } from './vps/rutas/rutasVpsHistorial.js';
 import { manejarRutasVpsPiezas } from './vps/rutas/rutasVpsPiezas.js';
-import { manejarRutasTareas } from './tareas/rutasTareas.js';
+import { crearManejadorTareas } from './tareas/rutasTareas.js';
 import { logger } from '../shared/logger.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
@@ -48,6 +48,13 @@ function snapshotArea(forzar: boolean) {
     forzar,
   );
 }
+
+/* Proxy tareas con las columnas del snapshot (08AA-6 sync): instancia unica;
+ * `snapshotArea(false)` sirve cache sin escanear (la columna nueva aparece
+ * tras el siguiente escaneo). */
+const manejarTareas = crearManejadorTareas({
+  leerWm: () => snapshotArea(false).snapshot.proyectos.map((p) => ({clave: p.clave, nombre: p.id})),
+});
 
 /* Sirve archivos estaticos del build (dist) o del index.html. */
 function servirEstatico(rutaRel: string, res: ServerResponse): void {
@@ -147,7 +154,7 @@ export function crearServidor() {
         }
         /* Proxy de la tab tareas (/api/tareas/*, 07AA-5 F2): el front no
          * toca TASKS; el puente custodia la sesion D1 en el servidor. */
-        if (await manejarRutasTareas(req, res, url, ruta)) {
+        if (await manejarTareas(req, res, url, ruta)) {
           return;
         }
         json(res, 404, { error: 'Ruta no encontrada', ruta });

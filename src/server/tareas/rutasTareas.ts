@@ -9,6 +9,7 @@ import {json, leerBody} from '../http.js';
 import type {ErrorKanban} from './nucleo/tipos.js';
 import {esIdValido, validarLote} from './nucleo/validaciones.js';
 import {crearPuenteTareas, puenteTareas, type PuenteTareas} from './puente-tareas.js';
+import {sincronizarColumnas, type EntradaWm} from './sincronizar-proyectos.js';
 import {validarParche} from './tarea-unitaria.js';
 
 const CODIGOS_KANBAN = [
@@ -24,6 +25,9 @@ const CODIGOS_KANBAN = [
 export interface DepsRutasTareas {
   puente?: PuenteTareas;
   leerCuerpo?: (req: IncomingMessage) => Promise<unknown>;
+  /* Repos WM en orden de snapshot, ya sin ignorados (produccion: lo sirve
+   * index.ts desde `snapshotArea(false)`; tests: lista fija). */
+  leerWm?: () => EntradaWm[];
 }
 
 function esErrorKanban(e: unknown): e is ErrorKanban {
@@ -67,6 +71,7 @@ function responderKanban(res: ServerResponse, e: unknown, noEncontrado = 'proyec
 export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
   const puente = deps.puente ?? puenteTareas;
   const leerCuerpo = deps.leerCuerpo ?? leerBody;
+  const leerWm = deps.leerWm ?? (() => []);
 
   return async function manejarRutasTareas(
     req: IncomingMessage,
@@ -76,6 +81,23 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
   ): Promise<boolean> {
     if (ruta === '/api/tareas/estado' && req.method === 'GET') {
       json(res, 200, puente.estado());
+      return true;
+    }
+    /* Columnas fijas sincronizadas (08AA-6): empareja cada repo WM con su
+     * proyecto TASKS por `wmClave` y crea en TASKS los que falten (sync
+     * puro: nunca borra; ignorado = sin columna). Responde las columnas en
+     * orden de snapshot: el front las pinta directas, sin emparejar. */
+    if (ruta === '/api/tareas/proyectos' && req.method === 'GET') {
+      try {
+        const proyectos = await sincronizarColumnas({
+          wm: leerWm(),
+          task: await puente.proyectos(),
+          crear: (legacyId, entrada) => puente.crearProyecto(legacyId, entrada.nombre, entrada.clave),
+        });
+        json(res, 200, {proyectos});
+      } catch (e) {
+        responderKanban(res, e);
+      }
       return true;
     }
     if (ruta === '/api/tareas/proyecto' && req.method === 'GET') {

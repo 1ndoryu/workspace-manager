@@ -51,19 +51,25 @@ Reglas:
 
 ## Tareas (kanban con TASKS como fuente única, 07AA-5)
 
-Tab `tareas` (NavBar icono `Kanban`): columnas = `legacy_id` de proyecto
-manuales (defecto seed `9001/9002`, clave `workspaceManager:tareas:columnas`
-en localStorage; F1 no expone listar-proyectos, sin descubrimiento),
-movimiento de tareas solo por arrastre DnD nativo (08AA-5: sin botones de
-mover, ni en el menú ni en la cabecera; orden de columnas fijo),
-bulk+relectura vía proxy.
+Tab `tareas` (NavBar icono `Kanban`): columnas fijas = un repo no-ignorado
+del snapshot WM (08AA-6: sin caja agregar, sin X, sin localStorage; el orden
+lo fija el snapshot), movimiento de tareas solo por arrastre DnD nativo
+(08AA-5: sin botones de mover, ni en el menú ni en la cabecera),
+alta rápida inline por columna (Enter o `añadir` → PUT-upsert con id
+espejo-TASKS), bulk+relectura vía proxy.
 
 - Proxy backend (`src/server/tareas/rutasTareas.ts`): `GET /api/tareas/estado`
-  (disponibilidad+motivo, nunca 500), `GET /api/tareas/proyecto?legacy_id=`
-  (400 sin id), `POST /api/tareas/reordenar` (422 validación/duplicado,
+  (disponibilidad+motivo, nunca 500), `GET /api/tareas/proyectos` (sincroniza
+  WM→TASKS y devuelve las columnas fijas `[{clave,nombre,legacyId}]`),
+  `GET /api/tareas/proyecto?legacy_id=` (400 sin id), `POST /api/tareas/reordenar` (422 validación/duplicado,
   404 no-encontrado, 429+Retry-After en cuota, 503 sin-credenciales/red,
   502 servidor). Núcleo agnóstico vendorizado en `src/server/tareas/nucleo/`
   (pin `tasks-core@<hash>` + `PIN.md` con cómo re-vendorizar; prohibido `file:`).
+- Sincronización pura WM→TASKS (`src/server/tareas/sincronizar-proyectos.ts`,
+  puro e inyectable): empareja por `payload.wmClave` exacto y crea con
+  `PUT /api/projects/:legacy_id` (`{nombre:id-WM, payload:{wmClave:clave}}`,
+  id `Date.now()*1000+resto`) solo los proyectos que falten; secuencial,
+  nunca borra ni renombra; sin `wmClave` (demos) = sin columna, intactos.
 - Sesión D1: el backend guarda `TASKS_EMAIL`/`TASKS_PASSWORD` de su propio
   entorno (jamás al front ni a git), login programático contra TASKS
   (`session_id` HttpOnly + `csrf_token`/`x-csrf-token`), re-login con lock

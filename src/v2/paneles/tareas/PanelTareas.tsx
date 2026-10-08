@@ -1,18 +1,16 @@
-/* Tab kanban de tareas: columnas = proyectos TASKS via proxy F2 (07AA-5 F3,
- * DnD + menu 07AA-15).
- * [por que] Componente fino (un useState para el alta): estado y red en
- * usePanelTareas. Degradado visible, nunca verde ambiguo: si el puente no
- * esta disponible se pinta el motivo + reintentar, no un kanban vacio. El
- * orden de columnas es presentacion WM (localStorage); el de tareas vive en
- * TASKS y cada movimiento relee (sobrevive a recargas). Las columnas van en
- * fila con scroll horizontal propio (ancho fijo por columna, como un
- * kanban): FilaCajas reparte el ancho y las aplasta, no sirve aqui. */
-import { useState } from 'react';
-import { Plus, RotateCw } from 'lucide-react';
+/* Tab kanban de tareas: columnas fijas = repos WM via proxy (07AA-5 F3,
+ * DnD + menu 07AA-15, columnas fijas + alta inline 08AA-6).
+ * [por que] Componente fino (sin estado): estado y red en usePanelTareas.
+ * Degradado visible, nunca verde ambiguo: si el puente no esta disponible
+ * se pinta el motivo + reintentar, no un kanban vacio. El orden de columnas
+ * lo fija el snapshot WM y el de tareas vive en TASKS; cada movimiento o
+ * alta relee (sobrevive a recargas). Las columnas van en fila con scroll
+ * horizontal propio (ancho fijo por columna, como un kanban): FilaCajas
+ * reparte el ancho y las aplasta, no sirve aqui. */
+import { RotateCw } from 'lucide-react';
 import { Button } from '../../ui/form/Button.js';
 import { Caja } from '../../ui/caja/Caja.js';
 import { usePanelTareas } from '../../../hooks/usePanelTareas.js';
-import { parsearLegacyId } from '../../../shared/tareasTab.js';
 import { ColumnaTareas } from './ColumnaTareas.js';
 import './tareas.css';
 
@@ -24,7 +22,6 @@ export const URL_TABLERO_TAREAS = 'http://127.0.0.1:4191/';
 
 export function PanelTareas() {
   const t = usePanelTareas();
-  const [nueva, setNueva] = useState('');
 
   if (!t.estado) {
     return (
@@ -47,7 +44,7 @@ export function PanelTareas() {
         </div>
         <div className="docsVacio">
           para probarla: define TASKS_EMAIL y TASKS_PASSWORD en el entorno del backend (puerto
-          8787) y reinícialo; las columnas por defecto (9001/9002) son el seed F1 en BD de rama
+          8787) y reinícialo; las columnas las sincroniza el servidor (una por proyecto no-ignorado)
         </div>
         <Button pequeno onClick={t.recargar} title="Reintentar la conexión con PROYECTO TASKS">
           <RotateCw size={12} aria-hidden /> reintentar
@@ -56,53 +53,26 @@ export function PanelTareas() {
     );
   }
 
-  const agregar = () => {
-    const id = parsearLegacyId(nueva);
-    if (id === null) return;
-    t.agregarColumna(id);
-    setNueva('');
-  };
-
   return (
     <div className="tareasContenedor">
       {t.error && <div className="tareasError" role="alert">{t.error}</div>}
       <div className="tareasColumnas">
         {t.columnas.map((col) => (
-          <div key={col} className="tareasColumna">
+          <div key={col.clave} className="tareasColumna">
             <ColumnaTareas
-              legacyId={col}
-              tareas={t.tareas[col] ?? null}
+              legacyId={col.legacyId}
+              nombre={col.nombre}
+              tareas={t.tareas[col.legacyId] ?? null}
               cargando={t.cargando}
               moviendo={t.moviendo}
               urlTareas={URL_TABLERO_TAREAS}
-              onSoltar={(origen, legacyId, antesDe) => void t.soltar(origen, col, legacyId, antesDe)}
-              onEditar={(legacyId, parche) => void t.editar(col, legacyId, parche)}
-              onEliminar={(legacyId) => void t.eliminar(col, legacyId)}
-              onQuitar={() => t.quitarColumna(col)}
+              onSoltar={(origen, legacyId, antesDe) => void t.soltar(origen, col.legacyId, legacyId, antesDe)}
+              onEditar={(legacyId, parche) => void t.editar(col.legacyId, legacyId, parche)}
+              onEliminar={(legacyId) => void t.eliminar(col.legacyId, legacyId)}
+              onCrear={(texto) => void t.crear(col, texto)}
             />
           </div>
         ))}
-        <div className="tareasColumna">
-          <Caja titulo="agregar" etiqueta="Agregar columna por legacy_id">
-            <div className="tareasAlta">
-              <input
-                className="tareasAltaEntrada"
-                value={nueva}
-                onChange={(ev) => setNueva(ev.target.value)}
-                onKeyDown={(ev) => {
-                  if (ev.key === 'Enter') agregar();
-                }}
-                placeholder="legacy_id (p. ej. 9001)"
-                inputMode="numeric"
-                aria-label="legacy_id del proyecto a agregar como columna"
-              />
-              <Button pequeno onClick={agregar} disabled={parsearLegacyId(nueva) === null} title="Agregar la columna">
-                <Plus size={12} aria-hidden /> agregar
-              </Button>
-            </div>
-            <div className="docsVacio">las columnas son proyectos TASKS; quitarlas solo las oculta aquí</div>
-          </Caja>
-        </div>
       </div>
     </div>
   );

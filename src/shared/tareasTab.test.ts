@@ -3,14 +3,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  COLUMNAS_DEFECTO_TAREAS,
+  columnasDeRespuesta,
   completadoTarea,
   construirMovimientos,
+  esColumnaTab,
   esTareaTab,
   ETIQUETAS_PRIORIDAD,
   ETIQUETAS_URGENCIA,
-  normalizarColumnas,
-  parsearLegacyId,
+  generarIdTarea,
   parcheConColumna,
   PRIORIDADES_TAREA,
   prioridadTarea,
@@ -108,25 +108,49 @@ describe('construirMovimientos', () => {
   });
 });
 
-describe('parsearLegacyId', () => {
-  it('acepta entero positivo', () => assert.equal(parsearLegacyId('9001'), 9001));
-  it('rechaza basura', () => {
-    assert.equal(parsearLegacyId(''), null);
-    assert.equal(parsearLegacyId('abc'), null);
-    assert.equal(parsearLegacyId('0'), null);
-    assert.equal(parsearLegacyId('-5'), null);
-    assert.equal(parsearLegacyId('1.5'), null);
+describe('columnasDeRespuesta (08AA-6, columnas fijas del proxy)', () => {
+  it('normaliza proyectos a columnas en orden', () => {
+    const got = columnasDeRespuesta({
+      proyectos: [
+        { clave: 'gloryapi', nombre: 'gloryapi', legacyId: 11 },
+        { clave: 'NAKOMI', nombre: 'NAKOMI', legacyId: 12 },
+      ],
+    });
+    assert.deepEqual(got, [
+      { clave: 'gloryapi', nombre: 'gloryapi', legacyId: 11 },
+      { clave: 'NAKOMI', nombre: 'NAKOMI', legacyId: 12 },
+    ]);
+  });
+  it('descarta rotas y deduplica por clave', () => {
+    assert.deepEqual(
+      columnasDeRespuesta({
+        proyectos: [
+          { clave: 'a', nombre: 'A', legacyId: 1 },
+          { clave: 'a', nombre: 'A-dup', legacyId: 2 },
+          { clave: '', nombre: 'sin-clave', legacyId: 3 },
+          { clave: 'b', nombre: '', legacyId: 4 },
+          { clave: 'c', nombre: 'C', legacyId: 0 },
+          null,
+        ],
+      }),
+      [{ clave: 'a', nombre: 'A', legacyId: 1 }],
+    );
+    assert.deepEqual(columnasDeRespuesta({}), []);
+    assert.deepEqual(columnasDeRespuesta(null), []);
+  });
+  it('esColumnaTab valida la forma', () => {
+    assert.equal(esColumnaTab({ clave: 'a', nombre: 'A', legacyId: 1 }), true);
+    assert.equal(esColumnaTab({ clave: 'a', nombre: 'A', legacyId: 0 }), false);
+    assert.equal(esColumnaTab(null), false);
   });
 });
 
-describe('normalizarColumnas', () => {
-  it('filtra y deduplica', () => {
-    assert.deepEqual(normalizarColumnas([9001, 'x', 9001, -2, 9002]), [9001, 9002]);
-  });
-  it('sin nada vuelve al defecto seed F1', () => {
-    assert.deepEqual(normalizarColumnas([]), COLUMNAS_DEFECTO_TAREAS);
-    assert.deepEqual(normalizarColumnas(null), COLUMNAS_DEFECTO_TAREAS);
-    assert.deepEqual(normalizarColumnas(undefined), COLUMNAS_DEFECTO_TAREAS);
+describe('generarIdTarea (08AA-6, espejo TASKS)', () => {
+  it('base ahora*1000 con resto distinto en llamadas seguidas', () => {
+    const a = generarIdTarea(1_700_000_000_000);
+    const b = generarIdTarea(1_700_000_000_000);
+    assert.equal(Math.floor(a / 1000), 1_700_000_000_000);
+    assert.notEqual(a, b);
   });
 });
 

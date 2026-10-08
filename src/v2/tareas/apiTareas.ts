@@ -5,8 +5,10 @@
  * motivo, 429 cuota, 404 proyecto) para pintarlo tal cual. */
 import axios from 'axios';
 import {
+  columnasDeRespuesta,
   tareaDePuente,
   tareasDeRespuesta,
+  type ColumnaTab,
   type ParcheTareaTab,
   type TareaTab,
   type TareasEstado,
@@ -42,6 +44,17 @@ export async function proyectoTareas(legacyId: number): Promise<TareaTab[]> {
     return tareasDeRespuesta(data).sort((a, b) => a.orden - b.orden);
   } catch (err) {
     throw mensajeFallo(`columna ${legacyId}`, err);
+  }
+}
+
+/* Columnas fijas (08AA-6): el proxy sincroniza WM->TASKS y devuelve una
+ * columna por repo no-ignorado, en orden de snapshot. */
+export async function columnasTareas(): Promise<ColumnaTab[]> {
+  try {
+    const { data } = await axios.get('/api/tareas/proyectos');
+    return columnasDeRespuesta(data);
+  } catch (err) {
+    throw mensajeFallo('columnas de tareas', err);
   }
 }
 

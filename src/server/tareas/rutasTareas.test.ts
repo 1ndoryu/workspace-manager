@@ -10,7 +10,9 @@ import type {ErrorKanban} from './nucleo/tipos.js';
 
 const REQ_VACIA = {} as IncomingMessage;
 const TAREAS = [{id: 1, item: {titulo: 't'}, updatedAt: 'hoy'}];
+const PROYECTOS = [{legacyId: 9, nombre: 'n', estado: 'activo', orden: 0, wmClave: 'nueve'}];
 const LOTE_OK = {movimientos: [{legacyId: 1, orden: 0}]};
+const WM = [{clave: 'nueve', nombre: 'n'}];
 
 function fakeRes() {
   const r = {estado: 0, cuerpo: '', cabeceras: {} as Record<string, string>};
@@ -47,6 +49,14 @@ function fakePuente(cambios: Partial<PuenteTareas> & {llamadas?: string[]}): Pue
     eliminar: async (legacyId) => {
       llamadas.push(`eliminar:${legacyId}`);
     },
+    proyectos: async () => {
+      llamadas.push('proyectos');
+      return PROYECTOS;
+    },
+    crearProyecto: async (legacyId) => {
+      llamadas.push(`crearProyecto:${legacyId}`);
+      return legacyId;
+    },
     ...cambios,
   };
 }
@@ -71,6 +81,7 @@ function manejarCon(puente: PuenteTareas, cuerpo?: unknown, fallaBody = false) {
   return crearManejadorTareas({
     puente,
     leerCuerpo: fallaBody ? async () => { throw new Error('roto'); } : async () => cuerpo,
+    leerWm: () => WM,
   });
 }
 
@@ -116,6 +127,36 @@ void describe('/api/tareas', () => {
     const r3 = await llamar(caido, '/api/tareas/proyecto?legacy_id=9', 'GET');
     assert.equal(r3.estado, 503);
     assert.equal((r3.datos as {error: string}).error, 'tareas-no-disponibles');
+  });
+
+  void it('GET proyectos sincroniza WM->TASKS y devuelve columnas (08AA-6)', async () => {
+    const ok = manejarCon(fakePuente({}));
+    const r1 = await llamar(ok, '/api/tareas/proyectos', 'GET');
+    assert.equal(r1.estado, 200);
+    assert.deepEqual((r1.datos as {proyectos: unknown}).proyectos, [{clave: 'nueve', nombre: 'n', legacyId: 9}]);
+
+    const caido = manejarCon(fakePuente({proyectos: async () => { throw kanban('red', 'conexion rechazada'); }}));
+    const r2 = await llamar(caido, '/api/tareas/proyectos', 'GET');
+    assert.equal(r2.estado, 503);
+    assert.equal((r2.datos as {error: string}).error, 'tareas-no-disponibles');
+  });
+
+  void it('GET proyectos crea en TASKS el repo WM sin proyecto (08AA-6)', async () => {
+    const llamadas: string[] = [];
+    const manejar = manejarCon(
+      fakePuente({llamadas, proyectos: async () => {
+        llamadas.push('proyectos');
+        return [];
+      }}),
+    );
+    const r = await llamar(manejar, '/api/tareas/proyectos', 'GET');
+    assert.equal(r.estado, 200);
+    const columnas = (r.datos as {proyectos: Array<{clave: string; nombre: string; legacyId: number}>}).proyectos;
+    assert.equal(columnas.length, 1);
+    assert.equal(columnas[0].clave, 'nueve');
+    assert.equal(columnas[0].nombre, 'n');
+    assert.ok(columnas[0].legacyId > 0);
+    assert.deepEqual(llamadas, ['proyectos', `crearProyecto:${columnas[0].legacyId}`]);
   });
 
   void it('POST reordenar rechaza lote invalido sin tocar TASKS', async () => {
