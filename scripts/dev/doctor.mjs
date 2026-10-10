@@ -610,6 +610,15 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
   const detalle = [];
   let estado = 'bajo-mando';
   let motivo = 'probe verde';
+  // [por que 10AA-3] Varios puertos pueden caer a la vez (RESTAURANTE 3105+5182
+  // tras `stop`). Antes cada problema hacía `break`: el 5182 nunca entraba en
+  // `detalle`, `up` lanzaba solo 3105 y reportaba "probe verde". Ahora se
+  // clasifican todos los puertos; el primer problema fija el motivo.
+  const fijarDeriva = (texto) => {
+    if (estado !== 'bajo-mando') return;
+    estado = 'deriva';
+    motivo = texto;
+  };
   for (const h of healths) {
     const oyentes = porPuerto.get(h.puerto) ?? [];
     // [por que] Dos `tsx watch` del mismo servidor pelean el puerto
@@ -617,38 +626,34 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
     // Quedarse con el primero ocultaria el duplicado: es deriva visible.
     const propios = oyentes.filter((o) => esDelProyecto(procs.get(o.pid), p.ruta, marcadorPuerto(entrada, h.puerto)));
     if (propios.length > 1) {
-      estado = 'deriva';
-      motivo = `puerto ${h.puerto} con ${propios.length} procesos del proyecto (duplicado: ${propios.map((o) => o.pid).join(',')})`;
+      fijarDeriva(`puerto ${h.puerto} con ${propios.length} procesos del proyecto (duplicado: ${propios.map((o) => o.pid).join(',')})`);
       detalle.push({ puerto: h.puerto, situacion: 'duplicado', pids: propios.map((o) => o.pid) });
-      break;
+      continue;
     }
     const propio = propios[0];
     if (!propio) {
-      estado = 'deriva';
       if (oyentes.length) {
-        motivo = `puerto ${h.puerto} ocupado por desconocido`;
+        fijarDeriva(`puerto ${h.puerto} ocupado por desconocido`);
         detalle.push({ puerto: h.puerto, situacion: 'ocupado-desconocido', pids: oyentes.map((o) => o.pid) });
       } else {
-        motivo = `puerto ${h.puerto} libre (parado)`;
+        fijarDeriva(`puerto ${h.puerto} libre (parado)`);
         detalle.push({ puerto: h.puerto, situacion: 'libre', pids: [] });
       }
-      break;
+      continue;
     }
     for (const o of oyentes) consumidos.add(`${o.ip}:${o.puerto}:${o.pid}`);
     const proc = procs.get(propio.pid);
     if (!proc?.cmd) {
-      estado = 'deriva';
-      motivo = `puerto ${h.puerto} no verificable (sin cmdline)`;
+      fijarDeriva(`puerto ${h.puerto} no verificable (sin cmdline)`);
       detalle.push({ puerto: h.puerto, situacion: 'no-verificable', pids: [propio.pid] });
-      break;
+      continue;
     }
     consumidos.add(`${propio.ip}:${propio.puerto}:${propio.pid}`);
     const s = await sondear(h.puerto, h.ruta, h.esperaJson, timeoutMs, entrada.dominio);
     if (!s.ok) {
-      estado = 'deriva';
-      motivo = `puerto ${h.puerto} sin probe (status ${s.status})`;
+      fijarDeriva(`puerto ${h.puerto} sin probe (status ${s.status})`);
       detalle.push({ puerto: h.puerto, situacion: 'sin-probe', pids: [propio.pid] });
-      break;
+      continue;
     }
     detalle.push({ puerto: h.puerto, situacion: 'arriba', pids: [propio.pid] });
   }
