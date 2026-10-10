@@ -21,7 +21,7 @@
       "profile": "node",
       "config": {
         "includePatterns": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.css"],
-        "excludePatterns": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.git/**", "**/data/**"],
+        "excludePatterns": ["**/node_modules/**", "**/dist/**", "**/dist-server/**", "**/build/**", "**/.git/**", "**/data/**"],
         "directoryExceptions": [],
         "portableBoundaries": {},
         "rules": {},
