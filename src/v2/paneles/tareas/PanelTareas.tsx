@@ -43,8 +43,9 @@ export function PanelTareas() {
           no disponible{t.estado.motivo ? `: ${t.estado.motivo}` : ''} (el puente informa, no inventa)
         </div>
         <div className="docsVacio">
-          para probarla: define TASKS_EMAIL y TASKS_PASSWORD en el entorno del backend (puerto
-          8787) y reinícialo; las columnas las sincroniza el servidor (una por proyecto no-ignorado)
+          para probarla: define TASKS_EMAIL y TASKS_PASSWORD en logs/.tareas-env (workspace-manager)
+          y reinicia el backend (puerto 8787); las columnas las sincroniza el servidor (una por
+          proyecto no-ignorado)
         </div>
         <Button pequeno onClick={t.recargar} title="Reintentar la conexión con PROYECTO TASKS">
           <RotateCw size={12} aria-hidden /> reintentar
