@@ -20,7 +20,9 @@ export const DIR_DEV = dirname(fileURLToPath(import.meta.url));
 export const RAIZ_REPO = resolve(DIR_DEV, '..', '..');
 export const RUTA_REGISTRO = join(DIR_DEV, 'registro.json');
 export const TTL_MS = 60_000;
-export const TIMEOUT_SENSOR_MS = 12_000;
+// [por que] 25 s: Get-CimInstance en frio tardo 7 s medidos; con 12 s el
+// sensor fallaba por carga y no por defecto real.
+export const TIMEOUT_SENSOR_MS = 25_000;
 export const MAX_PIDS_CONSULTA = 20;
 export const PUERTOS_PROTEGIDOS = new Set([8787, 5174, 5175]);
 export const MOTIVOS_ENUM = new Set([
@@ -375,24 +377,40 @@ function correrPs(script, timeoutMs = TIMEOUT_SENSOR_MS) {
   });
 }
 
-/* Puertos escuchando: objetos via Get-NetTCPConnection (sin parsear texto).
+/* Ejecuta un binario nativo (sin shell) con timeout duro; devuelve stdout. */
+function correrCmd(exe, args, timeoutMs = TIMEOUT_SENSOR_MS) {
+  return new Promise((resolveP, rejectP) => {
+    execFile(exe, args, { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024, windowsHide: true }, (err, stdout) => {
+      if (err) {
+        const causa = err.killed || err.signal === 'SIGTERM' ? 'timeout' : String(err.message ?? err).slice(0, 160);
+        rejectP(new Error(`${exe} fallo (${causa})`));
+        return;
+      }
+      resolveP(stdout);
+    });
+  });
+}
+
+/* Puertos escuchando TCP, atribuibles al area por proceso. Usa `netstat -ano`
+ * y no Get-NetTCPConnection: ese cmdlet tardo 40 s medidos (2026-10-10) y
+ * superaba el timeout del sensor, dejando `status`/`up` en "sensor fallo".
  * Solo binds explicitos loopback (127.0.0.1/::1) + 0.0.0.0/[::] atribuibles
  * al area por proceso (los binds globales de servicios del sistema quedan
  * fuera de alcance declarado). */
 export async function escanearEscucha() {
-  const sal = await correrPs(
-    `Get-NetTCPConnection -State Listen | Select-Object @{n='ip';e={$_.LocalAddress.ToString()}},@{n='puerto';e={$_.LocalPort}},@{n='pid';e={$_.OwningProcess}} | ConvertTo-Json -Compress -Depth 2`,
-  );
-  let filas;
-  try {
-    const j = JSON.parse(sal);
-    filas = Array.isArray(j) ? j : j ? [j] : [];
-  } catch {
-    throw new Error('sensor puertos: JSON inesperado de Get-NetTCPConnection');
+  const sal = await correrCmd('netstat.exe', ['-ano', '-p', 'TCP']);
+  const filas = [];
+  for (const linea of sal.split(/\r?\n/)) {
+    const t = linea.trim().split(/\s+/);
+    if (t.length !== 5 || t[0] !== 'TCP' || !/LISTEN/i.test(t[3])) continue;
+    // [por que] Direccion local IPv6 viene entre corchetes: [::1]:5174.
+    const corte = t[1].lastIndexOf(':');
+    const ip = t[1].slice(0, corte).replace(/^\[|\]$/g, '');
+    const puerto = Number(t[1].slice(corte + 1));
+    const pid = Number(t[4]);
+    if (Number.isInteger(puerto) && Number.isInteger(pid)) filas.push({ ip, puerto, pid });
   }
-  return filas
-    .filter((f) => Number.isInteger(f?.puerto) && Number.isInteger(f?.pid))
-    .map((f) => ({ ip: String(f.ip), puerto: f.puerto, pid: f.pid }));
+  return filas;
 }
 
 /* Datos de procesos en consultas batch (trozos de <=20 PIDs): CreationDate
@@ -558,6 +576,10 @@ export async function clasificar(proyectos, registro, escucha) {
         clave = p.clave;
       }
     }
+    // [por que] gestion-externa (opencode-propio-dev): su listener no es un hueco
+    // del area; el mando no lo gestiona ni lo reporta como deriva. Otros motivos
+    // de noAplica siguen visibles.
+    if (clave && registro.noAplica?.[clave] === 'gestion-externa') continue;
     huerfanos.push({
       ip: c.ip,
       puerto: c.puerto,
@@ -629,6 +651,17 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
       break;
     }
     detalle.push({ puerto: h.puerto, situacion: 'arriba', pids: [propio.pid] });
+  }
+  // [por que] El corte en el primer health fallido dejaba sin consumir los
+  // puertos propios restantes: salian como huerfanos "(sin proyecto)" aunque
+  // fueran del proyecto (MN-Inmobiliaria: gateway 3102 tras 5199 caido). La
+  // atribucion no cambia el estado; solo evita falsos huerfanos.
+  for (const h of healths) {
+    for (const o of porPuerto.get(h.puerto) ?? []) {
+      if (esDelProyecto(procs.get(o.pid), p.ruta, marcadorPuerto(entrada, h.puerto))) {
+        consumidos.add(`${o.ip}:${o.puerto}:${o.pid}`);
+      }
+    }
   }
   if (estado === 'deriva' && detalle.length > 0 && detalle.every((d) => d.situacion === 'libre')) {
     /* [05AA-4] Todo libre = detenido normal, no caida: 'parado' (exit 0,
@@ -850,10 +883,10 @@ function esperarProbe(puerto, rutaRecurso, esperaJson, timeoutMs, limiteMs, domi
   });
 }
 
-function leerSnapshotServidor() {
+function leerSnapshotServidor(forzar = false) {
   return new Promise((resolveP) => {
     const req = http.get(
-      { host: '127.0.0.1', port: 8787, path: '/api/workspace', timeout: 30_000 },
+      { host: '127.0.0.1', port: 8787, path: forzar ? '/api/workspace?forzar=1' : '/api/workspace', timeout: 30_000 },
       (res) => {
         let cuerpo = '';
         res.on('data', (t) => {
@@ -877,7 +910,7 @@ function leerSnapshotServidor() {
 /* Contexto compartido up/status/stop (F2): registro (+--registro para e2e),
  * snapshot (archivo o servidor; nunca a ciegas), proyecto casado por ruta,
  * escucha + procesos + mapa por puerto. Falla cerrado con motivo. */
-export async function contextoEntrada(id, args) {
+export async function contextoEntrada(id, args, { autoBackend = false } = {}) {
   const iSnap = args.indexOf('--snapshot-file');
   const rutaSnap = iSnap >= 0 ? args[iSnap + 1] : null;
   const iReg = args.indexOf('--registro');
@@ -901,9 +934,22 @@ export async function contextoEntrada(id, args) {
       return { ok: false, resumen: `snapshot ilegible (${e.message})` };
     }
   } else {
-    const r = await leerSnapshotServidor();
+    let r = await leerSnapshotServidor();
+    // [por que] `up` (autoBackend) arranca el backend solo si 8787 no tiene
+    // listener (ECONNREFUSED): sin el, ningun proyecto se decide. status/stop
+    // siguen de solo lectura y solo avisan.
+    if (autoBackend && r.error && /ECONNREFUSED/.test(r.error)) {
+      const fallo = await arrancarBackend(registro);
+      if (fallo) return { ok: false, resumen: fallo };
+      r = await leerSnapshotServidor();
+    }
     if (r.error || !r.snapshot) {
-      return { ok: false, resumen: `servidor caido (${r.error}) y sin --snapshot-file: no se decide a ciegas` };
+      // [por que] El mensaje da la salida: `up` de workspace-manager necesita su
+      // propio backend vivo para decidir; arrancarlo a mano es el mismo boton[0].
+      return {
+        ok: false,
+        resumen: `servidor caido (${r.error}) y sin --snapshot-file: no se decide a ciegas. Arranca el backend (boton[0] de workspace-manager: node dist-server/server/index.js, desde su carpeta) o pasa --snapshot-file`,
+      };
     }
     snapshot = r.snapshot;
   }
@@ -951,6 +997,27 @@ export async function contextoEntrada(id, args) {
   return { ok: true, entrada, proyecto, rutaAbs, porPuerto, procs };
 }
 
+/* Arranca el backend de workspace-manager (boton[0]) como fuente del snapshot.
+ * [por que] Sin el, `up` de cualquier proyecto se queda parado. Solo se llama
+ * si 8787 esta libre (ECONNREFUSED): nunca mata ni suplanta un 8787 ocupado. */
+async function arrancarBackend(registro) {
+  const wm = registro.entradas.get('workspace-manager');
+  if (!wm || !Array.isArray(wm.boton) || !wm.boton[0]) {
+    return 'servidor caido y sin entrada workspace-manager con boton: pasa --snapshot-file';
+  }
+  const rutaWm = isAbsolute(wm.ruta) ? normalize(wm.ruta) : resolve(RAIZ_REPO, wm.ruta);
+  let lan;
+  try {
+    lan = await lanzar(wm, rutaWm, wm.boton[0], envPara(wm));
+  } catch (e) {
+    return `servidor caido y el arranque del backend fallo (${e.message})`;
+  }
+  const h = (wm.healths ?? []).find((x) => x.puerto === 8787) ?? { ruta: '/api/pc/estado', esperaJson: true };
+  const ok = await esperarProbe(8787, h.ruta, h.esperaJson, wm.timeoutMs ?? 3000, wm.arranqueMs ?? 60_000, wm.dominio);
+  if (!ok) return `backend arrancado pid ${lan.pid} pero sin probe en 8787 (log ${lan.rutaLog}): NO verde`;
+  return null;
+}
+
 /* F1 `up <id>`: ya-arriba (verifica, no reinicia) | arranca puertos libres
  * (spawn + probe hasta arranqueMs) | rehusa (ocupado/duplicado/sin-probe/
  * no-verificable/sin entrada: nunca mata, nunca inventa). Exit 0 solo con
@@ -976,11 +1043,42 @@ export async function up(argv) {
  * pulse sin reiniciarse. En local vale cualquiera >=32 (el real solo vive
  * en Coolify y jamas se commitea); si el entorno ya trae uno, se respeta. */
 const RUTA_TOKEN_PULSE = join(RAIZ_REPO, 'logs', '.pulse-token');
+
+/* Credenciales del puente de tareas (PROYECTO TASKS, 07AA-5 F2): archivo local
+ * gitignored `logs/.tareas-env` (KEY=VALUE, una por linea). Solo lo lee el
+ * backend de workspace-manager, que es quien hace el puente.
+ * [por que] Asi el puente arranca con el tablero sin variables de usuario ni
+ * secretos en registro.json, logs o commits. Entra al hijo solo si el entorno
+ * de proceso y el `env` del mando no lo traen ya. */
+const RUTA_ENV_TAREAS = join(RAIZ_REPO, 'logs', '.tareas-env');
+const CLAVES_TAREAS = ['TASKS_BASE_URL', 'TASKS_EMAIL', 'TASKS_PASSWORD'];
+function leerEnvTareas() {
+  let texto = '';
+  try {
+    texto = readFileSync(RUTA_ENV_TAREAS, 'utf8');
+  } catch {
+    return {}; /* Sin archivo: el puente informa sin-credenciales, no falla el `up`. */
+  }
+  const valores = {};
+  for (const linea of texto.split(/\r?\n/)) {
+    const m = /^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/.exec(linea);
+    if (m && CLAVES_TAREAS.includes(m[1]) && m[2] !== '') valores[m[1]] = m[2];
+  }
+  return valores;
+}
+
 function envPara(entrada) {
   // [por que] Lo declarado en `env` se suma al entorno del hijo (lanzar lo
   // mezcla sobre process.env). PULSE_TOKEN de proceso o declarado se respeta:
   // el token estable del archivo solo entra cuando falta en ambos.
   const extra = entrada.env && typeof entrada.env === 'object' ? { ...entrada.env } : undefined;
+  if (entrada.id === 'workspace-manager') {
+    const salida = { ...extra };
+    for (const [clave, valor] of Object.entries(leerEnvTareas())) {
+      if (!process.env[clave] && salida[clave] === undefined) salida[clave] = valor;
+    }
+    return salida;
+  }
   if (entrada.id !== 'glory-pulse' || process.env.PULSE_TOKEN || (extra && extra.PULSE_TOKEN)) return extra;
   let token = '';
   try {
@@ -1278,7 +1376,7 @@ async function asegurarExe(id, entrada, rutaAbs) {
 async function arrancarUno(id, args, visitados) {
   if (visitados.has(id)) return { codigo: 1, resumen: `up ${id}: ciclo en requiere (omitido)` };
   visitados.add(id);
-  const ctx = await contextoEntrada(id, args);
+  const ctx = await contextoEntrada(id, args, { autoBackend: true });
   if (!ctx.ok) {
     return { codigo: 1, resumen: `up ${id}: ${ctx.resumen}` };
   }
@@ -1393,6 +1491,7 @@ export async function main(argv) {
     return 1;
   }
   let snapshot = null;
+  let errorSensor = null;
   if (rutaSnap) {
     try {
       snapshot = JSON.parse(readFileSync(rutaSnap, 'utf8'));
@@ -1400,13 +1499,25 @@ export async function main(argv) {
       console.error(`snapshot: no se pudo leer (${e.message})`);
       return 1;
     }
+  } else {
+    // [por que] Sin --snapshot-file la lista de proyectos sale del backend, igual
+    // que status/up (contextoEntrada). Antes quedaba vacia: todo listener salia
+    // como huerfano "(sin proyecto)", incluidos 8787/5175 de workspace-manager.
+    // Sin snapshot no se clasifica a ciegas: falla con el motivo.
+    let r = await leerSnapshotServidor();
+    // [por que] La cache del backend puede superar el TTL (60 s): --assert la
+    // rechazaria sin que el area haya cambiado. Se fuerza un escaneo solo entonces.
+    if (!r.error && r.snapshot && Date.now() - new Date(r.snapshot.escaneadoEn).getTime() > TTL_MS) {
+      r = await leerSnapshotServidor(true);
+    }
+    if (r.error || !r.snapshot) errorSensor = `snapshot: servidor 8787 sin datos (${r.error ?? 'vacio'}); arranca el backend o pasa --snapshot-file`;
+    else snapshot = r.snapshot;
   }
   const proyectos = (snapshot?.proyectos ?? []).map((p) => ({ clave: p.clave, ruta: p.ruta }));
   const snapshotEn = snapshot?.escaneadoEn ?? null;
 
   let escucha = [];
-  let errorSensor = null;
-  ({ escucha, errorSensor } = await escuchaRobusta());
+  if (!errorSensor) ({ escucha, errorSensor } = await escuchaRobusta());
   const tomadoEn = new Date().toISOString();
   let clasif = { proyectos: [], huerfanos: [] };
   if (!errorSensor) {
@@ -1420,6 +1531,7 @@ export async function main(argv) {
 
   if (conAssert) {
     const fallos = [];
+    if (informe.errorSensor) fallos.push(informe.errorSensor);
     if (informe.proyectos.length !== proyectos.length) {
       fallos.push(`cobertura: clasificados ${informe.proyectos.length} != snapshot ${proyectos.length}`);
     }

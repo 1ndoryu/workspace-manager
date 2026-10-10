@@ -14,7 +14,7 @@
       ],
       "timeoutMs": 3000,
       "arranqueMs": 60000,
-      "expectedCmdline": ["workspace-manager", "5175"],
+      "expectedCmdline": ["dist-server", "5175"],
       "requiere": ["glory-pulse"]
     },
     {
@@ -47,7 +47,7 @@
       ],
       "timeoutMs": 3000,
       "arranqueMs": 300000,
-      "expectedCmdline": ["glory-backend", "5199", "gateway"],
+      "expectedCmdline": ["glory-backend", "MN-Inmobiliaria\\frontend", "gateway"],
       "env": { "PORT": "3110" },
       "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp + Vite bajo ruta; PORT=3110 por env del mando; front via --prefix+-- para que --port llegue a vite)"
     },
@@ -160,6 +160,8 @@
     "GLORYINSPECTOR": "sin-servicio",
     "GLORYPORT": "sin-servicio",
     "limpiador-pc": "sin-servicio",
-    "minimax-h3-lab": "gestion-externa"
+    "minimax-h3-lab": "gestion-externa",
+    "opencode-propio-dev": "gestion-externa",
+    "plugins-opencode": "gestion-externa"
   }
 }
