@@ -56,6 +56,8 @@ Detalle en `PLAN-saneamiento-agents-y-analisis.md`, `PLAN-corregir-hallazgos-202
 - Las carpetas normales no se clasifican como árboles huérfanos.
 - Decisiones del usuario 2026-10-05 (no volver a preguntar): aprobadas 0110A-1, 0110A-3 y 309A-2 (ejecutar en orden 309A-2 → 0110A-3 → 0110A-1); preparar el push en lista ordenada (lo sube el usuario); corregir externos NAKOMI (77 errores), WANDORIUS (VersionMissing), TASKS (E0753) y DBs opencode 5,8 GB.
 
+- **Sentinel 0.7.21: decisiones pendientes (2026-10-10).** (1) NAKOMI: `chore/sentinel-0.7.20` (3b1fbb6b) tiene trabajo no integrado (1440 archivos, incl. 07AA-14, 10AA-1, 07AA-2); bundle verificado `C:/tmp/sentinel-bump/nakomi-chore-sentinel-0.7.20.bundle`. Recomendacion: aplicar solo el pin 0.7.21 en main desde un worktree y conservar la rama hasta decidir. Pregunta: integrar o descartar el resto. (2) glory-sentinel: 10 ramas remotas no integradas (`028A-20/release-0.5.0`, `028A-21/release-0.6.0`, `028A-6/stage-manifest-contract`, `docs/readme-simplify-20260810`, `f1/cli-contracts`, `release/0.7.0`-`0.7.3`); ninguna esta en main por ancestria ni por contenido (`git cherry`). Recomendacion: conservarlas hasta decidir cuales integrar y cuales borrar. Pregunta: que hacemos con cada una.
+
 ## Tareas pendientes (orden de dependencia)
 
 0. `07AA-19` — **CERRADA (2026-10-07): 12 hallazgos WM del panel VPS a cero.** 11 corregidos + hint ISP documentado (DTO wire, `types.ts` no tocado). Evidencia: type-check 0, tests vps 36/36, files-scan 0 en 17 tocados, gate forzado 0E/0W/0I/1H, varsense 0. Detalle en `Agente/completados/tareas-2026-10-07.md`.
