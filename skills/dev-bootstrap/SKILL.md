@@ -80,9 +80,11 @@ GET  /api/tareas/proyecto?legacy_id=9001 # tareas de la columna
 POST /api/tareas/reordenar               # {movimientos:[{legacyId,orden,proyectoId?}]} (bulk ≤200)
 ```
 
-- Requiere backend 8787 con `TASKS_EMAIL`/`TASKS_PASSWORD` en SU entorno (solo
-  las aplica al arrancar; lo reinicia el usuario; sin ellas: 503
-  `sin-credenciales`, nunca datos falsos).
+- Requiere backend 8787 con `TASKS_EMAIL`/`TASKS_PASSWORD`. Fuente: entorno de
+  proceso, o `logs/.tareas-env` (gitignored; lo añade `doctor.mjs` `envPara` solo
+  al backend de workspace-manager, así arranca con el tablero). Solo se aplican
+  al arrancar: tras editarlo, reinicia el backend. Sin ellas: `sin-credenciales`,
+  nunca datos falsos.
 - TASKS permanente: `127.0.0.1:4190` (+Vite 4191), auth cookie+CSRF (D1);
   restart SOLO con `.freebuff/start-permanente.ps1` de `PROYECTO TASKS`
   (idempotente; rebuild con `CARGO_TARGET_DIR=.runtime/target` parando el

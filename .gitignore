@@ -7,6 +7,7 @@ data/*
 *.log
 *.err
 logs/.pulse-token
+logs/.tareas-env
 .log-*.txt
 *.tsbuildinfo
 .DS_Store
