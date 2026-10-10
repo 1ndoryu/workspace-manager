@@ -392,6 +392,8 @@ export interface HallazgoVulnerabilidad {
   /* Rango de versiones afectadas (del advisory). */
   rango: string;
   url?: string;
+  /* Lockfile de origen (p. ej. `frontend/package-lock.json`); un proyecto puede tener varios. */
+  origen?: string;
 }
 
 /* Resultado de la auditoria de dependencias de un proyecto (plan
@@ -407,6 +409,8 @@ export interface AnalisisVulnerabilidades {
   analizadoEn: string;
   resumen: ConteoVulnerabilidades;
   hallazgos: HallazgoVulnerabilidad[];
+  /* Hallazgos de cargo descartados por no alcanzar el build (cargo tree -i). */
+  noAlcanzables?: HallazgoVulnerabilidad[];
   /* Detalle cuando estado === 'error' o 'noAuditable'. */
   error?: string;
 }
