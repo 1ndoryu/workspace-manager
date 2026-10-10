@@ -151,6 +151,22 @@
         "SCCACHE_BASEDIRS": "C:\\Users\\Owner\\OneDrive\\Documentos\\area-trabajo"
       },
       "tipoLauncher": "cargo web HTTP (el daemon TCP 8798 no tiene probe: fuera del mando)"
+    },
+    {
+      "id": "RESTAURANTE",
+      "ruta": "../RESTAURANTE",
+      "dominio": "restaurante.localhost",
+      "boton": [["npm", "run", "dev:back"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5182", "--strictPort", "--host", "127.0.0.1"]],
+      "puertos": [3105, 5182],
+      "healths": [
+        { "puerto": 3105, "ruta": "/api/health", "esperaJson": true },
+        { "puerto": 5182, "ruta": "/", "esperaJson": false }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 300000,
+      "expectedCmdline": ["glory-backend", "5182"],
+      "env": { "PORT": "3105", "VITE_API_TARGET": "http://localhost:3105" },
+      "tipoLauncher": "glory-template (dev:back = run-cargo.mjs run --bin glory-backend con PORT=3105 por env del mando; Vite con --port 5182 por argv via --prefix+--. No se usa npm run dev (glory-rs/scripts/dev.mjs) porque el front cae en 5173, ocupado por opencode-propio-dev)"
     }
   ],
   "noAplica": {

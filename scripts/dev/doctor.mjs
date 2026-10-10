@@ -12,7 +12,7 @@
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
 
@@ -954,7 +954,18 @@ export async function contextoEntrada(id, args, { autoBackend = false } = {}) {
     snapshot = r.snapshot;
   }
   const proyectos = (snapshot?.proyectos ?? []).map((p) => ({ clave: p.clave, ruta: p.ruta }));
-  const proyecto = proyectos.find((p) => normalizarRuta(rutaAbs) === normalizarRuta(p.ruta));
+  let proyecto = proyectos.find((p) => normalizarRuta(rutaAbs) === normalizarRuta(p.ruta));
+  if (!proyecto) {
+    // [por que] config.ignorados oculta el proyecto del tablero por decision
+    // curada (p. ej. RESTAURANTE, 05AA): el escaner lo conoce y lo filtra del
+    // snapshot. Sigue siendo cobertura valida para arrancarlo; el tablero no
+    // cambia. Exige repo real (.git) en la ruta del registro.
+    const claveIgnorada = relative(dirname(RAIZ_REPO), rutaAbs).split(sep).join('/');
+    const ignorados = snapshot?.config?.ignorados ?? [];
+    if (ignorados.includes(claveIgnorada) && existsSync(join(rutaAbs, '.git'))) {
+      proyecto = { clave: claveIgnorada, ruta: rutaAbs, ignorado: true };
+    }
+  }
   if (!proyecto) {
     return { ok: false, resumen: `'${entrada.ruta}' fuera del snapshot (stale?): sin cobertura no se actua` };
   }
