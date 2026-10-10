@@ -2,13 +2,51 @@
  * [por que] No todos los proyectos declaran el mismo gate: GLORYPORT usa
  * cargo fmt/clippy/test sin sentinel.lock; WANDORIUS/PROYECTO TASKS declaran
  * sentinel + varsense. El manager trata el gate por proyecto, no asume uniformidad. */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, type Dirent } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import type { EstadoGate, ProblemaGate } from '../../shared/types.js';
 import { diagnosticar, rutaEtiqueta, severidadDe, type NodoEsquema } from '../../shared/gate/esquema.js';
 import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
 import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
+
+/* Hojas de estilo y configs de tailwind: lo que VarSense valida.
+ * [por que] Sin ninguna, varsense no tiene nada que comprobar y no debe marcarse "ausente". */
+const EXTENSION_ESTILOS = /\.(css|scss|sass|less|styl|pcss)$/i;
+const CONFIG_TAILWIND = /^tailwind\.config\.(js|cjs|mjs|ts)$/i;
+/* [por que] Acotado: el escaneo corre sobre todos los proyectos en cada snapshot.
+ * Directorios que no son fuente, y ocultos, no aportan estilos propios. */
+const DIRECTORIOS_IGNORADOS = new Set(['node_modules', 'target', 'dist', 'build', 'out', 'coverage']);
+const PROFUNDIDAD_MAX = 6;
+const ENTRADAS_MAX = 5000;
+
+/* [por que] Si se agota la profundidad o el presupuesto de entradas, se asume que
+ * hay estilos: no ocultar un "varsense ausente" real por no haber terminado de mirar. */
+export function hayEstilos(ruta: string): boolean {
+  let presupuesto = ENTRADAS_MAX;
+
+  function recorrer(dir: string, profundidad: number): boolean {
+    if (profundidad > PROFUNDIDAD_MAX) return true;
+    let entradas: Dirent[];
+    try {
+      entradas = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return true;
+    }
+    for (const entrada of entradas) {
+      if (--presupuesto < 0) return true;
+      if (entrada.isDirectory()) {
+        if (entrada.name.startsWith('.') || DIRECTORIOS_IGNORADOS.has(entrada.name)) continue;
+        if (recorrer(join(dir, entrada.name), profundidad + 1)) return true;
+      } else if (EXTENSION_ESTILOS.test(entrada.name) || CONFIG_TAILWIND.test(entrada.name)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return recorrer(ruta, 0);
+}
 
 /** Detecta la config del gate en la raiz del proyecto. */
 export function estadoGate(ruta: string): EstadoGate {
@@ -25,10 +63,14 @@ export function estadoGate(ruta: string): EstadoGate {
   if (sentinel !== 'none' || qualityTools) puerta = 'sentinel';
   else if (cargo) puerta = 'cargo';
 
+  const declarado = sentinel !== 'none' || qualityTools || varsenseConfig;
+
   return {
-    declarado: sentinel !== 'none' || qualityTools || varsenseConfig,
+    declarado,
     sentinel,
     varsense: varsenseConfig,
+    /* Solo se escanea si la falta de varsense podria marcarse; evita E/S innecesaria. */
+    sinEstilos: declarado && !varsenseConfig ? !hayEstilos(ruta) : false,
     doctor: null, /* doctor bajo demanda (pesado): se rellena en el detalle */
     gateDisponible: puerta !== 'none',
     puerta,

@@ -221,6 +221,9 @@ export interface EstadoGate {
    * sentinel pero se exime de varsense (p. ej. Tailwind v4 sin tokens, donde
    * varsense no aporta). La consola no genera "varsense ausente". */
   varsenseOpcional?: boolean;
+  /* Sin hojas de estilo ni config de tailwind en el proyecto: varsense no tiene
+   * nada que validar y la consola no genera "varsense ausente". */
+  sinEstilos?: boolean;
   doctor: string | null;
   gateDisponible: boolean;
   puerta: 'sentinel' | 'cargo' | 'none';
