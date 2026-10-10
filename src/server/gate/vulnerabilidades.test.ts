@@ -1,13 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import {
-  agregarAnalisis,
-  detectarLockfiles,
-  esNoAlcanzable,
-  nombrePaqueteValido,
-  parsearAudit,
-} from './vulnerabilidades.js';
+import { agregarAnalisis, detectarLockfiles } from './vulnerabilidades.js';
+import { esNoAlcanzable, nombrePaqueteValido, parsearAudit } from './vulnerabilidades-parseo.js';
 import type { AnalisisVulnerabilidades } from '../../shared/types.js';
 
 const R = 'C:/proy';
