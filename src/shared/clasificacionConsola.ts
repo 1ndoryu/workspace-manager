@@ -137,7 +137,7 @@ export function problemasVulnerabilidadDe(
   if (!v || v.estado !== 'conHallazgos' || v.hallazgos.length === 0) return null;
   const entradas: Entrada[] = v.hallazgos.map((h) => ({
     categoria: 'vulnerabilidad',
-    motivo: `${h.paquete} (${v.gestor})${h.rango ? ` — ${h.rango}` : ''}`,
+    motivo: `${h.paquete} (${h.origen ?? v.gestor})${h.rango ? ` — ${h.rango}` : ''}`,
     seriedad: h.severidad === 'critical' || h.severidad === 'high' ? 'error' : 'advertencia',
     vulnSeveridad: h.severidad,
   }));

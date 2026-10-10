@@ -5,11 +5,14 @@
  * pero para dependencias: reutiliza el mismo patron de cola serial +
  * single-flight + cache por cambio real + timeout.
  *
- * Fuentes: el CLI de audit del gestor de paquetes que DEclara el lockfile:
- *   pnpm-lock.yaml  -> pnpm audit --json
+ * Fuentes: el CLI de audit del gestor de cada lockfile:
+ *   pnpm-lock.yaml  -> pnpm audit --json (o corepack pnpm si pnpm no esta en PATH)
  *   package-lock.json -> npm audit --json
  *   Cargo.lock      -> cargo audit --json (si cargo-audit esta instalado)
- * Proyectos sin lockfile o con gestor no disponible se marcan 'noAuditable'
+ * Un proyecto puede tener varios lockfile (WANDORIUS: raiz, frontend/,
+ * glory-rs/): se auditan todos y se agregan. Los crates de Cargo.lock que no
+ * alcanzan el build (cargo tree -i) no cuentan como hallazgo. Proyectos sin
+ * lockfile, o con algun lockfile no auditable, se marcan 'noAuditable'
  * (visibles pero SIN problema), nunca como error.
  */
 import { spawn } from 'node:child_process';
@@ -23,13 +26,10 @@ import type {
   Proyecto,
 } from '../../shared/types.js';
 
-/* Capacidades de aplicacion: este detector corre binarios npm/pnpm/cargo (no
- * el runtime sentinel), no necesita derivar env GLORY_*. */
-
 /* Cache en memoria: clave de frescura -> resultado. */
 interface EntradaCache {
-  /* branch + HEAD del repo + gestor + hash del lockfile: si ND de eso cambia,
-   * la cache sirve sin re-ejecutar audit (que puede tardar 5-15 s). */
+  /* Lockfiles del proyecto con su hash: si cambia alguno, la cache no sirve y
+   * se re-audita (el audit puede tardar 5-15 s). */
   fresco: string;
   dato: AnalisisVulnerabilidades;
 }
@@ -40,69 +40,107 @@ const cache = new Map<string, EntradaCache>();
  * comparte ese vuelo (nunca dos audits del mismo repo a la vez). */
 const enVuelo = new Map<string, Promise<AnalisisVulnerabilidades>>();
 
-/* Corre el CLI de audit con spawn (shell en Windows para resolver .cmd) y
- * recolecta stdout SIN rechazar por exit code: npm/pnpm/cargo audit salen
- * con exit 1 cuando hay vulnerabilidades, y el JSON valido va en stdout.
- * Devuelve '' si el binario no existe (p. ej. cargo-audit sin instalar) o
- * si excede el timeout; quien llama decide por el contenido parseable. */
-function correrConOutput(cli: string, cwd: string): Promise<string> {
+/* Resultado crudo de un comando de shell. `codigo` es null si no arranco o
+ * excedio el timeout. */
+interface Ejecucion {
+  stdout: string;
+  codigo: number | null;
+}
+
+/* Ejecuta un comando de shell y devuelve stdout y exit code SIN rechazar por
+ * exit code: npm/pnpm/cargo audit salen con exit 1 cuando hay vulnerabilidades,
+ * y cargo tree sale != 0 si falta un crate. [por que] npm/pnpm son shims .cmd
+ * en Windows que Node no puede lanzar con shell:false (EINVAL), asi que va por
+ * cmd.exe /d /s /c. El comando lo arma SOLO este modulo (texto estatico o nombre
+ * de crate validado con nombrePaqueteValido): no hay input externo en la linea,
+ * asi que no hay inyeccion de shell. */
+function ejecutar(comando: string, cwd: string): Promise<Ejecucion> {
   return new Promise((resolve) => {
-    /* [por que] npm/pnpm se exponen en Windows solo como shims .cmd que Node no
-     * puede lanzar con shell:false (EINVAL), asi que se invoca cmd.exe con
-     * /d /s /c. `cli` es SIEMPRE una cadena estatica interna ('npm audit
-     * --json', etc.) nunca input del usuario, por lo que no hay superficie de
-     * inyeccion de shell (equivale en seguridad a args separados con shell:false;
-     * es un falso positivo de la heuristica del detector). */
-    const hijo = spawn(
-      process.env.ComSpec || 'cmd.exe',
-      ['/d', '/s', '/c', cli],
-      { cwd, windowsHide: true },
-    );
+    const hijo = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', comando], {
+      cwd,
+      windowsHide: true,
+      /* [por que] corepack pregunta en consola antes de descargar pnpm; sin
+       * consola esa pregunta colgaria el audit. */
+      env: { ...process.env, COREPACK_ENABLE_DOWNLOAD_PROMPT: '0' },
+    });
     let out = '';
     const to = setTimeout(() => {
       hijo.kill();
-      resolve('');
+      resolve({ stdout: out, codigo: null });
     }, 120000);
     hijo.stdout.on('data', (d: Buffer) => {
       out += d.toString('utf8');
     });
     hijo.on('error', () => {
       clearTimeout(to);
-      resolve('');
+      resolve({ stdout: '', codigo: null });
     });
-    hijo.on('close', () => {
+    hijo.on('close', (codigo) => {
       clearTimeout(to);
-      resolve(out);
+      resolve({ stdout: out, codigo });
     });
   });
 }
 
-/* subcarpetas de lockfile: algunas repos tienen el paquete en frontend/ o gui/,
- * y el lockfile NO esta en la raiz del repo (PT/WANDORIUS/RESTAURANTE/coolify). */
-const SUB_LOCKFILES = ['', 'frontend', 'gui', 'frontend-v2'] as const;
+/* pnpm no siempre esta en PATH (en esta maquina no lo esta; corepack si). Se
+ * resuelve una vez y se recuerda el exito. Un fallo no se cachea: el siguiente
+ * audit reintenta (p. ej. si corepack tardo en descargar pnpm). */
+const VERSION_SEMVER = /^\d+\.\d+\.\d+/;
+let cliPnpmResuelto: string | null = null;
+
+async function resolverCliPnpm(cwd: string): Promise<string | null> {
+  if (cliPnpmResuelto) return cliPnpmResuelto;
+  const directo = await ejecutar('pnpm --version', cwd);
+  if (directo.codigo === 0 && VERSION_SEMVER.test(directo.stdout.trim())) {
+    cliPnpmResuelto = 'pnpm audit --json';
+  } else {
+    const via = await ejecutar('corepack pnpm --version', cwd);
+    if (via.codigo === 0 && VERSION_SEMVER.test(via.stdout.trim())) {
+      cliPnpmResuelto = 'corepack pnpm audit --json';
+    }
+  }
+  return cliPnpmResuelto;
+}
+
+/* Carpetas donde buscar lockfile. Lista fija (no recorrido): excluye a proposito
+ * las copias vendored (tools/, .quality-tools/, .sentinel/), que no son deps del
+ * proyecto. [por que] WANDORIUS tiene lockfiles en la raiz, en frontend/ y en
+ * glory-rs/; antes solo se auditaba el primero que aparecia. */
+const BASES_LOCKFILE = ['', 'frontend', 'gui', 'frontend-v2', 'glory-rs'] as const;
 
 interface LockDetectado {
+  /* Ruta relativa al proyecto para mostrar, p. ej. `frontend/package-lock.json`. */
   lockfile: string;
   ruta: string;
+  /* Subcarpeta donde se ejecuta el audit ('' para la raiz). */
   base: string;
   gestor: 'npm' | 'pnpm' | 'cargo';
 }
 
-/* Localiza el lockfile de un proyecto: prioriza la raiz, y si no hay, busca en
- * subcarpetas conocidas de frontend/gui. Devuelve null si no hay lockfile. */
-function detectarLockfile(p: Proyecto): LockDetectado | null {
-  const candidatos: { file: string; gestor: 'npm' | 'pnpm' | 'cargo' }[] = [
-    { file: 'pnpm-lock.yaml', gestor: 'pnpm' },
-    { file: 'package-lock.json', gestor: 'npm' },
-    { file: 'Cargo.lock', gestor: 'cargo' },
-  ];
-  for (const sub of SUB_LOCKFILES) {
-    for (const c of candidatos) {
-      const ruta = join(p.ruta, sub, c.file);
-      if (existsSync(ruta)) return { lockfile: c.file, ruta, base: sub, gestor: c.gestor };
+/* Localiza TODOS los lockfile del proyecto. Por carpeta: un lockfile JS (pnpm
+ * gana a npm si ambos existen) y su Cargo.lock, si lo hay. `existe` se inyecta
+ * para poder probarlo sin disco. */
+export function detectarLockfiles(
+  rutaProyecto: string,
+  existe: (ruta: string) => boolean = existsSync,
+): LockDetectado[] {
+  const hallados: LockDetectado[] = [];
+  for (const base of BASES_LOCKFILE) {
+    const hay = (file: string) => existe(join(rutaProyecto, base, file));
+    const elegidos: { file: string; gestor: LockDetectado['gestor'] }[] = [];
+    if (hay('pnpm-lock.yaml')) elegidos.push({ file: 'pnpm-lock.yaml', gestor: 'pnpm' });
+    else if (hay('package-lock.json')) elegidos.push({ file: 'package-lock.json', gestor: 'npm' });
+    if (hay('Cargo.lock')) elegidos.push({ file: 'Cargo.lock', gestor: 'cargo' });
+    for (const e of elegidos) {
+      hallados.push({
+        lockfile: base ? `${base}/${e.file}` : e.file,
+        ruta: join(rutaProyecto, base, e.file),
+        base,
+        gestor: e.gestor,
+      });
     }
   }
-  return null;
+  return hallados;
 }
 
 /* Hash del contenido del lockfile: si cambia (misma base que Dependabot) se
@@ -116,11 +154,10 @@ function hashLockfile(ruta: string): string {
   }
 }
 
-/* Clave de frescura de un proyecto: el lockfile cambia con cada dependencia
- * tocada; el HEAD cambia con cada commit (aunque el lockfile no, no re-audita
- * si el HEAD cambio y el lockfile NO — audit depende del lockfile SOLO). */
-function frescoDe(p: Proyecto, lock: LockDetectado): string {
-  return `${p.clave}|${lock.gestor}|${hashLockfile(lock.ruta)}`;
+/* Clave de frescura del proyecto: cambia si cambia cualquiera de sus lockfile.
+ * [por que] El HEAD no entra: audit depende solo de los lockfile. */
+function frescoDe(p: Proyecto, locks: LockDetectado[]): string {
+  return `${p.clave}|${locks.map((l) => `${l.lockfile}@${hashLockfile(l.ruta)}`).join('|')}`;
 }
 
 /* Normaliza una severidad arbitraria del JSON de audit a las 4 conocidas.
@@ -137,27 +174,19 @@ function sev(s: unknown): HallazgoVulnerabilidad['severidad'] {
 /* npm audit --json: { metadata: { vulnerabilities: {info,low,moderate,high,
  * critical} }, vulnerabilities: { "<paquete>": { severity, ... } } }.
  * pnpm audit --json: { metadata: {...}, vulnerabilities: [ {name,severity,...} ] }.
- * cargo audit --json: { vulnerabilities: { "<id>": { advisory/severe..., ... } },
- *                       vulnerabilities_found: n }. */
-interface JsonAudit {
-  metadata?: {
-    vulnerabilities?: Partial<Record<string, unknown>>;
-  };
+ * cargo audit --json: { vulnerabilities: { found, count, list: [ {advisory,
+ *                       versions, affected} ] }, ... }. */
+export interface JsonAudit {
   vulnerabilities?: unknown;
-  vulnerabilities_found?: unknown;
 }
 
-function parsearAudit(g: LockDetectado['gestor'], crudo: JsonAudit): {
+/* El resumen se deriva siempre de los hallazgos: pnpm no trae `metadata` y, si
+ * se leyera de ahi, un proyecto con vulnerabilidades saldria como 'ok'. */
+export function parsearAudit(g: LockDetectado['gestor'], crudo: JsonAudit): {
   resumen: AnalisisVulnerabilidades['resumen'];
   hallazgos: HallazgoVulnerabilidad[];
 } {
-  const resumen = { critical: 0, high: 0, moderate: 0, low: 0 };
   const hallazgos: HallazgoVulnerabilidad[] = [];
-  const meta = crudo.metadata?.vulnerabilities ?? {};
-  for (const sevKey of ['critical', 'high', 'moderate', 'low'] as const) {
-    const n = Number(meta[sevKey]);
-    if (n > 0) resumen[sevKey] = n;
-  }
   const vulns = crudo.vulnerabilities;
   const agregar = (paquete: string, s: unknown, rango: string) => {
     hallazgos.push({ paquete, severidad: sev(s), rango });
@@ -166,9 +195,8 @@ function parsearAudit(g: LockDetectado['gestor'], crudo: JsonAudit): {
   if (g === 'cargo') {
     /* cargo-audit 0.22 emite `vulnerabilities` como {found,count,list} con
      * `list` = array de {advisory, versions, affected}; versiones viejas
-     * emitian un mapa id -> objeto. [25-09-2026] El parser trataba
-     * found/count/list como paquetes (3 falsos positivos low por proyecto).
-     * Se detecta la forma por la presencia del array `list`. */
+     * emitian un mapa id -> objeto. Leer found/count/list como paquetes daba
+     * falsos positivos, asi que la forma se detecta por el array `list`. */
     if (vulns && typeof vulns === 'object') {
       const mapa = vulns as Record<string, unknown>;
       const lista = Array.isArray(mapa['list'])
@@ -206,9 +234,7 @@ function parsearAudit(g: LockDetectado['gestor'], crudo: JsonAudit): {
         }
       }
     }
-    /* cargo no trae metadata de conteo: el resumen se deriva de lo hallado. */
-    for (const h of hallazgos) resumen[h.severidad]++;
-    return { resumen, hallazgos };
+    return { resumen: contar(hallazgos), hallazgos };
   }
 
   if (Array.isArray(vulns)) {
@@ -216,7 +242,7 @@ function parsearAudit(g: LockDetectado['gestor'], crudo: JsonAudit): {
     for (const v of vulns as Array<Record<string, unknown>>) {
       agregar(String(v['name'] ?? '?'), v['severity'], String(v['range'] ?? ''));
     }
-    return { resumen, hallazgos };
+    return { resumen: contar(hallazgos), hallazgos };
   }
   if (vulns && typeof vulns === 'object') {
     /* npm: mapa paquete -> { severity, ... }. */
@@ -225,92 +251,182 @@ function parsearAudit(g: LockDetectado['gestor'], crudo: JsonAudit): {
       agregar(pkg, o['severity'], String(o['range'] ?? o['range_safe'] ?? ''));
     }
   }
-  return { resumen, hallazgos };
+  return { resumen: contar(hallazgos), hallazgos };
 }
 
-/* Comando de audit del gestor. npm/pnpm/cargo pueden ser .cmd en Windows:
- * se usa execFile con shell (args estaticos, sin input del usuario). */
-function comandoAudit(g: LockDetectado['gestor']): string {
-  if (g === 'pnpm') return 'pnpm audit --json';
-  if (g === 'cargo') return 'cargo audit --json';
-  return 'npm audit --json';
+/* Comando de audit del gestor. Para pnpm puede no haber CLI: devuelve null. */
+async function cliDeAudit(g: LockDetectado['gestor'], cwd: string): Promise<string | null> {
+  if (g === 'pnpm') return resolverCliPnpm(cwd);
+  return g === 'cargo' ? 'cargo audit --json' : 'npm audit --json';
 }
 
-/* Corre audit de UN proyecto y devuelve el resultado normalizado; null si el
- * CLI falla (se deriva el estado error/noAuditable arriba). */
-async function correrAudit(
-  p: Proyecto,
-  lock: LockDetectado,
-): Promise<AnalisisVulnerabilidades> {
-  const cli = comandoAudit(lock.gestor);
+/* Nombre de crate seguro para la linea de `cargo tree`: solo letras, digitos,
+ * `-` y `_`. Cualquier otra cosa no llega a la shell. */
+export function nombrePaqueteValido(nombre: string): boolean {
+  return /^[A-Za-z0-9_-]+$/.test(nombre);
+}
+
+/* `cargo tree -i <crate> -e normal,build --target all` sale 0 con stdout vacio
+ * cuando el crate no esta en el grafo de build ("nothing to print"). Cualquier
+ * otro resultado (exit != 0 por crate no descargado, timeout) es "desconocido" y
+ * se trata como alcanzable: es el lado conservador. */
+export function esNoAlcanzable(codigo: number | null, stdout: string): boolean {
+  return codigo === 0 && stdout.trim() === '';
+}
+
+/* Un hallazgo de cargo solo cuenta si el crate alcanza el build. `memo` es de
+ * UNA auditoria: varios advisories del mismo crate cuestan un solo cargo tree. */
+async function alcanzable(
+  cwd: string,
+  paquete: string,
+  memo: Map<string, boolean>,
+): Promise<boolean> {
+  if (!nombrePaqueteValido(paquete)) return true;
+  const previo = memo.get(paquete);
+  if (previo !== undefined) return previo;
+  const r = await ejecutar(`cargo tree -i ${paquete} --offline -e normal,build --target all`, cwd);
+  const si = !esNoAlcanzable(r.codigo, r.stdout);
+  memo.set(paquete, si);
+  return si;
+}
+
+function contar(hallazgos: HallazgoVulnerabilidad[]): AnalisisVulnerabilidades['resumen'] {
+  const resumen = { critical: 0, high: 0, moderate: 0, low: 0 };
+  for (const h of hallazgos) resumen[h.severidad]++;
+  return resumen;
+}
+
+/* Parte de un análisis sin datos: sin lockfile, CLI ausente o CLI fallido. */
+function sinDatos(
+  base: Pick<AnalisisVulnerabilidades, 'clave' | 'gestor' | 'lockfile'>,
+  estado: 'noAuditable' | 'error',
+  error: string,
+): AnalisisVulnerabilidades {
+  return {
+    ...base,
+    estado,
+    analizadoEn: new Date().toISOString(),
+    resumen: { critical: 0, high: 0, moderate: 0, low: 0 },
+    hallazgos: [],
+    noAlcanzables: [],
+    error,
+  };
+}
+
+/* Corre audit de UN lockfile y devuelve su parte normalizada. La cache es por
+ * proyecto (auditarProyecto), no por lockfile. */
+async function correrAudit(p: Proyecto, lock: LockDetectado): Promise<AnalisisVulnerabilidades> {
+  const base = { clave: p.clave, gestor: lock.gestor, lockfile: lock.lockfile };
   /* [por que] El audit debe correr desde la carpeta que contiene el lockfile;
-   * el lockfile puede estar en la raiz o en frontend/gui. `base` es esa
-   * subcarpeta ('' para raiz). */
+   * `base` es esa subcarpeta ('' para raiz). */
   const cwdAudit = join(p.ruta, lock.base);
+  const cli = await cliDeAudit(lock.gestor, cwdAudit);
+  if (!cli) {
+    return sinDatos(base, 'noAuditable', 'pnpm no disponible (ni pnpm ni corepack en PATH)');
+  }
 
-  /* [por que] npm/pnpm/cargo audit devuelven exit != 0 cuando HAY
-   * vulnerabilidades (exit 1) o cargo-audit no esta (exit distinto). execFile
-   * rechaza en ambos casos; el JSON valido viaja en stdout. Por eso NO se usa
-   * el reject de execFile como criterio: se corre con spawn (promisificado a
-   * mano) y se decide por el contenido parseable de stdout, no por el exit. */
-  const stdout = await correrConOutput(cli, cwdAudit);
+  /* [por que] npm/pnpm/cargo audit devuelven exit != 0 cuando HAY vulnerabilidades
+   * (exit 1) o cargo-audit no esta. El JSON valido viaja en stdout, asi que la
+   * decision se toma por el contenido parseable, no por el exit code. */
+  const { stdout } = await ejecutar(cli, cwdAudit);
   try {
     const crudo = JSON.parse(stdout) as JsonAudit;
     if (!crudo || typeof crudo !== 'object') throw new Error('respuesta invalida');
-    const { resumen, hallazgos } = parsearAudit(lock.gestor, crudo);
+    let { resumen, hallazgos } = parsearAudit(lock.gestor, crudo);
+    const noAlcanzables: HallazgoVulnerabilidad[] = [];
+    if (lock.gestor === 'cargo') {
+      const memo = new Map<string, boolean>();
+      const alcanzan: HallazgoVulnerabilidad[] = [];
+      for (const h of hallazgos) {
+        if (await alcanzable(cwdAudit, h.paquete, memo)) alcanzan.push(h);
+        else noAlcanzables.push(h);
+      }
+      hallazgos = alcanzan;
+      resumen = contar(alcanzan);
+    }
     const total = resumen.critical + resumen.high + resumen.moderate + resumen.low;
     return {
-      clave: p.clave,
-      gestor: lock.gestor,
-      lockfile: lock.lockfile,
+      ...base,
       estado: total > 0 ? 'conHallazgos' : 'ok',
       analizadoEn: new Date().toISOString(),
       resumen,
-      hallazgos: hallazgos.slice(0, 300),
+      hallazgos: hallazgos.slice(0, 300).map((h) => ({ ...h, origen: lock.lockfile })),
+      noAlcanzables: noAlcanzables.map((h) => ({ ...h, origen: lock.lockfile })),
     };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'audit fallo';
-    /* [por que] cargo-audit ausente produce stdout vacio/JSON invalido: como
-     * RESTAURANTE/WANDORIUS/PT solo tienen lockfile Rust a analizar, el fallo
-     * de parseo puede deberse a cargo-audit no instalado. Se marca
+    /* [por que] cargo-audit ausente produce stdout vacio o no-JSON. Se marca
      * 'noAuditable' (visible sin problema) como limitacion documentada. */
-    const noCargo = lock.gestor === 'cargo';
-    return {
-      clave: p.clave,
-      gestor: lock.gestor,
-      lockfile: lock.lockfile,
-      estado: noCargo ? 'noAuditable' : 'error',
-      analizadoEn: new Date().toISOString(),
-      resumen: { critical: 0, high: 0, moderate: 0, low: 0 },
-      hallazgos: [],
-      error: noCargo
-        ? 'cargo-audit no instalado (Rust pendiente de provisionar)'
-        : `audit fallo: ${msg.slice(0, 120)}`,
-    };
+    if (lock.gestor === 'cargo') {
+      return sinDatos(base, 'noAuditable', 'cargo-audit no disponible (no instalado o sin salida)');
+    }
+    const msg = stdout.trim() === '' ? 'sin salida del CLI' : err instanceof Error ? err.message : 'audit fallo';
+    return sinDatos(base, 'error', `audit fallo: ${msg.slice(0, 120)}`);
   }
 }
 
-/* Audita UN proyecto con cache por cambio real (hash de lockfile) y
- * single-flight. Si no tiene lockfile, marca noAuditable. */
-export function auditarProyecto(p: Proyecto, forzar = false): Promise<AnalisisVulnerabilidades> {
-  const lock = detectarLockfile(p);
-  if (!lock) {
-    return Promise.resolve({
-      clave: p.clave,
-      gestor: null,
-      lockfile: '',
-      estado: 'noAuditable',
-      analizadoEn: new Date().toISOString(),
-      resumen: { critical: 0, high: 0, moderate: 0, low: 0 },
-      hallazgos: [],
-      error: 'sin lockfile de dependencias (npm/pnpm/cargo)',
-    });
+const SEVERIDADES = ['critical', 'high', 'moderate', 'low'] as const;
+
+/* Une las partes de un proyecto (una por lockfile) en un solo análisis. Estado,
+ * de mayor a menor: conHallazgos > error > noAuditable (si alguna parte no se
+ * pudo auditar) > ok. [por que] conHallazgos gana a error: las vulnerabilidades
+ * ya obtenidas son reales y no deben esconderse porque otra parte fallara; el
+ * fallo queda en `error`. */
+export function agregarAnalisis(
+  clave: string,
+  partes: AnalisisVulnerabilidades[],
+): AnalisisVulnerabilidades {
+  const resumen = { critical: 0, high: 0, moderate: 0, low: 0 };
+  const hallazgos: HallazgoVulnerabilidad[] = [];
+  const noAlcanzables: HallazgoVulnerabilidad[] = [];
+  const avisos: string[] = [];
+  for (const p of partes) {
+    for (const s of SEVERIDADES) resumen[s] += p.resumen[s];
+    hallazgos.push(...p.hallazgos);
+    noAlcanzables.push(...(p.noAlcanzables ?? []));
+    if (p.error) avisos.push(`${p.lockfile}: ${p.error}`);
   }
-  const fresco = frescoDe(p, lock);
+  const estados = partes.map((p) => p.estado);
+  const estado: AnalisisVulnerabilidades['estado'] = estados.includes('conHallazgos')
+    ? 'conHallazgos'
+    : estados.includes('error')
+      ? 'error'
+      : estados.includes('noAuditable')
+        ? 'noAuditable'
+        : 'ok';
+  return {
+    clave,
+    gestor: partes.find((p) => p.gestor)?.gestor ?? null,
+    lockfile: partes.map((p) => p.lockfile).join(', '),
+    estado,
+    analizadoEn: new Date().toISOString(),
+    resumen,
+    hallazgos: hallazgos.slice(0, 300),
+    noAlcanzables,
+    ...(avisos.length ? { error: avisos.join('; ').slice(0, 300) } : {}),
+  };
+}
+
+/* Audita UN proyecto con cache por cambio real (hash de sus lockfile) y
+ * single-flight. Sin lockfile, marca noAuditable. */
+export function auditarProyecto(p: Proyecto, forzar = false): Promise<AnalisisVulnerabilidades> {
+  const locks = detectarLockfiles(p.ruta);
+  if (locks.length === 0) {
+    return Promise.resolve(
+      sinDatos(
+        { clave: p.clave, gestor: null, lockfile: '' },
+        'noAuditable',
+        'sin lockfile de dependencias (npm/pnpm/cargo)',
+      ),
+    );
+  }
+  const fresco = frescoDe(p, locks);
   const mem = cache.get(p.clave);
   if (!forzar && mem && mem.fresco === fresco) return Promise.resolve(mem.dato);
   return compartirVuelo(enVuelo, p.clave, async (): Promise<AnalisisVulnerabilidades> => {
-    const dato = await correrAudit(p, lock);
+    /* En serie: un audit a la vez por proyecto, como el barrido del workspace. */
+    const partes: AnalisisVulnerabilidades[] = [];
+    for (const lock of locks) partes.push(await correrAudit(p, lock));
+    const dato = agregarAnalisis(p.clave, partes);
     cache.set(p.clave, { fresco, dato });
     return dato;
   });
