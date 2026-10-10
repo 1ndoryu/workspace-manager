@@ -118,7 +118,7 @@ function relArchivo(abs: string, raiz: string): string {
 /* Normaliza el JSON real de `analyze` a un AnalisisSentinel plano y acotado.
  * `fuenteHallazgo` taguea cada hallazgo con la herramienta que lo emitio
  * ('sentinel' | 'varsense', fase G). */
-function normalizar(
+export function normalizar(
   dato: ReporteJson,
   clave: string,
   version: string,
@@ -137,8 +137,11 @@ function normalizar(
   for (const entry of dato.entries ?? []) {
     const archivo = relArchivo(String(entry.ruta ?? entry.path ?? entry.archivo ?? ''), raiz);
     for (const f of entry.findings ?? []) {
+      /* `range.start.line` de sentinel es 0-based (contrato LSP); el tablero
+       * muestra numeros de linea humanos, asi que suma 1. Sin esto cada aviso
+       * apunta a la linea anterior a la real. */
       const lineaRaw = f.range?.start?.line;
-      const linea = typeof lineaRaw === 'number' ? lineaRaw : null;
+      const linea = typeof lineaRaw === 'number' ? lineaRaw + 1 : null;
       const sugerencia = typeof f.suggestion === 'string' ? f.suggestion : undefined;
       hallazgos.push({
         ruleId: String(f.ruleId ?? 'regla-desconocida'),
