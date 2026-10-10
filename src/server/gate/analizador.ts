@@ -181,6 +181,14 @@ function sumarResumen(a: NombreSeveridad, b: NombreSeveridad): NombreSeveridad {
   };
 }
 
+/* [08AA-26] Solo un analisis valido entra en la cache. Un error es transitorio
+ * (p. ej. timeout o runtime ocupado): cachearlo servia "error" en el tablero hasta
+ * el siguiente forzado. Si ya habia un analisis valido, se conserva.
+ * [por que] Funcion pura: se testea sin lanzar el CLI de Sentinel. */
+export function esCacheable(dato: AnalisisSentinel): boolean {
+  return dato.estado !== 'error';
+}
+
 /* Analiza UN proyecto, con cache por frescura (sin spawn si esta fresco) y
  * single-flight por promesa compartida: si el mismo proyecto ya se esta
  * analizando, quien lo pide espera el MISMO vuelo (nunca dos spawns a la vez
@@ -226,8 +234,10 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
         if (dato.estado === 'ok' && vs.estado === 'conHallazgos') dato.estado = 'conHallazgos';
       }
     }
-    cache.set(clave, { fresco, dato });
-    persistir();
+    if (esCacheable(dato)) {
+      cache.set(clave, { fresco, dato });
+      persistir();
+    }
     return dato;
   });
 }
