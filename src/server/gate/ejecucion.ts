@@ -178,10 +178,13 @@ export async function correrSentinel(ruta: string): Promise<ResultadoSpawn | nul
    * [por que] 2026-09-10: `cliRuntime()` ya resolvía el checkout 0.7.8 pero
    * aquí se anotaba `versionRuntime()` (0.7.4), así que el panel decía medir
    * con una herramienta que no era la que corría. 039A-4 añade el commit. */
+  /* [por que] 2026-10-10: PROYECTO TASKS (993 archivos) tarda ~58 s en
+   * `analyze` con el sistema cargado; con 60 s el timeout mataba el proceso,
+   * no había stdout y el gate marcaba 'error' falso. 180 s da margen. */
   const opciones = {
     encoding: 'utf8' as const,
     windowsHide: true,
-    timeout: 60000,
+    timeout: 180000,
     env: { ...process.env, ...entornoGate(ruta) },
   };
   try {
