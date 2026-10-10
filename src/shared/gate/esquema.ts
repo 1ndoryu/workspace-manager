@@ -375,7 +375,10 @@ export function diagnosticar(esquema: NodoEsquema, json: unknown): Fila[] {
       for (const k of Object.keys(v).sort()) rec(n.mapaCatalogo, v[k], [...ruta, k], echo);
       for (const id of (n.catalogo ?? [])) {
         if (!presentes.has(id)) {
-          if (!echo) filas.push({ tipo: 'faltante', ruta: [...ruta, id], default: {}, necesidad: faltanteNecesidad(n), nodo: n.mapaCatalogo });
+          /* [por que] Un id del catalogo sin entrada usa su valor por defecto en el
+           * runtime: no es una opcion que falte. Se enumera (el editor la muestra)
+           * pero como `opcional`, para no avisar 105 veces en la consola (falso positivo). */
+          if (!echo) filas.push({ tipo: 'faltante', ruta: [...ruta, id], default: {}, necesidad: 'opcional', nodo: n.mapaCatalogo });
         }
       }
       return;
