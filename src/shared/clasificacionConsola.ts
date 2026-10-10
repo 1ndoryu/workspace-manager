@@ -92,7 +92,7 @@ export function problemasDe(p: Proyecto): Problema | null {
     if (g.sentinel === 'lock') {
       entradas.push({ categoria: 'gate', motivo: 'sentinel: solo lock, sin config', seriedad: null });
     }
-    if (!g.varsense && !g.varsenseOpcional) {
+    if (!g.varsense && !g.varsenseOpcional && !g.sinEstilos) {
       entradas.push({ categoria: 'gate', motivo: 'varsense ausente', seriedad: null });
     }
   }
