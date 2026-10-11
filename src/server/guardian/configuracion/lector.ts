@@ -17,6 +17,10 @@ export type ModoTope = 'observe' | 'enforce';
 /* Clases contables. [por que] Espejo de HEAVY_BUDGET_CLASSES de Sentinel
  * (fuente única real); si Sentinel añade una clase, este lector la muestra
  * igual (las claves desconocidas de runs.jsonl también se agregan). */
+/* Claves de budgets.limits que Sentinel aplica. Una clave fuera de esta lista no
+ * tiene efecto, así que topes.ts no la escribe. */
+export const CLASES_TOPE = ['cargo-check', 'cargo-clippy', 'cargo-test', 'tsc-noemit'] as const;
+export type ClaseTope = (typeof CLASES_TOPE)[number];
 export const LIMITE_TOPE_DEFECTO = 5;
 
 /* Topes del propio lector: barrer .quality-reports no puede crecer sin cota.
@@ -112,12 +116,20 @@ export function leerPolitica(raiz: string): PoliticaGuard {
       const n = enteroTope(v);
       if (n === null) continue;
       limites[k] = n;
-      if (k !== 'cargo-check' && k !== 'cargo-clippy' && k !== 'cargo-test' && k !== 'tsc-noemit') {
+      if (!(CLASES_TOPE as readonly string[]).includes(k)) {
         limitesExtra.push(k);
       }
     }
   }
   return { config: 'ok', modo, limites, limitesExtra };
+}
+
+/* Extra EFECTIVO de lote-extra.md: el primer entero del texto (+N), como
+ * readOverrideExtra de Sentinel. [por que] Gana el primer número aunque sea de
+ * una fecha; por eso topes.ts escribe siempre la ampliación nueva en la primera línea. */
+export function extraDeOverride(contenido: string): number {
+  const m = contenido.match(/\+?(\d+)/u);
+  return m ? Math.max(0, parseInt(m[1], 10)) : 0;
 }
 
 /* Lee <raiz>/lote-extra.md: el primer entero (+N) amplía el cupo en N.
@@ -130,9 +142,8 @@ export function leerOverride(raiz: string): OverrideGuard {
   } catch {
     return { existe: false, extra: 0, primeraLinea: '' };
   }
-  const m = contenido.match(/\+?(\d+)/u);
   const primeraLinea = (contenido.split('\n')[0] ?? '').slice(0, 120);
-  return { existe: true, extra: m ? Math.max(0, parseInt(m[1], 10)) : 0, primeraLinea };
+  return { existe: true, extra: extraDeOverride(contenido), primeraLinea };
 }
 
 interface LineaRun {
