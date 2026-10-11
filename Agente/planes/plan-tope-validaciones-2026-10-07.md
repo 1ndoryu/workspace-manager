@@ -239,3 +239,9 @@ registradas, panel Guard visible y operable.
 
 ## Referencia
 NAKOMI roadmap §Barrido consola 07AA (07AA-8 trasladada aquí); lección 07AA-7.
+
+## Retirada del panel Guard (10AA-2 F11.1, 2026-10-10)
+- Retirado `VistaGuard.tsx` y `useVistaGuard.ts` (su enganche en `VistaProyecto.tsx`).
+- Retiradas las escrituras `POST /api/guard/modo` y `POST /api/guard/lote-extra`: escribían sin atomicidad ni comprobación de origen, y `lote-extra.md` se sobrescribía.
+- Se conservan `lector.ts` y las lecturas `GET /api/guard/estado*` como base de «Topes» en la pestaña Guardián (10AA-2 F11.4).
+- Motivo: el panel mezclaba el tope por tarea dentro de la vista de proyecto y no enseñaba ni gestionaba los comandos bloqueados. D4 (lectura + control desde el inicio) queda sustituida por la decisión D6 de `plan-mejora-flujo-herramientas-2026-10-10`.

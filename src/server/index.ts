@@ -102,7 +102,7 @@ export function crearServidor() {
           return;
         }
         /* Rutas del Guard del tope físico anti-espiral (/api/guard/*, 07AA-6
-         * F6): estado por proyecto + control modo/lote-extra. */
+         * F6): estado por proyecto, solo lectura (10AA-2 F11.1). */
         if (await manejarRutasGuard(req, res, url, ruta)) {
           return;
         }

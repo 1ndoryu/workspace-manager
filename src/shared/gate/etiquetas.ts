@@ -105,13 +105,13 @@ const CATALOGO_BASE: Record<string, InfoSegmento> = {
   },
   guard: {
     nombre: 'Guard',
-    descripcion: 'Comandos directos protegidos por el guard.',
-    detalle: 'Protege comandos directos: define qué comandos pueden ejecutarse sin pasar por el flujo normal de coordinación. Es una lista de excepciones controladas.',
+    descripcion: 'Bloquea o observa las invocaciones directas de herramientas de build y calidad.',
+    detalle: 'Cuando un comando se lanza a mano (npm, npx, cargo o una herramienta suelta) sin pasar por el gate, el guard lo bloquea (enforce), solo lo registra (observe) o lo deja pasar (pass-through). El modo es el campo mode de sentinel.config.json.',
   },
   directCommands: {
     nombre: 'Comandos directos',
-    descripcion: 'Comandos que se ejecutan directamente sin intermediarios.',
-    detalle: 'Mapa de comandos que se ejecutan directamente, sin intermediarios. Cada entrada define un comando directo permitido y su configuración.',
+    descripcion: 'Comandos que el guard vigila cuando se lanzan sin el gate.',
+    detalle: 'Listas por tipo: scripts npm (npmScripts), herramientas npx (npxTools), subcomandos cargo (cargoSubcommands) y herramientas sueltas (tools). Cada entrada es un comando que el guard decide si bloquea o deja pasar.',
   },
   runtime: {
     nombre: 'Runtime',
