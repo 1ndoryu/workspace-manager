@@ -187,6 +187,8 @@
     { "exe": "C:\\Program Files\\OpenVPN\\bin\\openvpn.exe", "motivo": "OpenVPN: VPN del usuario, no del area" },
     { "exe": "C:\\Users\\usuario\\.cargo\\bin\\sccache.exe", "motivo": "sccache: cache de compilacion de cargo, sin proyecto propio" },
     { "exe": "C:\\Users\\usuario\\.bun\\bin\\bun.exe", "cmdContiene": "serve --port 4096", "motivo": "opencode-propio: servidor bun del app del usuario (gestion-externa; cwd no visible por CIM)" },
-    { "pid": 4, "motivo": "System: nucleo de Windows, sin exe (PID fijo)" }
+    { "pid": 4, "motivo": "System: nucleo de Windows, sin exe (PID fijo)" },
+    { "servicio": "SurfaceExperienceService-76.5120.174", "motivo": "Microsoft Surface: servicio LocalSystem de WindowsApps; exe oculto sin elevar" },
+    { "servicio": "ESRV_SVC_QUEENCREEK", "motivo": "Intel SUR: servicio LocalSystem del fabricante (esrv_svc.exe); exe oculto sin elevar" }
   ]
 }

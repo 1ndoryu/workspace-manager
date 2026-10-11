@@ -101,11 +101,14 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
 function validarIgnoradoSistema(s, ctx) {
   if (typeof s !== 'object' || s === null || Array.isArray(s)) throw new Error(`registro: ${ctx} no es objeto`);
   for (const k of Object.keys(s)) {
-    if (!['exe', 'pid', 'cmdContiene', 'motivo'].includes(k)) throw new Error(`registro: ${ctx} clave desconocida '${k}'`);
+    if (!['exe', 'pid', 'servicio', 'cmdContiene', 'motivo'].includes(k)) throw new Error(`registro: ${ctx} clave desconocida '${k}'`);
   }
   const tieneExe = typeof s.exe === 'string' && isAbsolute(s.exe);
   const tienePid = Number.isInteger(s.pid) && s.pid > 0;
-  if (tieneExe === tienePid) throw new Error(`registro: ${ctx} requiere exactamente uno de exe (ruta absoluta) o pid`);
+  const tieneServicio = typeof s.servicio === 'string' && s.servicio.length >= 2 && s.servicio.length <= 200;
+  if ([tieneExe, tienePid, tieneServicio].filter(Boolean).length !== 1) {
+    throw new Error(`registro: ${ctx} requiere exactamente uno de exe (ruta absoluta), pid o servicio`);
+  }
   // [por que] Un exe generico (bun.exe) puede lanzar mas de un servicio: cmdContiene
   // acota el ignorado a una linea de comando concreta, nunca vale solo con pid.
   if (s.cmdContiene !== undefined) {
@@ -469,6 +472,28 @@ export async function procesosDe(pids) {
   return mapa;
 }
 
+/* Servicio de Windows que sirve cada PID (Win32_Service). Su exe no es legible
+ * sin elevar (CIM lo deja vacio), pero el nombre del servicio si. */
+export async function serviciosDe(pids) {
+  const buscados = new Set(pids.filter((p) => Number.isInteger(p) && p > 0));
+  if (buscados.size === 0) return new Map();
+  const sal = await correrPs(
+    `Get-CimInstance Win32_Service | Where-Object { $_.ProcessId -gt 0 } | Select-Object @{n='pid';e={$_.ProcessId}},@{n='nombre';e={$_.Name}} | ConvertTo-Json -Compress`,
+  );
+  let filas;
+  try {
+    const j = JSON.parse(sal);
+    filas = Array.isArray(j) ? j : j ? [j] : [];
+  } catch {
+    throw new Error('sensor servicios: JSON inesperado de Get-CimInstance');
+  }
+  const mapa = new Map();
+  for (const f of filas) {
+    if (buscados.has(f?.pid)) mapa.set(f.pid, { nombre: f.nombre ?? null });
+  }
+  return mapa;
+}
+
 function normalizarRuta(r) {
   return String(r ?? '').replace(/\//g, '\\').toLowerCase();
 }
@@ -530,9 +555,11 @@ export function atribuirHuerfano(proc, pool) {
 }
 
 /* Listener de tercero/sistema declarado en registro.ignoradosSistema. Por exe
- * (ruta exacta) o por pid solo cuando no hay exe (System = PID 4 en Windows). */
-export function esSistemaIgnorado(pid, proc, lista = []) {
+ * (ruta exacta), por servicio de Windows (nombre, para exe protegidos) o por pid
+ * solo cuando no hay exe (System = PID 4 en Windows). */
+export function esSistemaIgnorado(pid, proc, lista = [], servicio = null) {
   return lista.some((s) => {
+    if (s.servicio) return servicio?.nombre === s.servicio;
     if (!s.exe) return s.pid === pid && !proc?.exe;
     if (!proc?.exe || normalizarRuta(proc.exe) !== normalizarRuta(s.exe)) return false;
     return !s.cmdContiene || (proc.cmd ?? '').includes(s.cmdContiene);
@@ -631,12 +658,15 @@ export async function clasificar(proyectos, registro, escucha, ignorados = []) {
   }
 
   const huerfanos = [];
+  // [por que] Solo se consulta CIM por servicios si el registro declara alguno.
+  const ignoradosSis = registro.ignoradosSistema ?? [];
+  const servicios = ignoradosSis.some((s) => s.servicio) ? await serviciosDe(pids) : new Map();
   for (const c of candidatos) {
     if (consumidos.has(`${c.ip}:${c.puerto}:${c.pid}`)) continue;
     const proc = procs.get(c.pid);
     // [por que] Terceros/sistema declarados (uTorrent, Intel, VPN, sccache,
-    // kernel): no son del area ni son huecos.
-    if (esSistemaIgnorado(c.pid, proc, registro.ignoradosSistema ?? [])) continue;
+    // kernel, servicios de Windows): no son del area ni son huecos.
+    if (esSistemaIgnorado(c.pid, proc, ignoradosSis, servicios.get(c.pid) ?? null)) continue;
     // [por que] El pool incluye los ignorados del area: opencode-propio (ignorado
     // en el tablero) se atribuye y cae en noAplica en vez de salir huerfano mudo.
     const clave = atribuirHuerfano(proc, [...proyectos, ...ignorados]);

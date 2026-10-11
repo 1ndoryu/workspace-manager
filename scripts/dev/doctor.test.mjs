@@ -67,6 +67,14 @@ test('esSistemaIgnorado: exe exacto sin distinguir mayusculas', () => {
   assert.equal(esSistemaIgnorado(1, { exe: 'C:\\otro\\openvpn.exe', cmd: '' }, lista), false);
 });
 
+test('esSistemaIgnorado: servicio de Windows por nombre, exe oculto (SurfaceBroker)', () => {
+  const lista = [{ servicio: 'SurfaceExperienceService-76.5120.174', motivo: 'Microsoft Surface, LocalSystem' }];
+  const svc = { nombre: 'SurfaceExperienceService-76.5120.174' };
+  assert.equal(esSistemaIgnorado(9200, { exe: null, cmd: '' }, lista, svc), true);
+  assert.equal(esSistemaIgnorado(9200, { exe: null, cmd: '' }, lista, { nombre: 'OtroServicio' }), false);
+  assert.equal(esSistemaIgnorado(9200, { exe: null, cmd: '' }, lista, null), false);
+});
+
 test('esSistemaIgnorado: pid 4 solo sin exe (System)', () => {
   const lista = [{ pid: 4, motivo: 'System, sin exe' }];
   assert.equal(esSistemaIgnorado(4, { exe: null, cmd: '' }, lista), true);
