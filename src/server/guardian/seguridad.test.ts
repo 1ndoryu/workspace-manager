@@ -12,8 +12,8 @@ const BUENA: IncomingHttpHeaders = {
   'content-type': 'application/json',
 };
 
-function con(cambios: IncomingHttpHeaders): IncomingHttpHeaders {
-  return { ...BUENA, ...cambios };
+function con(cambios: Record<string, string | string[]>): IncomingHttpHeaders {
+  return { ...BUENA, ...cambios } as IncomingHttpHeaders;
 }
 
 describe('verificarPeticionEscritura: aceptadas', () => {
