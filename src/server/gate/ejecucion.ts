@@ -107,6 +107,14 @@ export function varsenseRuntime(): { version: string } | null {
   }
 }
 
+/* Varsense aplica al proyecto si lo declara (varsense.config.json) y el runtime
+ * esta provisionado. [por que] Separa "no aplica" (null legitimo) de "aplica y
+ * fallo" (correrVarsense devuelve null por timeout o salida no JSON): solo el
+ * segundo no puede quedar como 'ok' en el tablero. */
+export function varsenseAplica(ruta: string): boolean {
+  return existsSync(join(ruta, 'varsense.config.json')) && varsenseRuntime() !== null;
+}
+
 /* Hash del varsense.config.json del proyecto (o null si no lo declara): si la
  * config cambia, el análisis de varsense cambia aunque el código no. */
 export function varsenseConfigHash(ruta: string): string | null {

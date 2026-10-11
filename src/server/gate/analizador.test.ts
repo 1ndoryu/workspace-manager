@@ -2,7 +2,7 @@
  * Se corre con: node node_modules/tsx/dist/cli.mjs --test src/server/gate/analizador.test.ts */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { esCacheable, normalizar } from './analizador.js';
+import { esCacheable, marcarVarsenseFallido, normalizar } from './analizador.js';
 
 type Dato = Parameters<typeof esCacheable>[0];
 type Reporte = Parameters<typeof normalizar>[0];
@@ -29,5 +29,16 @@ describe('analizador: solo se cachea un analisis valido', () => {
   it('ok y conHallazgos si se cachean', () => {
     assert.equal(esCacheable({ estado: 'ok' } as Dato), true);
     assert.equal(esCacheable({ estado: 'conHallazgos' } as Dato), true);
+  });
+});
+
+describe('analizador: varsense declarado sin reporte no es ok', () => {
+  it('pasa a error, conserva el error previo y no se cachea', () => {
+    const sinVs = marcarVarsenseFallido({ estado: 'ok', resumen: { error: 0, warning: 0, information: 0, hint: 0 }, hallazgos: [] } as unknown as Dato);
+    assert.equal(sinVs.estado, 'error');
+    assert.match(String(sinVs.error), /varsense declarado/);
+    assert.equal(esCacheable(sinVs), false);
+    const conErrorPrevio = marcarVarsenseFallido({ estado: 'error', error: 'runtime sentinel no disponible' } as unknown as Dato);
+    assert.equal(conErrorPrevio.error, 'runtime sentinel no disponible');
   });
 });
