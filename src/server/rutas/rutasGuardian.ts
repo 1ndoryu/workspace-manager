@@ -17,8 +17,10 @@ import {
   ErrorValidacion,
   guardarEdicion,
   guardarLote,
+  leerPolitica,
   validarCambio,
   type EdicionLote,
+  type Listas,
   type Plantilla,
   type ResultadoEdicion,
   type ResultadoLote,
@@ -132,6 +134,26 @@ async function conErrores(c: Contexto, manejador: Manejador): Promise<void> {
 
 /* --- Lecturas (GET) ----------------------------------------------------------- */
 
+/* Estado de la política por listas (npmScripts, npxTools, cargoSubcommands, tools).
+ * [por que] La matriz «Comandos» cruza proyecto × comando: necesita las listas,
+ * y leerGuardProyecto solo trae modo y topes. Si la política no es legible, la
+ * página lo dice con el motivo; no supone listas vacías. */
+export type EstadoListas =
+  | { estado: 'ok'; listas: Listas }
+  | { estado: 'ausente' }
+  | { estado: 'invalida'; motivo: string };
+
+function estadoListasDe(ruta: string): EstadoListas {
+  const lectura = leerPolitica(ruta);
+  if (lectura.estado === 'ok') return { estado: 'ok', listas: lectura.listas };
+  if (lectura.estado === 'ausente') return { estado: 'ausente' };
+  return { estado: 'invalida', motivo: lectura.motivo };
+}
+
+function estadoElegible(clave: string, ruta: string) {
+  return { elegible: true as const, ...leerGuardProyecto(clave, ruta), listas: estadoListasDe(ruta) };
+}
+
 async function estadoProyecto({ res, url, deps }: Contexto): Promise<void> {
   const clave = url.searchParams.get('clave') ?? '';
   const proyecto = deps.proyectoPorClave(clave);
@@ -145,7 +167,7 @@ async function estadoProyecto({ res, url, deps }: Contexto): Promise<void> {
   }
   /* [por que] Los hashes son lo que la página devuelve al guardar (hash previo):
    * sin ellos un guardado no puede detectar que el fichero cambió por fuera. */
-  json(res, 200, { elegible: true, ...leerGuardProyecto(clave, proyecto.ruta), hashes: hashesDe(proyecto.ruta) });
+  json(res, 200, { ...estadoElegible(clave, proyecto.ruta), hashes: hashesDe(proyecto.ruta) });
 }
 
 /* [por que] Barrido agregado sin hashes: son dos lecturas más por proyecto y solo
@@ -154,11 +176,7 @@ async function estadoArea({ res, deps }: Contexto): Promise<void> {
   const proyectos = deps.proyectos();
   json(res, 200, {
     total: proyectos.length,
-    proyectos: proyectos.map((p) =>
-      esElegible(p)
-        ? { elegible: true as const, ...leerGuardProyecto(p.clave, p.ruta) }
-        : { clave: p.clave, elegible: false as const },
-    ),
+    proyectos: proyectos.map((p) => (esElegible(p) ? estadoElegible(p.clave, p.ruta) : { clave: p.clave, elegible: false as const })),
   });
 }
 

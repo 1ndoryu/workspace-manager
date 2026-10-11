@@ -38,6 +38,14 @@ const CONFIG_BASE = [
   '',
 ].join('\r\n');
 
+/* Las listas que CONFIG_BASE declara; el router debe devolverlas tal cual. */
+const LISTAS_BASE = {
+  npmScripts: ['lint', 'test'],
+  npxTools: ['tsc'],
+  cargoSubcommands: ['check'],
+  tools: ['cargo'],
+};
+
 const proyectos: Proyecto[] = [];
 const llamadas = { probar: [] as Array<{ raiz: string; ejecutable: string; args: string[] }>, mantenimiento: [] as unknown[] };
 
@@ -155,12 +163,25 @@ describe('lecturas', () => {
     assert.equal(r.status, 200);
     assert.equal(r.cuerpo.elegible, true);
     assert.deepEqual(r.cuerpo.hashes, { config: hashDe(CONFIG_BASE), extra: null });
+    assert.deepEqual(r.cuerpo.listas, { estado: 'ok', listas: LISTAS_BASE });
   });
 
-  it('el barrido del área cuenta todos los proyectos', async () => {
+  it('una política que no valida se devuelve con su motivo, sin listas inventadas', async () => {
+    registrar('lectura-invalida', 'sentinel', '{"schemaVersion":1}');
+    const r = await pedir('GET', '/api/guardian/estado?clave=lectura-invalida');
+    assert.equal(r.status, 200);
+    assert.equal(r.cuerpo.listas.estado, 'invalida');
+    assert.equal(typeof r.cuerpo.listas.motivo, 'string');
+  });
+
+  it('el barrido del área cuenta todos los proyectos y trae las listas de los elegibles', async () => {
     const r = await pedir('GET', '/api/guardian/estado-todo');
     assert.equal(r.status, 200);
     assert.equal(r.cuerpo.total, proyectos.length);
+    const elegible = r.cuerpo.proyectos.find((p: { clave: string }) => p.clave === 'lectura-elegible');
+    assert.deepEqual(elegible.listas, { estado: 'ok', listas: LISTAS_BASE });
+    const noElegible = r.cuerpo.proyectos.find((p: { clave: string }) => p.clave === 'lectura-no-elegible');
+    assert.deepEqual(noElegible, { clave: 'lectura-no-elegible', elegible: false });
   });
 
   it('la plantilla del tablero se lee válida', async () => {
