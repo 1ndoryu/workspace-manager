@@ -16,6 +16,7 @@ import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
 import { diagnosticar, rutaEtiqueta, severidadDe } from '../../shared/gate/esquema.js';
 import { correrSincronizacion } from '../gate/sincronizacion.js';
 import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from '../gate/analizador.js';
+import { compararHallazgos } from '../gate/comparacion.js';
 import {
   auditarProyecto,
   auditarTodo,
@@ -23,7 +24,7 @@ import {
   leerVulnerabilidades,
 } from '../gate/vulnerabilidades.js';
 import { logger } from '../../shared/logger.js';
-import type { AnalisisSentinel, AnalisisVulnerabilidades } from '../../shared/types.js';
+import type { AnalisisSentinel, AnalisisVulnerabilidades, HallazgoSentinel } from '../../shared/types.js';
 
 export async function manejarRutasGate(
   req: IncomingMessage,
@@ -234,6 +235,50 @@ export async function manejarRutasGate(
       escaneadoEn: new Date().toISOString(),
       snapshot,
       proyectos: analisis,
+    });
+    return true;
+  }
+  /* Hallazgos NUEVOS frente a una línea base (10AA-2 F9.4). Body { clave, base }:
+   * base es el snapshot que guardó `gate --inicio`. Re-analiza con forzar: el
+   * árbol de trabajo cuenta, no solo HEAD. [por que] Un análisis en error no
+   * se devuelve como «sin nuevos»: sería un falso verde. */
+  if (ruta === '/api/gate/comparar') {
+    if (req.method !== 'POST') {
+      json(res, 405, { error: 'Metodo no permitido' });
+      return true;
+    }
+    const body = (await leerBody(req)) as { clave?: unknown; base?: unknown };
+    const clave = campoStr(body, 'clave', '');
+    const base = body.base;
+    const formaValida =
+      Array.isArray(base) &&
+      base.every((h) => typeof h === 'object' && h !== null && typeof (h as HallazgoSentinel).ruleId === 'string');
+    if (!formaValida) {
+      json(res, 400, { error: 'base debe ser una lista de hallazgos', clave });
+      return true;
+    }
+    const { snapshot } = snapshotArea(true);
+    const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
+    if (!proyecto) {
+      json(res, 404, { error: 'Proyecto no encontrado', clave });
+      return true;
+    }
+    if (!esElegible(proyecto)) {
+      json(res, 400, { error: 'El proyecto no usa sentinel (no se puede comparar)', clave });
+      return true;
+    }
+    const analisis = await analizarProyecto(proyecto, true);
+    if (analisis.estado === 'error') {
+      json(res, 502, { error: 'El análisis falló; no se puede comparar', clave, detalle: analisis.error });
+      return true;
+    }
+    const { nuevos, resueltos } = compararHallazgos(base as HallazgoSentinel[], analisis.hallazgos);
+    json(res, 200, {
+      clave,
+      analizadoEn: analisis.analizadoEn,
+      total: analisis.hallazgos.length,
+      resueltos,
+      nuevos,
     });
     return true;
   }
