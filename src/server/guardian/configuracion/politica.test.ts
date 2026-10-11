@@ -7,7 +7,7 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { escribirAtomico, hashDe } from './escritura.js';
+import { escribirAtomico, hashDe } from '../escritura.js';
 import {
   aplicarPlantilla,
   calcularEdicion,

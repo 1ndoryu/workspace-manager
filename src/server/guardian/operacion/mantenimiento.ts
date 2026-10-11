@@ -7,7 +7,7 @@
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { ErrorValidacion } from './politica.js';
+import { ErrorValidacion } from '../configuracion/politica.js';
 import { runtimeJsPorDefecto } from './probar.js';
 
 const execFileAsync = promisify(execFile);

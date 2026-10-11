@@ -6,7 +6,7 @@
  * que el resultado es exactamente la política prevista. */
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { diffLineas, eolDe, escribirAtomico, hashDe, leerFichero, type BloqueDiff, type Eol } from './escritura.js';
+import { diffLineas, eolDe, escribirAtomico, hashDe, leerFichero, type BloqueDiff, type Eol } from '../escritura.js';
 
 export const MODOS_GUARD = ['enforce', 'observe', 'pass-through'] as const;
 export type ModoGuard = (typeof MODOS_GUARD)[number];
