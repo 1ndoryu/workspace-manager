@@ -61,6 +61,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   analizando: false,
   vulnerabilidades: {},
   auditando: false,
+  salud: {},
   dev: null,
   devCargando: false,
   devError: null,

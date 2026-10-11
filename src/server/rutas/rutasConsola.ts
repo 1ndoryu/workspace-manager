@@ -12,15 +12,19 @@ import { snapshotArea } from '../snapshot.js';
 import { analizarTodo, leerTodas } from '../gate/analizador.js';
 import { auditarTodo, leerTodasVulnerabilidades } from '../gate/vulnerabilidades.js';
 import { obtenerVigilancia } from '../dev/vigilancia.js';
+import { saludArea, saludProyectos } from '../salud/runner.js';
 import {
   contarProblemas,
   problemaHuerfanosSinProyecto,
+  problemaSaludArea,
   problemasDe,
   problemasDevDe,
+  problemasSaludDe,
   problemasSentinelDe,
   problemasVulnerabilidadDe,
   type Entrada,
 } from '../../shared/clasificacionConsola.js';
+import { CLAVE_AREA } from '../../shared/salud/salud.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades } from '../../shared/types.js';
 
 export async function manejarRutasConsola(
@@ -48,6 +52,9 @@ export async function manejarRutasConsola(
   /* [por que] La vigilancia ya trae TTL 60 s + single-flight propios: no se
    * fuerza aquí; su frescura viaja en `vigencia.devEn`. */
   const { informe: dev } = await obtenerVigilancia();
+  /* [por que] Salud (F8) tiene caché de 60 s propio; `forzar` lo salta igual que el
+   * re-escaneo. Se lee tras el snapshot: sus comprobaciones usan el mismo. */
+  const [saludPorProyecto, saludDelArea] = await Promise.all([saludProyectos(forzar), saludArea(forzar)]);
 
   const porAnalisis = new Map(analisis.map((a) => [a.clave, a]));
   const porVuln = new Map(vulnerabilidades.map((v) => [v.clave, v]));
@@ -66,7 +73,12 @@ export async function manejarRutasConsola(
     if (vul) poner(p.clave, p.id, vul.entradas);
     const dv = problemasDevDe(p, dev, null);
     if (dv) poner(p.clave, p.id, dv.entradas);
+    const salud = problemasSaludDe(p, saludPorProyecto.get(p.clave));
+    if (salud) poner(p.clave, p.id, salud.entradas);
   }
+  /* Grupo sintético del área (comprobaciones de disco, runtime, AGENTS.md...). */
+  const salArea = problemaSaludArea(saludDelArea);
+  if (salArea) poner(CLAVE_AREA, salArea.p.id, salArea.entradas);
   /* Grupo sintético de huérfanos sin proyecto (misma regla que el hook:
    * nunca participa en selección, solo en el conteo). */
   const solos = problemaHuerfanosSinProyecto(dev);
@@ -83,6 +95,7 @@ export async function manejarRutasConsola(
       analisisEn: Object.fromEntries([...porAnalisis].map(([k, a]) => [k, a.analizadoEn])),
       vulnerabilidadesEn: Object.fromEntries([...porVuln].map(([k, v]) => [k, v.analizadoEn])),
       devEn: dev.tomadoEn,
+      saludEn: saludDelArea.calculadoEn,
     },
     proyectos,
   });

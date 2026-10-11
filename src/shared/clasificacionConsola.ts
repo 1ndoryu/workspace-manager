@@ -5,8 +5,9 @@
  * sin DOM ni Node, para importar desde cualquier entry. */
 import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from './types.js';
 import type { InformeDev } from './dev.js';
+import { CLAVE_AREA, type ResultadoSalud } from './salud/salud.js';
 
-export type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad' | 'dev';
+export type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad' | 'dev' | 'salud';
 
 /* Severidad real del hallazgo de sentinel (analyze); solo la categoria
  * 'sentinel' la usa. El badge del proyecto y de la linea deriva de aqui. */
@@ -243,9 +244,31 @@ export function problemaHuerfanosSinProyecto(dev: InformeDev | null): Problema |
   };
 }
 
+/* Hallazgos de salud (10AA-2 F8) de un proyecto o del área. Cada hallazgo es una
+ * entrada en la categoría 'salud'. [por que] `error` cuenta como error y `aviso` como
+ * advertencia; `info` (plan parado, enlace roto) se ve pero no cuenta, como hint de sentinel. */
+export function problemasSaludDe(p: Proyecto, s: ResultadoSalud | undefined): Problema | null {
+  if (!s || s.hallazgos.length === 0) return null;
+  const entradas: Entrada[] = s.hallazgos.map((h) => ({
+    categoria: 'salud',
+    motivo: `${h.mensaje} — ${h.accion}`,
+    seriedad: h.severidad === 'error' ? 'error' : h.severidad === 'aviso' ? 'advertencia' : null,
+    ...(h.severidad === 'info' ? { informativa: true } : {}),
+  }));
+  return { p, entradas };
+}
+
+/* Grupo sintético del área en la consola (clave CLAVE_AREA): nunca participa en
+ * selección, igual que los huérfanos sin proyecto. */
+export function problemaSaludArea(s: ResultadoSalud | undefined): Problema | null {
+  /* [por que] ruta = CLAVE_AREA: el cliente agrupa por ruta; con '' colisionaria
+   * con cualquier otro grupo de ruta vacia (p. ej. huerfanos). */
+  return problemasSaludDe({ id: '(área)', clave: CLAVE_AREA, ruta: CLAVE_AREA, esGit: false, tipo: 'carpeta' }, s);
+}
+
 /* Categorias unicas de un proyecto (para sus badges), en orden fijo. */
 export function categoriasDe(pr: Problema): Categoria[] {
-  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'vulnerabilidad', 'huerfano', 'dev'];
+  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'vulnerabilidad', 'huerfano', 'dev', 'salud'];
   return orden.filter((c) => pr.entradas.some((e) => e.categoria === c));
 }
 

@@ -31,6 +31,7 @@ export function AppV2() {
   const cargar = useWorkspaceStore((s) => s.cargar);
   const cargarAnalisis = useWorkspaceStore((s) => s.cargarAnalisis);
   const cargarVulnerabilidades = useWorkspaceStore((s) => s.cargarVulnerabilidades);
+  const cargarSalud = useWorkspaceStore((s) => s.cargarSalud);
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const cargando = useWorkspaceStore((s) => s.cargando);
   const error = useWorkspaceStore((s) => s.error);
@@ -47,7 +48,8 @@ export function AppV2() {
      * (no se pierde al recargar). Se lanzan en paralelo a cargar(). */
     void cargarAnalisis();
     void cargarVulnerabilidades();
-  }, [cargar, cargarAnalisis, cargarVulnerabilidades]);
+    void cargarSalud();
+  }, [cargar, cargarAnalisis, cargarVulnerabilidades, cargarSalud]);
 
   const conDetalle = seleccionadoId !== null && snapshot !== null && visibles.detalle;
 

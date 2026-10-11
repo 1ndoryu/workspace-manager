@@ -6,6 +6,7 @@ import type { StoreApi } from 'zustand';
 import type { AnalisisSentinel, SnapshotWorkspace } from '../../shared/types.js';
 import type { AccionesAnalisis, EstadoWorkspace } from './tipos.js';
 import { logger } from '../../shared/logger.js';
+import { CLAVE_AREA, type ResultadoSalud } from '../../shared/salud/salud.js';
 
 type Set = StoreApi<EstadoWorkspace>['setState'];
 type Get = StoreApi<EstadoWorkspace>['getState'];
@@ -38,6 +39,24 @@ export function crearAccionesAnalisis(set: Set, get: Get): AccionesAnalisis {
       return data;
     },
 
+    /* Salud (10AA-2 F8): proyectos + área en paralelo. Best-effort como
+     * cargarAnalisis: si falla, la consola no muestra hallazgos de salud, sin romper nada.
+     * [por que] El server cachea 60 s; `forzar` lo salta y acompaña al barrido manual. */
+    cargarSalud: async (forzar = false) => {
+      const sufijo = forzar ? '?forzar=1' : '';
+      try {
+        const [porProyecto, area] = await Promise.all([
+          axios.get<{ proyectos: ResultadoSalud[] }>(`/api/salud${sufijo}`),
+          axios.get<ResultadoSalud>(`/api/salud/area${sufijo}`),
+        ]);
+        const salud: Record<string, ResultadoSalud> = { [CLAVE_AREA]: area.data };
+        for (const r of porProyecto.data.proyectos) salud[r.clave] = r;
+        set({ salud });
+      } catch (err) {
+        logger.warn('no se pudo cargar la salud:', err);
+      }
+    },
+
     /* Barrido serial del workspace (auto-timer y boton 'Escaneado completo').
      * [por que] El boton manual manda forzar=true para que sea GENUINO: el
      * server re-escanea git (nuevos commits/HEAD) y re-ejecuta sentinel aunque
@@ -65,6 +84,9 @@ export function crearAccionesAnalisis(set: Set, get: Get): AccionesAnalisis {
           desdeCache: false,
           analisis: { ...s.analisis, ...analisis },
         }));
+        /* [por que] Dentro del try: el flag analizando sigue activo hasta que la
+         * salud llega, para que el boton no quede habilitado a medias. */
+        await get().cargarSalud(forzar);
       } finally {
         set({ analizando: false });
       }

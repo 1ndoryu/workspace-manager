@@ -6,19 +6,23 @@ import { useMemo, useState } from 'react';
 import { useWorkspaceStore } from '../../../hooks/useWorkspace.js';
 import {
   problemaHuerfanosSinProyecto,
+  problemaSaludArea,
   problemasDe,
   problemasDevDe,
+  problemasSaludDe,
   contarProblemas,
   problemasSentinelDe,
   problemasVulnerabilidadDe,
   type Categoria,
   type Problema,
 } from '../../../shared/clasificacionConsola.js';
+import { CLAVE_AREA } from '../../../shared/salud/salud.js';
 
 export function usePanelConsola() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const analisis = useWorkspaceStore((s) => s.analisis);
   const vulnerabilidades = useWorkspaceStore((s) => s.vulnerabilidades);
+  const salud = useWorkspaceStore((s) => s.salud);
   const dev = useWorkspaceStore((s) => s.dev);
   const devError = useWorkspaceStore((s) => s.devError);
   /* Mando dev (F3): ejecutar acciones y pintar el ultimo resultado. */
@@ -68,12 +72,24 @@ export function usePanelConsola() {
     return lista;
   }, [snapshot, dev, devError]);
 
-  /* Base filtrable: regulares + dev (los filtros por categoria solo miran
-   * entradas de su categoria, asi que un proyecto con varias categorias no se
-   * duplica al filtrar). */
+  /* Salud (10AA-2 F8): hallazgos por proyecto + grupo sintetico del área
+   * (CLAVE_AREA). Viven en el filtro 'salud' y su conteo entra en 'todos'. */
+  const problemasSalud = useMemo(() => {
+    if (!snapshot) return [];
+    const lista = snapshot.proyectos
+      .map((p) => problemasSaludDe(p, salud[p.clave]))
+      .filter((x): x is Problema => x !== null);
+    const area = problemaSaludArea(salud[CLAVE_AREA]);
+    if (area) lista.push(area);
+    return lista;
+  }, [snapshot, salud]);
+
+  /* Base filtrable: regulares + dev + salud (los filtros por categoria solo
+   * miran entradas de su categoria, asi que un proyecto con varias categorias no
+   * se duplica al filtrar). */
   const problemasBase = useMemo(
-    () => [...problemas, ...problemasDev],
-    [problemas, problemasDev],
+    () => [...problemas, ...problemasDev, ...problemasSalud],
+    [problemas, problemasDev, problemasSalud],
   );
 
   /* 'todos' fusiona los problemas regulares con los hallazgos de sentinel y
@@ -99,8 +115,9 @@ export function usePanelConsola() {
     problemasSentinel.forEach(poner);
     problemasVuln.forEach(poner);
     problemasDev.forEach(poner);
+    problemasSalud.forEach(poner);
     return [...porProyecto.values()];
-  }, [problemas, problemasSentinel, problemasVuln, problemasDev]);
+  }, [problemas, problemasSentinel, problemasVuln, problemasDev, problemasSalud]);
 
   const visibles = useMemo(() => {
     if (filtro === 'sentinel') return problemasSentinel;
@@ -145,12 +162,12 @@ export function usePanelConsola() {
      * real: plegar/desplegar sigue funcionando (estado local del panel) pero
      * seleccionar o abrir menu sobre el no debe tocar seleccion ni config. */
     seleccionar: (id: string) => {
-      if (id === '(puertos sin proyecto)') return;
+      if (id === '(puertos sin proyecto)' || id === CLAVE_AREA) return;
       seleccionar(id);
     },
     irAArchivos,
     abrirMenuContextual: (m: { x: number; y: number; id: string; clave: string }) => {
-      if (!m.clave) return;
+      if (!m.clave || m.clave === CLAVE_AREA) return;
       abrirMenuContextual(m);
     },
   };
