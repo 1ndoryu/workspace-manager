@@ -16,7 +16,7 @@ import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
 import { diagnosticar, rutaEtiqueta, severidadDe } from '../../shared/gate/esquema.js';
 import { correrSincronizacion } from '../gate/sincronizacion.js';
 import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from '../gate/analizador.js';
-import { compararHallazgos } from '../gate/comparacion.js';
+import { compararHallazgos } from '../gate/hallazgos/comparacion.js';
 import {
   auditarProyecto,
   auditarTodo,
