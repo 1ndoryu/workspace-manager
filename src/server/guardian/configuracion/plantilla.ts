@@ -112,8 +112,8 @@ export function serializarPlantilla(p: Plantilla, eol: Eol): string {
 }
 
 /* Lee y valida la plantilla del tablero. Symlink o carpeta → inválida. */
-export function leerPlantilla(raizTablero: string): LecturaPlantilla {
-  const lectura = leerFichero(join(raizTablero, RUTA_PLANTILLA));
+export function leerPlantilla(raizArea: string): LecturaPlantilla {
+  const lectura = leerFichero(join(raizArea, RUTA_PLANTILLA));
   if (lectura.estado === 'ausente') return { estado: 'ausente' };
   if (lectura.estado === 'invalido') return { estado: 'invalida', motivo: lectura.motivo, hash: null };
   let json: unknown;
@@ -137,8 +137,8 @@ type PlanPlantilla =
   | { estado: 'conflicto'; motivo: string }
   | { estado: 'error'; motivo: string };
 
-function planificar(raizTablero: string, hashPrevio: string, entrada: unknown): PlanPlantilla {
-  const lectura = leerPlantilla(raizTablero);
+function planificar(raizArea: string, hashPrevio: string, entrada: unknown): PlanPlantilla {
+  const lectura = leerPlantilla(raizArea);
   if (lectura.estado !== 'ok') {
     return { estado: 'error', motivo: lectura.estado === 'ausente' ? `falta ${RUTA_PLANTILLA}` : lectura.motivo };
   }
@@ -157,22 +157,22 @@ function publico(p: Extract<PlanPlantilla, { estado: 'ok' }>): ResultadoEdicionP
 }
 
 /* Vista previa sin escribir. */
-export function calcularEdicionPlantilla(raizTablero: string, hashPrevio: string, entrada: unknown): ResultadoEdicionPlantilla {
-  const p = planificar(raizTablero, hashPrevio, entrada);
+export function calcularEdicionPlantilla(raizArea: string, hashPrevio: string, entrada: unknown): ResultadoEdicionPlantilla {
+  const p = planificar(raizArea, hashPrevio, entrada);
   if (p.estado !== 'ok') return p;
   return publico(p);
 }
 
 /* Escritura atómica. Relee antes de escribir: si el fichero cambió desde el
  * cálculo, no se pisa. Sin cambios, no toca el fichero. */
-export function guardarEdicionPlantilla(raizTablero: string, hashPrevio: string, entrada: unknown): ResultadoEdicionPlantilla {
-  const p = planificar(raizTablero, hashPrevio, entrada);
+export function guardarEdicionPlantilla(raizArea: string, hashPrevio: string, entrada: unknown): ResultadoEdicionPlantilla {
+  const p = planificar(raizArea, hashPrevio, entrada);
   if (p.estado !== 'ok') return p;
   if (!p.cambia) return publico(p);
-  const ahora = leerPlantilla(raizTablero);
+  const ahora = leerPlantilla(raizArea);
   if (ahora.estado !== 'ok' || ahora.hash !== p.lectura.hash) {
     return { estado: 'conflicto', motivo: 'la plantilla cambió mientras se calculaba la edición; recarga la página' };
   }
-  escribirAtomico(join(raizTablero, RUTA_PLANTILLA), p.nuevo);
+  escribirAtomico(join(raizArea, RUTA_PLANTILLA), p.nuevo);
   return publico(p);
 }

@@ -12,12 +12,23 @@ import { join } from 'node:path';
 import { manejarRutasGuardian } from './rutasGuardian.js';
 import type { DependenciasGuardian } from './rutasGuardianTipos.js';
 import { leerActividad } from '../../guardian/operacion/actividad.js';
+import { RUTA_PLANTILLA } from '../../guardian/configuracion/plantilla.js';
 import type { Proyecto } from '../../../shared/types.js';
 
 const BASE_TMP = 'C:/tmp/guardian-test';
-/* Cuatro niveles: guardian/ -> rutas/ -> server/ -> src/ -> raíz del tablero. */
-const RAIZ_TABLERO = join(import.meta.dirname, '..', '..', '..', '..');
 const temporales: string[] = [];
+
+/* [por que] Área falsa con una copia de la plantilla real: las escrituras de plantilla
+ * nunca tocan el área real. Cinco niveles desde guardian/ llegan a la raíz del área. */
+const RAIZ_AREA_FALSA = (() => {
+  mkdirSync(BASE_TMP, { recursive: true });
+  const d = mkdtempSync(join(BASE_TMP, 'area-'));
+  temporales.push(d);
+  mkdirSync(join(d, '.quality-tools'));
+  const real = readFileSync(join(import.meta.dirname, '..', '..', '..', '..', '..', RUTA_PLANTILLA), 'utf8');
+  writeFileSync(join(d, RUTA_PLANTILLA), real, 'utf8');
+  return d;
+})();
 
 /* Formato de workspace-manager: CRLF y sangría 2 y 4. */
 export const CONFIG_BASE = [
@@ -61,7 +72,7 @@ export function registrar(clave: string, puerta: string, config: string | null):
 }
 
 const deps: DependenciasGuardian = {
-  raizTablero: RAIZ_TABLERO,
+  raizArea: RAIZ_AREA_FALSA,
   proyectos: () => proyectos,
   proyectoPorClave: (clave) => proyectos.find((p) => p.clave === clave) ?? null,
   leerActividad,
