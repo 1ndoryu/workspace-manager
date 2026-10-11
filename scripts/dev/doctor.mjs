@@ -80,6 +80,11 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
     throw new Error('registro: noAplica no es objeto');
   }
   for (const [clave, motivo] of Object.entries(noAplica)) validarMotivo(motivo, `noAplica.${clave}`);
+  // [por que] Lista curada de terceros/sistema en loopback (opcional). Falla
+  // cerrado: una exencion mal formada no debe callar un listener por accidente.
+  const ignoradosSistema = crudo.ignoradosSistema ?? [];
+  if (!Array.isArray(ignoradosSistema)) throw new Error('registro: ignoradosSistema no es array');
+  ignoradosSistema.forEach((s, i) => validarIgnoradoSistema(s, `ignoradosSistema[${i}]`));
   // [por que 06AA-1] Dependencia colgada = aviso de la entrada dependiente,
   // no error global: el resto del mando sigue clasificando y `up` la
   // rehusara con ese motivo si se la pide.
@@ -90,7 +95,27 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
       }
     }
   }
-  return { version: 1, entradas, noAplica };
+  return { version: 1, entradas, noAplica, ignoradosSistema };
+}
+
+function validarIgnoradoSistema(s, ctx) {
+  if (typeof s !== 'object' || s === null || Array.isArray(s)) throw new Error(`registro: ${ctx} no es objeto`);
+  for (const k of Object.keys(s)) {
+    if (!['exe', 'pid', 'cmdContiene', 'motivo'].includes(k)) throw new Error(`registro: ${ctx} clave desconocida '${k}'`);
+  }
+  const tieneExe = typeof s.exe === 'string' && isAbsolute(s.exe);
+  const tienePid = Number.isInteger(s.pid) && s.pid > 0;
+  if (tieneExe === tienePid) throw new Error(`registro: ${ctx} requiere exactamente uno de exe (ruta absoluta) o pid`);
+  // [por que] Un exe generico (bun.exe) puede lanzar mas de un servicio: cmdContiene
+  // acota el ignorado a una linea de comando concreta, nunca vale solo con pid.
+  if (s.cmdContiene !== undefined) {
+    if (!tieneExe || typeof s.cmdContiene !== 'string' || s.cmdContiene.length < 3 || s.cmdContiene.length > 200) {
+      throw new Error(`registro: ${ctx} cmdContiene requiere exe y texto de 3-200 caracteres`);
+    }
+  }
+  if (typeof s.motivo !== 'string' || s.motivo.length < 3 || s.motivo.length > 120) {
+    throw new Error(`registro: ${ctx} sin motivo (3-120 caracteres)`);
+  }
 }
 
 function validarEntrada(e) {
@@ -467,8 +492,51 @@ export function esDelProyecto(proc, rutaProyecto, expectedCmdline) {
   if (!proc) return false;
   const base = normalizarRuta(rutaProyecto);
   if (proc.exe && normalizarRuta(proc.exe).startsWith(base + '\\')) return true;
+  // [por que] Antes solo se miraba el exe: un node lanzado desde la carpeta del
+  // proyecto (ruta en cmd, exe fuera) salia ajeno (PROYECTO TASKS 4191 = falso
+  // positivo). enRuta exige frontera: "area\glory" no casa con "area\glory-pulse".
+  if (proc.cmd && enRuta(normalizarRuta(proc.cmd), base)) return true;
   if (proc.cmd && expectedCmdline && proc.cmd.includes(expectedCmdline)) return true;
   return false;
+}
+
+/* `base` (ya normalizada) aparece en `texto` (normalizado) seguida de fin,
+ * separador, espacio o comilla: frontera de ruta, no prefijo de texto. */
+export function enRuta(texto, base) {
+  if (!base) return false;
+  let i = texto.indexOf(base);
+  while (i >= 0) {
+    const siguiente = texto.charAt(i + base.length);
+    if (siguiente === '' || siguiente === '\\' || siguiente === ' ' || siguiente === '"') return true;
+    i = texto.indexOf(base, i + 1);
+  }
+  return false;
+}
+
+/* Dueño de un listener huerfano: la ruta mas larga del pool que lo contiene
+ * (exe+cmd). null = sin dueño conocido (grupo propio). */
+export function atribuirHuerfano(proc, pool) {
+  const texto = normalizarRuta(`${proc?.exe ?? ''} ${proc?.cmd ?? ''}`);
+  let clave = null;
+  let mejor = 0;
+  for (const p of pool) {
+    const base = normalizarRuta(p.ruta);
+    if (base.length > mejor && enRuta(texto, base)) {
+      mejor = base.length;
+      clave = p.clave;
+    }
+  }
+  return clave;
+}
+
+/* Listener de tercero/sistema declarado en registro.ignoradosSistema. Por exe
+ * (ruta exacta) o por pid solo cuando no hay exe (System = PID 4 en Windows). */
+export function esSistemaIgnorado(pid, proc, lista = []) {
+  return lista.some((s) => {
+    if (!s.exe) return s.pid === pid && !proc?.exe;
+    if (!proc?.exe || normalizarRuta(proc.exe) !== normalizarRuta(s.exe)) return false;
+    return !s.cmdContiene || (proc.cmd ?? '').includes(s.cmdContiene);
+  });
 }
 
 function sondear(puerto, rutaRecurso, esperaJson, timeoutMs, dominio) {
@@ -516,7 +584,7 @@ function sondear(puerto, rutaRecurso, esperaJson, timeoutMs, dominio) {
 /* Clasifica snapshot x registro x escucha. Por proyecto: exactamente un
  * estado. Huerfanos: listeners sin entrada del registro; se atribuyen por
  * prefijo de ruta (exe+cmd) o quedan con clave null (grupo propio). */
-export async function clasificar(proyectos, registro, escucha) {
+export async function clasificar(proyectos, registro, escucha, ignorados = []) {
   const pids = [...new Set(escucha.map((e) => e.pid))];
   const procs = await procesosDe(pids);
   const areaNorm = normalizarRuta(RAIZ_REPO);
@@ -566,16 +634,12 @@ export async function clasificar(proyectos, registro, escucha) {
   for (const c of candidatos) {
     if (consumidos.has(`${c.ip}:${c.puerto}:${c.pid}`)) continue;
     const proc = procs.get(c.pid);
-    let clave = null;
-    let mejor = 0;
-    for (const p of proyectos) {
-      const base = normalizarRuta(p.ruta);
-      const texto = normalizarRuta(`${proc?.exe ?? ''} ${proc?.cmd ?? ''}`);
-      if (texto.includes(base) && base.length > mejor) {
-        mejor = base.length;
-        clave = p.clave;
-      }
-    }
+    // [por que] Terceros/sistema declarados (uTorrent, Intel, VPN, sccache,
+    // kernel): no son del area ni son huecos.
+    if (esSistemaIgnorado(c.pid, proc, registro.ignoradosSistema ?? [])) continue;
+    // [por que] El pool incluye los ignorados del area: opencode-propio (ignorado
+    // en el tablero) se atribuye y cae en noAplica en vez de salir huerfano mudo.
+    const clave = atribuirHuerfano(proc, [...proyectos, ...ignorados]);
     // [por que] gestion-externa (opencode-propio-dev): su listener no es un hueco
     // del area; el mando no lo gestiona ni lo reporta como deriva. Otros motivos
     // de noAplica siguen visibles.
@@ -1189,10 +1253,13 @@ function targetEfectivoRust(rutaAbs, envEntrada) {
   return null;
 }
 
-function tamanoDirRust(ruta) {
+function tamanoDirRust(ruta, tope = Infinity) {
   // [por que] Walk iterativo sin seguir symlinks: junctions dentro de
   // target/ con follow entrarian en bucle. Ficheros volatiles de una
   // compilacion en curso se omiten (mejor medir de menos que romper).
+  // [por que] El tope corta en cuanto se supera el umbral: el aviso solo
+  // decide "> umbral", y medir un target de 8 GB completo tardaba ~13 s y
+  // hacia que el doctor (timeout 30 s en la vigilancia) fallara a ratos.
   let total = 0;
   const pila = [ruta];
   try {
@@ -1213,6 +1280,7 @@ function tamanoDirRust(ruta) {
         } catch {
           /* volatil: se omite. */
         }
+        if (total > tope) return total;
       }
     }
     return total;
@@ -1309,12 +1377,14 @@ export function detectarRust(registro, opts = {}) {
     if (ordenados.length > 1) {
       avisos.push({ chequeo: 'colision', proyectos: ordenados, detalle: `target/ compartido: ${ruta} (motivo para target/ por proyecto, 05AA-1 F5)` });
     }
-    const bytes = tamanoDirRust(ruta);
+    // [por que] Con tope, el valor es una cota inferior: el aviso solo cuenta
+    // "> umbral", asi que no se mide el resto del arbol.
+    const bytes = tamanoDirRust(ruta, umbral);
     if (bytes !== null && bytes > umbral) {
       avisos.push({
         chequeo: 'tamano',
         proyectos: ordenados,
-        detalle: `target/ ${(bytes / 1024 ** 3).toFixed(2)} GB > ${(umbral / 1024 ** 3).toFixed(0)} GB: ${ruta}`,
+        detalle: `target/ > ${(umbral / 1024 ** 3).toFixed(0)} GB (medido hasta el umbral): ${ruta}`,
       });
     }
   }
@@ -1530,6 +1600,19 @@ export async function main(argv) {
     else snapshot = r.snapshot;
   }
   const proyectos = (snapshot?.proyectos ?? []).map((p) => ({ clave: p.clave, ruta: p.ruta }));
+  // [por que] El tablero ignora entradas con repo (RESTAURANTE) y no llegan en el
+  // snapshot: sin evaluarlas sus puertos salian huerfanos. Se evaluan con su ruta.
+  const enSnapshot = new Set(proyectos.map((p) => p.clave));
+  for (const e of registro.entradas.values()) {
+    if (enSnapshot.has(e.id) || typeof e.ruta !== 'string') continue;
+    proyectos.push({ clave: e.id, ruta: isAbsolute(e.ruta) ? e.ruta : resolve(RAIZ_REPO, e.ruta) });
+  }
+  // [por que] noAplica entra en el pool: opencode-propio-dev (gestion-externa) no
+  // esta en ignorados, asi que sus listeners salian huerfanos sin dueño.
+  const ignoradosArea = [...(snapshot?.config?.ignorados ?? []), ...Object.keys(registro.noAplica)].map((n) => ({
+    clave: n,
+    ruta: resolve(RAIZ_REPO, '..', n),
+  }));
   const snapshotEn = snapshot?.escaneadoEn ?? null;
 
   let escucha = [];
@@ -1538,7 +1621,7 @@ export async function main(argv) {
   let clasif = { proyectos: [], huerfanos: [] };
   if (!errorSensor) {
     try {
-      clasif = await clasificar(proyectos, registro, escucha);
+      clasif = await clasificar(proyectos, registro, escucha, ignoradosArea);
     } catch (e) {
       errorSensor = `clasificar: ${e.message}`;
     }
