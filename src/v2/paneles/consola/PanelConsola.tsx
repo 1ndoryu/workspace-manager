@@ -140,6 +140,7 @@ export function PanelConsola() {
              * debajo, indentada con borde izquierdo. Antes se mostraba en una
              * sola fila con badges y motivo a la derecha. */
             <div className="consolaGrupo" key={pr.p.id}>
+              {/* sentinel-disable-next-line html-nativo-en-vez-de-componente: fila de plegado con aria-expanded; el Button v2 añadiría chrome y cambiaría la fila (.consolaFila). Falso positivo: la regla solo conoce components/ui/Boton. */}
               <button
                 type="button"
                 className={`consolaFila${pr.p.id === seleccionadoId ? ' consolaFila--seleccionada' : ''}${colapsados.has(pr.p.id) ? ' consolaFila--colapsado' : ''}`}
