@@ -1,21 +1,22 @@
-/* Test del lector Guard (07AA-6 F6): se corre con
- * `node node_modules/tsx/dist/cli.mjs --test src/server/guard/lector.test.ts`
- * (el repo no tiene runner TS; node --test solo entiende JS). Fixtures en tmp:
- * ningún test toca proyectos reales. */
+/* Test del lector Guardián (10AA-2 F11.4): se corre con
+ * `node node_modules/tsx/dist/cli.mjs --test src/server/guardian/lector.test.ts`
+ * (el repo no tiene runner TS; node --test solo entiende JS). Fixtures en
+ * C:/tmp (protocolo de temporales): ningún test toca proyectos reales. */
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { leerGuardProyecto, leerOverride, leerPolitica, leerTareas } from './lector.js';
 
+const BASE_TMP = 'C:/tmp/guardian-test';
 const temporales: string[] = [];
 after(() => {
   for (const d of temporales) rmSync(d, { recursive: true, force: true });
 });
 
 function raizTmp(): string {
-  const d = mkdtempSync(join(tmpdir(), 'guard-test-'));
+  mkdirSync(BASE_TMP, { recursive: true });
+  const d = mkdtempSync(join(BASE_TMP, 'lector-'));
   temporales.push(d);
   return d;
 }
