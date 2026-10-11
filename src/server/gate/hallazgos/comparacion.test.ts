@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { claveHallazgo, compararHallazgos } from './comparacion.js';
-import type { HallazgoSentinel } from '../../shared/types.js';
+import type { HallazgoSentinel } from '../../../shared/types.js';
 
 function h(over: Partial<HallazgoSentinel> = {}): HallazgoSentinel {
   return {

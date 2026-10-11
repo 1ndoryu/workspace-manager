@@ -2,7 +2,7 @@
  * [por que] El agente necesita saber qué PROPIOS hallazgos introdujo su cambio,
  * no la lista entera del proyecto (la deuda heredada no es suya). Función pura:
  * el I/O (snapshot en disco, análisis) vive en la ruta y en el CLI. */
-import type { HallazgoSentinel } from '../../shared/types.js';
+import type { HallazgoSentinel } from '../../../shared/types.js';
 
 export interface ResultadoComparacion {
   /* Hallazgos actuales que no estaban en la base: los que cuenta el cierre. */
