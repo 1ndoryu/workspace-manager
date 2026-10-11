@@ -5,7 +5,7 @@ description: Arrancar, detener o comprobar cualquier proyecto del área con el m
 
 # Dev-bootstrap
 
-Operas los 17 proyectos del área con el mando `dev`. Todo desde `workspace-manager/` en Windows PowerShell.
+Operas los proyectos de `scripts/dev/registro.json` del área con el mando `dev`. Todo desde `workspace-manager/` en Windows PowerShell.
 
 ## Comandos
 
@@ -62,7 +62,7 @@ Reglas:
 
 ## Prohibido
 
-- Matar o tocar `8787/5174/5175` y procesos de opencode-propio (la app del usuario).
+- Matar o tocar `5174` y procesos de opencode-propio (la app del usuario). `8787` y `5175` son del tablero: solo reiniciarlos con PID y línea de comando verificados.
 - `up --all` o arrancar varios Rust a la vez (thrash de compilación). Uno por vez.
 - `up workspace-manager` enciende pulse solo si estaba caído (`requiere: ["glory-pulse"]`); con el 3000 ocupado por otro sale 2 avisando el pid, sin matar.
 - Editar `scripts/quality-sync.mjs` y `sentinel.lock.json.bak` (ruido ajeno sin commitear).
