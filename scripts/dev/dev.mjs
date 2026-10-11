@@ -7,6 +7,7 @@ import { logs, open, status, stop } from './acciones.mjs';
 import { problemas } from './consola.mjs';
 import { comandos, gate } from './gate.mjs';
 import { cierre } from './cierre.mjs';
+import { alta } from './alta.mjs';
 
 const AYUDA = `uso: dev <comando>
   doctor --all [--json] [--snapshot-file <ruta>] [--assert]   clasifica (F0)
@@ -18,7 +19,8 @@ const AYUDA = `uso: dev <comando>
   problemas [--forzar] [--categoria <cat>] [--proyecto <clave>] [--json]  consola agregada (07AA-1)
   gate <id> --inicio|--cierre                                 hallazgos nuevos de la tarea (F9)
   comandos <id> [--json]                                      contrato de comandos (F9)
-  cierre <id> [--tarea <ID>]                                  puerta de cierre, solo lectura (F9)`;
+  cierre <id> [--tarea <ID>]                                  puerta de cierre, solo lectura (F9)
+  alta <id|carpeta> [--aplicar]                               lista de alta; en seco salvo --aplicar (F10)`;
 
 export async function main(argv) {
   const args = argv ?? process.argv.slice(2);
@@ -33,6 +35,7 @@ export async function main(argv) {
   if (cmd === 'gate') return gate(resto);
   if (cmd === 'comandos') return comandos(resto);
   if (cmd === 'cierre') return cierre(resto);
+  if (cmd === 'alta') return alta(resto);
   console.log(AYUDA);
   return cmd ? 1 : 0;
 }
