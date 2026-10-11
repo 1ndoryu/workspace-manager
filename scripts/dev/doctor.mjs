@@ -470,58 +470,62 @@ export async function escanearEscucha() {
   return filas;
 }
 
-/* Datos de procesos en consultas batch (trozos de <=20 PIDs): CreationDate
- * ISO, ExecutablePath y CommandLine. Sin CommandLine visible (elevados) el
- * proceso NO es confiable: se marca, nunca se da por bueno. */
-export async function procesosDe(pids) {
+/* Datos CIM en UNA sola llamada a powershell.exe (cada arranque cuesta ~0,6 s):
+ * procesos (CreationDate ISO, ExecutablePath, CommandLine) y, si se piden, los
+ * servicios Win32_Service (su exe no es legible sin elevar, el nombre si).
+ * Sin CommandLine visible (elevados) el proceso NO es confiable: se marca,
+ * nunca se da por bueno. */
+async function datosCimDe(pids, { servicios: conServicios = false } = {}) {
   const unicos = [...new Set(pids)].filter((p) => Number.isInteger(p) && p > 0);
-  if (unicos.length === 0) return new Map();
+  const procs = new Map();
+  const servicios = new Map();
+  if (unicos.length === 0) return { procs, servicios };
   // [por que] Un solo filtro CIM largo devuelve un subconjunto SIN error y
   // los PIDs recortados quedarian NO-VERIFICADO en silencio. Trozos de 20
-  // secuenciales (~0.5 s c/u): completo sin sacrificar el tope por llamada.
-  const mapa = new Map();
+  // como consultas sucesivas dentro del MISMO proceso de PowerShell: completo
+  // sin sacrificar el tope por consulta ni pagar un arranque por trozo.
+  const consultas = [];
   for (let i = 0; i < unicos.length; i += MAX_PIDS_CONSULTA) {
-    const trozo = unicos.slice(i, i + MAX_PIDS_CONSULTA);
-    const filtro = trozo.map((p) => `ProcessId=${p}`).join(' OR ');
-    const sal = await correrPs(
-      `Get-CimInstance Win32_Process -Filter "${filtro}" | Select-Object @{n='pid';e={$_.ProcessId}},@{n='creado';e={$_.CreationDate.ToString('o')}},@{n='exe';e={$_.ExecutablePath}},@{n='cmd';e={$_.CommandLine}},@{n='imagen';e={$_.Name}} | ConvertTo-Json -Compress -Depth 2`,
+    const filtro = unicos
+      .slice(i, i + MAX_PIDS_CONSULTA)
+      .map((p) => `ProcessId=${p}`)
+      .join(' OR ');
+    consultas.push(
+      `$procesos += @(Get-CimInstance Win32_Process -Filter "${filtro}" | Select-Object @{n='pid';e={$_.ProcessId}},@{n='creado';e={$_.CreationDate.ToString('o')}},@{n='exe';e={$_.ExecutablePath}},@{n='cmd';e={$_.CommandLine}},@{n='imagen';e={$_.Name}})`,
     );
-    let filas;
-    try {
-      const j = JSON.parse(sal);
-      filas = Array.isArray(j) ? j : j ? [j] : [];
-    } catch {
-      throw new Error('sensor procesos: JSON inesperado de Get-CimInstance');
-    }
-    for (const f of filas) {
-      if (!Number.isInteger(f?.pid)) continue;
-      // [por que] `imagen` (Name) llega aunque exe/cmd vengan nulos (proceso elevado o protegido).
-      mapa.set(f.pid, { creado: f.creado ?? null, exe: f.exe ?? null, cmd: f.cmd ?? null, imagen: f.imagen ?? null });
+  }
+  if (conServicios) {
+    consultas.push(
+      `$servicios = @(Get-CimInstance Win32_Service -Filter "ProcessId > 0" | Select-Object @{n='pid';e={$_.ProcessId}},@{n='nombre';e={$_.Name}})`,
+    );
+  }
+  const script = `$procesos = @(); ${consultas.join('; ')}; [pscustomobject]@{ procesos = $procesos; servicios = $servicios } | ConvertTo-Json -Compress -Depth 3`;
+  // Presupuesto igual al de antes: 25 s por consulta, ahora dentro de una sola llamada.
+  const sal = await correrPs(script, TIMEOUT_SENSOR_MS * consultas.length);
+  let j;
+  try {
+    j = JSON.parse(sal);
+  } catch {
+    throw new Error('sensor procesos/servicios: JSON inesperado de Get-CimInstance');
+  }
+  const filas = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+  for (const f of filas(j?.procesos)) {
+    if (!Number.isInteger(f?.pid)) continue;
+    // [por que] `imagen` (Name) llega aunque exe/cmd vengan nulos (proceso elevado o protegido).
+    procs.set(f.pid, { creado: f.creado ?? null, exe: f.exe ?? null, cmd: f.cmd ?? null, imagen: f.imagen ?? null });
+  }
+  if (conServicios) {
+    const buscados = new Set(unicos);
+    for (const f of filas(j?.servicios)) {
+      if (buscados.has(f?.pid)) servicios.set(f.pid, { nombre: f.nombre ?? null });
     }
   }
-  return mapa;
+  return { procs, servicios };
 }
 
-/* Servicio de Windows que sirve cada PID (Win32_Service). Su exe no es legible
- * sin elevar (CIM lo deja vacio), pero el nombre del servicio si. */
-export async function serviciosDe(pids) {
-  const buscados = new Set(pids.filter((p) => Number.isInteger(p) && p > 0));
-  if (buscados.size === 0) return new Map();
-  const sal = await correrPs(
-    `Get-CimInstance Win32_Service | Where-Object { $_.ProcessId -gt 0 } | Select-Object @{n='pid';e={$_.ProcessId}},@{n='nombre';e={$_.Name}} | ConvertTo-Json -Compress`,
-  );
-  let filas;
-  try {
-    const j = JSON.parse(sal);
-    filas = Array.isArray(j) ? j : j ? [j] : [];
-  } catch {
-    throw new Error('sensor servicios: JSON inesperado de Get-CimInstance');
-  }
-  const mapa = new Map();
-  for (const f of filas) {
-    if (buscados.has(f?.pid)) mapa.set(f.pid, { nombre: f.nombre ?? null });
-  }
-  return mapa;
+/* Procesos de los PIDs dados (CreationDate, exe, cmd). */
+export async function procesosDe(pids) {
+  return (await datosCimDe(pids)).procs;
 }
 
 function normalizarRuta(r) {
@@ -659,7 +663,9 @@ function sondear(puerto, rutaRecurso, esperaJson, timeoutMs, dominio) {
  * prefijo de ruta (exe+cmd) o quedan con clave null (grupo propio). */
 export async function clasificar(proyectos, registro, escucha, ignorados = []) {
   const pids = [...new Set(escucha.map((e) => e.pid))];
-  const procs = await procesosDe(pids);
+  // [por que] Solo se consulta CIM por servicios si el registro declara alguno.
+  const ignoradosSis = registro.ignoradosSistema ?? [];
+  const { procs, servicios } = await datosCimDe(pids, { servicios: ignoradosSis.some((s) => s.servicio) });
   const areaNorm = normalizarRuta(RAIZ_REPO);
 
   const candidatos = escucha.filter((e) => {
@@ -704,9 +710,6 @@ export async function clasificar(proyectos, registro, escucha, ignorados = []) {
   }
 
   const huerfanos = [];
-  // [por que] Solo se consulta CIM por servicios si el registro declara alguno.
-  const ignoradosSis = registro.ignoradosSistema ?? [];
-  const servicios = ignoradosSis.some((s) => s.servicio) ? await serviciosDe(pids) : new Map();
   for (const c of candidatos) {
     if (consumidos.has(`${c.ip}:${c.puerto}:${c.pid}`)) continue;
     const proc = procs.get(c.pid);
