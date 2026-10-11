@@ -64,6 +64,9 @@ const CONSUMIDORES = [
    * checkout compartido del área) pero nunca registrado; pins 0.7.15/2.2.5
    * con deriva de releases. */
   { nombre: 'glory-agent', ruta: 'glory-agent', fase: 'F1' },
+  /* MN-Inmobiliaria: gate declarado (sentinel+varsense, checkout compartido del
+   * área) y registrado en el tablero, pero faltaba aquí: el bump no lo propagaba. */
+  { nombre: 'MN-Inmobiliaria', ruta: 'MN-Inmobiliaria', fase: 'F1' },
 ];
 
 /* Herramientas del checkout compartido y su subcarpeta. */
