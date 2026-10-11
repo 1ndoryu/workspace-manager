@@ -106,7 +106,7 @@ const CATALOGO_BASE: Record<string, InfoSegmento> = {
   guard: {
     nombre: 'Guard',
     descripcion: 'Bloquea o observa las invocaciones directas de herramientas de build y calidad.',
-    detalle: 'Cuando un comando se lanza a mano (npm, npx, cargo o una herramienta suelta) sin pasar por el gate, el guard lo bloquea (enforce), solo lo registra (observe) o lo deja pasar (pass-through). El modo es el campo mode de sentinel.config.json.',
+    detalle: 'Cuando un comando se lanza a mano (npm, npx, cargo o una herramienta suelta) sin pasar por el gate, el guard lo bloquea (enforce), solo lo registra (observe) o lo deja pasar (pass-through). Se controla desde la pestaña Guardián del Workspace Manager, que edita el modo, las listas y los topes de cada proyecto.',
   },
   directCommands: {
     nombre: 'Comandos directos',
