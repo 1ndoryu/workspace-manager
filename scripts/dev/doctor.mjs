@@ -38,6 +38,11 @@ export const MOTIVOS_ENUM = new Set([
   // dice exactamente eso: nada que arrancar, nada que probar, el mando no
   // aplica y no es deuda pendiente.
   'sin-servicio',
+  // [por que] repos del area que la usuaria decidio no registrar (D5, 2026-10-10):
+  // no tienen mando ni deuda, y declararlos evita que `doctor --all` y la salud
+  // (F8) los marquen como huerfanos. Distinto de 'pendiente-onboarding': aqui no
+  // hay onboarding previsto.
+  'sin-mando-intencional',
 ]);
 const RE_OTRO = /^otro\{detalle="(.{1,80})",caducidad=(\d{4}-\d{2}-\d{2})\}$/;
 /* F1: boton = argv ejecutable, no texto bonito. argv[0] en allowlist
