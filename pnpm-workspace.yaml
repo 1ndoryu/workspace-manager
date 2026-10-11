@@ -3,3 +3,6 @@
 # los build scripts aprobados viven aqui (esbuild es requisito de Vite).
 allowBuilds:
   esbuild: true
+# source-map-js: alerta Dependabot alta (1.2.1); pnpm 11 lee overrides aquí, no en package.json.
+overrides:
+  source-map-js: ">=1.2.2"
