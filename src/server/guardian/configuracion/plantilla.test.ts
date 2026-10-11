@@ -6,7 +6,7 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { eolDe, hashDe } from './escritura.js';
+import { eolDe, hashDe } from '../escritura.js';
 import {
   calcularEdicionPlantilla,
   guardarEdicionPlantilla,
@@ -16,7 +16,7 @@ import {
   validarPlantilla,
 } from './plantilla.js';
 
-const RAIZ_REAL = join(import.meta.dirname, '..', '..', '..');
+const RAIZ_REAL = join(import.meta.dirname, '..', '..', '..', '..');
 const TEXTO_REAL = readFileSync(join(RAIZ_REAL, RUTA_PLANTILLA), 'utf8');
 
 const BASE_TMP = 'C:/tmp/guardian-test';

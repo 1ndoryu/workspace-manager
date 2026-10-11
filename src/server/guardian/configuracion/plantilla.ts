@@ -6,7 +6,7 @@
  * inline, como el fichero real: con JSON.stringify la vista previa mostraría un
  * reformateo completo en vez de los cambios de verdad. */
 import { join } from 'node:path';
-import { diffLineas, eolDe, escribirAtomico, hashDe, leerFichero, type BloqueDiff, type Eol } from './escritura.js';
+import { diffLineas, eolDe, escribirAtomico, hashDe, leerFichero, type BloqueDiff, type Eol } from '../escritura.js';
 import { ErrorValidacion, LISTAS_GUARD, validarEntradas, type Listas, type Plantilla } from './politica.js';
 
 export const RUTA_PLANTILLA = '.quality-tools/guard-plantillas.json';
