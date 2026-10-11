@@ -5,6 +5,8 @@
 import { main as doctor, up } from './doctor.mjs';
 import { logs, open, status, stop } from './acciones.mjs';
 import { problemas } from './consola.mjs';
+import { comandos, gate } from './gate.mjs';
+import { cierre } from './cierre.mjs';
 
 const AYUDA = `uso: dev <comando>
   doctor --all [--json] [--snapshot-file <ruta>] [--assert]   clasifica (F0)
@@ -13,7 +15,10 @@ const AYUDA = `uso: dev <comando>
   logs <id> [--lineas N] [--registro <ruta>]                  cola del log (F2)
   open <id> [--registro <ruta>]                               imprime URLs (F2)
   stop <id> [--snapshot-file <ruta>] [--registro <ruta>] [--json]    detiene (F2)
-  problemas [--forzar] [--categoria <cat>] [--proyecto <clave>] [--json]  consola agregada (07AA-1)`;
+  problemas [--forzar] [--categoria <cat>] [--proyecto <clave>] [--json]  consola agregada (07AA-1)
+  gate <id> --inicio|--cierre                                 hallazgos nuevos de la tarea (F9)
+  comandos <id> [--json]                                      contrato de comandos (F9)
+  cierre <id> [--tarea <ID>]                                  puerta de cierre, solo lectura (F9)`;
 
 export async function main(argv) {
   const args = argv ?? process.argv.slice(2);
@@ -25,6 +30,9 @@ export async function main(argv) {
   if (cmd === 'open') return open(resto);
   if (cmd === 'stop') return stop(resto);
   if (cmd === 'problemas') return problemas(resto);
+  if (cmd === 'gate') return gate(resto);
+  if (cmd === 'comandos') return comandos(resto);
+  if (cmd === 'cierre') return cierre(resto);
   console.log(AYUDA);
   return cmd ? 1 : 0;
 }

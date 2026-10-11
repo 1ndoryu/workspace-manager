@@ -15,7 +15,8 @@
       "timeoutMs": 3000,
       "arranqueMs": 60000,
       "expectedCmdline": ["dist-server", "5175"],
-      "requiere": ["glory-pulse"]
+      "requiere": ["glory-pulse"],
+      "comandos": { "gate": null, "typecheck": "npm run type-check", "build": "npm run build", "test-archivo": "node node_modules/tsx/dist/cli.mjs --test <archivo>" }
     },
     {
       "id": "glory-pulse",
@@ -32,7 +33,8 @@
         "SCCACHE_BASEDIRS": "C:\\Users\\usuario\\OneDrive\\Documentos\\area-trabajo"
       },
       "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; exe en target por rama C:\\tmp\\glory-target\\pulse-<rama> [05AA-1]; si falta, `up` lo reconstruye solo vía `reconstruir`; requiere PULSE_TOKEN>=32 en entorno, en local vale cualquiera, el real solo vive en Coolify)",
-      "reconstruir": { "manifest": "pulse/Cargo.toml", "targetDir": "C:\\tmp\\glory-target\\pulse-main" }
+      "reconstruir": { "manifest": "pulse/Cargo.toml", "targetDir": "C:\\tmp\\glory-target\\pulse-main" },
+      "comandos": { "gate": null, "typecheck": null, "build": null, "test-archivo": null }
     },
     {
       "id": "MN-Inmobiliaria",
@@ -52,7 +54,8 @@
       "auxiliares": [
         { "puerto": 3122, "marcador": "mejora.mjs", "motivo": "server:mejora (frontend/server/mejora.mjs), arranque manual fuera del mando" }
       ],
-      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp + Vite bajo ruta; PORT=3110 por env del mando; front via --prefix+-- para que --port llegue a vite)"
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp + Vite bajo ruta; PORT=3110 por env del mando; front via --prefix+-- para que --port llegue a vite)",
+      "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": null }
     },
     {
       "id": "NAKOMI",
@@ -68,7 +71,8 @@
       "arranqueMs": 300000,
       "expectedCmdline": ["glory-backend", "5176"],
       "env": { "PORT": "3103", "VITE_API_URL": "http://localhost:3103" },
-      "tipoLauncher": "glory-template (dev:back = cargo run directo en-arbol con PORT por env + Vite con --port por argv via --prefix+--, sin wrapper; VITE_API_URL por env pisa .env.development)"
+      "tipoLauncher": "glory-template (dev:back = cargo run directo en-arbol con PORT por env + Vite con --port por argv via --prefix+--, sin wrapper; VITE_API_URL por env pisa .env.development)",
+      "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": null }
     },
     {
       "id": "PROYECTO TASKS",
@@ -83,7 +87,8 @@
       "timeoutMs": 3000,
       "arranqueMs": 300000,
       "expectedCmdline": ["glory-backend", "4191"],
-      "tipoLauncher": "glory-template (wrapper run-with-db.mjs lee .env 4190/4191 + Vite via --prefix+-- para que --port llegue)"
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs lee .env 4190/4191 + Vite via --prefix+-- para que --port llegue)",
+      "comandos": { "gate": "npm run quality:check", "typecheck": "cargo check", "build": null, "test-archivo": null }
     },
     {
       "id": "WANDORIUS",
@@ -99,7 +104,8 @@
       "arranqueMs": 300000,
       "expectedCmdline": ["glory-backend", "5177"],
       "env": { "PORT": "3104", "VITE_API_URL": "http://localhost:3104" },
-      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp con PORT por env + Vite con --port por argv)"
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp con PORT por env + Vite con --port por argv)",
+      "comandos": { "gate": "npm run gate:check", "typecheck": "cargo check", "build": null, "test-archivo": null }
     },
     {
       "id": "gloryapi",
@@ -113,7 +119,8 @@
       ],
       "timeoutMs": 3000,
       "arranqueMs": 120000,
-      "expectedCmdline": ["gloryapi", "5178"]
+      "expectedCmdline": ["gloryapi", "5178"],
+      "comandos": { "gate": null, "typecheck": null, "build": "npm run build", "test-archivo": "npm run test -w server -- <archivo>" }
     },
     {
       "id": "Glory-Laminal",
@@ -124,7 +131,8 @@
       "healths": [{ "puerto": 5179, "ruta": "/", "esperaJson": false }],
       "timeoutMs": 3000,
       "arranqueMs": 60000,
-      "expectedCmdline": "5179"
+      "expectedCmdline": "5179",
+      "comandos": { "gate": null, "typecheck": "npm run type-check", "build": "npm run build", "test-archivo": "npm test -- <archivo>" }
     },
     {
       "id": "coolify-manager-rs",
@@ -137,7 +145,8 @@
       "arranqueMs": 300000,
       "expectedCmdline": "coolify-manager-rs",
       "env": { "VITE_PORT": "5180" },
-      "tipoLauncher": "dev-web.mjs (VITE_PORT fijo por env; API elige puerto libre solo: 8787 del manager intacto; su listener sale huerfano atribuido)"
+      "tipoLauncher": "dev-web.mjs (VITE_PORT fijo por env; API elige puerto libre solo: 8787 del manager intacto; su listener sale huerfano atribuido)",
+      "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": null }
     },
     {
       "id": "glory-harness",
@@ -153,7 +162,8 @@
         "CARGO_INCREMENTAL": "0",
         "SCCACHE_BASEDIRS": "C:\\Users\\usuario\\OneDrive\\Documentos\\area-trabajo"
       },
-      "tipoLauncher": "cargo web HTTP (el daemon TCP 8798 no tiene probe: fuera del mando)"
+      "tipoLauncher": "cargo web HTTP (el daemon TCP 8798 no tiene probe: fuera del mando)",
+      "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": null }
     },
     {
       "id": "RESTAURANTE",
@@ -169,7 +179,8 @@
       "arranqueMs": 300000,
       "expectedCmdline": ["glory-backend", "5182"],
       "env": { "PORT": "3105", "VITE_API_TARGET": "http://localhost:3105" },
-      "tipoLauncher": "glory-template (dev:back = run-cargo.mjs run --bin glory-backend con PORT=3105 por env del mando; Vite con --port 5182 por argv via --prefix+--. No se usa npm run dev (glory-rs/scripts/dev.mjs) porque el front cae en 5173, ocupado por opencode-propio-dev)"
+      "tipoLauncher": "glory-template (dev:back = run-cargo.mjs run --bin glory-backend con PORT=3105 por env del mando; Vite con --port 5182 por argv via --prefix+--. No se usa npm run dev (glory-rs/scripts/dev.mjs) porque el front cae en 5173, ocupado por opencode-propio-dev)",
+      "comandos": { "gate": "npm run gate:check", "typecheck": "cargo check", "build": null, "test-archivo": null }
     }
   ],
   "noAplica": {
