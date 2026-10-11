@@ -1,6 +1,7 @@
-/* Lector del estado Guard por proyecto (07AA-6 F6): lee la política del tope
- * físico anti-espiral y su diario de decisiones SIN ejecutar nada.
- * [por que] El panel Guard necesita "quién/qué/cuándo/por qué": la política
+/* Lector del estado Guardián por proyecto (10AA-2 F11.4; origen 07AA-6 F6): lee
+ * la política del tope físico anti-espiral y su diario de decisiones SIN
+ * ejecutar nada.
+ * [por que] La pestaña Guardián necesita "quién/qué/cuándo/por qué": la política
  * vive en `<raiz>/sentinel.config.json` (clave `budgets`, espejo tolerante de
  * `readBudgets` de Sentinel) y el diario en
  * `<raiz>/.quality-reports/<etapa>/<tarea>/runs.jsonl` (una línea por intento,
