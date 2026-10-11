@@ -8,7 +8,7 @@ import { json } from './http.js';
 import { obtenerSnapshot } from './cache.js';
 import { escanearWorkspace } from './scanner/workspace.js';
 import { manejarRutasGate } from './rutas/rutasGate.js';
-import { manejarRutasGuard } from './guard/rutasGuard.js';
+import { manejarRutasGuardian } from './rutas/rutasGuardian.js';
 import { manejarRutasConfig } from './rutas/rutasConfig.js';
 import { manejarRutasDocumentos } from './rutas/rutasDocumentos.js';
 import { manejarRutasArchivos } from './rutas/rutasArchivos.js';
@@ -101,9 +101,9 @@ export function crearServidor() {
         if (await manejarRutasGate(req, res, url, ruta)) {
           return;
         }
-        /* Rutas del Guard del tope físico anti-espiral (/api/guard/*, 07AA-6
-         * F6): estado por proyecto, solo lectura (10AA-2 F11.1). */
-        if (await manejarRutasGuard(req, res, url, ruta)) {
+        /* Rutas del Guardián (/api/guardian/*, 10AA-2 F11.4): la pestaña que
+         * controla política, topes, plantilla y mantenimiento del guard. */
+        if (await manejarRutasGuardian(req, res, url, ruta)) {
           return;
         }
         /* Rutas de config (/api/config*): viven en rutasConfig.ts. */
