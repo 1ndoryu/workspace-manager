@@ -98,16 +98,19 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
   return { version: 1, entradas, noAplica, ignoradosSistema };
 }
 
-function validarIgnoradoSistema(s, ctx) {
+export function validarIgnoradoSistema(s, ctx) {
   if (typeof s !== 'object' || s === null || Array.isArray(s)) throw new Error(`registro: ${ctx} no es objeto`);
   for (const k of Object.keys(s)) {
-    if (!['exe', 'pid', 'servicio', 'cmdContiene', 'motivo'].includes(k)) throw new Error(`registro: ${ctx} clave desconocida '${k}'`);
+    if (!['exe', 'imagen', 'pid', 'servicio', 'cmdContiene', 'motivo'].includes(k)) throw new Error(`registro: ${ctx} clave desconocida '${k}'`);
   }
   const tieneExe = typeof s.exe === 'string' && isAbsolute(s.exe);
+  // [por que] imagen = nombre de ejecutable sin ruta (p. ej. TpvNet.exe): para
+  // terceros cuyo exe no es legible sin elevar. Sin separadores: nunca una ruta.
+  const tieneImagen = typeof s.imagen === 'string' && /^[^\\/:*?"<>|]{3,80}\.exe$/i.test(s.imagen);
   const tienePid = Number.isInteger(s.pid) && s.pid > 0;
   const tieneServicio = typeof s.servicio === 'string' && s.servicio.length >= 2 && s.servicio.length <= 200;
-  if ([tieneExe, tienePid, tieneServicio].filter(Boolean).length !== 1) {
-    throw new Error(`registro: ${ctx} requiere exactamente uno de exe (ruta absoluta), pid o servicio`);
+  if ([tieneExe, tieneImagen, tienePid, tieneServicio].filter(Boolean).length !== 1) {
+    throw new Error(`registro: ${ctx} requiere exactamente uno de exe (ruta absoluta), imagen (nombre .exe), pid o servicio`);
   }
   // [por que] Un exe generico (bun.exe) puede lanzar mas de un servicio: cmdContiene
   // acota el ignorado a una linea de comando concreta, nunca vale solo con pid.
@@ -140,7 +143,7 @@ function validarEntrada(e) {
   const mal = (motivo) => {
     if (!e._avisoRegistro) e._avisoRegistro = motivo;
   };
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) {
       mal(`registro: clave desconocida '${k}' en '${e.id}'`);
@@ -346,6 +349,27 @@ function validarEntrada(e) {
     mal(`registro: '${e.id}' arranqueMs fuera de 5000..300000`);
     return;
   }
+  // [por que] auxiliares: listeners del proyecto que NO son de su mando (p. ej.
+  // un script lanzado a mano). Fuera de `puertos`: si estan abajo no hay
+  // deriva; si estan arriba con el marcador en su cmd, son del proyecto.
+  if ('auxiliares' in e) {
+    if (!Array.isArray(e.auxiliares)) {
+      mal(`registro: '${e.id}' auxiliares no es array`);
+      return;
+    }
+    for (const a of e.auxiliares) {
+      const enPuertos = Array.isArray(e.puertos) && e.puertos.includes(a?.puerto);
+      const valido =
+        typeof a === 'object' && a !== null &&
+        Number.isInteger(a.puerto) && a.puerto >= 1 && a.puerto <= 65535 && !enPuertos &&
+        typeof a.marcador === 'string' && a.marcador.length >= 3 && a.marcador.length <= 120 &&
+        typeof a.motivo === 'string' && a.motivo.length >= 3 && a.motivo.length <= 120;
+      if (!valido) {
+        mal(`registro: '${e.id}' auxiliares: cada entrada exige puerto (fuera de puertos), marcador (3-120) y motivo (3-120)`);
+        return;
+      }
+    }
+  }
   if (typeof e.expectedCmdline !== 'string' && !Array.isArray(e.expectedCmdline)) {
     mal(`registro: '${e.id}' expectedCmdline vacio`);
     return;
@@ -455,7 +479,7 @@ export async function procesosDe(pids) {
     const trozo = unicos.slice(i, i + MAX_PIDS_CONSULTA);
     const filtro = trozo.map((p) => `ProcessId=${p}`).join(' OR ');
     const sal = await correrPs(
-      `Get-CimInstance Win32_Process -Filter "${filtro}" | Select-Object @{n='pid';e={$_.ProcessId}},@{n='creado';e={$_.CreationDate.ToString('o')}},@{n='exe';e={$_.ExecutablePath}},@{n='cmd';e={$_.CommandLine}} | ConvertTo-Json -Compress -Depth 2`,
+      `Get-CimInstance Win32_Process -Filter "${filtro}" | Select-Object @{n='pid';e={$_.ProcessId}},@{n='creado';e={$_.CreationDate.ToString('o')}},@{n='exe';e={$_.ExecutablePath}},@{n='cmd';e={$_.CommandLine}},@{n='imagen';e={$_.Name}} | ConvertTo-Json -Compress -Depth 2`,
     );
     let filas;
     try {
@@ -466,7 +490,8 @@ export async function procesosDe(pids) {
     }
     for (const f of filas) {
       if (!Number.isInteger(f?.pid)) continue;
-      mapa.set(f.pid, { creado: f.creado ?? null, exe: f.exe ?? null, cmd: f.cmd ?? null });
+      // [por que] `imagen` (Name) llega aunque exe/cmd vengan nulos (proceso elevado o protegido).
+      mapa.set(f.pid, { creado: f.creado ?? null, exe: f.exe ?? null, cmd: f.cmd ?? null, imagen: f.imagen ?? null });
     }
   }
   return mapa;
@@ -554,12 +579,28 @@ export function atribuirHuerfano(proc, pool) {
   return clave;
 }
 
+/* Listener auxiliar declarado en registro.auxiliares: puerto y marcador en la
+ * linea de comando. Devuelve la clave del proyecto dueno o null. Entradas con
+ * aviso de registro no cuentan: su configuracion no esta validada. */
+export function auxiliarDe(puerto, cmd, entradas) {
+  if (!cmd) return null;
+  for (const e of entradas) {
+    if (e._avisoRegistro) continue;
+    for (const a of e.auxiliares ?? []) {
+      if (a.puerto === puerto && cmd.includes(a.marcador)) return e.id;
+    }
+  }
+  return null;
+}
+
 /* Listener de tercero/sistema declarado en registro.ignoradosSistema. Por exe
- * (ruta exacta), por servicio de Windows (nombre, para exe protegidos) o por pid
- * solo cuando no hay exe (System = PID 4 en Windows). */
+ * (ruta exacta), por imagen (nombre .exe, para exe ocultos sin elevar), por
+ * servicio de Windows (nombre, para exe protegidos) o por pid solo cuando no
+ * hay exe (System = PID 4 en Windows). */
 export function esSistemaIgnorado(pid, proc, lista = [], servicio = null) {
   return lista.some((s) => {
     if (s.servicio) return servicio?.nombre === s.servicio;
+    if (s.imagen) return typeof proc?.imagen === 'string' && proc.imagen.toLowerCase() === s.imagen.toLowerCase();
     if (!s.exe) return s.pid === pid && !proc?.exe;
     if (!proc?.exe || normalizarRuta(proc.exe) !== normalizarRuta(s.exe)) return false;
     return !s.cmdContiene || (proc.cmd ?? '').includes(s.cmdContiene);
@@ -664,6 +705,9 @@ export async function clasificar(proyectos, registro, escucha, ignorados = []) {
   for (const c of candidatos) {
     if (consumidos.has(`${c.ip}:${c.puerto}:${c.pid}`)) continue;
     const proc = procs.get(c.pid);
+    // [por que] Script auxiliar declarado del proyecto (p. ej. mejora.mjs): es
+    // del area y no es hueco ni huerfano; fuera de `puertos` no genera deriva.
+    if (auxiliarDe(c.puerto, proc?.cmd, registro.entradas.values())) continue;
     // [por que] Terceros/sistema declarados (uTorrent, Intel, VPN, sccache,
     // kernel, servicios de Windows): no son del area ni son huecos.
     if (esSistemaIgnorado(c.pid, proc, ignoradosSis, servicios.get(c.pid) ?? null)) continue;

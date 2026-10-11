@@ -5,7 +5,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { atribuirHuerfano, detectarRust, enRuta, esDelProyecto, esSistemaIgnorado } from './doctor.mjs';
+import {
+  atribuirHuerfano,
+  auxiliarDe,
+  detectarRust,
+  enRuta,
+  esDelProyecto,
+  esSistemaIgnorado,
+  leerRegistro,
+  validarIgnoradoSistema,
+} from './doctor.mjs';
 
 const AREA = 'C:\\Users\\usuario\\OneDrive\\Documentos\\area-trabajo';
 
@@ -73,6 +82,69 @@ test('esSistemaIgnorado: servicio de Windows por nombre, exe oculto (SurfaceBrok
   assert.equal(esSistemaIgnorado(9200, { exe: null, cmd: '' }, lista, svc), true);
   assert.equal(esSistemaIgnorado(9200, { exe: null, cmd: '' }, lista, { nombre: 'OtroServicio' }), false);
   assert.equal(esSistemaIgnorado(9200, { exe: null, cmd: '' }, lista, null), false);
+});
+
+test('esSistemaIgnorado: imagen por nombre .exe, exe oculto (TpvNet.exe de BDP-Net)', () => {
+  const lista = [{ imagen: 'TpvNet.exe', motivo: 'BDP-Net TPV, exe oculto sin elevar' }];
+  assert.equal(esSistemaIgnorado(22312, { exe: null, cmd: null, imagen: 'TpvNet.exe' }, lista), true);
+  assert.equal(esSistemaIgnorado(22312, { exe: null, cmd: null, imagen: 'tpvnet.EXE' }, lista), true);
+  assert.equal(esSistemaIgnorado(22312, { exe: null, cmd: null, imagen: 'Otro.exe' }, lista), false);
+  assert.equal(esSistemaIgnorado(22312, { exe: null, cmd: null, imagen: null }, lista), false);
+  assert.equal(esSistemaIgnorado(22312, undefined, lista), false);
+});
+
+test('validarIgnoradoSistema: imagen exige nombre .exe sin ruta y excluyente con exe/pid/servicio', () => {
+  const ok = { imagen: 'SvrWCF.exe', motivo: 'BDP-Net TPV, exe oculto' };
+  assert.doesNotThrow(() => validarIgnoradoSistema(ok, 't'));
+  assert.throws(() => validarIgnoradoSistema({ imagen: 'C:\\Bdp-Net\\SvrWCF.exe', motivo: 'ruta no vale' }, 't'));
+  assert.throws(() => validarIgnoradoSistema({ imagen: 'SvrWCF.exe', pid: 21252, motivo: 'dos claves' }, 't'));
+  assert.throws(() => validarIgnoradoSistema({ imagen: 'SvrWCF.dll', motivo: 'no es exe' }, 't'));
+  assert.throws(() => validarIgnoradoSistema({ imagen: 'SvrWCF.exe', cmdContiene: 'algo', motivo: 'cmd sin exe' }, 't'));
+});
+
+test('auxiliarDe: script declarado (puerto + marcador en el cmd) es del proyecto', () => {
+  const entradas = [
+    { id: 'MN-Inmobiliaria', puertos: [3110], auxiliares: [{ puerto: 3122, marcador: 'mejora.mjs', motivo: 'manual' }] },
+  ];
+  const cmd = '"C:\\Program Files\\nodejs\\node.exe" server/mejora.mjs';
+  assert.equal(auxiliarDe(3122, cmd, entradas), 'MN-Inmobiliaria');
+  assert.equal(auxiliarDe(3123, cmd, entradas), null, 'otro puerto no casa');
+  assert.equal(auxiliarDe(3122, 'node otro.mjs', entradas), null, 'sin marcador no casa');
+  assert.equal(auxiliarDe(3122, null, entradas), null, 'cmd no verificable no casa');
+  assert.equal(auxiliarDe(3122, cmd, [{ ...entradas[0], _avisoRegistro: 'roto' }]), null, 'entrada con aviso no cuenta');
+});
+
+test('leerRegistro: auxiliares con puerto de puertos quedan como aviso de registro', () => {
+  const dir = mkdtempSync(join('C:/tmp', 'wm-registro-test-'));
+  const ruta = join(dir, 'registro.json');
+  try {
+    const registro = {
+      version: 1,
+      proyectos: [
+        {
+          id: 'X',
+          ruta: '.',
+          boton: [['npm', 'run', 'dev']],
+          puertos: [3110],
+          expectedCmdline: 'x',
+          auxiliares: [{ puerto: 3110, marcador: 'mejora.mjs', motivo: 'duplica puerto de puertos' }],
+        },
+      ],
+    };
+    writeFileSync(ruta, JSON.stringify(registro));
+    const e = leerRegistro(ruta).entradas.get('X');
+    assert.match(e._avisoRegistro ?? '', /auxiliares/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('leerRegistro: el registro real carga y declara los auxiliares e ignorados de BDP-Net y MN-Inmobiliaria', () => {
+  const reg = leerRegistro();
+  assert.equal(reg.entradas.get('MN-Inmobiliaria')._avisoRegistro, undefined);
+  assert.equal(auxiliarDe(3122, 'node server/mejora.mjs', reg.entradas.values()), 'MN-Inmobiliaria');
+  assert.equal(esSistemaIgnorado(53394, { exe: null, cmd: null, imagen: 'TpvNet.exe' }, reg.ignoradosSistema), true);
+  assert.equal(esSistemaIgnorado(53401, { exe: null, cmd: null, imagen: 'SvrWCF.exe' }, reg.ignoradosSistema), true);
 });
 
 test('esSistemaIgnorado: pid 4 solo sin exe (System)', () => {
