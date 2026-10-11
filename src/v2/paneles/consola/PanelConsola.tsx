@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { usePanelConsola } from './usePanelConsola.js';
 import { useEscanear } from '../../../hooks/useEscanear.js';
+import { contarProblemas } from '../../../shared/clasificacionConsola.js';
 import { Button } from '../../ui/form/Button.js';
 import { Selector } from '../../ui/selector/Selector.js';
 import {
@@ -156,7 +157,7 @@ export function PanelConsola() {
                 {/* [por que] Sin spans ni badges: la cabecera solo dice el
                   * total de problemas del proyecto; el detalle ya vive en
                   * los motivos de abajo. */}
-                {pr.p.id} ({pr.entradas.length})
+                {pr.p.id} ({contarProblemas(pr.entradas)})
               </button>
               {colapsados.has(pr.p.id) ? null : (
               <ul className="consolaMotivos">

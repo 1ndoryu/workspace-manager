@@ -8,6 +8,7 @@ import {
   problemaHuerfanosSinProyecto,
   problemasDe,
   problemasDevDe,
+  contarProblemas,
   problemasSentinelDe,
   problemasVulnerabilidadDe,
   type Categoria,
@@ -121,13 +122,13 @@ export function usePanelConsola() {
    * 'sentinel' suma solo sus hallazgos (su propio filtro). */
   const contar = (clave: 'todos' | Categoria): number => {
     if (clave === 'sentinel') {
-      return problemasSentinel.reduce((n, pr) => n + pr.entradas.length, 0);
+      return problemasSentinel.reduce((n, pr) => n + contarProblemas(pr.entradas), 0);
     }
     if (clave === 'vulnerabilidad') {
-      return problemasVuln.reduce((n, pr) => n + pr.entradas.length, 0);
+      return problemasVuln.reduce((n, pr) => n + contarProblemas(pr.entradas), 0);
     }
-    if (clave === 'todos') return problemasTodo.reduce((n, pr) => n + pr.entradas.length, 0);
-    return problemasBase.reduce((n, pr) => n + pr.entradas.filter((e) => e.categoria === clave).length, 0);
+    if (clave === 'todos') return problemasTodo.reduce((n, pr) => n + contarProblemas(pr.entradas), 0);
+    return problemasBase.reduce((n, pr) => n + contarProblemas(pr.entradas.filter((e) => e.categoria === clave)), 0);
   };
 
   return {

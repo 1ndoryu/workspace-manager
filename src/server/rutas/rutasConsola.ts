@@ -13,6 +13,7 @@ import { analizarTodo, leerTodas } from '../gate/analizador.js';
 import { auditarTodo, leerTodasVulnerabilidades } from '../gate/vulnerabilidades.js';
 import { obtenerVigilancia } from '../dev/vigilancia.js';
 import {
+  contarProblemas,
   problemaHuerfanosSinProyecto,
   problemasDe,
   problemasDevDe,
@@ -71,7 +72,8 @@ export async function manejarRutasConsola(
   const solos = problemaHuerfanosSinProyecto(dev);
   if (solos) poner('', solos.p.id, solos.entradas);
 
-  const proyectos = [...porProyecto.values()].map((g) => ({ ...g, total: g.entradas.length }));
+  /* [por que] El total cuenta solo problemas reales (informativas fuera). */
+  const proyectos = [...porProyecto.values()].map((g) => ({ ...g, total: contarProblemas(g.entradas) }));
   const total = proyectos.reduce((n, g) => n + g.total, 0);
   json(res, 200, {
     total,

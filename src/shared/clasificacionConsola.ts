@@ -30,7 +30,27 @@ export interface Entrada {
    * `parado` (05AA-4) no genera entrada: detenido normal no va en
    * problemas; se opera desde el detalle (clic en la caja). */
   devId?: string | null;
+  /* Linea visible pero que NO cuenta como problema (conteo, badges y total).
+   * [por que] Estado sano o sin accion posible: `dev bajo mando`, hallazgos
+   * sentinel hint/information y vulnerabilidades sin parche upstream. Antes
+   * contaban y el total del tablero se inflaba con falsos positivos. */
+  informativa?: boolean;
 }
+
+/* Cuenta solo los problemas reales (entradas no informativas). Unico punto de
+ * conteo: servidor (/api/consola/problemas) y cliente (consola) lo usan igual. */
+export function contarProblemas(entradas: Entrada[]): number {
+  return entradas.filter((e) => !e.informativa).length;
+}
+
+/* Vulnerabilidades sin version corregida upstream: no hay accion que tomar en
+ * el repo, asi que se muestran como informativas. Clave = nombre del paquete.
+ * [por que] `rsa` (Cargo.lock de coolify-manager-rs y glory-agent) no tiene
+ * parche publicado; la decision es aceptar el riesgo y revisarlo al publicarse
+ * una version corregida. */
+const VULN_SIN_PARCHE_UPSTREAM: Record<string, string> = {
+  rsa: 'sin version corregida upstream; riesgo aceptado, revisar si sale parche',
+};
 
 /* Severidad de una vulnerabilidad de dependencias (npm/pnpm/cargo audit). */
 export type SeveridadVuln = 'critical' | 'high' | 'moderate' | 'low';
@@ -115,14 +135,20 @@ export function problemasDe(p: Proyecto): Problema | null {
  * etiquetan en la linea para distinguir la tool que los emitio. */
 export function problemasSentinelDe(p: Proyecto, a: AnalisisSentinel | undefined): Problema | null {
   if (!a || a.estado !== 'conHallazgos' || a.hallazgos.length === 0) return null;
-  const entradas: Entrada[] = a.hallazgos.map((h) => ({
-    categoria: 'sentinel',
-    /* [por que] el prefijo permite distinguir la tool que emitio el hallazgo
-     * (fase G: el analisis fusiona sentinel + varsense) sin tocar el render. */
-    motivo: `${h.fuente === 'varsense' ? '[varsense] ' : ''}${h.archivo || p.id}${h.linea != null ? `:${h.linea}` : ''} — ${h.ruleId} — ${h.mensaje}`,
-    seriedad: h.severidad === 'error' ? 'error' : 'advertencia',
-    sentinelSeveridad: h.severidad,
-  }));
+  const entradas: Entrada[] = a.hallazgos.map((h) => {
+    /* [por que] hint/information son sugerencias de estilo, no defectos: se
+     * ven en la linea pero no son "advertencia" ni cuentan como problema. */
+    const informativa = h.severidad === 'hint' || h.severidad === 'information';
+    return {
+      categoria: 'sentinel',
+      /* [por que] el prefijo permite distinguir la tool que emitio el hallazgo
+       * (fase G: el analisis fusiona sentinel + varsense) sin tocar el render. */
+      motivo: `${h.fuente === 'varsense' ? '[varsense] ' : ''}${h.archivo || p.id}${h.linea != null ? `:${h.linea}` : ''} — ${h.ruleId} — ${h.mensaje}`,
+      seriedad: informativa ? null : h.severidad === 'error' ? 'error' : 'advertencia',
+      sentinelSeveridad: h.severidad,
+      ...(informativa ? { informativa: true } : {}),
+    };
+  });
   return { p, entradas };
 }
 
@@ -135,12 +161,16 @@ export function problemasVulnerabilidadDe(
   v: AnalisisVulnerabilidades | undefined,
 ): Problema | null {
   if (!v || v.estado !== 'conHallazgos' || v.hallazgos.length === 0) return null;
-  const entradas: Entrada[] = v.hallazgos.map((h) => ({
-    categoria: 'vulnerabilidad',
-    motivo: `${h.paquete} (${h.origen ?? v.gestor})${h.rango ? ` — ${h.rango}` : ''}`,
-    seriedad: h.severidad === 'critical' || h.severidad === 'high' ? 'error' : 'advertencia',
-    vulnSeveridad: h.severidad,
-  }));
+  const entradas: Entrada[] = v.hallazgos.map((h) => {
+    const sinParche = VULN_SIN_PARCHE_UPSTREAM[h.paquete];
+    return {
+      categoria: 'vulnerabilidad',
+      motivo: `${h.paquete} (${h.origen ?? v.gestor})${h.rango ? ` — ${h.rango}` : ''}${sinParche ? ` — ${sinParche}` : ''}`,
+      seriedad: sinParche ? null : h.severidad === 'critical' || h.severidad === 'high' ? 'error' : 'advertencia',
+      vulnSeveridad: h.severidad,
+      ...(sinParche ? { informativa: true } : {}),
+    };
+  });
   return { p, entradas };
 }
 
@@ -171,7 +201,7 @@ export function problemasDevDe(
     /* [por que] F3: el tablero ofrece operar lo que el mando gestiona
      * (arrancar/ver, detener, logs): sin esta linea lo sano seria invisible
      * y el usuario no sabria que hay mando. Seriedad null (no es problema). */
-    entradas.push({ categoria: 'dev', motivo: `dev bajo mando: ${info.motivo}`, seriedad: null, devId: info.id });
+    entradas.push({ categoria: 'dev', motivo: `dev bajo mando: ${info.motivo}`, seriedad: null, devId: info.id, informativa: true });
   }
   /* [05AA-4] `parado` no entra: detenido normal, nada que ver en problemas. */
   if (dev?.errorSensor && esMando) {
