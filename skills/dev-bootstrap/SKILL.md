@@ -16,6 +16,7 @@ Arranque status ["<id>"]         # estado sin tocar nada
 Arranque stop "<id>"             # parar (solo listeners propios verificados)
 Arranque logs "<id>" [--cola N] # logs (defecto 50, tope 200)
 Arranque open "<id>"            # mostrar URLs con nombre (http://<slug>.localhost:<puerto>)
+Arranque alta "<id|carpeta>" [--aplicar]  # lista de alta: en seco; --aplicar crea lo mecánico en la rama alta/10aa-2
 ```
 
 `Arranque` = atajo global (`C:\Users\Owner\bin\Arranque.cmd` en el PATH de usuario; hace falta terminal nueva la primera vez). Sin atajo: `node scripts/dev/dev.mjs ...` desde el repo.
@@ -24,7 +25,7 @@ Los `<id>` válidos están en `scripts/dev/registro.json` (p. ej. `MN-Inmobiliar
 
 ## Alta de proyecto nuevo
 
-Añadir una entrada en `scripts/dev/registro.json`. Campos admitidos (el `doctor` rechaza cualquier otro):
+Añadir una entrada en `scripts/dev/registro.json`. Campos admitidos (el `doctor` rechaza cualquier otro; la lista exacta es `conocidas` en `scripts/dev/doctor.mjs:151`: además de los del ejemplo, `reconstruir`, `auxiliares` y `comandos`):
 
 ```json
 {
@@ -51,6 +52,7 @@ Reglas:
 - `requiere`: solo si necesita otro servicio antes (p. ej. `glory-pulse`); `env`: objeto string→string no vacío (p. ej. `VITE_PORT`, vars de sccache) — llega al hijo vía `envPara()`/`lanzar()`, sin reiniciar el backend.
 - Sin servicio que levantar (solo docs o estático): no va en entradas, va en `noAplica` con motivo (`sin-servicio`).
 - Validar el alta con `Arranque doctor --all` (falla si la entrada está mal formada) y luego `status "<id>"`.
+- Alta completa del proyecto (11 puntos: stack, git, README, roadmap y `Agente/`, registro, Sentinel, varsense, `quality:check`, `target-dir`, `.gitignore`, sin AGENTS/CLAUDE propios): fuente canónica `Agente/documentacion/alta-proyectos-2026-10-11.md`. `Arranque alta "<id>"` dice qué falta; `--aplicar` crea solo lo mecánico y nunca sobrescribe ni escribe en el registro.
 
 ## Flujo ante "arranca X"
 

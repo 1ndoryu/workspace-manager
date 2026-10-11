@@ -12,6 +12,12 @@
 > se conserva íntegro como evidencia histórica. Los artefactos operativos (registro + harness) siguen en
 > este repo.
 
+> **Alta de proyectos — partes diferidas de 10AA-2 F10 (2026-10-11).** `Arranque alta` y la lista de 11 puntos están hechos (tests 17/17, suite 50/50); fuente: `Agente/documentacion/alta-proyectos-2026-10-11.md`. Queda fuera de F10 y va a tareas separadas:
+> - Baseline de heredados, tablero «Alta: N/11» y «nuevos / deuda heredada» en `problemas (N)`: depende de F11.4 (tablero).
+> - Mantenimiento continuo en cada análisis (F10.4): depende de la política del guard de F11.3.
+> - Familia A (checkout compartido) frente a B (submódulo), y perfil dev de Rust: `alta.mjs` no los comprueba.
+> - Por eso el criterio «Hecho cuando» tercero de F10 no se cumple del todo. Estado en seco: RESTAURANTE 9/11 y MN-Inmobiliaria 8/11; ningún proyecto real está completo.
+>
 > **Dependabot de workspace-manager (2026-10-10).**
 > - **PR #1 (`a60f37c756`) cerrada e integrada en main:** su única aportación pendiente era rollup 4.63.0 → 4.63.1. Trasplantados sus 52 bloques de rollup a `pnpm-lock.yaml` (sin churn ajeno). Verificado: `pnpm install --frozen-lockfile --lockfile-only` OK, type-check y build:server exit 0, tests del gate 9/9. Respaldo verificado en `C:/tmp/backups-ramas/wm-dependabot-npm-group-a60f37c756.bundle`; rama borrada en local y remoto.
 > - **PR #2 (`fa0e04ea13`) cerrada como superada (Decidido 2026-10-11):** además de esbuild (ya en main) subía `vite ^6.4.3 → ^8.2.2`, un salto mayor sin necesidad: vite 6.4.3 ya cubre los avisos. Se mantiene vite 6; se reabre solo si vite 6 deja de recibir parches. Rama remota ya ausente; respaldo verificado `C:/tmp/backups-ramas/wm-dependabot-esbuild-fa0e04ea13.bundle` (contiene `d80d41af`).
