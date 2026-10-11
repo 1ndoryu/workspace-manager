@@ -15,6 +15,7 @@ import type { ReglaCatalogo } from '../../shared/gate/reglas.js';
 import type { NodoEsquema } from '../../shared/gate/esquema.js';
 import type { TipoGate } from '../../shared/gate/proveedores.js';
 import type { ReporteSincronizacion } from '../../server/gate/sincronizacion.js';
+import type { ResultadoSalud } from '../../shared/salud/salud.js';
 
 /* Panel central y visibilidad de paneles (nav), persistidos igual que el
  * layout y la seleccion: sobreviven a recargas. [por que] El usuario pidio
@@ -101,6 +102,9 @@ export interface DatosAnalisis {
   vulnerabilidades: Record<string, AnalisisVulnerabilidades>;
   /* Single-flight del barrido de vulnerabilidades (igual que analizando). */
   auditando: boolean;
+  /* Salud (10AA-2 F8) por clave de proyecto; el grupo del área va bajo CLAVE_AREA.
+   * Se rellena desde /api/salud y /api/salud/area, no se calcula en el cliente. */
+  salud: Record<string, ResultadoSalud>;
 }
 
 /* Vigilancia dev (F0b): informe del doctor cacheado + single-flight + ultimo
@@ -154,6 +158,8 @@ export interface AccionesAnalisis {
   escanearUno: (clave: string, forzar?: boolean) => Promise<AnalisisSentinel>;
   /* Barrido serial del workspace (auto-timer y boton 'Escaneado completo'). */
   escanearTodo: (forzar?: boolean) => Promise<void>;
+  /* Carga la salud de proyectos y área (caché 60 s en el server; forzar la salta). */
+  cargarSalud: (forzar?: boolean) => Promise<void>;
 }
 
 /* Auditoria de dependencias: rehidratar cache, auditar una y barrido (3). */

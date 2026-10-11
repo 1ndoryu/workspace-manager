@@ -15,6 +15,7 @@ import { manejarRutasArchivos } from './rutas/rutasArchivos.js';
 import { manejarRutasPc } from './rutas/rutasPc.js';
 import { manejarRutasDev } from './rutas/rutasDev.js';
 import { manejarRutasConsola } from './rutas/rutasConsola.js';
+import { manejarRutasSalud } from './rutas/salud/rutasSalud.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutas/rutasVps.js';
 import { manejarRutasVpsHistorial } from './vps/rutas/rutasVpsHistorial.js';
@@ -150,6 +151,11 @@ export function crearServidor() {
         /* Consola de problemas agregada (/api/consola/*, 07AA-1): mismo
          * conteo que la cabecera, con desglose. Viven en rutasConsola.ts. */
         if (await manejarRutasConsola(req, res, url, ruta)) {
+          return;
+        }
+        /* Salud del entorno y de los proyectos (/api/salud/*, 10AA-2 F8): viven en
+         * rutas/salud/rutasSalud.ts. */
+        if (await manejarRutasSalud(req, res, url, ruta)) {
           return;
         }
         /* Proxy de la tab tareas (/api/tareas/*, 07AA-5 F2): el front no
