@@ -23,6 +23,25 @@
   width: 6em;
 }
 
+/* [por que] La matriz de Comandos puede ser más ancha que la pestaña: scroll propio. */
+.guardianMatriz {
+  overflow-x: auto;
+}
+
+.guardianMatriz .guardianTabla th {
+  white-space: nowrap;
+}
+
+.guardianEnlace {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .guardianFila--activa > td {
   background: var(--v2-texto);
   color: var(--v2-fondo);
