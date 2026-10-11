@@ -16,7 +16,9 @@ import {
   validarPlantilla,
 } from './plantilla.js';
 
-const RAIZ_REAL = join(import.meta.dirname, '..', '..', '..', '..');
+/* La plantilla vive en la raíz del área (.quality-tools/), no en workspace-manager:
+ * sube 5 niveles desde configuracion/ hasta area-trabajo, igual que RAIZ_AREA en http.ts. */
+const RAIZ_REAL = join(import.meta.dirname, '..', '..', '..', '..', '..');
 const TEXTO_REAL = readFileSync(join(RAIZ_REAL, RUTA_PLANTILLA), 'utf8');
 
 const BASE_TMP = 'C:/tmp/guardian-test';
@@ -144,13 +146,14 @@ describe('calcularEdicionPlantilla y guardarEdicionPlantilla', () => {
     }
     assert.equal(readFileSync(join(r, RUTA_PLANTILLA), 'utf8'), antes);
   });
-  it('vista previa: el diff apunta a la línea de workspace-manager', () => {
+  it('vista previa: el diff empieza en la línea de la última entrada de stackDeProyecto', () => {
     const r = raizTmp();
     const res = calcularEdicionPlantilla(r, hashActual(r), entradaConRepo('nuevo-repo', ['rust']));
     assert.equal(res.estado, 'ok');
     if (res.estado !== 'ok') return;
     assert.equal(res.cambia, true);
-    assert.equal(res.diff?.desde, 32);
+    /* ONG AGAPE es la última clave (línea 31): la nueva entrada gana la coma y una línea. */
+    assert.equal(res.diff?.desde, 31);
     assert.equal(res.diff?.poner.length, 2);
     assert.equal(readFileSync(join(r, RUTA_PLANTILLA), 'utf8'), TEXTO_REAL, 'la vista previa no escribe');
   });

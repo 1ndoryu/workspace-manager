@@ -71,7 +71,7 @@ export function contextoPlantilla(
   deps: DependenciasGuardian,
   clave: string,
 ): { plantilla: Plantilla; stacks: string[] } {
-  const lectura = leerPlantilla(deps.raizTablero);
+  const lectura = leerPlantilla(deps.raizArea);
   if (lectura.estado === 'ausente') throw new ErrorValidacion(`falta ${RUTA_PLANTILLA}`);
   if (lectura.estado === 'invalida') throw new ErrorValidacion(`plantilla no válida: ${lectura.motivo}`);
   return { plantilla: lectura.plantilla, stacks: lectura.plantilla.stackDeProyecto[clave] ?? [] };

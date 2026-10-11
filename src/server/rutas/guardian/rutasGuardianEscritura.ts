@@ -145,8 +145,8 @@ export async function editarPlantilla(c: Contexto): Promise<void> {
   const hashPrevio = textoRequerido(cuerpo.hashPrevio, 'hashPrevio');
   const confirmar = confirmarDe(cuerpo);
   const r = confirmar
-    ? guardarEdicionPlantilla(c.deps.raizTablero, hashPrevio, cuerpo.plantilla)
-    : calcularEdicionPlantilla(c.deps.raizTablero, hashPrevio, cuerpo.plantilla);
+    ? guardarEdicionPlantilla(c.deps.raizArea, hashPrevio, cuerpo.plantilla)
+    : calcularEdicionPlantilla(c.deps.raizArea, hashPrevio, cuerpo.plantilla);
   responderEdicion(c.res, r, confirmar);
 }
 
