@@ -11,7 +11,7 @@
  * no escribe y falla.
  */
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, realpath, readFile, lstat, access } from 'node:fs/promises';
+import { copyFile, mkdir, realpath, readFile, lstat, access, rm } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 
@@ -123,13 +123,18 @@ async function main(argv = process.argv.slice(2)) {
     process.exitCode = ok ? 0 : 1;
     return;
   }
+  /* [por que] El .bak solo protege la ventana de escritura: tras escribir con
+   * éxito se borra. Si quedara, cada repin dejaba un untracked que el board
+   * contaba como sinCommit (falso positivo). */
+  const backupPath = `${lockPath}.bak`;
   try {
     const metadata = await lstat(lockPath).catch(e => (e?.code === 'ENOENT' ? null : Promise.reject(e)));
     if (metadata && metadata.isSymbolicLink()) throw new Error('sentinel.lock.json: no se puede reemplazar un symlink');
-    if (metadata) await copyFile(lockPath, `${lockPath}.bak`);
+    if (metadata) await copyFile(lockPath, backupPath);
   } catch (e) { if (e?.code !== 'ENOENT') throw e; }
   await mkdir(path.dirname(lockPath), { recursive: true });
   await import('node:fs/promises').then(fs => fs.writeFile(lockPath, `${JSON.stringify(lock, null, 2)}\n`, { flag: 'w' }));
+  await rm(backupPath, { force: true });
   console.log(`[quality:lock] written ${lockPath}`);
 }
 
