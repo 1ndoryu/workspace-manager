@@ -46,6 +46,7 @@ function uiGuardada(): { panelCentral: PanelCentral; visibles: VisibilidadPanele
     d.panelCentral === 'navegador' ||
     d.panelCentral === 'config' ||
     d.panelCentral === 'sentinel' ||
+    d.panelCentral === 'guardian' ||
     d.panelCentral === 'pc' ||
     d.panelCentral === 'vps'
       ? d.panelCentral

@@ -1,0 +1,124 @@
+/* Pestaña Guardián: clases propias (guardian*) con los tokens v2.
+ * [por que] Monocromo estricto: sin radios, sin sombras, sin negrita. El estado va
+ * por relleno o borde, nunca por color. */
+
+.guardianTabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--v2-textSm);
+  font-family: var(--v2-font);
+}
+
+.guardianTabla th,
+.guardianTabla td {
+  border: 1px solid var(--v2-borde);
+  padding: 3px 6px;
+  text-align: left;
+  vertical-align: top;
+  font-weight: normal;
+  word-break: break-word;
+}
+
+.guardianTabla input {
+  width: 6em;
+}
+
+.guardianFila--activa > td {
+  background: var(--v2-texto);
+  color: var(--v2-fondo);
+}
+
+.guardianNota {
+  font-size: var(--v2-textSm);
+  margin: 4px 0;
+}
+
+.guardianCampo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0;
+  font-size: var(--v2-textSm);
+}
+
+.guardianCampo select,
+.guardianCampo input,
+.guardianCampo textarea {
+  font: inherit;
+  color: var(--v2-texto);
+  background: var(--v2-fondo);
+  border: 1px solid var(--v2-borde);
+  border-radius: 0;
+  padding: 3px 4px;
+  min-width: 0;
+}
+
+.guardianCampo textarea {
+  resize: vertical;
+}
+
+.guardianCodigo textarea {
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.guardianCasilla {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--v2-textSm);
+  margin: 4px 0;
+}
+
+.guardianAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.guardianPrevia {
+  margin: 6px 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--v2-borde);
+}
+
+.guardianDiff {
+  margin: 4px 0;
+  padding: 4px 6px;
+  border: 1px solid var(--v2-borde);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: var(--v2-textSm);
+  overflow-x: auto;
+}
+
+.guardianDiffLinea {
+  white-space: pre;
+}
+
+.guardianDiffLinea--quitar {
+  text-decoration: line-through;
+}
+
+.guardianDiffLinea--quitar::before {
+  content: '- ';
+}
+
+.guardianDiffLinea--poner {
+  padding-left: 4px;
+  border-left: 2px solid var(--v2-texto);
+}
+
+.guardianDiffLinea--poner::before {
+  content: '+ ';
+}
+
+.guardianSalida {
+  margin: 6px 0;
+  padding: 6px;
+  border: 1px solid var(--v2-borde);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: var(--v2-textSm);
+  white-space: pre-wrap;
+  max-height: 320px;
+  overflow: auto;
+}
