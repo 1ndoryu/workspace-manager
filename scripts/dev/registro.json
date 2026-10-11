@@ -29,7 +29,6 @@
       "arranqueMs": 180000,
       "expectedCmdline": "pulse",
       "env": {
-        "CARGO_INCREMENTAL": "0",
         "SCCACHE_BASEDIRS": "C:\\Users\\Owner\\OneDrive\\Documentos\\area-trabajo"
       },
       "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; exe en target por rama C:\\tmp\\glory-target\\pulse-<rama> [05AA-1]; si falta, `up` lo reconstruye solo vía `reconstruir`; requiere PULSE_TOKEN>=32 en entorno, en local vale cualquiera, el real solo vive en Coolify)",
@@ -159,7 +158,6 @@
       "arranqueMs": 300000,
       "expectedCmdline": "glory-harness",
       "env": {
-        "CARGO_INCREMENTAL": "0",
         "SCCACHE_BASEDIRS": "C:\\Users\\Owner\\OneDrive\\Documentos\\area-trabajo"
       },
       "tipoLauncher": "cargo web HTTP (el daemon TCP 8798 no tiene probe: fuera del mando)",
