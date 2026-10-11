@@ -182,7 +182,13 @@
     "minimax-h3-lab": "gestion-externa",
     "opencode-propio-dev": "gestion-externa",
     "plugins-opencode": "gestion-externa",
-    "opencode-propio": "gestion-externa"
+    "opencode-propio": "gestion-externa",
+    "DEEPSEEK-HARNESS": "sin-mando-intencional",
+    "freebuff": "sin-mando-intencional",
+    "freebuff-bridge": "sin-mando-intencional",
+    "FREEBUFFPROXY": "sin-mando-intencional",
+    "paseo": "sin-mando-intencional",
+    "synara": "sin-mando-intencional"
   },
   "ignoradosSistema": [
     { "exe": "C:\\Users\\usuario\\AppData\\Roaming\\uTorrent Web\\helper\\helper.exe", "motivo": "uTorrent Web: cliente de terceros con listener en loopback" },
