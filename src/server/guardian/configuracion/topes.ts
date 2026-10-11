@@ -8,7 +8,7 @@
  * fichero, así que la primera línea fija el extra vigente y no se pierde historial. */
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { type BloqueDiff, type Eol, diffLineas, eolDe, escribirAtomico, hashDe, leerFichero } from './escritura.js';
+import { type BloqueDiff, type Eol, diffLineas, eolDe, escribirAtomico, hashDe, leerFichero } from '../escritura.js';
 import { CLASES_TOPE, type ClaseTope, type ModoTope, extraDeOverride } from './lector.js';
 import { ErrorValidacion } from './politica.js';
 

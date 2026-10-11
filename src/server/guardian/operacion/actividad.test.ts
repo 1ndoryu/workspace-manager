@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { guardLogDirPorDefecto, guardRootPorDefecto, leerActividad, LIMITE_ACTIVIDAD_DEFECTO } from './actividad.js';
-import { ErrorValidacion } from './politica.js';
+import { ErrorValidacion } from '../configuracion/politica.js';
 
 const BASE_TMP = 'C:/tmp/guardian-test';
 const temporales: string[] = [];

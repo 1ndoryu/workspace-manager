@@ -11,7 +11,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
 import { esElegible } from '../gate/analizador.js';
-import { leerGuardProyecto } from '../guardian/lector.js';
+import { leerGuardProyecto } from '../guardian/configuracion/lector.js';
 
 function proyectoPorClave(clave: string) {
   const { snapshot } = snapshotArea(false);

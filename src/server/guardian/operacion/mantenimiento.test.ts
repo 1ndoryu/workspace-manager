@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ejecutarMantenimiento, LIMITE_SALIDA } from './mantenimiento.js';
-import { ErrorValidacion } from './politica.js';
+import { ErrorValidacion } from '../configuracion/politica.js';
 
 const BASE_TMP = 'C:/tmp/guardian-test';
 const temporales: string[] = [];

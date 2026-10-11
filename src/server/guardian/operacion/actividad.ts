@@ -9,7 +9,7 @@
 import { closeSync, fstatSync, openSync, readdirSync, readFileSync, readSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ErrorValidacion } from './politica.js';
+import { ErrorValidacion } from '../configuracion/politica.js';
 
 export const DECISIONES_REGISTRO = ['bloqueado', 'observado', 'paso'] as const;
 export type DecisionRegistro = (typeof DECISIONES_REGISTRO)[number];

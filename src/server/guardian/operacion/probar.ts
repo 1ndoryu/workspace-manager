@@ -10,7 +10,7 @@ import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { ErrorValidacion } from './politica.js';
+import { ErrorValidacion } from '../configuracion/politica.js';
 
 const execFileAsync = promisify(execFile);
 

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { guardarTopes, validarCambioTopes, type HashesTopes, type ResultadoGuardado } from './topes.js';
-import { escribirAtomico, hashDe } from './escritura.js';
+import { escribirAtomico, hashDe } from '../escritura.js';
 import { leerOverride, leerPolitica } from './lector.js';
 import { ErrorValidacion } from './politica.js';
 
