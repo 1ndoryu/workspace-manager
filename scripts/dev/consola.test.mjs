@@ -24,7 +24,8 @@ test('consola agregada: total es la suma del desglose', { skip: !data }, async (
   const suma = data.proyectos.reduce((n, g) => n + g.total, 0);
   assert.equal(data.total, suma);
   for (const g of data.proyectos) {
-    assert.equal(g.total, g.entradas.length);
+    /* [83be770] total cuenta solo problemas reales; las informativas siguen en entradas. */
+    assert.equal(g.total, g.entradas.filter((e) => !e.informativa).length);
     for (const e of g.entradas) {
       assert.ok(typeof e.categoria === 'string' && e.categoria.length > 0);
       assert.ok(typeof e.motivo === 'string' && e.motivo.length > 0);
