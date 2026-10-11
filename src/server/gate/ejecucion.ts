@@ -226,7 +226,9 @@ export async function correrVarsense(ruta: string): Promise<ResultadoSpawn | nul
   const opciones = {
     encoding: 'utf8' as const,
     windowsHide: true,
-    timeout: 60000,
+    // [porque] Igual que sentinel (180 s): un timeout corto marca el gate como
+    // fallido aunque varsense funcione; el recorrido de árboles grandes tarda.
+    timeout: 180000,
   };
   try {
     const { stdout } = await execFileAsync(
