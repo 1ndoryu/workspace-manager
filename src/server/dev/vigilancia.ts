@@ -33,6 +33,12 @@ const TIMEOUT_DOCTOR_MS = 60_000;
 let cache: { en: number; informe: InformeDev } | null = null;
 let inflight: Promise<{ informe: InformeDev; escaneadoHaceMs: number }> | null = null;
 
+/* [por que] Distinguir el timeout (killed) de un codigo de salida: antes ambos
+ * llegaban como "SyntaxError: Unexpected end of JSON". Pura, para testearla. */
+export function describirFalloDoctor(err: { killed?: boolean; code?: unknown }, timeoutMs: number): string {
+  return err.killed ? `timeout ${timeoutMs} ms` : `salida ${String(err.code ?? '?')}`;
+}
+
 function ejecutarDoctor(snapshotTmp: string): Promise<{ salida: string; fallo?: string }> {
   return new Promise((res) => {
     /* [por que] El doctor sale con 0/1/2 segun clasificacion (exit 2 =
@@ -45,12 +51,7 @@ function ejecutarDoctor(snapshotTmp: string): Promise<{ salida: string; fallo?: 
       (err, stdout) => {
         const salida = String(stdout ?? '');
         if (!err) return res({ salida });
-        /* [por que] Distinguir el timeout (killed) de un codigo de salida:
-         * antes ambos llegaban como "SyntaxError: Unexpected end of JSON". */
-        const fallo = err.killed
-          ? `timeout ${TIMEOUT_DOCTOR_MS} ms`
-          : `salida ${String(err.code ?? '?')}`;
-        res({ salida, fallo });
+        res({ salida, fallo: describirFalloDoctor(err, TIMEOUT_DOCTOR_MS) });
       },
     );
   });
