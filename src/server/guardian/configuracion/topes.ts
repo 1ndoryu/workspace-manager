@@ -12,8 +12,8 @@ import { type BloqueDiff, type Eol, diffLineas, eolDe, escribirAtomico, hashDe, 
 import { CLASES_TOPE, type ClaseTope, type ModoTope, extraDeOverride } from './lector.js';
 import { ErrorValidacion } from './politica.js';
 
-const CONFIG = 'sentinel.config.json';
-const EXTRA = 'lote-extra.md';
+export const CONFIG = 'sentinel.config.json';
+export const EXTRA = 'lote-extra.md';
 const TOPE_MAX = 100;
 const EXTRA_MAX = 100;
 const MOTIVO_MAX = 120;
