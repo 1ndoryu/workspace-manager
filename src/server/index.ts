@@ -8,7 +8,7 @@ import { json } from './http.js';
 import { obtenerSnapshot } from './cache.js';
 import { escanearWorkspace } from './scanner/workspace.js';
 import { manejarRutasGate } from './rutas/rutasGate.js';
-import { manejarRutasGuardian } from './rutas/rutasGuardian.js';
+import { manejarRutasGuardian } from './rutas/guardian/rutasGuardian.js';
 import { manejarRutasConfig } from './rutas/rutasConfig.js';
 import { manejarRutasDocumentos } from './rutas/rutasDocumentos.js';
 import { manejarRutasArchivos } from './rutas/rutasArchivos.js';
