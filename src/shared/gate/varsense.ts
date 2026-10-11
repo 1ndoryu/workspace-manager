@@ -61,7 +61,17 @@ export function ESQUEMA_VARSENSE(): NodoEsquema {
     tokenDetection: {
       objeto: {
         duplicate: severidadObj('opcional'),
-        unused: severidadObj('opcional'),
+        /* [por que] excludeTokens lo acepta varsense (config.ts); sin él el
+         * tablero marcaba error "clave desconocida" en MN-Inmobiliaria. */
+        unused: {
+          objeto: {
+            enabled: bool(true, 'opcional'),
+            severity: enumX('warning', 'opcional'),
+            excludeTokens: strArr('opcional'),
+          },
+          necesidad: 'opcional',
+        },
+        crossFile: severidadObj('opcional'),
       },
       necesidad: 'recomendada',
     },

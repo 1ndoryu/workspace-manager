@@ -225,6 +225,11 @@ const CATALOGO_BASE: Record<string, InfoSegmento> = {
     descripcion: 'Clases que no se analizan.',
     detalle: 'Patrones de clases CSS que nunca se analizan como huérfanas, p. ej. clases de librerías o utilitarias que se usan dinámicamente.',
   },
+  excludeTokens: {
+    nombre: 'Tokens excluidos',
+    descripcion: 'Tokens que no se marcan como sin uso.',
+    detalle: 'Nombres de token (con o sin "--") que nunca se reportan como sin uso, p. ej. puentes de tema de Tailwind v4 que se usan solo desde @theme.',
+  },
 
   /* ---- Claves comunes ---- */
   severity: {
