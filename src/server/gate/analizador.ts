@@ -28,6 +28,7 @@ import {
   correrSentinel,
   correrVarsense,
   hashArtefacto,
+  varsenseAplica,
   varsenseConfigHash,
   varsenseRuntime,
 } from './ejecucion.js';
@@ -192,6 +193,18 @@ export function esCacheable(dato: AnalisisSentinel): boolean {
   return dato.estado !== 'error';
 }
 
+/* [por que] Varsense declarado y provisionado que no devuelve reporte (timeout,
+ * salida no JSON o spawn fallido) no puede dar 'ok': el tablero afirmaria "sin
+ * problemas" sin haber analizado varsense. Queda en 'error' (no se cachea, el
+ * siguiente analisis reintenta) y conserva los hallazgos de sentinel. */
+export function marcarVarsenseFallido(dato: AnalisisSentinel): AnalisisSentinel {
+  return {
+    ...dato,
+    estado: 'error',
+    error: dato.error ?? 'varsense declarado no produjo reporte (timeout, salida no JSON o fallo de spawn)',
+  };
+}
+
 /* Analiza UN proyecto, con cache por frescura (sin spawn si esta fresco) y
  * single-flight por promesa compartida: si el mismo proyecto ya se esta
  * analizando, quien lo pide espera el MISMO vuelo (nunca dos spawns a la vez
@@ -237,6 +250,7 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
         if (dato.estado === 'ok' && vs.estado === 'conHallazgos') dato.estado = 'conHallazgos';
       }
     }
+    if (!resVs && varsenseAplica(p.ruta)) dato = marcarVarsenseFallido(dato);
     if (esCacheable(dato)) {
       cache.set(clave, { fresco, dato });
       persistir();
