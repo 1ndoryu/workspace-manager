@@ -5,7 +5,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { estadoGate, hayEstilos } from './gate.js';
+import { doctorSentinel, estadoGate, hayEstilos } from './gate.js';
 
 describe('gate: sinEstilos', () => {
   let raiz: string;
@@ -60,5 +60,33 @@ describe('gate: sinEstilos', () => {
     const g = estadoGate(p);
     assert.equal(g.varsense, true);
     assert.equal(g.sinEstilos, false);
+  });
+});
+
+describe('gate: doctorSentinel', () => {
+  let raiz: string;
+
+  before(() => {
+    mkdirSync('C:/tmp', { recursive: true });
+    raiz = mkdtempSync('C:/tmp/doctor-test-');
+  });
+
+  after(() => {
+    rmSync(raiz, { recursive: true, force: true });
+  });
+
+  /* [por que] El doctor sale con 1 cuando hay issues y su JSON sigue siendo el
+   * diagnóstico: antes se descartaba y el tablero mostraba "sin salida". */
+  it('usa el CLI del manifest y devuelve su diagnóstico aunque salga con 1', () => {
+    const p = mkdtempSync(join(raiz, 'proyecto-'));
+    const runtime = join(p, 'runtime');
+    mkdirSync(join(runtime, 'out', 'cli'), { recursive: true });
+    writeFileSync(join(runtime, 'package.json'), '{"version":"9.9.9"}');
+    writeFileSync(join(runtime, 'out', 'cli', 'index.js'),
+      'process.stdout.write(JSON.stringify({ policy: { status: "policy" } }));\nprocess.exitCode = 1;\n');
+    writeFileSync(join(p, 'quality-tools.json'),
+      JSON.stringify({ tools: { sentinel: { provisionPath: './runtime', cli: 'out/cli/index.js' } } }));
+    const salida = doctorSentinel(p);
+    assert.ok(salida?.includes('"status":"policy"'), `salida: ${salida}`);
   });
 });
