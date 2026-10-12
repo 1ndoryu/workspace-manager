@@ -31,21 +31,17 @@ export interface Entrada {
    * `parado` (05AA-4) no genera entrada: detenido normal no va en
    * problemas; se opera desde el detalle (clic en la caja). */
   devId?: string | null;
-  /* Linea visible pero que NO cuenta como problema (conteo, badges y total).
-   * [por que] Estado sano o sin accion posible: `dev bajo mando`, hallazgos
-   * sentinel hint/information y vulnerabilidades sin parche upstream. Antes
-   * contaban y el total del tablero se inflaba con falsos positivos. */
-  informativa?: boolean;
 }
 
-/* Cuenta solo los problemas reales (entradas no informativas). Unico punto de
- * conteo: servidor (/api/consola/problemas) y cliente (consola) lo usan igual. */
+/* Cuenta todas las entradas que la consola muestra, para que el contador y el
+ * total del tablero coincidan con lo que se ve. Unico punto de conteo: servidor
+ * (/api/consola/problemas) y cliente (consola) lo usan igual. */
 export function contarProblemas(entradas: Entrada[]): number {
-  return entradas.filter((e) => !e.informativa).length;
+  return entradas.length;
 }
 
 /* Vulnerabilidades sin version corregida upstream: no hay accion que tomar en
- * el repo, asi que se muestran como informativas. Clave = nombre del paquete.
+ * el repo, asi que se muestran sin seriedad (ni error ni advertencia). Clave = nombre del paquete.
  * [por que] `rsa` (Cargo.lock de coolify-manager-rs y glory-agent) no tiene
  * parche publicado; la decision es aceptar el riesgo y revisarlo al publicarse
  * una version corregida. */
@@ -138,16 +134,15 @@ export function problemasSentinelDe(p: Proyecto, a: AnalisisSentinel | undefined
   if (!a || a.estado !== 'conHallazgos' || a.hallazgos.length === 0) return null;
   const entradas: Entrada[] = a.hallazgos.map((h) => {
     /* [por que] hint/information son sugerencias de estilo, no defectos: se
-     * ven en la linea pero no son "advertencia" ni cuentan como problema. */
-    const informativa = h.severidad === 'hint' || h.severidad === 'information';
+     * ven en la linea sin seriedad (ni "advertencia" ni error). */
+    const sugerencia = h.severidad === 'hint' || h.severidad === 'information';
     return {
       categoria: 'sentinel',
       /* [por que] el prefijo permite distinguir la tool que emitio el hallazgo
        * (fase G: el analisis fusiona sentinel + varsense) sin tocar el render. */
       motivo: `${h.fuente === 'varsense' ? '[varsense] ' : ''}${h.archivo || p.id}${h.linea != null ? `:${h.linea}` : ''} — ${h.ruleId} — ${h.mensaje}`,
-      seriedad: informativa ? null : h.severidad === 'error' ? 'error' : 'advertencia',
+      seriedad: sugerencia ? null : h.severidad === 'error' ? 'error' : 'advertencia',
       sentinelSeveridad: h.severidad,
-      ...(informativa ? { informativa: true } : {}),
     };
   });
   return { p, entradas };
@@ -169,7 +164,6 @@ export function problemasVulnerabilidadDe(
       motivo: `${h.paquete} (${h.origen ?? v.gestor})${h.rango ? ` — ${h.rango}` : ''}${sinParche ? ` — ${sinParche}` : ''}`,
       seriedad: sinParche ? null : h.severidad === 'critical' || h.severidad === 'high' ? 'error' : 'advertencia',
       vulnSeveridad: h.severidad,
-      ...(sinParche ? { informativa: true } : {}),
     };
   });
   return { p, entradas };
@@ -202,7 +196,7 @@ export function problemasDevDe(
     /* [por que] F3: el tablero ofrece operar lo que el mando gestiona
      * (arrancar/ver, detener, logs): sin esta linea lo sano seria invisible
      * y el usuario no sabria que hay mando. Seriedad null (no es problema). */
-    entradas.push({ categoria: 'dev', motivo: `dev bajo mando: ${info.motivo}`, seriedad: null, devId: info.id, informativa: true });
+    entradas.push({ categoria: 'dev', motivo: `dev bajo mando: ${info.motivo}`, seriedad: null, devId: info.id });
   }
   /* [05AA-4] `parado` no entra: detenido normal, nada que ver en problemas. */
   if (dev?.errorSensor && esMando) {
@@ -246,14 +240,13 @@ export function problemaHuerfanosSinProyecto(dev: InformeDev | null): Problema |
 
 /* Hallazgos de salud (10AA-2 F8) de un proyecto o del área. Cada hallazgo es una
  * entrada en la categoría 'salud'. [por que] `error` cuenta como error y `aviso` como
- * advertencia; `info` (plan parado, enlace roto) se ve pero no cuenta, como hint de sentinel. */
+ * advertencia; `info` (plan parado, enlace roto) se ve sin seriedad, como hint de sentinel. */
 export function problemasSaludDe(p: Proyecto, s: ResultadoSalud | undefined): Problema | null {
   if (!s || s.hallazgos.length === 0) return null;
   const entradas: Entrada[] = s.hallazgos.map((h) => ({
     categoria: 'salud',
     motivo: `${h.mensaje} — ${h.accion}`,
     seriedad: h.severidad === 'error' ? 'error' : h.severidad === 'aviso' ? 'advertencia' : null,
-    ...(h.severidad === 'info' ? { informativa: true } : {}),
   }));
   return { p, entradas };
 }
