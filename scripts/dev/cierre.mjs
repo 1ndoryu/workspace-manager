@@ -114,13 +114,21 @@ function escucha(puerto) {
   });
 }
 
-export async function comprobarProcesos(puertos = []) {
+/* `aceptados` = { puertos, motivo } del registro: procesos que la usuaria decidió mantener.
+ * [por que] Se listan en el detalle, no se ocultan: la excepción queda visible en cada cierre. */
+export async function comprobarProcesos(puertos = [], aceptados = null) {
   const propios = puertos.filter((p) => !PUERTOS_PROTEGIDOS.includes(p));
+  const excepcion = aceptados?.puertos ?? [];
+  const excluidos = propios.filter((p) => excepcion.includes(p));
   const vivos = [];
   for (const p of propios) {
+    if (excepcion.includes(p)) continue;
     if (await escucha(p)) vivos.push(p);
   }
-  if (vivos.length === 0) return ok('procesos-propios', 'ningún puerto propio escuchando');
+  const nota = excluidos.length
+    ? ` (excepción aceptada: ${excluidos.join(', ')} — ${aceptados.motivo})`
+    : '';
+  if (vivos.length === 0) return ok('procesos-propios', `ningún puerto propio escuchando${nota}`);
   return fallo(
     'procesos-propios',
     `escuchan: ${vivos.join(', ')}`,
@@ -185,7 +193,7 @@ export async function cierre(argv, raiz = RAIZ) {
       checks.push(omitida('ramas-sueltas', 'sin Git'));
     }
     checks.push(comprobarRoadmap(ruta, tarea));
-    checks.push(await comprobarProcesos(entrada.puertos));
+    checks.push(await comprobarProcesos(entrada.puertos, entrada.procesosAceptados));
     checks.push(await comprobarGate(id));
 
     for (const c of checks) {

@@ -41,6 +41,7 @@
       "dominio": "inmobiliaria.localhost",
       "boton": [["npm", "run", "dev:back"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5199", "--strictPort"], ["npm", "run", "dev:gateway"]],
       "puertos": [3110, 5199, 3102],
+      "procesosAceptados": { "puertos": [3110, 5199, 3102], "motivo": "dev de MN mantenido por decisión de la usuaria (09AA-18, 2026-10-12)" },
       "healths": [
         { "puerto": 3110, "ruta": "/api/health", "esperaJson": true },
         { "puerto": 5199, "ruta": "/", "esperaJson": false },
