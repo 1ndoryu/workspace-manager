@@ -96,8 +96,8 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
             {
               id: 'incremental-usuario',
               severidad: 'aviso',
-              mensaje: 'CARGO_INCREMENTAL=0 en las variables de usuario: todas las compilaciones parten de cero',
-              accion: 'quítala de las variables de usuario de Windows',
+              mensaje: 'CARGO_INCREMENTAL=0 en el entorno de este proceso: todas las compilaciones parten de cero',
+              accion: 'quítala de las variables de usuario o de sistema de Windows y reinicia la sesión; si la hereda del proceso que lanzó el tablero, reábrelo desde una sesión limpia',
             },
           ]
         : [],
