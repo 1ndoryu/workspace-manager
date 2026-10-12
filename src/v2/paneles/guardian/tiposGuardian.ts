@@ -171,60 +171,6 @@ export type ResultadoProbar =
   | { estado: 'ok'; codigo: number; decision: DecisionProbada }
   | { estado: 'error'; motivo: string };
 
-export type DecisionRegistro = 'bloqueado' | 'observado' | 'paso';
-
-export interface EntradaDiario {
-  fecha: string;
-  proyecto: string;
-  comando: string;
-  decision: DecisionRegistro;
-  motivo: string;
-}
-
-export interface EntradaAuditoria {
-  at: string;
-  event: string;
-  leaseId?: string | null;
-  pid?: number;
-  projectRoot?: string;
-  command?: string;
-  valid?: boolean;
-  reason?: string;
-  count?: number;
-}
-
-export interface LeaseActiva {
-  id: string;
-  pid: number;
-  projectRoot: string;
-  command: string;
-  taskId: string | null;
-  issuedAt: string;
-  expiresAt: string;
-}
-
-export interface SeccionLectura<T> {
-  disponible: boolean;
-  entradas: T[];
-  total: number;
-  corruptas: number;
-}
-
-export interface ActividadGuardian {
-  origen: { diario: string; auditoria: string };
-  diario: SeccionLectura<EntradaDiario>;
-  auditoria: SeccionLectura<EntradaAuditoria>;
-  leases: { activos: LeaseActiva[]; expirados: number };
-  limite: number;
-}
-
-export interface FiltrosActividadUi {
-  proyecto?: string;
-  comando?: string;
-  decision?: DecisionRegistro;
-  limite?: number;
-}
-
 export interface ResultadoMantenimiento {
   estado: 'ok' | 'error';
   modo: 'simulacion' | 'aplicado';

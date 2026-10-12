@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Seccion } from '../../../ui/caja/Caja.js';
 import { Button } from '../../../ui/form/Button.js';
+import { Campo } from '../../../ui/form/Campo.js';
 import { Selector } from '../../../ui/selector/Selector.js';
 import { mensajeDeError, toastError, toastInfo, toastOk } from '../../../toast.js';
 import { DiffGuardian } from '../DiffGuardian.js';
@@ -85,8 +86,7 @@ function LoteModo({ datos, elegibles }: { datos: GuardianDatos; elegibles: Proye
 
   return (
     <>
-      <div className="guardianCampo">
-        <span>proyectos</span>
+      <Campo etiqueta="proyectos">
         {elegibles.length === 0 && <div className="docsVacio">sin proyectos con guardián</div>}
         {elegibles.map((p) => (
           <label key={p.clave} className="guardianCasilla">
@@ -98,16 +98,16 @@ function LoteModo({ datos, elegibles }: { datos: GuardianDatos; elegibles: Proye
             {p.clave}
           </label>
         ))}
-      </div>
-      <div className="guardianCampo">
-        <label>modo para los proyectos marcados</label>
+      </Campo>
+      <Campo etiqueta="modo para los proyectos marcados">
         <Selector
+          campo
           titulo="modo"
           valor={modo}
           opciones={['enforce', 'observe', 'pass-through']}
           onChange={(v) => setModo(v as ModoGuard)}
         />
-      </div>
+      </Campo>
       <div className="guardianAcciones">
         <Button pequeno disabled={enviando} onClick={() => void previsualizar()}>
           vista previa del lote

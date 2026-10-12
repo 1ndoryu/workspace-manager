@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { Seccion } from '../../../ui/caja/Caja.js';
 import { Button } from '../../../ui/form/Button.js';
+import { Campo } from '../../../ui/form/Campo.js';
 import { Selector } from '../../../ui/selector/Selector.js';
 import { mensajeDeError, toastError, toastInfo, toastOk } from '../../../toast.js';
 import { PreviaGuardian } from '../DiffGuardian.js';
@@ -157,21 +158,22 @@ function FormularioTopes({ datos, detalle, hashConfig, hashExtra }: FormularioTo
 
   return (
     <>
-      <div className="guardianCampo">
-        <label>modo de presupuestos</label>
+      <Campo etiqueta="modo de presupuestos">
         <Selector
+          campo
           titulo="modo de presupuestos"
           valor={modo}
           opciones={['observe', 'enforce']}
           onChange={(v) => setModo(v as ModoTope)}
         />
-      </div>
+      </Campo>
 
       {CLASES_TOPE.map((clase) => (
-        <div key={clase} className="guardianCampo">
-          <label htmlFor={`tope-${clase}`}>
-            {clase} · ahora: {base[clase] === '' ? 'defecto' : base[clase]}
-          </label>
+        <Campo
+          key={clase}
+          htmlFor={`tope-${clase}`}
+          etiqueta={`${clase} · ahora: ${base[clase] === '' ? 'defecto' : base[clase]}`}
+        >
           <input
             id={`tope-${clase}`}
             inputMode="numeric"
@@ -179,19 +181,18 @@ function FormularioTopes({ datos, detalle, hashConfig, hashExtra }: FormularioTo
             value={limites[clase]}
             onChange={(e) => setLimites((l) => ({ ...l, [clase]: e.target.value }))}
           />
-        </div>
+        </Campo>
       ))}
 
-      <div className="guardianCampo">
-        <label htmlFor="topes-extra">
-          extra total de lote-extra.md (hoy {detalle.override.existe ? 'existe' : 'no existe'})
-        </label>
+      <Campo
+        htmlFor="topes-extra"
+        etiqueta={<>extra total de lote-extra.md (hoy {detalle.override.existe ? 'existe' : 'no existe'})</>}
+      >
         <input id="topes-extra" inputMode="numeric" value={extra} onChange={(e) => setExtra(e.target.value)} />
-      </div>
-      <div className="guardianCampo">
-        <label htmlFor="topes-motivo">motivo, opcional (máx. 120)</label>
+      </Campo>
+      <Campo htmlFor="topes-motivo" etiqueta="motivo, opcional (máx. 120)">
         <input id="topes-motivo" maxLength={120} value={motivo} onChange={(e) => setMotivo(e.target.value)} />
-      </div>
+      </Campo>
       <div className="guardianAcciones">
         <Button pequeno disabled={enviando} onClick={() => void previsualizar()}>
           vista previa

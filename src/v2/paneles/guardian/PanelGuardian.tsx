@@ -13,13 +13,12 @@ import { SeccionEditar } from './secciones/SeccionEditar.js';
 import { SeccionPlantilla } from './secciones/SeccionPlantilla.js';
 import { SeccionTopes } from './secciones/SeccionTopes.js';
 import { SeccionProbar } from './secciones/SeccionProbar.js';
-import { SeccionActividad } from './secciones/SeccionActividad.js';
 import { SeccionMantenimiento } from './secciones/SeccionMantenimiento.js';
 import type { ProyectoArea } from './tiposGuardian.js';
 import '../paneles.css';
 import './PanelGuardian.css';
 
-type VistaProyecto = 'resumen' | 'comandos' | 'actividad' | 'politica' | 'topes' | 'probar';
+type VistaProyecto = 'resumen' | 'comandos' | 'politica' | 'topes' | 'probar';
 type VistaArea = 'area' | 'plantilla' | 'mantenimiento';
 type Vista = VistaProyecto | VistaArea;
 
@@ -35,7 +34,6 @@ interface Entrada<V extends Vista> {
 const PESTANAS: Entrada<VistaProyecto>[] = [
   { clave: 'resumen', etiqueta: 'resumen', ayuda: 'Cómo está este proyecto de un vistazo.' },
   { clave: 'comandos', etiqueta: 'qué se bloquea', ayuda: 'Qué hace el guardián con cada comando de este proyecto.' },
-  { clave: 'actividad', etiqueta: 'historial', ayuda: 'Lo que el guardián ha bloqueado o anotado aquí, sin poder cambiarlo.' },
   { clave: 'politica', etiqueta: 'reglas', ayuda: 'Qué comandos permite el proyecto y si el guardián bloquea o solo avisa.' },
   { clave: 'topes', etiqueta: 'límites', ayuda: 'Cuántas veces puede ejecutarse cada comando pesado.' },
   { clave: 'probar', etiqueta: 'probar un comando', ayuda: 'Pregunta qué haría el guardián con un comando, sin ejecutarlo ni cambiar nada.' },
@@ -128,8 +126,6 @@ function Contenido({ vista, datos, onAbrir }: { vista: Vista; datos: GuardianDat
       return <SeccionResumen datos={datos} />;
     case 'comandos':
       return <SeccionComandos datos={datos} />;
-    case 'actividad':
-      return <SeccionActividad datos={datos} />;
     case 'politica':
       return <SeccionEditar datos={datos} />;
     case 'topes':

@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Seccion } from '../../../ui/caja/Caja.js';
 import { Button } from '../../../ui/form/Button.js';
+import { Campo } from '../../../ui/form/Campo.js';
 import { Linea, Lista } from '../Lineas.js';
 import { mensajeDeError, toastError } from '../../../toast.js';
 import { probarComando, resultadoEdicion } from '../apiGuardian.js';
@@ -42,18 +43,16 @@ export function SeccionProbar({ datos }: { datos: GuardianDatos }) {
   return (
     <Seccion titulo={claveSel ? `probar en ${claveSel}` : 'probar comando'}>
       {!claveSel && <div className="docsVacio">elige un proyecto en el menú</div>}
-      <div className="guardianCampo">
-        <label htmlFor="probar-ejecutable">ejecutable</label>
+      <Campo htmlFor="probar-ejecutable" etiqueta="ejecutable">
         <input
           id="probar-ejecutable"
           value={ejecutable}
           onChange={(e) => setEjecutable(e.target.value)}
         />
-      </div>
-      <div className="guardianCampo">
-        <label htmlFor="probar-args">argumentos, uno por línea</label>
+      </Campo>
+      <Campo htmlFor="probar-args" etiqueta="argumentos, uno por línea">
         <textarea id="probar-args" rows={3} value={args} onChange={(e) => setArgs(e.target.value)} />
-      </div>
+      </Campo>
       <div className="guardianAcciones">
         <Button pequeno disabled={!claveSel || enviando} onClick={() => void probar()}>
           probar

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Seccion } from '../../../ui/caja/Caja.js';
 import { Button } from '../../../ui/form/Button.js';
+import { Campo } from '../../../ui/form/Campo.js';
 import { mensajeDeError, toastError, toastOk } from '../../../toast.js';
 import { PreviaGuardian } from '../DiffGuardian.js';
 import { vistaDeEdicion, type VistaPrevia } from '../vistas.js';
@@ -110,8 +111,7 @@ function FormularioPlantilla({ datos, lectura, alEscribir }: FormularioPlantilla
 
   return (
     <>
-      <div className="guardianCampo guardianCodigo">
-        <label htmlFor="plantilla-texto">contenido JSON</label>
+      <Campo codigo htmlFor="plantilla-texto" etiqueta="contenido JSON">
         <textarea
           id="plantilla-texto"
           rows={16}
@@ -119,7 +119,7 @@ function FormularioPlantilla({ datos, lectura, alEscribir }: FormularioPlantilla
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
         />
-      </div>
+      </Campo>
       <div className="guardianAcciones">
         <Button pequeno disabled={enviando} onClick={() => void previsualizar()}>
           vista previa

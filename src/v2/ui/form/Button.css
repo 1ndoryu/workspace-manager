@@ -186,6 +186,18 @@
     padding: 0 var(--v2-spaceSm);
     border-radius: 0;
 }
+/* Trigger con forma de campo (Campo.css): mismo alto, borde y ancho que input y textarea. */
+.botonV2.v2SelectorTrigger--campo {
+    justify-content: space-between;
+    box-sizing: border-box;
+    width: 100%;
+    height: 22px;
+    padding: 3px 4px;
+    font-size: var(--v2-textSm);
+    color: var(--v2-texto);
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+}
 .botonV2.v2SelectorOpcion {
     justify-content: flex-start;
     text-align: left;

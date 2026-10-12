@@ -34,72 +34,12 @@
   color: var(--v2-fondo);
 }
 
-/* Línea: nombre a la izquierda, dato a la derecha y detalle tenue debajo. Solo una
- * línea fina entre filas; sin rejilla ni columnas. */
-.guardianLista {
-  display: flex;
-  flex-direction: column;
-}
-
-.guardianLinea {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  padding: var(--v2-spaceSm) var(--v2-spaceMd);
-  border: 0;
-  border-bottom: 1px solid var(--v2-borde);
-  border-radius: 0;
-  text-align: left;
-  font: inherit;
-  font-size: var(--v2-textSm);
-  color: inherit;
-  background: none;
-}
-
-.guardianLineaFila {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--v2-spaceMd);
-  min-width: 0;
-}
-
-.guardianLineaTitulo {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.guardianLineaDato {
-  flex: none;
-  text-align: right;
-}
-
-.guardianLineaDetalle {
-  display: flex;
-  flex-direction: column;
-  font-size: var(--v2-textXs);
-  opacity: 0.7;
-  overflow-wrap: anywhere;
-}
-
-.guardianLinea--activa {
-  background: var(--v2-texto);
-  color: var(--v2-fondo);
-}
-
-/* Cuadro de datos: varias líneas dentro de un borde fino, más juntas que en una lista. */
+/* Cuadro: borde fino, una línea por fila y sin separadores. Lo usan todas las listas
+ * del Guardián (Lista) y los datos de un proyecto; las filas no llevan padding grande. */
 .guardianCuadro {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--v2-borde);
-}
-
-.guardianCuadro > .guardianLinea {
-  padding: 4px 8px;
-  border-bottom: 0;
 }
 
 /* Cuadro con muchas filas: alto acotado y scroll dentro, para no alargar la pestaña. */
@@ -108,33 +48,57 @@
   overflow-y: auto;
 }
 
-/* Línea de una sola fila: el detalle ocupa el hueco y se recorta si no cabe. */
-.guardianLinea--una .guardianLineaFila {
-  align-items: baseline;
+/* Fila: nombre, detalle y dato en una sola línea; el detalle se recorta si no cabe.
+ * Los tres al mismo tamaño y opacidad. */
+.guardianLinea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  font: inherit;
+  font-size: var(--v2-textXs);
+  color: inherit;
+  background: none;
 }
 
-.guardianLinea--una .guardianLineaTitulo,
-.guardianLinea--una .guardianLineaDato {
+.guardianLineaFila {
+  display: flex;
+  align-items: baseline;
+  gap: var(--v2-spaceMd);
+  min-width: 0;
+}
+
+.guardianLineaTitulo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+.guardianLineaDato {
   flex: none;
   white-space: nowrap;
+  text-align: right;
+  opacity: 0.7;
 }
 
-.guardianLinea--una .guardianLineaDetalle {
-  display: block;
+.guardianLineaDetalle {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  overflow-wrap: normal;
+  opacity: 0.7;
 }
 
-/* Fila compacta: nombre, detalle y dato al mismo tamaño y opacidad. */
-.guardianLinea--una .guardianLineaTitulo,
-.guardianLinea--una .guardianLineaDato,
-.guardianLinea--una .guardianLineaDetalle {
-  font-size: var(--v2-textXs);
-  opacity: 0.7;
+.guardianLinea--activa {
+  background: var(--v2-texto);
+  color: var(--v2-fondo);
 }
 
 .guardianNota {
@@ -145,34 +109,6 @@
 .guardianNota--tenue {
   font-size: var(--v2-textXs);
   opacity: 0.7;
-}
-
-.guardianCampo {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 6px 0;
-  font-size: var(--v2-textSm);
-}
-
-.guardianCampo select,
-.guardianCampo input,
-.guardianCampo textarea {
-  font: inherit;
-  color: var(--v2-texto);
-  background: var(--v2-fondo);
-  border: 1px solid var(--v2-borde);
-  border-radius: 0;
-  padding: 3px 4px;
-  min-width: 0;
-}
-
-.guardianCampo textarea {
-  resize: vertical;
-}
-
-.guardianCodigo textarea {
-  font-family: ui-monospace, Consolas, monospace;
 }
 
 .guardianCasilla {
