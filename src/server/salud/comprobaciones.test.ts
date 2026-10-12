@@ -30,6 +30,7 @@ function proyecto(extra: Partial<DatosProyecto> = {}): DatosProyecto {
     instruccionesProhibidas: [],
     planesActivos: [],
     enlacesRotos: [],
+    toolchainFrontend: null,
     ...extra,
   };
 }
@@ -169,6 +170,20 @@ describe('comprobaciones por proyecto', () => {
     ]);
     assert.deepEqual(resultado(c, proyecto({ enlacesRotos: ['Agente/x.md'] })).hallazgos, [{ id: 'planes-y-roadmap', severidad: 'info' }]);
     assert.deepEqual(resultado(c, proyecto()).hallazgos, []);
+  });
+
+  it('toolchain: info por cada herramienta por debajo de la referencia; omitida sin frontend', () => {
+    const c = buscar(COMPROBACIONES_PROYECTO, 'toolchain');
+    assert.deepEqual(resultado(c, proyecto({ toolchainFrontend: { vite: '^6.4.0', typescript: '~5.9.3' } })), {
+      omitida: null,
+      hallazgos: [
+        { id: 'toolchain', severidad: 'info' },
+        { id: 'toolchain', severidad: 'info' },
+      ],
+    });
+    assert.deepEqual(resultado(c, proyecto({ toolchainFrontend: { vite: '^8.3.0', typescript: '~6.0.2' } })).hallazgos, []);
+    assert.deepEqual(resultado(c, proyecto({ toolchainFrontend: { vite: 'latest', typescript: null } })).hallazgos, []);
+    assert.equal(resultado(c, proyecto()).omitida, 'sin frontend/package.json');
   });
 });
 

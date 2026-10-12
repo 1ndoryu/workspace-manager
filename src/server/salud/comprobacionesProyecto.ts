@@ -3,16 +3,22 @@
  * acción siguiente, no solo el síntoma. */
 import type { Hallazgo } from '../../shared/salud/salud.js';
 import { SIN_SHIM } from '../guardian/configuracion/politica.js';
+import { esVersionAnterior } from './comprobacionesArea.js';
 import type { Comprobacion, DatosProyecto } from './tipos.js';
 
 const DIA_MS = 86_400_000;
 const DIAS_RAMA_SUELTA = 2;
 const DIAS_PLAN_INACTIVO = 14;
+/* [por que] Versiones de la plantilla de frontend: por debajo, el proyecto va atrasado.
+ * Aviso informativo, no error: no bloquea ningún gate. */
+const TOOLCHAIN_REFERENCIA = { vite: '8.3.0', typescript: '6.0.0' } as const;
 
 const lista = (valores: string[]): string => valores.join(', ');
 
 const noRust = (d: DatosProyecto): string | null => (d.esRust ? null : 'no es un proyecto Rust');
 const sinGuard = (d: DatosProyecto): string | null => (d.esElegible ? null : 'sin Guardián: su puerta no es sentinel');
+/* Primera versión numérica del rango declarado ('^6.4.0' → '6.4.0'); null si no hay ninguna (p. ej. 'latest'). */
+const minimoDeclarado = (rango: string): string | null => rango.match(/\d+(?:\.\d+)*/)?.[0] ?? null;
 
 export const COMPROBACIONES_PROYECTO: Comprobacion<DatosProyecto>[] = [
   {
@@ -213,6 +219,29 @@ export const COMPROBACIONES_PROYECTO: Comprobacion<DatosProyecto>[] = [
           mensaje: `enlace roto en roadmap.md: ${lista(d.enlacesRotos)}`,
           accion: 'corrige la ruta o quita el enlace',
         });
+      }
+      return hallazgos;
+    },
+  },
+  {
+    id: 'toolchain',
+    omitirSi: (d) => (d.toolchainFrontend === null ? 'sin frontend/package.json' : null),
+    evaluar: (d) => {
+      const hallazgos: Hallazgo[] = [];
+      const tc = d.toolchainFrontend;
+      if (tc === null) return hallazgos;
+      for (const herramienta of ['vite', 'typescript'] as const) {
+        const declarada = tc[herramienta];
+        const minimo = declarada === null ? null : minimoDeclarado(declarada);
+        const referencia = TOOLCHAIN_REFERENCIA[herramienta];
+        if (minimo !== null && esVersionAnterior(minimo, referencia)) {
+          hallazgos.push({
+            id: 'toolchain',
+            severidad: 'info',
+            mensaje: `${herramienta} ${declarada} por debajo de la referencia ${referencia}`,
+            accion: `sube ${herramienta} a ${referencia} o más en frontend/package.json`,
+          });
+        }
       }
       return hallazgos;
     },
