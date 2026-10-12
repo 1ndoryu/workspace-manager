@@ -120,3 +120,48 @@ export function contar(hallazgos: HallazgoVulnerabilidad[]): AnalisisVulnerabili
   for (const h of hallazgos) resumen[h.severidad]++;
   return resumen;
 }
+
+/* Excepciones de .cargo/audit.toml. Cada id de `ignore` puede llevar su vencimiento
+ * en el comentario que lo precede (`VENCE AAAA-MM-DD`). [por que] cargo-audit no
+ * caduca excepciones: sin esto el tablero cuenta como hallazgo algo aceptado a
+ * proposito. Vigentes: se pasan a `--ignore`. Vencidas o sin fecha: siguen
+ * contando (fallo cerrado: obliga a decidir al vencer). */
+export interface ExcepcionesAudit {
+  vigentes: string[];
+  vencidas: string[];
+  sinFecha: string[];
+}
+
+const RE_ID_RUSTSEC = /"(RUSTSEC-\d{4}-\d{4})"/g;
+const RE_VENCE = /VENCE (\d{4}-\d{2}-\d{2})/;
+
+/* `hoy` en AAAA-MM-DD: la comparacion es lexicografica. La excepcion deja de
+ * contar desde el dia de vencimiento. Solo ids con forma RUSTSEC: el resultado
+ * acaba en la linea de `cargo audit`, que va por la shell. */
+export function parsearExcepcionesAudit(toml: string, hoy: string): ExcepcionesAudit {
+  const r: ExcepcionesAudit = { vigentes: [], vencidas: [], sinFecha: [] };
+  let comentarios: string[] = [];
+  for (const linea of toml.split(/\r?\n/)) {
+    const t = linea.trim();
+    if (t.startsWith('#')) {
+      comentarios.push(t);
+      continue;
+    }
+    const ids = [...t.matchAll(RE_ID_RUSTSEC)].map((m) => m[1]);
+    const venc = ids.length > 0 ? RE_VENCE.exec(comentarios.join('\n')) : null;
+    for (const id of ids) {
+      if (!venc) r.sinFecha.push(id);
+      else if (hoy < venc[1]) r.vigentes.push(id);
+      else r.vencidas.push(id);
+    }
+    comentarios = [];
+  }
+  return r;
+}
+
+/* Fecha local AAAA-MM-DD. [por que] Local, no UTC: la excepcion vence en el dia
+ * del equipo que audita. */
+export function fechaLocal(d: Date): string {
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+}

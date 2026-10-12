@@ -2,7 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { agregarAnalisis, detectarLockfiles } from './vulnerabilidades.js';
-import { esNoAlcanzable, nombrePaqueteValido, parsearAudit } from './vulnerabilidades-parseo.js';
+import {
+  esNoAlcanzable,
+  fechaLocal,
+  nombrePaqueteValido,
+  parsearAudit,
+  parsearExcepcionesAudit,
+} from './vulnerabilidades-parseo.js';
 import type { AnalisisVulnerabilidades } from '../../shared/types.js';
 
 const R = 'C:/proy';
@@ -129,4 +135,38 @@ test('agregarAnalisis: suma resumen y une lockfiles', () => {
   assert.deepEqual(r.resumen, { critical: 1, high: 2, moderate: 0, low: 0 });
   assert.equal(r.lockfile, 'Cargo.lock, frontend/package-lock.json');
   assert.equal(r.gestor, 'cargo');
+});
+
+const TOML_EXCEPCIONES = [
+  '[advisories]',
+  'ignore = [',
+  '    # Motivo largo.',
+  '    # Decidido: excepcion de 1 mes (2026-10-12). VENCE 2026-11-12.',
+  '    "RUSTSEC-2023-0071",',
+  '',
+  '    # Sin fecha.',
+  '    "RUSTSEC-2024-0370",',
+  '    "RUSTSEC-2025-0057",',
+  ']',
+].join('\n');
+
+test('parsearExcepcionesAudit: vigente antes del vencimiento, vencida desde ese dia, sin fecha cuenta', () => {
+  const antes = parsearExcepcionesAudit(TOML_EXCEPCIONES, '2026-10-12');
+  assert.deepEqual(antes.vigentes, ['RUSTSEC-2023-0071']);
+  assert.deepEqual(antes.vencidas, []);
+  assert.deepEqual(antes.sinFecha, ['RUSTSEC-2024-0370', 'RUSTSEC-2025-0057']);
+
+  const dia = parsearExcepcionesAudit(TOML_EXCEPCIONES, '2026-11-12');
+  assert.deepEqual(dia.vigentes, []);
+  assert.deepEqual(dia.vencidas, ['RUSTSEC-2023-0071']);
+});
+
+test('parsearExcepcionesAudit: ignora lo que no tiene forma RUSTSEC (no llega a la shell)', () => {
+  const r = parsearExcepcionesAudit('ignore = [\n  "; rm -rf x",\n  "RUSTSEC-bad",\n]', '2026-10-12');
+  assert.deepEqual(r, { vigentes: [], vencidas: [], sinFecha: [] });
+});
+
+test('fechaLocal: AAAA-MM-DD con ceros (mes 0-indexado)', () => {
+  assert.equal(fechaLocal(new Date(2026, 9, 2)), '2026-10-02');
+  assert.equal(fechaLocal(new Date(2026, 10, 12)), '2026-11-12');
 });
