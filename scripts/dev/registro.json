@@ -54,7 +54,7 @@
         { "puerto": 3122, "marcador": "mejora.mjs", "motivo": "server:mejora (frontend/server/mejora.mjs), arranque manual fuera del mando" }
       ],
       "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp + Vite bajo ruta; PORT=3110 por env del mando; front via --prefix+-- para que --port llegue a vite)",
-      "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": "cargo test --test <archivo>" }
+      "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>" }
     },
     {
       "id": "NAKOMI",
@@ -71,7 +71,7 @@
       "expectedCmdline": ["glory-backend", "5176"],
       "env": { "PORT": "3103", "VITE_API_URL": "http://localhost:3103" },
       "tipoLauncher": "glory-template (dev:back = cargo run directo en-arbol con PORT por env + Vite con --port por argv via --prefix+--, sin wrapper; VITE_API_URL por env pisa .env.development)",
-      "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": "cargo test --test <archivo>" }
+      "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>" }
     },
     {
       "id": "PROYECTO TASKS",
@@ -104,7 +104,7 @@
       "expectedCmdline": ["glory-backend", "5177"],
       "env": { "PORT": "3104", "VITE_API_URL": "http://localhost:3104" },
       "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp con PORT por env + Vite con --port por argv)",
-      "comandos": { "gate": "npm run gate:check", "typecheck": "cargo check", "build": null, "test-archivo": "cargo test --test <archivo>" }
+      "comandos": { "gate": "npm run gate:check", "typecheck": "cargo check", "build": null, "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>" }
     },
     {
       "id": "gloryapi",
@@ -178,7 +178,7 @@
       "expectedCmdline": ["glory-backend", "5182"],
       "env": { "PORT": "3105", "VITE_API_TARGET": "http://localhost:3105" },
       "tipoLauncher": "glory-template (dev:back = run-cargo.mjs run --bin glory-backend con PORT=3105 por env del mando; Vite con --port 5182 por argv via --prefix+--. No se usa npm run dev (glory-rs/scripts/dev.mjs) porque el front cae en 5173, ocupado por opencode-propio-dev)",
-      "comandos": { "gate": "npm run gate:check", "typecheck": "cargo check", "build": null, "test-archivo": "cargo test --test <archivo>" }
+      "comandos": { "gate": "npm run gate:check", "typecheck": "cargo check", "build": null, "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>" }
     },
     {
       "id": "glory-lab",
