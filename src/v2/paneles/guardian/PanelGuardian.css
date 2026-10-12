@@ -90,6 +90,45 @@
   color: var(--v2-fondo);
 }
 
+/* Cuadro de datos: varias líneas dentro de un borde fino, más juntas que en una lista. */
+.guardianCuadro {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--v2-borde);
+}
+
+.guardianCuadro > .guardianLinea {
+  padding: 4px 8px;
+  border-bottom: 0;
+}
+
+/* Cuadro con muchas filas: alto acotado y scroll dentro, para no alargar la pestaña. */
+.guardianCuadro--scroll {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+/* Línea de una sola fila: el detalle ocupa el hueco y se recorta si no cabe. */
+.guardianLinea--una .guardianLineaFila {
+  align-items: baseline;
+}
+
+.guardianLinea--una .guardianLineaTitulo,
+.guardianLinea--una .guardianLineaDato {
+  flex: none;
+  white-space: nowrap;
+}
+
+.guardianLinea--una .guardianLineaDetalle {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
 .guardianNota {
   font-size: var(--v2-textSm);
   margin: 0;

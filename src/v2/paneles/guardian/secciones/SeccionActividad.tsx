@@ -103,14 +103,11 @@ export function SeccionActividad({ datos }: { datos: GuardianDatos }) {
 }
 
 function ResultadoActividad({ actividad }: { actividad: ActividadGuardian }) {
-  const { diario, auditoria, leases, origen } = actividad;
+  const { diario, auditoria, leases } = actividad;
   return (
     <>
       <Seccion titulo={`diario: ${diario.entradas.length} de ${diario.total}`}>
-        <div className="guardianNota">
-          {origen.diario}
-          {diario.corruptas > 0 ? ` · ${diario.corruptas} líneas corruptas omitidas` : ''}
-        </div>
+        {diario.corruptas > 0 && <div className="docsMensaje">{diario.corruptas} líneas corruptas omitidas</div>}
         {!diario.disponible && <div className="docsVacio">sin diario todavía</div>}
         {diario.entradas.length > 0 && (
           <Lista>
@@ -127,10 +124,7 @@ function ResultadoActividad({ actividad }: { actividad: ActividadGuardian }) {
       </Seccion>
 
       <Seccion titulo={`auditoría de leases: ${auditoria.entradas.length} de ${auditoria.total}`}>
-        <div className="guardianNota">
-          {origen.auditoria}
-          {auditoria.corruptas > 0 ? ` · ${auditoria.corruptas} líneas corruptas omitidas` : ''}
-        </div>
+        {auditoria.corruptas > 0 && <div className="docsMensaje">{auditoria.corruptas} líneas corruptas omitidas</div>}
         {!auditoria.disponible && <div className="docsVacio">sin auditoría todavía</div>}
         {auditoria.entradas.length > 0 && (
           <Lista>

@@ -100,6 +100,7 @@ export function PanelGuardian() {
                 pequeno
                 className={`guardianPestana${vista === e.clave ? ' guardianPestana--activa' : ''}`}
                 aria-pressed={vista === e.clave}
+                title={e.ayuda}
                 onClick={() => setVista(e.clave)}
               >
                 {e.etiqueta}
@@ -108,7 +109,6 @@ export function PanelGuardian() {
           </div>
         )}
         <div className="guardianCuerpo">
-          {entrada && <div className="guardianNota guardianNota--tenue">{entrada.ayuda}</div>}
           {!esArea && !datos.claveSel ? (
             <div className="docsVacio">elige un proyecto en el menú de la izquierda</div>
           ) : (

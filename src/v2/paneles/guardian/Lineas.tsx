@@ -16,20 +16,29 @@ interface LineaProps {
   /* Segunda línea, tenue: el porqué o el contexto. */
   detalle?: ReactNode;
   activa?: boolean;
+  /* Nombre, detalle y dato en una sola fila; el detalle se recorta si no cabe. */
+  una?: boolean;
   onClick?: () => void;
 }
 
-export function Linea({ titulo, dato, detalle, activa = false, onClick }: LineaProps) {
-  const cuerpo = (
+export function Linea({ titulo, dato, detalle, activa = false, una = false, onClick }: LineaProps) {
+  const tieneDetalle = detalle !== undefined && detalle !== '';
+  const cuerpo = una ? (
+    <span className="guardianLineaFila">
+      <span className="guardianLineaTitulo">{titulo}</span>
+      {tieneDetalle && <span className="guardianLineaDetalle">{detalle}</span>}
+      {dato !== undefined && <span className="guardianLineaDato">{dato}</span>}
+    </span>
+  ) : (
     <>
       <span className="guardianLineaFila">
         <span className="guardianLineaTitulo">{titulo}</span>
         {dato !== undefined && <span className="guardianLineaDato">{dato}</span>}
       </span>
-      {detalle !== undefined && detalle !== '' && <span className="guardianLineaDetalle">{detalle}</span>}
+      {tieneDetalle && <span className="guardianLineaDetalle">{detalle}</span>}
     </>
   );
-  const clase = `guardianLinea${activa ? ' guardianLinea--activa' : ''}`;
+  const clase = `guardianLinea${una ? ' guardianLinea--una' : ''}${activa ? ' guardianLinea--activa' : ''}`;
   if (onClick) {
     return (
       <Button type="button" className={clase} onClick={onClick} aria-pressed={activa}>

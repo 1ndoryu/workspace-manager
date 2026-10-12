@@ -4,7 +4,6 @@
  * darlos por cubiertos. Solo se muestra qué difiere de la plantilla si de verdad difiere. */
 import { Linea, Lista } from '../Lineas.js';
 import type { GuardianDatos } from '../useGuardian.js';
-import { MODO_LLANO } from '../lenguaje.js';
 import { LISTAS, type ProyectoArea } from '../tiposGuardian.js';
 
 interface LineaComando {
@@ -40,9 +39,6 @@ export function SeccionComandos({ datos }: { datos: GuardianDatos }) {
   const lineas = lineasDe(p, new Set(area.sinShim));
   return (
     <>
-      <div className="guardianNota">
-        {p.listas.estado === 'ok' ? MODO_LLANO[p.listas.modo] : 'sin reglas de comandos'}
-      </div>
       <Lista>
         {lineas.map((l) => (
           <Linea key={l.titulo} titulo={l.titulo} detalle={l.dato} />
