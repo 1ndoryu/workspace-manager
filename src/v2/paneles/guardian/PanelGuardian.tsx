@@ -35,7 +35,7 @@ const PESTANAS: Entrada<VistaProyecto>[] = [
   { clave: 'resumen', etiqueta: 'resumen', ayuda: 'Cómo está este proyecto de un vistazo.' },
   { clave: 'comandos', etiqueta: 'qué se bloquea', ayuda: 'Qué hace el guardián con cada comando de este proyecto.' },
   { clave: 'politica', etiqueta: 'reglas', ayuda: 'Qué comandos permite el proyecto y si el guardián bloquea o solo avisa.' },
-  { clave: 'topes', etiqueta: 'límites', ayuda: 'Cuántas veces puede ejecutarse cada comando pesado. La suite completa tiene un enfriamiento de 180 min; los tests filtrados no.' },
+  { clave: 'topes', etiqueta: 'límites', ayuda: 'Cuántas veces puede ejecutarse cada comando pesado. La suite completa tiene un enfriamiento de 20 min; los tests filtrados no.' },
   { clave: 'probar', etiqueta: 'probar un comando', ayuda: 'Pregunta qué haría el guardián con un comando, sin ejecutarlo ni cambiar nada.' },
 ];
 
