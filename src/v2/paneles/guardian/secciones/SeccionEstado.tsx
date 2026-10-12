@@ -7,7 +7,7 @@ import { Seccion } from '../../../ui/caja/Caja.js';
 import { Button } from '../../../ui/form/Button.js';
 import type { GuardianDatos } from '../useGuardian.js';
 import type { EstadoProyecto, ProyectoArea } from '../tiposGuardian.js';
-import { EXPLICACION_MODOS, MODO_LLANO, fraseArea, resumenProyecto, type FilaResumen } from '../lenguaje.js';
+import { MODO_LLANO, resumenProyecto, type FilaResumen } from '../lenguaje.js';
 import { Linea, Lista } from '../Lineas.js';
 
 /* Límites del guard que aún no cubre: se anotan aquí; el hallazgo sigue abierto. */
@@ -33,11 +33,9 @@ export function SeccionArea({ datos, onAbrir }: { datos: GuardianDatos; onAbrir:
     .filter((p): p is ProyectoArea => p.elegible)
     .map(resumenProyecto)
     .sort((x, y) => Number(y.revisar.length > 0) - Number(x.revisar.length > 0));
-  const sinGuardian = area.proyectos.filter((p) => !p.elegible).map((p) => p.clave);
 
   return (
     <>
-      <div className="guardianNota">{fraseArea(area.proyectos)}</div>
       <Lista>
         {filas.map((f) => (
           <Linea
@@ -49,10 +47,6 @@ export function SeccionArea({ datos, onAbrir }: { datos: GuardianDatos; onAbrir:
           />
         ))}
       </Lista>
-      <div className="guardianNota guardianNota--tenue">{EXPLICACION_MODOS}</div>
-      {sinGuardian.length > 0 && (
-        <div className="guardianNota guardianNota--tenue">sin guardián (su puerta no es sentinel): {sinGuardian.join(', ')}</div>
-      )}
 
       <Seccion titulo="límites conocidos del guard">
         <div className="guardianAcciones">
@@ -81,7 +75,6 @@ export function SeccionResumen({ datos }: { datos: GuardianDatos }) {
   if (!detalle) return <div className="docsVacio">{cargandoDetalle ? 'cargando proyecto…' : 'sin datos'}</div>;
   return (
     <>
-      {fila && fila.revisar.length > 0 && <div className="guardianNota">{fila.revisar.join(' · ')}</div>}
       <DetalleProyecto detalle={detalle} comandos={fila?.comandos ?? '—'} limites={fila?.limites ?? '—'} />
     </>
   );
@@ -91,21 +84,30 @@ function DetalleProyecto({ detalle, comandos, limites }: { detalle: EstadoProyec
   const tareas = detalle.tareas.flatMap((t) =>
     Object.entries(t.clases).map(([clase, c]) => ({ clave: `${t.tarea}|${t.etapa}|${clase}`, t, clase, c })),
   );
+  /* [por que] Los cuatro datos del proyecto van en un solo cuadro, pegados; las tareas
+   * son otra cosa y van debajo en su propia lista. */
   return (
-    <Lista>
-      <Linea titulo="comandos" dato={comandos} />
-      <Linea titulo="límites" dato={limites} />
-      <Linea titulo="bloqueos" dato={detalle.totalBloqueados} />
-      <Linea titulo="margen extra de lote" dato={detalle.override.existe ? detalle.override.extra : 'no hay'} />
+    <>
+      <div className="guardianCuadro">
+        <Linea titulo="comandos" dato={comandos} />
+        <Linea titulo="límites" dato={limites} />
+        <Linea titulo="bloqueos" dato={detalle.totalBloqueados} />
+        <Linea titulo="margen extra de lote" dato={detalle.override.existe ? detalle.override.extra : 'no hay'} />
+      </div>
       {tareas.length === 0 && <div className="docsVacio">este proyecto aún no ha ejecutado nada con guardián</div>}
-      {tareas.map(({ clave, t, clase, c }) => (
-        <Linea
-          key={clave}
-          titulo={`${t.tarea} · ${clase}`}
-          dato={`${c.usado} de ${c.limite + c.extra} usos`}
-          detalle={`etapa ${t.etapa} · ${c.bloqueados} bloqueos · ${MODO_LLANO[c.modo]}`}
-        />
-      ))}
-    </Lista>
+      {tareas.length > 0 && (
+        <div className="guardianCuadro guardianCuadro--scroll">
+          {tareas.map(({ clave, t, clase, c }) => (
+            <Linea
+              key={clave}
+              una
+              titulo={`${t.tarea} · ${clase}`}
+              dato={`${c.usado} de ${c.limite + c.extra} usos`}
+              detalle={`etapa ${t.etapa} · ${c.bloqueados} bloqueos · ${MODO_LLANO[c.modo]}`}
+            />
+          ))}
+        </div>
+      )}
+    </>
   );
 }
