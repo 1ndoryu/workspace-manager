@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { Seccion } from '../../../ui/caja/Caja.js';
 import { Button } from '../../../ui/form/Button.js';
+import { Campo } from '../../../ui/form/Campo.js';
 import { Selector } from '../../../ui/selector/Selector.js';
 import { mensajeDeError, toastError, toastInfo, toastOk } from '../../../toast.js';
 import { PreviaGuardian } from '../DiffGuardian.js';
@@ -150,28 +151,28 @@ function FormularioPolitica({ datos, clave, hashConfig, inicial }: FormularioPol
 
   return (
     <>
-      <div className="guardianCampo">
-        <label>modo</label>
+      <Campo etiqueta="modo" ayuda="enforce = bloquea · observe = solo avisa · pass-through = no actúa">
         <Selector
+          campo
           titulo="modo"
           valor={modo}
           opciones={['enforce', 'observe', 'pass-through']}
           onChange={(v) => setModo(v as ModoGuard)}
         />
-        <span>enforce = bloquea · observe = solo avisa · pass-through = no actúa</span>
-      </div>
+      </Campo>
       {LISTAS.map((lista) => (
-        <div key={lista} className="guardianCampo">
-          <label htmlFor={`politica-${lista}`}>
-            {ETIQUETA_LISTA[lista]} (una por línea)
-          </label>
+        <Campo
+          key={lista}
+          htmlFor={`politica-${lista}`}
+          etiqueta={`${ETIQUETA_LISTA[lista]} (una por línea)`}
+        >
           <textarea
             id={`politica-${lista}`}
             rows={4}
             value={textos[lista]}
             onChange={(e) => setTextos((t) => ({ ...t, [lista]: e.target.value }))}
           />
-        </div>
+        </Campo>
       ))}
       <div className="guardianAcciones">
         <Button pequeno disabled={enviando} onClick={() => void previsualizar(construirCambio())}>

@@ -16,16 +16,18 @@ export interface SelectorProps {
   opciones: string[];
   onChange: (v: string) => void;
   titulo?: string;
+  /* Trigger con el ancho y alto de un campo (Campo.css) en vez del botón compacto. */
+  campo?: boolean;
 }
 
-export function Selector({ valor, opciones, onChange, titulo }: SelectorProps) {
+export function Selector({ valor, opciones, onChange, titulo, campo = false }: SelectorProps) {
   const { abierto, resaltado, raiz, setAbierto, setResaltado, abrir, elegir, tecla } =
     useSelector(valor, opciones, onChange);
 
   return (
     <span ref={raiz} className="v2Selector" onKeyDown={tecla}>
       <Button
-        className="v2SelectorTrigger"
+        className={campo ? 'v2SelectorTrigger v2SelectorTrigger--campo' : 'v2SelectorTrigger'}
         onClick={() => (abierto ? setAbierto(false) : abrir())}
         aria-haspopup="listbox"
         aria-expanded={abierto}

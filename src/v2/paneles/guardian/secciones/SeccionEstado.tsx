@@ -96,17 +96,16 @@ function DetalleProyecto({ detalle, comandos, limites }: { detalle: EstadoProyec
       </div>
       {tareas.length === 0 && <div className="docsVacio">este proyecto aún no ha ejecutado nada con guardián</div>}
       {tareas.length > 0 && (
-        <div className="guardianCuadro guardianCuadro--scroll">
+        <Lista>
           {tareas.map(({ clave, t, clase, c }) => (
             <Linea
               key={clave}
-              una
               titulo={`${t.tarea} · ${clase}`}
               dato={`${c.usado} de ${c.limite + c.extra} usos`}
               detalle={`etapa ${t.etapa} · ${c.bloqueados} bloqueos · ${MODO_LLANO[c.modo]}`}
             />
           ))}
-        </div>
+        </Lista>
       )}
     </>
   );

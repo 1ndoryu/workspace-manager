@@ -3,12 +3,10 @@
  * el resumen por proyecto que la página muestra; axios no debe lanzar por ellos. */
 import axios from 'axios';
 import type {
-  ActividadGuardian,
   CambioPolitica,
   CambioTopes,
   EstadoArea,
   EstadoProyecto,
-  FiltrosActividadUi,
   HashesTopes,
   LecturaPlantilla,
   PlantillaDatos,
@@ -85,15 +83,6 @@ export function estadoProyecto(clave: string): Promise<Respuesta<EstadoProyecto 
 
 export function verPlantilla(): Promise<Respuesta<LecturaPlantilla>> {
   return get<LecturaPlantilla>('/api/guardian/plantilla');
-}
-
-export function verActividad(filtros: FiltrosActividadUi): Promise<Respuesta<ActividadGuardian>> {
-  return get<ActividadGuardian>('/api/guardian/actividad', {
-    proyecto: filtros.proyecto || undefined,
-    comando: filtros.comando || undefined,
-    decision: filtros.decision,
-    limite: filtros.limite,
-  });
 }
 
 /* --- Escrituras (sin `confirmar` es vista previa; con `confirmar: true` escribe) -- */

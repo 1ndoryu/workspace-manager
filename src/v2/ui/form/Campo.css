@@ -1,0 +1,44 @@
+/* Campo de formulario: etiqueta, control y ayuda en una columna. Input, textarea y el
+ * Selector en modo campo comparten borde, fondo y alto. Único lugar de estos estilos.
+ * [por que] Antes cada panel tenía su bloque de control y el selector quedaba con otro
+ * alto y otro borde. */
+.v2Campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-spaceXs);
+  margin: var(--v2-spaceSm) 0;
+  font-size: var(--v2-textSm);
+}
+
+.v2Campo .v2Selector {
+  display: block;
+}
+
+/* [por que] Las casillas (checkbox) de la lista de proyectos van dentro de un Campo y no son campos de texto. */
+.v2Campo input:not([type='checkbox']),
+.v2Campo textarea {
+  box-sizing: border-box;
+  font: inherit;
+  color: var(--v2-texto);
+  background: var(--v2-fondo);
+  border: 1px solid var(--v2-borde);
+  border-radius: 0;
+  padding: 3px 4px;
+  min-width: 0;
+}
+
+.v2Campo input:not([type='checkbox']) {
+  height: 22px;
+}
+
+.v2Campo textarea {
+  resize: vertical;
+}
+
+.v2Campo--codigo textarea {
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.v2CampoAyuda {
+  font-size: var(--v2-textXs);
+}
