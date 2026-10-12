@@ -20,7 +20,14 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { compartirVuelo } from './vuelo.js';
-import { contar, esNoAlcanzable, nombrePaqueteValido, parsearAudit } from './vulnerabilidades-parseo.js';
+import {
+  contar,
+  esNoAlcanzable,
+  fechaLocal,
+  nombrePaqueteValido,
+  parsearAudit,
+  parsearExcepcionesAudit,
+} from './vulnerabilidades-parseo.js';
 import type { JsonAudit } from './vulnerabilidades-parseo.js';
 import type {
   AnalisisVulnerabilidades,
@@ -156,16 +163,37 @@ function hashLockfile(ruta: string): string {
   }
 }
 
-/* Clave de frescura del proyecto: cambia si cambia cualquiera de sus lockfile.
- * [por que] El HEAD no entra: audit depende solo de los lockfile. */
+/* Clave de frescura del proyecto: cambia si cambia cualquiera de sus lockfile,
+ * el audit.toml de un crate o el dia. [por que] El HEAD no entra: audit depende
+ * de los lockfile. El dia si: una excepcion vence por fecha, sin tocar archivos. */
 function frescoDe(p: Proyecto, locks: LockDetectado[]): string {
-  return `${p.clave}|${locks.map((l) => `${l.lockfile}@${hashLockfile(l.ruta)}`).join('|')}`;
+  const lockfiles = locks.map((l) => `${l.lockfile}@${hashLockfile(l.ruta)}`).join('|');
+  const tomls = locks
+    .filter((l) => l.gestor === 'cargo')
+    .map((l) => hashLockfile(join(p.ruta, l.base, '.cargo', 'audit.toml')));
+  return `${p.clave}|${fechaLocal(new Date())}|${lockfiles}|${tomls.join('|')}`;
+}
+
+/* Flags `--ignore` de las excepciones vigentes de .cargo/audit.toml. [por que]
+ * cargo-audit no aplica ese archivo (verificado en coolify-manager-rs: el
+ * advisory RUSTSEC-2023-0071 sale en el JSON). Sin archivo o ilegible: ninguna
+ * excepcion, todo cuenta. */
+function flagsIgnorarCargo(cwd: string): string {
+  let texto: string;
+  try {
+    texto = readFileSync(join(cwd, '.cargo', 'audit.toml'), 'utf8');
+  } catch {
+    return '';
+  }
+  const { vigentes } = parsearExcepcionesAudit(texto, fechaLocal(new Date()));
+  return vigentes.map((id) => ` --ignore ${id}`).join('');
 }
 
 /* Comando de audit del gestor. Para pnpm puede no haber CLI: devuelve null. */
 async function cliDeAudit(g: LockDetectado['gestor'], cwd: string): Promise<string | null> {
   if (g === 'pnpm') return resolverCliPnpm(cwd);
-  return g === 'cargo' ? 'cargo audit --json' : 'npm audit --json';
+  if (g === 'cargo') return `cargo audit --json${flagsIgnorarCargo(cwd)}`;
+  return 'npm audit --json';
 }
 
 /* Un hallazgo de cargo solo cuenta si el crate alcanza el build. `memo` es de
