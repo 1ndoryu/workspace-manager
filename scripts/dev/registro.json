@@ -181,8 +181,8 @@
       "comandos": { "gate": "npm run gate:check", "typecheck": "cargo check", "build": null, "test-archivo": null }
     },
     {
-      "id": "ia-studio",
-      "ruta": "../ia-studio",
+      "id": "glory-lab",
+      "ruta": "../glory-lab",
       "boton": [["node", "dist-server/server/index.js"], ["npm", "run", "dev", "--", "--port", "5181", "--strictPort"]],
       "puertos": [8790, 5181],
       "healths": [
