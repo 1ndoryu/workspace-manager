@@ -8,6 +8,7 @@ import { Button } from '../../../ui/form/Button.js';
 import { Selector } from '../../../ui/selector/Selector.js';
 import { mensajeDeError } from '../../../toast.js';
 import { leerOk, verActividad } from '../apiGuardian.js';
+import { Linea, Lista } from '../Lineas.js';
 import type { GuardianDatos } from '../useGuardian.js';
 import type {
   ActividadGuardian,
@@ -126,28 +127,16 @@ function ResultadoActividad({ actividad }: { actividad: ActividadGuardian }) {
         </div>
         {!diario.disponible && <div className="docsVacio">sin diario todavía</div>}
         {diario.entradas.length > 0 && (
-          <table className="guardianTabla">
-            <thead>
-              <tr>
-                <th>fecha</th>
-                <th>proyecto</th>
-                <th>comando</th>
-                <th>decisión</th>
-                <th>motivo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {diario.entradas.map((e, i) => (
-                <tr key={`${e.fecha}-${i}`}>
-                  <td>{e.fecha}</td>
-                  <td>{e.proyecto}</td>
-                  <td>{e.comando}</td>
-                  <td>{e.decision}</td>
-                  <td>{e.motivo}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Lista>
+            {diario.entradas.map((e, i) => (
+              <Linea
+                key={`${e.fecha}-${i}`}
+                titulo={`${e.proyecto} · ${e.comando}`}
+                dato={e.decision}
+                detalle={e.motivo ? `${e.fecha} · ${e.motivo}` : e.fecha}
+              />
+            ))}
+          </Lista>
         )}
       </Seccion>
 
@@ -158,56 +147,32 @@ function ResultadoActividad({ actividad }: { actividad: ActividadGuardian }) {
         </div>
         {!auditoria.disponible && <div className="docsVacio">sin auditoría todavía</div>}
         {auditoria.entradas.length > 0 && (
-          <table className="guardianTabla">
-            <thead>
-              <tr>
-                <th>momento</th>
-                <th>evento</th>
-                <th>comando</th>
-                <th>válida</th>
-                <th>motivo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {auditoria.entradas.map((e, i) => (
-                <tr key={`${e.at}-${i}`}>
-                  <td>{e.at}</td>
-                  <td>{e.event}</td>
-                  <td>{e.command ?? '—'}</td>
-                  <td>{siNo(e.valid)}</td>
-                  <td>{e.reason ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Lista>
+            {auditoria.entradas.map((e, i) => (
+              <Linea
+                key={`${e.at}-${i}`}
+                titulo={e.command ? `${e.event} · ${e.command}` : e.event}
+                dato={`válida: ${siNo(e.valid)}`}
+                detalle={e.reason ? `${e.at} · ${e.reason}` : e.at}
+              />
+            ))}
+          </Lista>
         )}
       </Seccion>
 
       <Seccion titulo={`leases activas: ${leases.activos.length} · expiradas: ${leases.expirados}`}>
         {leases.activos.length === 0 && <div className="docsVacio">ninguna</div>}
         {leases.activos.length > 0 && (
-          <table className="guardianTabla">
-            <thead>
-              <tr>
-                <th>id</th>
-                <th>pid</th>
-                <th>comando</th>
-                <th>proyecto</th>
-                <th>expira</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leases.activos.map((l) => (
-                <tr key={l.id}>
-                  <td>{l.id}</td>
-                  <td>{l.pid}</td>
-                  <td>{l.command}</td>
-                  <td>{l.projectRoot}</td>
-                  <td>{l.expiresAt}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Lista>
+            {leases.activos.map((l) => (
+              <Linea
+                key={l.id}
+                titulo={l.command}
+                dato={`pid ${l.pid}`}
+                detalle={`${l.projectRoot} · expira ${l.expiresAt}`}
+              />
+            ))}
+          </Lista>
         )}
       </Seccion>
     </>

@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Seccion } from '../../../ui/caja/Caja.js';
 import { Button } from '../../../ui/form/Button.js';
+import { Linea, Lista } from '../Lineas.js';
 import { mensajeDeError, toastError } from '../../../toast.js';
 import { probarComando, resultadoEdicion } from '../apiGuardian.js';
 import type { GuardianDatos } from '../useGuardian.js';
@@ -60,13 +61,13 @@ export function SeccionProbar({ datos }: { datos: GuardianDatos }) {
       </div>
       {resultado?.estado === 'error' && <div className="docsMensaje">{resultado.motivo}</div>}
       {resultado?.estado === 'ok' && (
-        <DecisionTabla codigo={resultado.codigo} decision={resultado.decision} />
+        <Decision codigo={resultado.codigo} decision={resultado.decision} />
       )}
     </Seccion>
   );
 }
 
-function DecisionTabla({ codigo, decision: d }: { codigo: number; decision: DecisionProbada }) {
+function Decision({ codigo, decision: d }: { codigo: number; decision: DecisionProbada }) {
   const filas: Array<[string, string]> = [
     ['bloqueado', d.blocked ? 'sí' : 'no'],
     ['modo', d.mode ?? '—'],
@@ -78,18 +79,13 @@ function DecisionTabla({ codigo, decision: d }: { codigo: number; decision: Deci
     ['alternativa', d.alternativa ?? '—'],
   ];
   return (
-    <>
-      <div className="guardianNota">código de salida {codigo}</div>
-      <table className="guardianTabla">
-        <tbody>
-          {filas.map(([nombre, valor]) => (
-            <tr key={nombre}>
-              <th>{nombre}</th>
-              <td>{valor}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+    <Lista>
+      {filas
+        .filter(([, valor]) => valor !== '—')
+        .map(([nombre, valor]) => (
+          <Linea key={nombre} titulo={nombre} dato={valor} />
+        ))}
+      <div className="guardianNota guardianNota--tenue">código de salida {codigo}</div>
+    </Lista>
   );
 }

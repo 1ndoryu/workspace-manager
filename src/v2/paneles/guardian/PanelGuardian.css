@@ -2,54 +2,86 @@
  * [por que] Monocromo estricto: sin radios, sin sombras, sin negrita. El estado va
  * por relleno o borde, nunca por color. */
 
-.guardianTabla {
+/* Cuerpo de la pestaña: el aire que las Secciones no traen. Sin él el texto y las
+ * tablas tocaban el borde de la caja y duplicaban su línea. */
+.guardianCuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-spaceMd);
+  padding: var(--v2-spaceMd);
+}
+
+.guardianCuerpo .cajaSeccion {
+  gap: var(--v2-spaceSm);
+}
+
+.guardianMenuCampo {
+  padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+/* Línea: nombre a la izquierda, dato a la derecha y detalle tenue debajo. Solo una
+ * línea fina entre filas; sin rejilla ni columnas. */
+.guardianLista {
+  display: flex;
+  flex-direction: column;
+}
+
+.guardianLinea {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
   width: 100%;
-  border-collapse: collapse;
-  font-size: var(--v2-textSm);
-  font-family: var(--v2-font);
-}
-
-.guardianTabla th,
-.guardianTabla td {
-  border: 1px solid var(--v2-borde);
-  padding: 3px 6px;
+  min-width: 0;
+  padding: var(--v2-spaceSm) var(--v2-spaceMd);
+  border: 0;
+  border-bottom: 1px solid var(--v2-borde);
+  border-radius: 0;
   text-align: left;
-  vertical-align: top;
-  font-weight: normal;
-  word-break: break-word;
-}
-
-.guardianTabla input {
-  width: 6em;
-}
-
-/* [por que] La matriz de Comandos puede ser más ancha que la pestaña: scroll propio. */
-.guardianMatriz {
-  overflow-x: auto;
-}
-
-.guardianMatriz .guardianTabla th {
-  white-space: nowrap;
-}
-
-.guardianEnlace {
   font: inherit;
+  font-size: var(--v2-textSm);
   color: inherit;
   background: none;
-  border: 0;
-  padding: 0;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
-.guardianFila--activa > td {
+.guardianLineaFila {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--v2-spaceMd);
+  min-width: 0;
+}
+
+.guardianLineaTitulo {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.guardianLineaDato {
+  flex: none;
+  text-align: right;
+}
+
+.guardianLineaDetalle {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--v2-textXs);
+  opacity: 0.7;
+  overflow-wrap: anywhere;
+}
+
+.guardianLinea--activa {
   background: var(--v2-texto);
   color: var(--v2-fondo);
 }
 
 .guardianNota {
   font-size: var(--v2-textSm);
-  margin: 4px 0;
+  margin: 0;
+}
+
+.guardianNota--tenue {
+  font-size: var(--v2-textXs);
+  opacity: 0.7;
 }
 
 .guardianCampo {
