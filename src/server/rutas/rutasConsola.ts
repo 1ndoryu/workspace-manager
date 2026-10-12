@@ -84,7 +84,7 @@ export async function manejarRutasConsola(
   const solos = problemaHuerfanosSinProyecto(dev);
   if (solos) poner('', solos.p.id, solos.entradas);
 
-  /* [por que] El total cuenta solo problemas reales (informativas fuera). */
+  /* [por que] El total cuenta todas las entradas que la consola muestra. */
   const proyectos = [...porProyecto.values()].map((g) => ({ ...g, total: contarProblemas(g.entradas) }));
   const total = proyectos.reduce((n, g) => n + g.total, 0);
   json(res, 200, {

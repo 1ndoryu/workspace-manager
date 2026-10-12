@@ -23,9 +23,9 @@ const entrada = (over: Partial<Entrada>): Entrada => ({
 });
 
 describe('contarProblemas', () => {
-  it('cuenta solo las entradas no informativas', () => {
-    const entradas = [entrada({}), entrada({ informativa: true }), entrada({ informativa: false })];
-    assert.equal(contarProblemas(entradas), 2);
+  it('cuenta todas las entradas mostradas, tengan o no seriedad', () => {
+    const entradas = [entrada({}), entrada({ seriedad: null }), entrada({ seriedad: 'error' })];
+    assert.equal(contarProblemas(entradas), 3);
   });
 
   it('devuelve 0 sin entradas', () => {
@@ -42,19 +42,18 @@ describe('sentinel: severidad', () => {
       hallazgos: [{ severidad, ruleId: 'R1', mensaje: 'm', archivo: 'a.ts', linea: 1 }],
     }) as unknown as AnalisisSentinel;
 
-  it('hint e information son informativos y no cuentan', () => {
+  it('hint e information se muestran sin seriedad y cuentan', () => {
     for (const sev of ['hint', 'information'] as const) {
       const p = problemasSentinelDe(proyecto, analisis(sev));
       assert.ok(p);
-      assert.equal(p.entradas[0].informativa, true);
-      assert.equal(contarProblemas(p.entradas), 0);
+      assert.equal(p.entradas[0].seriedad, null);
+      assert.equal(contarProblemas(p.entradas), 1);
     }
   });
 
   it('warning cuenta como problema', () => {
     const p = problemasSentinelDe(proyecto, analisis('warning'));
     assert.ok(p);
-    assert.equal(p.entradas[0].informativa, undefined);
     assert.equal(contarProblemas(p.entradas), 1);
   });
 
@@ -76,10 +75,11 @@ describe('vulnerabilidades: sin parche upstream', () => {
       hallazgos: [{ paquete, severidad: 'high', rango: '<1.0' }],
     }) as unknown as AnalisisVulnerabilidades;
 
-  it('rsa (sin parche) es informativa', () => {
+  it('rsa (sin parche) se muestra sin seriedad y cuenta', () => {
     const p = problemasVulnerabilidadDe(proyecto, vuln('rsa'));
     assert.ok(p);
-    assert.equal(contarProblemas(p.entradas), 0);
+    assert.equal(p.entradas[0].seriedad, null);
+    assert.equal(contarProblemas(p.entradas), 1);
   });
 
   it('un paquete con parche sigue contando', () => {
@@ -97,10 +97,10 @@ describe('dev: bajo mando', () => {
       errorSensor: null,
     }) as unknown as InformeDev;
 
-  it('bajo mando es informativo y no cuenta', () => {
+  it('bajo mando se muestra y cuenta como entrada', () => {
     const p = problemasDevDe(proyecto, informe('bajo-mando'), null);
     assert.ok(p);
-    assert.equal(contarProblemas(p.entradas), 0);
+    assert.equal(contarProblemas(p.entradas), 1);
   });
 
   it('deriva sigue contando como problema', () => {
