@@ -158,11 +158,12 @@ function FormularioPolitica({ datos, clave, hashConfig, inicial }: FormularioPol
           opciones={['enforce', 'observe', 'pass-through']}
           onChange={(v) => setModo(v as ModoGuard)}
         />
+        <span>enforce = bloquea · observe = solo avisa · pass-through = no actúa</span>
       </div>
       {LISTAS.map((lista) => (
         <div key={lista} className="guardianCampo">
           <label htmlFor={`politica-${lista}`}>
-            {ETIQUETA_LISTA[lista]}, una por línea (reemplaza la lista entera)
+            {ETIQUETA_LISTA[lista]} (una por línea)
           </label>
           <textarea
             id={`politica-${lista}`}

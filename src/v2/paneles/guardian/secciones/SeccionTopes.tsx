@@ -167,32 +167,20 @@ function FormularioTopes({ datos, detalle, hashConfig, hashExtra }: FormularioTo
         />
       </div>
 
-      <table className="guardianTabla">
-        <thead>
-          <tr>
-            <th>clase</th>
-            <th>actual</th>
-            <th>nuevo (vacío quita el límite)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {CLASES_TOPE.map((clase) => (
-            <tr key={clase}>
-              <td>{clase}</td>
-              <td>{base[clase] === '' ? 'defecto' : base[clase]}</td>
-              <td>
-                <input
-                  aria-label={`nuevo límite de ${clase}`}
-                  inputMode="numeric"
-                  placeholder="defecto"
-                  value={limites[clase]}
-                  onChange={(e) => setLimites((l) => ({ ...l, [clase]: e.target.value }))}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {CLASES_TOPE.map((clase) => (
+        <div key={clase} className="guardianCampo">
+          <label htmlFor={`tope-${clase}`}>
+            {clase} · ahora: {base[clase] === '' ? 'defecto' : base[clase]}
+          </label>
+          <input
+            id={`tope-${clase}`}
+            inputMode="numeric"
+            placeholder="defecto (vacío quita el límite)"
+            value={limites[clase]}
+            onChange={(e) => setLimites((l) => ({ ...l, [clase]: e.target.value }))}
+          />
+        </div>
+      ))}
 
       <div className="guardianCampo">
         <label htmlFor="topes-extra">

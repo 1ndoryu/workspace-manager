@@ -15,6 +15,7 @@ import {
   resultadoEdicion,
   type EntradaLote,
 } from '../apiGuardian.js';
+import { Linea, Lista } from '../Lineas.js';
 import type { GuardianDatos } from '../useGuardian.js';
 import type { ModoGuard, ProyectoArea, RespuestaLote } from '../tiposGuardian.js';
 
@@ -128,26 +129,16 @@ function LoteModo({ datos, elegibles }: { datos: GuardianDatos; elegibles: Proye
             <div className="docsMensaje">{motivoLote(lote.respuesta)}</div>
           )}
           {resultados.length > 0 && (
-            <table className="guardianTabla">
-              <thead>
-                <tr>
-                  <th>proyecto</th>
-                  <th>estado</th>
-                  <th>cambia</th>
-                  <th>motivo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resultados.map((x) => (
-                  <tr key={x.clave}>
-                    <td>{x.clave}</td>
-                    <td>{x.estado}</td>
-                    <td>{x.cambia ? 'sí' : 'no'}</td>
-                    <td>{x.motivo ?? ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Lista>
+              {resultados.map((x) => (
+                <Linea
+                  key={x.clave}
+                  titulo={x.clave}
+                  dato={x.cambia ? `${x.estado} · cambia` : x.estado}
+                  detalle={x.motivo ?? ''}
+                />
+              ))}
+            </Lista>
           )}
           {resultados.map((x) => (
             <DiffGuardian key={x.clave} etiqueta={x.clave} diff={x.diff ?? null} />
