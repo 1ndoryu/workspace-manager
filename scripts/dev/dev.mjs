@@ -20,7 +20,7 @@ const AYUDA = `uso: dev <comando>
   gate <id> --inicio|--cierre                                 hallazgos nuevos de la tarea (F9)
   comandos <id> [--json]                                      contrato de comandos (F9)
   cierre <id> [--tarea <ID>]                                  puerta de cierre, solo lectura (F9)
-  alta <id|carpeta> [--aplicar]                               lista de alta; en seco salvo --aplicar (F10)`;
+  alta <id|carpeta> [--aplicar] [--json]                  lista de alta; en seco salvo --aplicar (F10)`;
 
 export async function main(argv) {
   const args = argv ?? process.argv.slice(2);

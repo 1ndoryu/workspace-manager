@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { snapshotArea } from '../snapshot.js';
 
 const DIR_DEV = join(import.meta.dirname, '..', '..', '..', 'scripts', 'dev');
-const DEV_MJS = join(DIR_DEV, 'dev.mjs');
+export const DEV_MJS = join(DIR_DEV, 'dev.mjs');
 const RUTA_REGISTRO = join(DIR_DEV, 'registro.json');
 
 export type AccionDev = 'up' | 'stop' | 'status' | 'logs' | 'open';

@@ -1,6 +1,7 @@
 /* Hook del PanelDetalle: detalle del proyecto seleccionado + resumenes.
  * [por que] Extraido de PanelDetalle (299A-11 Bloque D): el componente
  * renderiza, el hook posee el acceso al store y los resumenes derivados. */
+import { useEffect, useState } from 'react';
 import { useWorkspaceStore } from './useWorkspace.js';
 import { estadoProyecto } from '../v2/estado.js';
 import { useEscanear } from './useEscanear.js';
@@ -111,6 +112,24 @@ function resumenAuditoria(a: AnalisisVulnerabilidades | undefined): string | nul
   return `auditoría: ${partes.join(' · ') || 'sin detalle'}`;
 }
 
+/* Resultado de `GET /api/proyecto/alta` (lo calcula scripts/dev/alta.mjs). Tipo
+ * propio del cliente: el servidor no se importa en el bundle. */
+export interface AltaProyecto {
+  clave: string;
+  etiqueta: string;
+  hechos: number;
+  total: number;
+  items: { nombre: string; ok: boolean; detalle: string; accion?: string }[];
+}
+
+/* Pendientes para el título de «Alta: N/11»: una línea por ítem con su acción. */
+function pendientesAlta(a: AltaProyecto): string {
+  return a.items
+    .filter((i) => !i.ok)
+    .map((i) => `${i.nombre}: ${i.accion ?? i.detalle}`)
+    .join('\n');
+}
+
 export function usePanelDetalle() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
@@ -132,6 +151,30 @@ export function usePanelDetalle() {
    * (bajo-mando, deriva o parado; sin-boton/no-aplica no operan). */
   const devInfo = proyecto ? (dev?.proyectos.find((d) => d.clave === proyecto.clave) ?? null) : null;
 
+  /* Lista de alta (10AA-2 F10): una petición por proyecto seleccionado. Se aborta
+   * al cambiar de proyecto. [por que] Un fallo se muestra como aviso en la ficha
+   * («alta: no disponible»), no se oculta: el resto del panel sigue funcionando. */
+  const claveAlta = proyecto?.clave ?? null;
+  const [alta, setAlta] = useState<AltaProyecto | null>(null);
+  const [altaError, setAltaError] = useState<string | null>(null);
+  useEffect(() => {
+    setAlta(null);
+    setAltaError(null);
+    if (!claveAlta) return;
+    const ctrl = new AbortController();
+    fetch(`/api/proyecto/alta?clave=${encodeURIComponent(claveAlta)}`, { signal: ctrl.signal })
+      .then(async (r) => {
+        const d = (await r.json()) as AltaProyecto & { error?: string; detalle?: string };
+        if (!r.ok) throw new Error(d.detalle ?? d.error ?? `HTTP ${r.status}`);
+        setAlta(d);
+      })
+      .catch((err: unknown) => {
+        if (ctrl.signal.aborted) return;
+        setAltaError(err instanceof Error ? err.message : String(err));
+      });
+    return () => ctrl.abort();
+  }, [claveAlta]);
+
   return {
     proyecto,
     seleccionar,
@@ -146,5 +189,8 @@ export function usePanelDetalle() {
     auditoriaEn: auditoriaProy?.analizadoEn,
     escaneando,
     escanearProyecto,
+    alta,
+    altaError,
+    altaPendientes: alta ? pendientesAlta(alta) : '',
   };
 }
