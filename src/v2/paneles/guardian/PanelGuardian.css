@@ -20,8 +20,18 @@
   border-top: 1px solid var(--v2-borde);
 }
 
-.guardianMenuCampo {
+/* Pestañas internas de un proyecto: botones en fila, la activa rellena. */
+.guardianPestanas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v2-spaceSm);
   padding: var(--v2-spaceSm) var(--v2-spaceMd);
+  border-bottom: 1px solid var(--v2-borde);
+}
+
+.guardianPestana--activa {
+  background: var(--v2-texto);
+  color: var(--v2-fondo);
 }
 
 /* Línea: nombre a la izquierda, dato a la derecha y detalle tenue debajo. Solo una
@@ -36,6 +46,7 @@
   flex-direction: column;
   align-items: stretch;
   gap: 2px;
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   padding: var(--v2-spaceSm) var(--v2-spaceMd);

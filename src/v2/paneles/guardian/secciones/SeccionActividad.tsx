@@ -10,33 +10,26 @@ import { mensajeDeError } from '../../../toast.js';
 import { leerOk, verActividad } from '../apiGuardian.js';
 import { Linea, Lista } from '../Lineas.js';
 import type { GuardianDatos } from '../useGuardian.js';
-import type {
-  ActividadGuardian,
-  DecisionRegistro,
-  FiltrosActividadUi,
-  ProyectoArea,
-} from '../tiposGuardian.js';
+import type { ActividadGuardian, DecisionRegistro, FiltrosActividadUi } from '../tiposGuardian.js';
 
 const LIMITE_POR_DEFECTO = 100;
 
 /* Los filtros del formulario son texto; se convierten al pedir la actividad. */
 interface FiltrosTexto {
-  proyecto: string;
   comando: string;
   decision: string;
   limite: string;
 }
 
 const FILTROS_INICIALES: FiltrosTexto = {
-  proyecto: '',
   comando: '',
   decision: '',
   limite: String(LIMITE_POR_DEFECTO),
 };
 
-function aFiltros(f: FiltrosTexto): FiltrosActividadUi {
+function aFiltros(f: FiltrosTexto, proyecto: string | null): FiltrosActividadUi {
   return {
-    proyecto: f.proyecto,
+    proyecto: proyecto ?? '',
     comando: f.comando,
     decision: f.decision === '' ? undefined : (f.decision as DecisionRegistro),
     limite: f.limite === '' ? undefined : Number(f.limite),
@@ -49,7 +42,7 @@ function siNo(valor: boolean | undefined): string {
 }
 
 export function SeccionActividad({ datos }: { datos: GuardianDatos }) {
-  const elegibles = datos.area?.proyectos.filter((p): p is ProyectoArea => p.elegible) ?? [];
+  const proyecto = datos.claveSel;
   const [filtros, setFiltros] = useState<FiltrosTexto>(FILTROS_INICIALES);
   const [actividad, setActividad] = useState<ActividadGuardian | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,9 +60,11 @@ export function SeccionActividad({ datos }: { datos: GuardianDatos }) {
     }
   }, []);
 
+  /* [por que] El historial es del proyecto elegido: al cambiar de proyecto se vuelve a pedir. */
   useEffect(() => {
-    void buscar(aFiltros(FILTROS_INICIALES));
-  }, [buscar]);
+    setFiltros(FILTROS_INICIALES);
+    void buscar(aFiltros(FILTROS_INICIALES, proyecto));
+  }, [buscar, proyecto]);
 
   const campo = (clave: keyof FiltrosTexto, valor: string) =>
     setFiltros((f) => ({ ...f, [clave]: valor }));
@@ -77,15 +72,6 @@ export function SeccionActividad({ datos }: { datos: GuardianDatos }) {
   return (
     <>
       <Seccion titulo="filtros">
-        <div className="guardianCampo">
-          <label>proyecto</label>
-          <Selector
-            titulo="proyecto"
-            valor={filtros.proyecto === '' ? 'todos' : filtros.proyecto}
-            opciones={['todos', ...elegibles.map((p) => p.clave)]}
-            onChange={(v) => campo('proyecto', v === 'todos' ? '' : v)}
-          />
-        </div>
         <div className="guardianCampo">
           <label htmlFor="actividad-comando">comando contiene</label>
           <input id="actividad-comando" value={filtros.comando} onChange={(e) => campo('comando', e.target.value)} />
@@ -104,7 +90,7 @@ export function SeccionActividad({ datos }: { datos: GuardianDatos }) {
           <input id="actividad-limite" inputMode="numeric" value={filtros.limite} onChange={(e) => campo('limite', e.target.value)} />
         </div>
         <div className="guardianAcciones">
-          <Button pequeno disabled={cargando} onClick={() => void buscar(aFiltros(filtros))}>
+          <Button pequeno disabled={cargando} onClick={() => void buscar(aFiltros(filtros, proyecto))}>
             buscar
           </Button>
         </div>

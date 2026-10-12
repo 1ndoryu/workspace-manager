@@ -1,7 +1,7 @@
-/* Sección Estado: qué proyectos tienen Guardián y cuáles piden atención.
- * [por que] Vista general de solo lectura. Elegir una línea fija el proyecto que
- * usan las demás secciones y muestra aquí su detalle. Los que piden revisión van
- * primero: es lo único que obliga a actuar. */
+/* Secciones de estado: la vista del área (todos los proyectos) y el resumen de uno.
+ * [por que] Los proyectos van sueltos en el menú; aquí el área solo sirve para ver
+ * cuáles piden atención (primero) y abrirlos. El resumen de un proyecto vive dentro
+ * de él, junto a sus demás pestañas. */
 import { useState } from 'react';
 import { Seccion } from '../../../ui/caja/Caja.js';
 import { Button } from '../../../ui/form/Button.js';
@@ -18,19 +18,13 @@ const LIMITES_CONOCIDOS = [
   'cmd no tiene shims para eslint, prettier ni rustfmt.',
 ];
 
-interface SeccionEstadoProps {
-  datos: GuardianDatos;
-  /* Salta a otra sección del panel con el proyecto ya elegido. */
-  onIr?: (vista: 'politica' | 'topes' | 'probar') => void;
-}
-
 function datoResumen(f: FilaResumen): string {
   if (f.revisar.length > 0) return 'revisar';
   return f.bloqueos > 0 ? `${f.comandos} · ${f.bloqueos} bloqueos` : f.comandos;
 }
 
-export function SeccionEstado({ datos, onIr }: SeccionEstadoProps) {
-  const { area, errorArea, claveSel, detalle, cargandoDetalle, errorDetalle, elegir } = datos;
+export function SeccionArea({ datos, onAbrir }: { datos: GuardianDatos; onAbrir: (clave: string) => void }) {
+  const { area, errorArea } = datos;
   const [verLimites, setVerLimites] = useState(false);
   if (errorArea) return <div className="docsMensaje">{errorArea}</div>;
   if (!area) return <div className="docsVacio">cargando estado…</div>;
@@ -39,52 +33,25 @@ export function SeccionEstado({ datos, onIr }: SeccionEstadoProps) {
     .filter((p): p is ProyectoArea => p.elegible)
     .map(resumenProyecto)
     .sort((x, y) => Number(y.revisar.length > 0) - Number(x.revisar.length > 0));
-  const sel = filas.find((f) => f.clave === claveSel);
   const sinGuardian = area.proyectos.filter((p) => !p.elegible).map((p) => p.clave);
 
   return (
     <>
       <div className="guardianNota">{fraseArea(area.proyectos)}</div>
-      <Seccion titulo="proyectos">
-        <Lista>
-          {filas.map((f) => (
-            <Linea
-              key={f.clave}
-              titulo={f.clave}
-              dato={datoResumen(f)}
-              detalle={f.revisar.join(' · ')}
-              activa={f.clave === claveSel}
-              onClick={() => elegir(f.clave)}
-            />
-          ))}
-        </Lista>
-        <div className="guardianNota guardianNota--tenue">{EXPLICACION_MODOS}</div>
-        {sinGuardian.length > 0 && (
-          <div className="guardianNota guardianNota--tenue">sin guardián (su puerta no es sentinel): {sinGuardian.join(', ')}</div>
-        )}
-      </Seccion>
-
-      {claveSel && (
-        <Seccion titulo={`detalle de ${claveSel}`}>
-          {onIr && (
-            <div className="guardianAcciones">
-              <Button pequeno onClick={() => onIr('politica')}>
-                cambiar reglas
-              </Button>
-              <Button pequeno onClick={() => onIr('topes')}>
-                cambiar límites
-              </Button>
-              <Button pequeno onClick={() => onIr('probar')}>
-                probar un comando
-              </Button>
-            </div>
-          )}
-          {errorDetalle && <div className="docsMensaje">{errorDetalle}</div>}
-          {!detalle && !errorDetalle && (
-            <div className="docsVacio">{cargandoDetalle ? 'cargando proyecto…' : 'sin datos'}</div>
-          )}
-          {detalle && <DetalleProyecto detalle={detalle} comandos={sel?.comandos ?? '—'} limites={sel?.limites ?? '—'} />}
-        </Seccion>
+      <Lista>
+        {filas.map((f) => (
+          <Linea
+            key={f.clave}
+            titulo={f.clave}
+            dato={datoResumen(f)}
+            detalle={f.revisar.join(' · ')}
+            onClick={() => onAbrir(f.clave)}
+          />
+        ))}
+      </Lista>
+      <div className="guardianNota guardianNota--tenue">{EXPLICACION_MODOS}</div>
+      {sinGuardian.length > 0 && (
+        <div className="guardianNota guardianNota--tenue">sin guardián (su puerta no es sentinel): {sinGuardian.join(', ')}</div>
       )}
 
       <Seccion titulo="límites conocidos del guard">
@@ -101,6 +68,21 @@ export function SeccionEstado({ datos, onIr }: SeccionEstadoProps) {
           </Lista>
         )}
       </Seccion>
+    </>
+  );
+}
+
+export function SeccionResumen({ datos }: { datos: GuardianDatos }) {
+  const { area, claveSel, detalle, cargandoDetalle, errorDetalle } = datos;
+  const proyecto = area?.proyectos.find((p): p is ProyectoArea => p.elegible && p.clave === claveSel);
+  const fila = proyecto ? resumenProyecto(proyecto) : undefined;
+
+  if (errorDetalle) return <div className="docsMensaje">{errorDetalle}</div>;
+  if (!detalle) return <div className="docsVacio">{cargandoDetalle ? 'cargando proyecto…' : 'sin datos'}</div>;
+  return (
+    <>
+      {fila && fila.revisar.length > 0 && <div className="guardianNota">{fila.revisar.join(' · ')}</div>}
+      <DetalleProyecto detalle={detalle} comandos={fila?.comandos ?? '—'} limites={fila?.limites ?? '—'} />
     </>
   );
 }
