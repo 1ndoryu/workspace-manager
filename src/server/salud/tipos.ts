@@ -59,6 +59,8 @@ export interface DatosProyecto {
   planesActivos: PlanActivo[];
   /* Rutas de .md citadas en roadmap.md que no existen. */
   enlacesRotos: string[];
+  /* Rango declarado de Vite y TypeScript en frontend/package.json; null si no hay frontend. */
+  toolchainFrontend: { vite: string | null; typescript: string | null } | null;
 }
 
 export interface DatosArea {

@@ -123,6 +123,20 @@ function enlacesRotos(ruta: string): string[] {
   return [...rotos];
 }
 
+/* Rangos de Vite y TypeScript en frontend/package.json; null si el proyecto no tiene frontend. */
+function toolchainFrontend(ruta: string): { vite: string | null; typescript: string | null } | null {
+  const pkg = leerJson(join(ruta, 'frontend', 'package.json'));
+  if (pkg === null) return null;
+  const declarada = (nombre: string): string | null => {
+    for (const seccion of [pkg.dependencies, pkg.devDependencies]) {
+      const v = (seccion as Record<string, unknown> | undefined)?.[nombre];
+      if (typeof v === 'string') return v;
+    }
+    return null;
+  };
+  return { vite: declarada('vite'), typescript: declarada('typescript') };
+}
+
 /* Datos de todos los proyectos a la vez: los target-dir compartidos solo se ven
  * cruzando proyectos. */
 export function recogerProyectos(
@@ -154,6 +168,7 @@ export function recogerProyectos(
       instruccionesProhibidas: DOCS_PROHIBIDOS.filter((f) => existsSync(join(p.ruta, f))),
       planesActivos: planesActivos(p.ruta),
       enlacesRotos: enlacesRotos(p.ruta),
+      toolchainFrontend: toolchainFrontend(p.ruta),
     };
   });
 }
