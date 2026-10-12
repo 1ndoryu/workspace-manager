@@ -241,3 +241,36 @@ test('alta(): id inexistente devuelve 1 sin lanzar', async () => {
   escribir(raiz, 'scripts/dev/registro.json', JSON.stringify({ proyectos: [] }));
   assert.equal(await silencio(() => alta(['no-existe'], raiz)), 1);
 });
+
+test('alta(--json): imprime solo JSON con estado por ítem y código 1 si faltan', async () => {
+  const raiz = nuevoDir();
+  escribir(
+    raiz,
+    'scripts/dev/registro.json',
+    JSON.stringify({ proyectos: [{ id: 'demo', ruta: 'proy', comandos: ENTRADA.comandos }] }),
+  );
+  const proy = join(raiz, 'proy');
+  repo(proy);
+  const salida = [];
+  const log = console.log;
+  console.log = (t) => salida.push(t);
+  let codigo;
+  try {
+    codigo = await alta(['demo', '--json'], raiz);
+  } finally {
+    console.log = log;
+  }
+  assert.equal(codigo, 1);
+  assert.equal(salida.length, 1);
+  const obj = JSON.parse(salida[0]);
+  assert.equal(obj.etiqueta, 'demo');
+  assert.equal(obj.total, 11);
+  assert.equal(obj.hechos + obj.items.filter((it) => !it.ok).length, 11);
+  assert.ok(obj.items.every((it) => !('acciones' in it) && !('bloque' in it)));
+});
+
+test('alta(--json --aplicar): se niega sin tocar nada', async () => {
+  const raiz = nuevoDir();
+  escribir(raiz, 'scripts/dev/registro.json', JSON.stringify({ proyectos: [] }));
+  assert.equal(await silencio(() => alta(['demo', '--json', '--aplicar'], raiz)), 1);
+});

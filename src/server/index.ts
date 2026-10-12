@@ -8,6 +8,7 @@ import { json } from './http.js';
 import { obtenerSnapshot } from './cache.js';
 import { escanearWorkspace } from './scanner/workspace.js';
 import { manejarRutasGate } from './rutas/rutasGate.js';
+import { manejarRutasAlta } from './rutas/rutasAlta.js';
 import { manejarRutasGuardian } from './rutas/guardian/rutasGuardian.js';
 import { manejarRutasConfig } from './rutas/rutasConfig.js';
 import { manejarRutasDocumentos } from './rutas/rutasDocumentos.js';
@@ -100,6 +101,10 @@ export function crearServidor() {
         /* Rutas del gate (/api/proyecto/gate, /api/proyectos/doctor,
          * /api/gate/*): viven en rutasGate.ts (dominio gate). */
         if (await manejarRutasGate(req, res, url, ruta)) {
+          return;
+        }
+        /* Lista de alta por proyecto (10AA-2 F10): vive en rutasAlta.ts. */
+        if (await manejarRutasAlta(req, res, url, ruta)) {
           return;
         }
         /* Rutas del Guardián (/api/guardian/*, 10AA-2 F11.4): la pestaña que

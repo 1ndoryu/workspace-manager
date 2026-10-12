@@ -249,11 +249,18 @@ export function aplicarAlta(ruta, items) {
 
 const norma = (p) => resolve(p).replace(/\\/g, '/').toLowerCase();
 
+/* [por que] `--json` lo usa el tablero (F10): solo estado por ítem, sin el contenido de
+ * las acciones. Pendientes = código 1, que es un resultado normal y no un fallo. */
 export async function alta(argv, raiz = RAIZ) {
   const aplicar = argv.includes('--aplicar');
+  const json = argv.includes('--json');
   const objetivo = argv.find((a) => !a.startsWith('--'));
   if (!objetivo) {
-    console.error('uso: alta <id|carpeta> [--aplicar]');
+    console.error('uso: alta <id|carpeta> [--aplicar] [--json]');
+    return 1;
+  }
+  if (aplicar && json) {
+    console.error('alta: --json no combina con --aplicar');
     return 1;
   }
   try {
@@ -272,12 +279,17 @@ export async function alta(argv, raiz = RAIZ) {
       for (const linea of aplicarAlta(ruta, items)) console.log(`→ ${linea}`);
       items = comprobarAlta(ruta, entrada, etiqueta);
     }
+    const hechos = items.filter((it) => it.ok).length;
+    const pendientes = items.length - hechos;
+    if (json) {
+      const planos = items.map(({ nombre, ok, detalle, accion }) => ({ nombre, ok, detalle, accion }));
+      console.log(JSON.stringify({ etiqueta, hechos, total: items.length, items: planos }));
+      return pendientes === 0 ? 0 : 1;
+    }
     for (const it of items) {
       console.log(`${it.ok ? '✓' : '✗'} ${it.nombre} — ${it.detalle}`);
       if (!it.ok) console.log(`    → ${it.accion}`);
     }
-    const hechos = items.filter((it) => it.ok).length;
-    const pendientes = items.length - hechos;
     console.log(`alta ${etiqueta}: ${hechos}/${items.length}${pendientes ? ` (${pendientes} pendiente(s))` : ': completa'}`);
     return pendientes === 0 ? 0 : 1;
   } catch (e) {

@@ -54,6 +54,9 @@ export function PanelDetalle() {
     auditoriaEn,
     escaneando,
     escanearProyecto,
+    alta,
+    altaError,
+    altaPendientes,
   } = usePanelDetalle();
 
   if (!proyecto) return null;
@@ -135,6 +138,16 @@ export function PanelDetalle() {
         {resumenAudit && (
           <div className="panelDetalleScanMeta" title={auditoriaEn}>
             {resumenAudit}
+          </div>
+        )}
+        {alta && (
+          <div className="panelDetalleScanMeta" title={altaPendientes || 'todo en orden'}>
+            Alta: {alta.hechos}/{alta.total}
+          </div>
+        )}
+        {altaError && (
+          <div className="panelDetalleScanMeta" title={altaError}>
+            alta: no disponible
           </div>
         )}
       </div>
