@@ -9,6 +9,7 @@ import type { EstadoGate, ProblemaGate } from '../../shared/types.js';
 import { diagnosticar, rutaEtiqueta, severidadDe, type NodoEsquema } from '../../shared/gate/esquema.js';
 import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
 import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
+import { cliRuntime } from '../gate/ejecucion.js';
 
 /* Hojas de estilo y configs de tailwind: lo que VarSense valida.
  * [por que] Sin ninguna, varsense no tiene nada que comprobar y no debe marcarse "ausente". */
@@ -79,30 +80,27 @@ export function estadoGate(ruta: string): EstadoGate {
 
 /** Ejecuta `sentinel doctor` resumido (bajo demanda, no en el escaneo inicial). */
 export function doctorSentinel(ruta: string): string | null {
+  /* [por que] Nunca el `sentinel` del PATH (AGENTS §9.3): el CLI sale del checkout
+   * que declara el proyecto (`cliRuntime`), con `node <cli>` y args en array,
+   * sin shell ni shim .cmd. */
+  const res = cliRuntime(ruta);
+  if (!res) return null;
   try {
-    /* [por que] `sentinel` en Windows es un shim .cmd: execFileSync no ejecuta
-     * .cmd/.bat sin shell=true, devolvia siempre null ("sin salida").
-     * [seguridad] shell=true concatena args sin escapar (warning DEP0190); en
-     * su lugar resolvemos el shim a su comando real (cmd /c) con args aparte,
-     * sin pasar por un string de shell. */
-    if (process.platform === 'win32') {
-      const out = execFileSync('cmd', ['/d', '/s', '/c', 'sentinel', 'doctor', '--json', '--workspace', ruta], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        timeout: 15000,
-        windowsHide: true,
-      });
-      return out.trim().slice(0, 2000);
-    }
-    const out = execFileSync('sentinel', ['doctor', '--json', '--workspace', ruta], {
+    const out = execFileSync(process.execPath, [res.cli, 'doctor', '--json', '--workspace', ruta], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 15000,
       windowsHide: true,
     });
     return out.trim().slice(0, 2000);
-  } catch {
-    return null;
+  } catch (err) {
+    /* [por que] doctor sale con 1 cuando hay issues (p. ej. evidencia de release
+     * ausente) y su JSON sigue siendo el diagnóstico: se aprovecha stdout. Si lo
+     * mató el timeout, el stdout es parcial y no es JSON válido. */
+    const e = err as { stdout?: string; signal?: string | null };
+    if (e.signal) return null;
+    const stdout = e.stdout?.trim();
+    return stdout ? stdout.slice(0, 2000) : null;
   }
 }
 
