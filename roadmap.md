@@ -13,7 +13,7 @@
 > este repo.
 
 > **Alta de proyectos — partes diferidas de 10AA-2 F10 (2026-10-11).** `Arranque alta` y la lista de 11 puntos están hechos (tests 17/17, suite 50/50); fuente: `Agente/documentacion/alta-proyectos-2026-10-11.md`. Queda fuera de F10 y va a tareas separadas:
-> - Baseline de heredados, tablero «Alta: N/11» y «nuevos / deuda heredada» en `problemas (N)`: depende de F11.4 (tablero).
+> - Baseline de heredados y «nuevos / deuda heredada» en `problemas (N)`: depende de F11.4 (tablero). El tablero «Alta: N/11» ya está hecho (`1a58be3`).
 > - Mantenimiento continuo en cada análisis (F10.4): depende de la política del guard de F11.3.
 > - Familia A (checkout compartido) frente a B (submódulo), y perfil dev de Rust: `alta.mjs` no los comprueba.
 > - Por eso el criterio «Hecho cuando» tercero de F10 no se cumple del todo. Estado en seco: RESTAURANTE 9/11 y MN-Inmobiliaria 8/11; ningún proyecto real está completo.
