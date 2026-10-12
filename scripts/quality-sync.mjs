@@ -67,6 +67,9 @@ const CONSUMIDORES = [
   /* MN-Inmobiliaria: gate declarado (sentinel+varsense, checkout compartido del
    * área) y registrado en el tablero, pero faltaba aquí: el bump no lo propagaba. */
   { nombre: 'MN-Inmobiliaria', ruta: 'MN-Inmobiliaria', fase: 'F1' },
+  /* plugins-opencode: su pin se fijó a mano (d401ded, 0.7.23) y el bump no lo
+   * propagaba; se registra para que el bump lo alinee con el pin del área. */
+  { nombre: 'plugins-opencode', ruta: 'plugins-opencode', fase: 'F1' },
 ];
 
 /* Herramientas del checkout compartido y su subcarpeta. */
