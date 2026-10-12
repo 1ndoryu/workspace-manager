@@ -229,6 +229,42 @@ async function medirTmp(raiz: string, presupuestoMs: number): Promise<{ bytes: n
   return { bytes, parcial };
 }
 
+/* El mando declara sus subcomandos en el bloque AYUDA de dev.mjs. */
+function subcomandosArranque(raizArea: string): string[] {
+  const bloque = leerArchivo(join(raizArea, 'workspace-manager', 'scripts', 'dev', 'dev.mjs'))?.match(
+    /const AYUDA = `([\s\S]*?)`;/,
+  );
+  if (!bloque) return [];
+  return [...bloque[1].matchAll(/^ {2}(\w+)/gm)].map((m) => m[1]);
+}
+
+/* leerArchivo devuelve null si no existe; '' (vacío) también cuenta como ausente. */
+function skillArranque(): string | null {
+  return leerArchivo(join(homedir(), '.agents', 'skills', 'workspace-manager', 'SKILL.md')) || null;
+}
+
+/* AGENTS §10 pide que las copias en ~/.config/opencode/skills coincidan con
+ * ~/.agents/skills: solo se comparan las skills que existen en el origen. */
+function copiasSkill(): { nombre: string; coincide: boolean }[] {
+  const origen = join(homedir(), '.agents', 'skills');
+  const copias = join(homedir(), '.config', 'opencode', 'skills');
+  let nombres: string[];
+  try {
+    nombres = readdirSync(copias, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name);
+  } catch {
+    return [];
+  }
+  return nombres
+    .filter((nombre) => existsSync(join(origen, nombre, 'SKILL.md')))
+    .map((nombre) => ({
+      nombre,
+      coincide:
+        leerArchivo(join(origen, nombre, 'SKILL.md')) === leerArchivo(join(copias, nombre, 'SKILL.md')),
+    }));
+}
+
 export async function recogerArea(
   proyectos: Proyecto[],
   raizArea: string,
@@ -264,5 +300,8 @@ export async function recogerArea(
     agentsBytes,
     titulosAgents: encabezados(agentsTexto),
     titulosClaudeMd: encabezados(leerArchivo(join(homedir(), '.claude', 'CLAUDE.md'))),
+    subcomandosArranque: subcomandosArranque(raizArea),
+    skillArranque: skillArranque(),
+    copiasSkill: copiasSkill(),
   };
 }

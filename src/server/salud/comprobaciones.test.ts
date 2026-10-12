@@ -48,6 +48,9 @@ function area(extra: Partial<DatosArea> = {}): DatosArea {
     agentsBytes: null,
     titulosAgents: [],
     titulosClaudeMd: [],
+    subcomandosArranque: ['doctor', 'gate'],
+    skillArranque: 'Arranque doctor\nArranque gate',
+    copiasSkill: [],
     ...extra,
   };
 }
@@ -242,6 +245,20 @@ describe('comprobaciones del área', () => {
       1,
     );
     assert.deepEqual(resultado(c, area({ agentsBytes: 1000, titulosAgents: ['A'], titulosClaudeMd: ['B'] })).hallazgos, []);
+  });
+
+  it('skill-desfasada: omitida sin mando; avisa por subcomandos sin documentar y copias desfasadas', () => {
+    const c = buscar(COMPROBACIONES_AREA, 'skill-desfasada');
+    assert.notEqual(resultado(c, area({ subcomandosArranque: [] })).omitida, null);
+    const sinGate = c.evaluar(area({ skillArranque: 'Arranque doctor' }));
+    assert.equal(sinGate.length, 1);
+    assert.match(sinGate[0].mensaje, /gate/);
+    assert.deepEqual(resultado(c, area()).hallazgos, []);
+    const desfasada = c.evaluar(area({ copiasSkill: [{ nombre: 'supervisor', coincide: false }] }));
+    assert.equal(desfasada.length, 1);
+    assert.match(desfasada[0].mensaje, /supervisor/);
+    assert.deepEqual(resultado(c, area({ copiasSkill: [{ nombre: 'supervisor', coincide: true }] })).hallazgos, []);
+    assert.deepEqual(resultado(c, area({ skillArranque: null })).hallazgos, []);
   });
 });
 

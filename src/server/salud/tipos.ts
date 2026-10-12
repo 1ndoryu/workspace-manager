@@ -84,4 +84,10 @@ export interface DatosArea {
   /* Títulos H2 de AGENTS.md y de ~/.claude/CLAUDE.md. */
   titulosAgents: string[];
   titulosClaudeMd: string[];
+  /* Subcomandos de scripts/dev/dev.mjs (AYUDA); [] si no se pudo leer. */
+  subcomandosArranque: string[];
+  /* SKILL.md de workspace-manager en ~/.agents/skills; null si no existe. */
+  skillArranque: string | null;
+  /* Skills de ~/.config/opencode/skills que también existen en ~/.agents/skills. */
+  copiasSkill: { nombre: string; coincide: boolean }[];
 }

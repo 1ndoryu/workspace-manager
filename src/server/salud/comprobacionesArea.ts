@@ -156,4 +156,34 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
       return hallazgos;
     },
   },
+  {
+    id: 'skill-desfasada',
+    omitirSi: (d) => (d.subcomandosArranque.length === 0 ? 'no se pudo leer el mando Arranque' : null),
+    evaluar: (d) => {
+      const hallazgos: Hallazgo[] = [];
+      if (d.skillArranque !== null) {
+        const skill = d.skillArranque;
+        const sinDocumentar = d.subcomandosArranque.filter((c) => !skill.includes(`Arranque ${c}`));
+        if (sinDocumentar.length > 0) {
+          hallazgos.push({
+            id: 'skill-desfasada',
+            severidad: 'aviso',
+            mensaje: `skill workspace-manager no documenta: ${lista(sinDocumentar)}`,
+            accion: 'añade cada subcomando (Arranque <subcomando>) a ~/.agents/skills/workspace-manager/SKILL.md',
+            doc: 'workspace-manager/scripts/dev/dev.mjs',
+          });
+        }
+      }
+      for (const copia of d.copiasSkill.filter((c) => !c.coincide)) {
+        hallazgos.push({
+          id: 'skill-desfasada',
+          severidad: 'aviso',
+          mensaje: `copia de skill desfasada: ${copia.nombre}`,
+          accion: 'sincroniza desde ~/.agents/skills (AGENTS §10); no se corrige sola',
+          doc: 'AGENTS.md',
+        });
+      }
+      return hallazgos;
+    },
+  },
 ];
