@@ -15,6 +15,11 @@
   gap: var(--v2-spaceSm);
 }
 
+/* Grupos del menú sin título: solo una línea fina entre ellos. */
+.guardianMenuGrupo + .guardianMenuGrupo {
+  border-top: 1px solid var(--v2-borde);
+}
+
 .guardianMenuCampo {
   padding: var(--v2-spaceSm) var(--v2-spaceMd);
 }

@@ -4,7 +4,7 @@
  * selector de proyecto. Las secciones de un proyecto usan el elegido y piden elegirlo
  * si falta; el resto son del área y no lo necesitan. */
 import { useState } from 'react';
-import { Caja, Seccion } from '../../ui/caja/Caja.js';
+import { Caja } from '../../ui/caja/Caja.js';
 import { FilaCajas } from '../../ui/caja/FilaCajas.js';
 import { Button } from '../../ui/form/Button.js';
 import { Selector } from '../../ui/selector/Selector.js';
@@ -104,8 +104,8 @@ export function PanelGuardian() {
   return (
     <FilaCajas fila="guardian" ids={['menu', 'contenido']} defectos={[1, 3]}>
       <Caja titulo="guardián" etiqueta="Menú del guardián">
-        <Seccion titulo="ver">{GENERAL.map(boton)}</Seccion>
-        <Seccion titulo="un proyecto">
+        <div className="guardianMenuGrupo">{GENERAL.map(boton)}</div>
+        <div className="guardianMenuGrupo">
           {datos.errorArea && <div className="docsMensaje">{datos.errorArea}</div>}
           {!datos.errorArea && elegibles.length === 0 && (
             <div className="docsVacio">sin proyectos con guardián</div>
@@ -121,8 +121,8 @@ export function PanelGuardian() {
             </div>
           )}
           {PROYECTO.map(boton)}
-        </Seccion>
-        <Seccion titulo="toda el área">{AREA.map(boton)}</Seccion>
+        </div>
+        <div className="guardianMenuGrupo">{AREA.map(boton)}</div>
       </Caja>
 
       <Caja titulo={actual?.etiqueta ?? ''} meta={datos.claveSel ?? undefined} etiqueta="Contenido del guardián">
