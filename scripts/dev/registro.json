@@ -179,6 +179,21 @@
       "env": { "PORT": "3105", "VITE_API_TARGET": "http://localhost:3105" },
       "tipoLauncher": "glory-template (dev:back = run-cargo.mjs run --bin glory-backend con PORT=3105 por env del mando; Vite con --port 5182 por argv via --prefix+--. No se usa npm run dev (glory-rs/scripts/dev.mjs) porque el front cae en 5173, ocupado por opencode-propio-dev)",
       "comandos": { "gate": "npm run gate:check", "typecheck": "cargo check", "build": null, "test-archivo": null }
+    },
+    {
+      "id": "ia-studio",
+      "ruta": "../ia-studio",
+      "boton": [["node", "dist-server/server/index.js"], ["npm", "run", "dev", "--", "--port", "5181", "--strictPort"]],
+      "puertos": [8790, 5181],
+      "healths": [
+        { "puerto": 8790, "ruta": "/api/salud", "esperaJson": true },
+        { "puerto": 5181, "ruta": "/", "esperaJson": false }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 60000,
+      "expectedCmdline": ["dist-server", "vite"],
+      "tipoLauncher": "API = servidor COMPILADO en un solo proceso node (rebuild con npm run build:server tras cambios; reinicio con stop+up). Front con npm run dev (vite). Colab solo se llama al encolar un trabajo, nunca al arrancar",
+      "comandos": { "gate": null, "typecheck": "npm run type-check", "build": "npm run build", "test-archivo": "node --import tsx --test <archivo>" }
     }
   ],
   "noAplica": {
