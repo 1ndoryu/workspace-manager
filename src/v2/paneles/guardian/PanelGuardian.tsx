@@ -1,15 +1,13 @@
 /* Panel central 'guardian': controla el guardián de los proyectos desde una sola
  * pestaña. Sustituye a la interfaz anterior, retirada en F11.1 (decisión D6).
- * [por que] Menú a la izquierda en tres grupos (ver, un proyecto, toda el área) y un
- * selector de proyecto. Las secciones de un proyecto usan el elegido y piden elegirlo
- * si falta; el resto son del área y no lo necesitan. */
+ * [por que] Menú a la izquierda con los proyectos sueltos (como el mapa) y las
+ * entradas del área; dentro de cada proyecto, pestañas con todo lo suyo. */
 import { useState } from 'react';
 import { Caja } from '../../ui/caja/Caja.js';
 import { FilaCajas } from '../../ui/caja/FilaCajas.js';
 import { Button } from '../../ui/form/Button.js';
-import { Selector } from '../../ui/selector/Selector.js';
 import { useGuardian, type GuardianDatos } from './useGuardian.js';
-import { SeccionEstado } from './secciones/SeccionEstado.js';
+import { SeccionArea, SeccionResumen } from './secciones/SeccionEstado.js';
 import { SeccionComandos } from './secciones/SeccionComandos.js';
 import { SeccionEditar } from './secciones/SeccionEditar.js';
 import { SeccionPlantilla } from './secciones/SeccionPlantilla.js';
@@ -21,117 +19,100 @@ import type { ProyectoArea } from './tiposGuardian.js';
 import '../paneles.css';
 import './PanelGuardian.css';
 
-type Vista =
-  | 'estado'
-  | 'comandos'
-  | 'politica'
-  | 'plantilla'
-  | 'topes'
-  | 'probar'
-  | 'actividad'
-  | 'mantenimiento';
+type VistaProyecto = 'resumen' | 'comandos' | 'actividad' | 'politica' | 'topes' | 'probar';
+type VistaArea = 'area' | 'plantilla' | 'mantenimiento';
+type Vista = VistaProyecto | VistaArea;
 
-interface Entrada {
-  clave: Vista;
+interface Entrada<V extends Vista> {
+  clave: V;
   etiqueta: string;
   /* Una frase que dice para qué sirve la sección, mostrada sobre su contenido. */
   ayuda: string;
 }
 
-/* Tres grupos: ver cómo está todo, tocar un proyecto y ajustes de toda el área.
- * [por que] Ocho entradas planas mezclaban lo que necesita un proyecto con lo que
- * no; agrupadas, el menú dice qué se puede hacer sin saber cómo se llama cada cosa. */
-const GENERAL: Entrada[] = [
-  { clave: 'estado', etiqueta: 'resumen', ayuda: 'Cómo está cada proyecto de un vistazo.' },
-  {
-    clave: 'comandos',
-    etiqueta: 'qué se bloquea',
-    ayuda: 'Qué hace el guardián con cada comando, proyecto por proyecto.',
-  },
-  { clave: 'actividad', etiqueta: 'historial', ayuda: 'Lo que el guardián ha bloqueado o anotado, sin poder cambiarlo.' },
-];
-
-const PROYECTO: Entrada[] = [
-  {
-    clave: 'politica',
-    etiqueta: 'reglas',
-    ayuda: 'Qué comandos permite el proyecto y si el guardián bloquea o solo avisa.',
-  },
+/* [por que] Los proyectos van sueltos en el menú, como en el mapa; todo lo que se
+ * puede ver o tocar de uno vive dentro, en estas pestañas. */
+const PESTANAS: Entrada<VistaProyecto>[] = [
+  { clave: 'resumen', etiqueta: 'resumen', ayuda: 'Cómo está este proyecto de un vistazo.' },
+  { clave: 'comandos', etiqueta: 'qué se bloquea', ayuda: 'Qué hace el guardián con cada comando de este proyecto.' },
+  { clave: 'actividad', etiqueta: 'historial', ayuda: 'Lo que el guardián ha bloqueado o anotado aquí, sin poder cambiarlo.' },
+  { clave: 'politica', etiqueta: 'reglas', ayuda: 'Qué comandos permite el proyecto y si el guardián bloquea o solo avisa.' },
   { clave: 'topes', etiqueta: 'límites', ayuda: 'Cuántas veces puede ejecutarse cada comando pesado.' },
-  {
-    clave: 'probar',
-    etiqueta: 'probar un comando',
-    ayuda: 'Pregunta qué haría el guardián con un comando, sin ejecutarlo ni cambiar nada.',
-  },
+  { clave: 'probar', etiqueta: 'probar un comando', ayuda: 'Pregunta qué haría el guardián con un comando, sin ejecutarlo ni cambiar nada.' },
 ];
 
-const AREA: Entrada[] = [
-  {
-    clave: 'plantilla',
-    etiqueta: 'plantilla',
-    ayuda: 'Reglas base por tipo de proyecto; sirven de punto de partida para todos.',
-  },
-  {
-    clave: 'mantenimiento',
-    etiqueta: 'mantenimiento',
-    ayuda: 'Reinstala los atajos que hacen pasar los comandos por el guardián.',
-  },
+const AREA: Entrada<VistaArea>[] = [
+  { clave: 'area', etiqueta: 'toda el área', ayuda: 'Qué proyectos piden atención; ábrelos desde aquí o desde el menú.' },
+  { clave: 'plantilla', etiqueta: 'plantilla', ayuda: 'Reglas base por tipo de proyecto; sirven de punto de partida para todos.' },
+  { clave: 'mantenimiento', etiqueta: 'mantenimiento', ayuda: 'Reinstala los atajos que hacen pasar los comandos por el guardián.' },
 ];
 
-const SECCIONES: Entrada[] = [...GENERAL, ...PROYECTO, ...AREA];
-const NECESITAN_PROYECTO = new Set<Vista>(PROYECTO.map((e) => e.clave));
-const SIN_ELEGIR = 'elige un proyecto';
+const VISTAS_AREA = new Set<Vista>(AREA.map((e) => e.clave));
 
 export function PanelGuardian() {
   const datos = useGuardian();
-  const [vista, setVista] = useState<Vista>('estado');
+  const [vista, setVista] = useState<Vista>('area');
   const elegibles = datos.area?.proyectos.filter((p): p is ProyectoArea => p.elegible) ?? [];
-  const actual = SECCIONES.find((s) => s.clave === vista);
+  const esArea = VISTAS_AREA.has(vista);
+  const entrada = esArea ? AREA.find((e) => e.clave === vista) : PESTANAS.find((e) => e.clave === vista);
 
-  function boton(e: Entrada) {
-    return (
-      <Button
-        key={e.clave}
-        className={`docsFila${vista === e.clave ? ' docsFila--activa' : ''}`}
-        onClick={() => setVista(e.clave)}
-        title={e.ayuda}
-      >
-        <span className="docsFilaNombre">{e.etiqueta}</span>
-      </Button>
-    );
+  function abrir(clave: string) {
+    datos.elegir(clave);
+    if (esArea) setVista('resumen');
   }
 
   return (
     <FilaCajas fila="guardian" ids={['menu', 'contenido']} defectos={[1, 3]}>
       <Caja titulo="guardián" etiqueta="Menú del guardián">
-        <div className="guardianMenuGrupo">{GENERAL.map(boton)}</div>
         <div className="guardianMenuGrupo">
           {datos.errorArea && <div className="docsMensaje">{datos.errorArea}</div>}
-          {!datos.errorArea && elegibles.length === 0 && (
-            <div className="docsVacio">sin proyectos con guardián</div>
-          )}
-          {elegibles.length > 0 && (
-            <div className="guardianMenuCampo">
-              <Selector
-                titulo="proyecto"
-                valor={datos.claveSel ?? SIN_ELEGIR}
-                opciones={elegibles.map((p) => p.clave)}
-                onChange={datos.elegir}
-              />
-            </div>
-          )}
-          {PROYECTO.map(boton)}
+          {!datos.errorArea && elegibles.length === 0 && <div className="docsVacio">sin proyectos con guardián</div>}
+          {elegibles.map((p) => (
+            <Button
+              key={p.clave}
+              className={`docsFila${!esArea && datos.claveSel === p.clave ? ' docsFila--activa' : ''}`}
+              onClick={() => abrir(p.clave)}
+            >
+              <span className="docsFilaNombre">{p.clave}</span>
+            </Button>
+          ))}
         </div>
-        <div className="guardianMenuGrupo">{AREA.map(boton)}</div>
+        <div className="guardianMenuGrupo">
+          {AREA.map((e) => (
+            <Button
+              key={e.clave}
+              className={`docsFila${vista === e.clave ? ' docsFila--activa' : ''}`}
+              onClick={() => setVista(e.clave)}
+              title={e.ayuda}
+            >
+              <span className="docsFilaNombre">{e.etiqueta}</span>
+            </Button>
+          ))}
+        </div>
       </Caja>
 
-      <Caja titulo={actual?.etiqueta ?? ''} meta={datos.claveSel ?? undefined} etiqueta="Contenido del guardián">
+      <Caja titulo={esArea ? (entrada?.etiqueta ?? '') : (datos.claveSel ?? '')} etiqueta="Contenido del guardián">
+        {!esArea && (
+          <div className="guardianPestanas">
+            {PESTANAS.map((e) => (
+              <Button
+                key={e.clave}
+                pequeno
+                className={`guardianPestana${vista === e.clave ? ' guardianPestana--activa' : ''}`}
+                aria-pressed={vista === e.clave}
+                onClick={() => setVista(e.clave)}
+              >
+                {e.etiqueta}
+              </Button>
+            ))}
+          </div>
+        )}
         <div className="guardianCuerpo">
-          {actual && <div className="guardianNota guardianNota--tenue">{actual.ayuda}</div>}
-          {NECESITAN_PROYECTO.has(vista) && !datos.claveSel ? (
+          {entrada && <div className="guardianNota guardianNota--tenue">{entrada.ayuda}</div>}
+          {!esArea && !datos.claveSel ? (
             <div className="docsVacio">elige un proyecto en el menú de la izquierda</div>
           ) : (
-            <Contenido vista={vista} datos={datos} onIr={setVista} />
+            <Contenido vista={vista} datos={datos} onAbrir={abrir} />
           )}
         </div>
       </Caja>
@@ -139,30 +120,24 @@ export function PanelGuardian() {
   );
 }
 
-function Contenido({
-  vista,
-  datos,
-  onIr,
-}: {
-  vista: Vista;
-  datos: GuardianDatos;
-  onIr: (v: 'politica' | 'topes' | 'probar') => void;
-}) {
+function Contenido({ vista, datos, onAbrir }: { vista: Vista; datos: GuardianDatos; onAbrir: (clave: string) => void }) {
   switch (vista) {
-    case 'estado':
-      return <SeccionEstado datos={datos} onIr={onIr} />;
+    case 'area':
+      return <SeccionArea datos={datos} onAbrir={onAbrir} />;
+    case 'resumen':
+      return <SeccionResumen datos={datos} />;
     case 'comandos':
       return <SeccionComandos datos={datos} />;
+    case 'actividad':
+      return <SeccionActividad datos={datos} />;
     case 'politica':
       return <SeccionEditar datos={datos} />;
-    case 'plantilla':
-      return <SeccionPlantilla datos={datos} />;
     case 'topes':
       return <SeccionTopes datos={datos} />;
     case 'probar':
       return <SeccionProbar datos={datos} />;
-    case 'actividad':
-      return <SeccionActividad datos={datos} />;
+    case 'plantilla':
+      return <SeccionPlantilla datos={datos} />;
     case 'mantenimiento':
       return <SeccionMantenimiento datos={datos} />;
   }

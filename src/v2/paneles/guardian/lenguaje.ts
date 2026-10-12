@@ -18,7 +18,7 @@ export interface FilaResumen {
   comandos: string;
   limites: string;
   bloqueos: number;
-  /* Lo que conviene mirar de este proyecto; vacío si todo está en orden. */
+  /* Lo que conviene revisar de este proyecto; vacío si está en orden. */
   revisar: string[];
 }
 
