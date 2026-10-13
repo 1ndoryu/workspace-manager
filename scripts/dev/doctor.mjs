@@ -456,7 +456,12 @@ function correrCmd(exe, args, timeoutMs = TIMEOUT_SENSOR_MS) {
  * al area por proceso (los binds globales de servicios del sistema quedan
  * fuera de alcance declarado). */
 export async function escanearEscucha() {
-  const sal = await correrCmd('netstat.exe', ['-ano', '-p', 'TCP']);
+  // [por que] Sin `-p TCP`: en Windows ese filtro omite los listeners IPv6 ([::1]:5176).
+  return parsearNetstat(await correrCmd('netstat.exe', ['-ano']));
+}
+
+// Puro (testeable): filas `TCP <local> <remoto> LISTENING <pid>` de `netstat -ano`.
+export function parsearNetstat(sal) {
   const filas = [];
   for (const linea of sal.split(/\r?\n/)) {
     const t = linea.trim().split(/\s+/);
@@ -1016,6 +1021,22 @@ export async function lanzar(entrada, rutaAbs, argv, envExtra) {
   return { pid: hijo.pid, rutaLog };
 }
 
+/* [por que] El probe solo mira que el puerto responda 200: un servicio ajeno
+ * que ya escuchara (o gane la carrera tras un spawn fallido) daria verde a un
+ * arranque que no es nuestro. Verde exige un oyente del proyecto (misma
+ * atribucion que stop). Fail-closed: si el escaneo falla, no hay verde. */
+async function oyenteDelProyecto(entrada, rutaAbs, puerto) {
+  try {
+    const oyentes = (await escanearEscucha()).filter((e) => e.puerto === puerto);
+    if (oyentes.length === 0) return false;
+    const procs = await procesosDe(oyentes.map((o) => o.pid));
+    const marcador = marcadorPuerto(entrada, puerto);
+    return oyentes.some((o) => esDelProyecto(procs.get(o.pid), rutaAbs, marcador));
+  } catch {
+    return false;
+  }
+}
+
 function esperarProbe(puerto, rutaRecurso, esperaJson, timeoutMs, limiteMs, dominio) {
   const t0 = Date.now();
   return new Promise((resolveP) => {
@@ -1178,6 +1199,9 @@ async function arrancarBackend(registro) {
   const h = (wm.healths ?? []).find((x) => x.puerto === 8787) ?? { ruta: '/api/pc/estado', esperaJson: true };
   const ok = await esperarProbe(8787, h.ruta, h.esperaJson, wm.timeoutMs ?? 3000, wm.arranqueMs ?? 60_000, wm.dominio);
   if (!ok) return `backend arrancado pid ${lan.pid} pero sin probe en 8787 (log ${lan.rutaLog}): NO verde`;
+  if (!(await oyenteDelProyecto(wm, rutaWm, 8787))) {
+    return `backend arrancado pid ${lan.pid} pero el oyente de 8787 no es el suyo (log ${lan.rutaLog}): NO verde`;
+  }
   return null;
 }
 
@@ -1608,6 +1632,12 @@ async function arrancarUno(id, args, visitados) {
       return {
         codigo: 1,
         resumen: `up ${id}: arrancado pid ${l.pid} pero sin probe en ${limiteMs}ms (puerto ${l.puerto}, log ${l.rutaLog}): NO verde`,
+      };
+    }
+    if (!(await oyenteDelProyecto(entrada, rutaAbs, l.puerto))) {
+      return {
+        codigo: 1,
+        resumen: `up ${id}: probe responde en ${l.puerto} pero el oyente no es del proyecto (pid ${l.pid}, log ${l.rutaLog}): NO verde`,
       };
     }
   }
