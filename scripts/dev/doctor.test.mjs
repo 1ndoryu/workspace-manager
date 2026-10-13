@@ -6,9 +6,12 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  accionParaPuerto,
   atribuirHuerfano,
   auxiliarDe,
+  detectarDerivaEnv,
   detectarRust,
+  duenoDePuerto,
   enRuta,
   esDelProyecto,
   esSistemaIgnorado,
@@ -248,4 +251,45 @@ test('atribuirHuerfano: opencode-propio-dev no se atribuye a opencode-propio (fr
   ];
   const proc = { exe: `${AREA}\\opencode-propio-dev\\src\\node_modules\\electron.exe`, cmd: '' };
   assert.equal(atribuirHuerfano(proc, pool), 'opencode-propio-dev');
+});
+
+test('duenoDePuerto: un auxiliar declarado nombra a su dueno (no es proceso ajeno)', () => {
+  const entradas = [{ id: 'KAMPLES', puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }];
+  const procs = new Map([[77, { pid: 77, exe: 'C:/x/glory-backend.exe', cmd: 'C:/x/glory-backend.exe' }]]);
+  assert.deepEqual(duenoDePuerto(3001, [77], procs, entradas), { id: 'KAMPLES', pid: 77, via: 'auxiliar' });
+  assert.equal(duenoDePuerto(3001, [88], procs, entradas), null);
+});
+
+test('accionParaPuerto: nunca mata, y nombra el siguiente paso por caso', () => {
+  const ajeno = accionParaPuerto('KAMPLES', 3000, [9], null);
+  assert.match(ajeno, /lo ocupa un proceso ajeno \(pid 9\); no se mata/);
+  const dueno = accionParaPuerto('KAMPLES', 3000, [9], { id: 'glory-pulse', pid: 9, via: 'proceso' });
+  assert.match(dueno, /lo ocupa glory-pulse \(pid 9, proceso\); no se mata/);
+  assert.match(dueno, /mueve el puerto de KAMPLES/);
+  const compartido = accionParaPuerto('KAMPLES', 5183, [], null, ['otro']);
+  assert.match(compartido, /deja un solo dueño/);
+});
+
+test('detectarDerivaEnv: PORT no declarado avisa; PORT declarado como auxiliar no', () => {
+  const raiz = mkdtempSync(join('C:/tmp', 'wm-deriva-test-'));
+  try {
+    const kamples = join(raiz, 'kamples');
+    const pulse = join(raiz, 'pulse');
+    mkdirSync(kamples);
+    mkdirSync(pulse);
+    writeFileSync(join(kamples, '.env'), 'DATABASE_URL=x\nPORT=3002 # cambiado a mano\n');
+    writeFileSync(join(kamples, '.env.example'), 'PORT=3001\n');
+    writeFileSync(join(pulse, '.env'), 'PORT=3001\n');
+    const entradas = new Map([
+      ['KAMPLES', { id: 'KAMPLES', ruta: kamples, puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }],
+      ['glory-pulse', { id: 'glory-pulse', ruta: pulse, puertos: [3000] }],
+    ]);
+    const avisos = detectarDerivaEnv({ entradas }, { raiz });
+    assert.deepEqual(avisos, [
+      { id: 'KAMPLES', archivo: '.env', puerto: 3002, motivo: 'PORT=3002 no esta en puertos/auxiliares de KAMPLES' },
+      { id: 'glory-pulse', archivo: '.env', puerto: 3001, motivo: 'PORT=3001 lo declara KAMPLES' },
+    ]);
+  } finally {
+    rmSync(raiz, { recursive: true, force: true });
+  }
 });
