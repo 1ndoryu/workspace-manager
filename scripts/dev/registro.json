@@ -223,6 +223,7 @@
     { "servicio": "SurfaceExperienceService-76.5120.174", "motivo": "Microsoft Surface: servicio LocalSystem de WindowsApps; exe oculto sin elevar" },
     { "servicio": "ESRV_SVC_QUEENCREEK", "motivo": "Intel SUR: servicio LocalSystem del fabricante (esrv_svc.exe); exe oculto sin elevar" },
     { "imagen": "TpvNet.exe", "motivo": "BDP-Net TPV (IBERNYX) en C:\\Bdp-Net; exe oculto sin elevar" },
-    { "imagen": "SvrWCF.exe", "motivo": "BDP-Net TPV (IBERNYX), hijo de TpvNet.exe en C:\\Bdp-Net; exe oculto sin elevar" }
+    { "imagen": "SvrWCF.exe", "motivo": "BDP-Net TPV (IBERNYX), hijo de TpvNet.exe en C:\\Bdp-Net; exe oculto sin elevar" },
+    { "imagen": "GoogleDriveFS.exe", "motivo": "Google Drive File Stream: sync del usuario, tercero; no del area (decidido 2026-10-13)" }
   ]
 }
