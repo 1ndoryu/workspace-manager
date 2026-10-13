@@ -18,6 +18,7 @@ import {
   leerRegistro,
   parsearNetstat,
   validarIgnoradoSistema,
+  veredictoUpSinCobertura,
 } from './doctor.mjs';
 
 const AREA = 'C:\\Users\\Owner\\OneDrive\\Documentos\\area-trabajo';
@@ -291,5 +292,22 @@ test('detectarDerivaEnv: PORT no declarado avisa; PORT declarado como auxiliar n
     ]);
   } finally {
     rmSync(raiz, { recursive: true, force: true });
+  }
+});
+
+test('veredictoUpSinCobertura: probe verde = ya-arriba degradado, no arranca', () => {
+  const r = veredictoUpSinCobertura('MN-Inmobiliaria', { estado: 'bajo-mando', motivo: 'probe verde' }, 'snapshot del servidor: timeout');
+  assert.equal(r.codigo, 2);
+  assert.match(r.resumen, /ya-arriba \(probe verde\)/);
+  assert.match(r.resumen, /cobertura no verificada \(snapshot del servidor: timeout\)/);
+  assert.doesNotMatch(r.resumen, /arranc(ado|ando)/);
+});
+
+test('veredictoUpSinCobertura: sin probe verde rehusa (parado o deriva), nunca arranca', () => {
+  for (const estado of ['parado', 'deriva']) {
+    const r = veredictoUpSinCobertura('MN-Inmobiliaria', { estado, motivo: 'puerto 3110 libre (parado)' }, 'snapshot del servidor: timeout');
+    assert.equal(r.codigo, 1);
+    assert.match(r.resumen, new RegExp(`rehusado \\(${estado}: `));
+    assert.match(r.resumen, /sin cobertura \(snapshot del servidor: timeout\) no se arranca/);
   }
 });

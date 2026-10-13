@@ -105,8 +105,9 @@ export async function status(argv) {
     return 1;
   }
   const r = await clasificarEntrada(ctx.proyecto, ctx.entrada, ctx.porPuerto, ctx.procs);
-  if (comoJson) console.log(JSON.stringify({ id, estado: r.estado, motivo: r.motivo, detalle: r.detalle }));
-  else console.log(`${r.estado.padEnd(11)} ${id}  ${r.motivo}`);
+  // [por que] El probe manda el estado; sin snapshot la cobertura se dice aparte.
+  if (comoJson) console.log(JSON.stringify({ id, estado: r.estado, motivo: r.motivo, detalle: r.detalle, sinCobertura: ctx.sinCobertura }));
+  else console.log(`${r.estado.padEnd(11)} ${id}  ${r.motivo}${ctx.sinCobertura ? ` (cobertura no verificada: ${ctx.sinCobertura})` : ''}`);
   return r.estado === 'bajo-mando' || r.estado === 'parado' ? 0 : r.estado === 'deriva' || r.estado === 'sin-boton' ? 2 : 1;
 }
 
@@ -180,6 +181,9 @@ export async function stop(argv) {
   const ctx = await contextoEntrada(id, args);
   if (!ctx.ok) {
     return sale(1, { resumen: `stop ${id}: ${ctx.resumen}` });
+  }
+  if (ctx.sinCobertura) {
+    return sale(1, { resumen: `stop ${id}: sin cobertura (${ctx.sinCobertura}): no se mata a ciegas` });
   }
   const { entrada, proyecto, porPuerto, procs } = ctx;
   const r = await clasificarEntrada(proyecto, entrada, porPuerto, procs);
