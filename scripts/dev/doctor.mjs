@@ -1196,6 +1196,8 @@ export async function contextoEntrada(id, args, { autoBackend = false } = {}) {
   }
   const rutaAbs = isAbsolute(entrada.ruta) ? normalize(entrada.ruta) : resolve(RAIZ_REPO, entrada.ruta);
   let snapshot = null;
+  // Motivo de cobertura no verificada (snapshot del servidor caido o lento); null = verificada.
+  let sinCobertura = null;
   if (rutaSnap) {
     try {
       snapshot = JSON.parse(readFileSync(rutaSnap, 'utf8'));
@@ -1212,15 +1214,12 @@ export async function contextoEntrada(id, args, { autoBackend = false } = {}) {
       if (fallo) return { ok: false, resumen: fallo };
       r = await leerSnapshotServidor();
     }
-    if (r.error || !r.snapshot) {
-      // [por que] El mensaje da la salida: `up` de workspace-manager necesita su
-      // propio backend vivo para decidir; arrancarlo a mano es el mismo boton[0].
-      return {
-        ok: false,
-        resumen: `servidor caido (${r.error}) y sin --snapshot-file: no se decide a ciegas. Arranca el backend (boton[0] de workspace-manager: node dist-server/server/index.js, desde su carpeta) o pasa --snapshot-file`,
-      };
-    }
-    snapshot = r.snapshot;
+    // [por que 2026-10-13] Un timeout del snapshot (8787 ocupado) no es que el
+    // proyecto este caido: el probe de sus puertos sigue siendo verdad. Sin
+    // snapshot la cobertura queda sin verificar y cada comando decide: status
+    // reporta con nota, up solo confirma ya-arriba y stop rehusa.
+    if (r.error || !r.snapshot) sinCobertura = `snapshot del servidor: ${r.error ?? 'sin datos'}`;
+    else snapshot = r.snapshot;
   }
   const proyectos = (snapshot?.proyectos ?? []).map((p) => ({ clave: p.clave, ruta: p.ruta }));
   let proyecto = proyectos.find((p) => normalizarRuta(rutaAbs) === normalizarRuta(p.ruta));
@@ -1235,9 +1234,12 @@ export async function contextoEntrada(id, args, { autoBackend = false } = {}) {
       proyecto = { clave: claveIgnorada, ruta: rutaAbs, ignorado: true };
     }
   }
-  if (!proyecto) {
+  if (!proyecto && snapshot) {
     return { ok: false, resumen: `'${entrada.ruta}' fuera del snapshot (stale?): sin cobertura no se actua` };
   }
+  // [por que] Sin snapshot, la ruta del registro basta para clasificar puertos
+  // (clasificarEntrada solo usa p.ruta); la cobertura queda en sinCobertura.
+  if (!proyecto) proyecto = { clave: null, ruta: rutaAbs };
   const { escucha, errorSensor } = await escuchaRobusta();
   if (errorSensor) {
     return { ok: false, resumen: errorSensor };
@@ -1274,7 +1276,7 @@ export async function contextoEntrada(id, args, { autoBackend = false } = {}) {
     if (!porPuerto.has(c.puerto)) porPuerto.set(c.puerto, []);
     porPuerto.get(c.puerto).push(c);
   }
-  return { ok: true, entrada, proyecto, rutaAbs, porPuerto, procs };
+  return { ok: true, entrada, proyecto, rutaAbs, porPuerto, procs, sinCobertura };
 }
 
 /* Arranca el backend de workspace-manager (boton[0]) como fuente del snapshot.
@@ -1299,6 +1301,19 @@ async function arrancarBackend(registro) {
     return `backend arrancado pid ${lan.pid} pero el oyente de 8787 no es el suyo (log ${lan.rutaLog}): NO verde`;
   }
   return null;
+}
+
+/* `up` sin cobertura (snapshot no disponible): solo confirma un ya-arriba con
+ * probe verde, con codigo 2 (degradado: ni cobertura ni `requiere` comprobados).
+ * Cualquier otro estado rehusa. Nunca arranca, reconstruye ni toca dependencias. */
+export function veredictoUpSinCobertura(id, r, motivo) {
+  if (r.estado === 'bajo-mando') {
+    return { codigo: 2, resumen: `up ${id}: ya-arriba (${r.motivo}); cobertura no verificada (${motivo}): dependencias sin comprobar` };
+  }
+  return {
+    codigo: 1,
+    resumen: `up ${id}: rehusado (${r.estado}: ${r.motivo}); sin cobertura (${motivo}) no se arranca. Arranca workspace-manager (su boton[0]) o pasa --snapshot-file`,
+  };
 }
 
 /* F1 `up <id>`: ya-arriba (verifica, no reinicia) | arranca puertos libres
@@ -1681,6 +1696,9 @@ async function arrancarUno(id, args, visitados) {
     return { codigo: 1, resumen: `up ${id}: ${ctx.resumen}` };
   }
   const { entrada, proyecto, rutaAbs, porPuerto, procs } = ctx;
+  if (ctx.sinCobertura) {
+    return veredictoUpSinCobertura(id, await clasificarEntrada(proyecto, entrada, porPuerto, procs), ctx.sinCobertura);
+  }
   // [por que 06AA-1] Via de reanimacion: exe ausente + `reconstruir`
   // declarado recompila antes de clasificar. Otra marca = rehusado con el
   // motivo del aviso (la entrada no se toca).
