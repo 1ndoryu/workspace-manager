@@ -13,10 +13,26 @@ import {
   esDelProyecto,
   esSistemaIgnorado,
   leerRegistro,
+  parsearNetstat,
   validarIgnoradoSistema,
 } from './doctor.mjs';
 
 const AREA = 'C:\\Users\\Owner\\OneDrive\\Documentos\\area-trabajo';
+
+test('parsearNetstat: lee listeners IPv4 e IPv6 (regresion: [::1]:5176 se perdia con -p TCP)', () => {
+  const sal = [
+    '  Proto  Local Address          Foreign Address        State           PID',
+    '  TCP    127.0.0.1:3103         0.0.0.0:0              LISTENING       32296',
+    '  TCP    [::1]:5176             [::]:0                 LISTENING       688',
+    '  TCP    [::]:5174              [::]:0                 LISTENING       9999',
+    '  TCP    127.0.0.1:50000        127.0.0.1:3103         ESTABLISHED     4444',
+  ].join('\r\n');
+  assert.deepEqual(parsearNetstat(sal), [
+    { ip: '127.0.0.1', puerto: 3103, pid: 32296 },
+    { ip: '::1', puerto: 5176, pid: 688 },
+    { ip: '::', puerto: 5174, pid: 9999 },
+  ]);
+});
 
 test('esDelProyecto: exe bajo la ruta del proyecto', () => {
   const proc = { exe: `${AREA}\\MN-Inmobiliaria\\backend\\glory-backend.exe`, cmd: '' };

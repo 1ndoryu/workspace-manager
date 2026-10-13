@@ -20,8 +20,9 @@ import {
 function taskkill(pid, forzado) {
   const args = forzado ? ['/F', '/PID', String(pid), '/T'] : ['/PID', String(pid), '/T'];
   return new Promise((resolveP) => {
-    execFile('taskkill.exe', args, { timeout: 15_000, windowsHide: true }, (err, stdout) => {
-      resolveP({ ok: !err, salida: String(stdout ?? '').trim().slice(0, 200) });
+    execFile('taskkill.exe', args, { timeout: 15_000, windowsHide: true }, (err, stdout, stderr) => {
+      // [por que] El motivo de fallo de taskkill va por stderr; sin el, el resumen no explica nada.
+      resolveP({ ok: !err, salida: String(stdout || stderr || err?.message || '').trim().slice(0, 200) });
     });
   });
 }
@@ -30,6 +31,14 @@ function puertoLibre(puerto) {
   return escanearEscucha().then(
     (esc) => !esc.some((e) => e.puerto === puerto),
     () => false,
+  );
+}
+
+// [por que] Devuelve los PIDs que escuchan el puerto, o null si el escaneo falla.
+function duenosDePuerto(puerto) {
+  return escanearEscucha().then(
+    (esc) => esc.filter((e) => e.puerto === puerto).map((e) => e.pid),
+    () => null,
   );
 }
 
@@ -202,7 +211,12 @@ export async function stop(argv) {
       tk = await taskkill(o.pid, true);
     }
     if (!(await puertoLibreTrasKill(o.puerto))) {
-      return sale(1, { resumen: `stop ${id}: pid ${o.pid} sobrevive tras /F (puerto ${o.puerto} ocupado): NO verde (${tk.salida})` });
+      // [por que] Distingue el propio pid vivo de otro proceso ocupando el puerto.
+      const duenos = await duenosDePuerto(o.puerto);
+      const quien = duenos === null
+        ? 'escaneo fallido'
+        : duenos.includes(o.pid) ? `pid ${o.pid} sobrevive tras /F` : `puerto ocupado por pid ${duenos.join(',')}`;
+      return sale(1, { resumen: `stop ${id}: ${quien} (puerto ${o.puerto}): NO verde (taskkill ${tk.ok ? 'ok' : 'fallo'}: ${tk.salida})` });
     }
     detenidos.push(`${o.puerto} pid ${o.pid}`);
   }
