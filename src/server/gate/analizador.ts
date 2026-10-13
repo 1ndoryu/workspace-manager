@@ -13,6 +13,7 @@
  * El cliente es 'tonto': pide y muestra; este modulo es el dueno de la ejecucion. */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
+import { huellaArbol } from './arbol/huella.js';
 import { compartirVuelo } from './vuelo.js';
 import type {
   AnalisisSentinel,
@@ -257,6 +258,27 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
     }
     return dato;
   });
+}
+
+/* Análisis para el gate (`--inicio`, `--cierre`, `Arranque cierre`): cuenta el
+ * árbol de trabajo, no solo HEAD, así que no puede servirse de la caché por
+ * frescura. Se cachea aparte por huella del árbol (huella.ts): si nada cambió
+ * desde el último análisis del gate se reutiliza (0 s en vez de ~60 s).
+ * `forzar` salta la caché y re-analiza. [por que] La huella se calcula también
+ * tras analizar y solo se guarda si coincide: si el árbol cambió durante el
+ * análisis, el resultado no describe la huella de partida. */
+const cacheGate = new Map<string, { huella: string; dato: AnalisisSentinel }>();
+export async function analizarParaGate(p: Proyecto, forzar = false): Promise<AnalisisSentinel> {
+  const huella = await huellaArbol(p.ruta, frescoDe(p));
+  const previo = cacheGate.get(p.clave);
+  if (!forzar && huella !== null && previo?.huella === huella) return previo.dato;
+  const dato = await analizarProyecto(p, true);
+  if (huella !== null && esCacheable(dato) && (await huellaArbol(p.ruta, frescoDe(p))) === huella) {
+    cacheGate.set(p.clave, { huella, dato });
+  } else {
+    cacheGate.delete(p.clave);
+  }
+  return dato;
 }
 
 /* Barrido serial del workspace: analiza solo los elegibles UNO POR UNO

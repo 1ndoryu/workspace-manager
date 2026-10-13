@@ -15,7 +15,7 @@ import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
 import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
 import { diagnosticar, rutaEtiqueta, severidadDe } from '../../shared/gate/esquema.js';
 import { correrSincronizacion } from '../gate/sincronizacion.js';
-import { analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from '../gate/analizador.js';
+import { analizarParaGate, analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from '../gate/analizador.js';
 import { compararHallazgos } from '../gate/hallazgos/comparacion.js';
 import {
   auditarProyecto,
@@ -25,6 +25,14 @@ import {
 } from '../gate/vulnerabilidades.js';
 import { logger } from '../../shared/logger.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades, HallazgoSentinel } from '../../shared/types.js';
+
+/* Proyecto para el gate sin re-escanear el área entera (~14 s con git de todos
+ * los proyectos): la huella del árbol lee HEAD y los cambios por su cuenta, así
+ * que basta el snapshot en memoria. Solo se re-escanea si el proyecto no está. */
+function proyectoParaGate(clave: string) {
+  const buscar = (forzar: boolean) => snapshotArea(forzar).snapshot.proyectos.find((p) => p.clave === clave);
+  return buscar(false) ?? buscar(true);
+}
 
 export async function manejarRutasGate(
   req: IncomingMessage,
@@ -201,13 +209,15 @@ export async function manejarRutasGate(
      * invalida mientras esté vivo: aunque el usuario commitee, el HEAD
      * sigue siendo el viejo, la frescura no cambia y la caché de
      * análisis se sirve sin re-ejecutar. forzar=true fuerza git real. */
-    const { snapshot } = snapshotArea(true);
-    /* Un proyecto: body { clave, forzar? }. Solo si es elegible (sentinel). */
+    const escanear = () => snapshotArea(true).snapshot;
+    /* Un proyecto: body { clave, forzar?, arbol? }. Solo si es elegible (sentinel). */
     if (ruta === '/api/gate/analizar') {
-      const body = (await leerBody(req)) as { clave?: unknown; forzar?: unknown };
+      const body = (await leerBody(req)) as { clave?: unknown; forzar?: unknown; arbol?: unknown };
       const clave = campoStr(body, 'clave', '');
       const forzar = body.forzar === true;
-      const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
+      /* arbol=true: análisis del gate (cuenta el árbol de trabajo, caché por huella). */
+      const arbol = body.arbol === true;
+      const proyecto = arbol ? proyectoParaGate(clave) : escanear().proyectos.find((p) => p.clave === clave);
       if (!proyecto) {
         json(res, 404, { error: 'Proyecto no encontrado', clave });
         return true;
@@ -216,7 +226,7 @@ export async function manejarRutasGate(
         json(res, 400, { error: 'El proyecto no usa sentinel (no se puede analizar)', clave });
         return true;
       }
-      json(res, 200, await analizarProyecto(proyecto, forzar));
+      json(res, 200, await (arbol ? analizarParaGate(proyecto, forzar) : analizarProyecto(proyecto, forzar)));
       return true;
     }
     /* Barrido completo del workspace (serial de los elegibles). El body
@@ -230,6 +240,7 @@ export async function manejarRutasGate(
      * de git (sin push/sin commit) del snapshot viejo del arranque. */
     const body = (await leerBody(req)) as { forzar?: unknown };
     const forzar = body.forzar === true;
+    const snapshot = escanear();
     const analisis = await analizarTodo(snapshot.proyectos, forzar);
     json(res, 200, {
       escaneadoEn: new Date().toISOString(),
@@ -239,15 +250,16 @@ export async function manejarRutasGate(
     return true;
   }
   /* Hallazgos NUEVOS frente a una línea base (10AA-2 F9.4). Body { clave, base }:
-   * base es el snapshot que guardó `gate --inicio`. Re-analiza con forzar: el
-   * árbol de trabajo cuenta, no solo HEAD. [por que] Un análisis en error no
-   * se devuelve como «sin nuevos»: sería un falso verde. */
+   * base es el snapshot que guardó `gate --inicio`. Analiza con huella del
+   * árbol (analizarParaGate): cuenta el árbol de trabajo, no solo HEAD, y un
+   * árbol sin cambios reutiliza el análisis; body.forzar lo salta.
+   * [por que] Un análisis en error no se devuelve como «sin nuevos»: sería un falso verde. */
   if (ruta === '/api/gate/comparar') {
     if (req.method !== 'POST') {
       json(res, 405, { error: 'Metodo no permitido' });
       return true;
     }
-    const body = (await leerBody(req)) as { clave?: unknown; base?: unknown };
+    const body = (await leerBody(req)) as { clave?: unknown; base?: unknown; forzar?: unknown };
     const clave = campoStr(body, 'clave', '');
     const base = body.base;
     const formaValida =
@@ -257,8 +269,7 @@ export async function manejarRutasGate(
       json(res, 400, { error: 'base debe ser una lista de hallazgos', clave });
       return true;
     }
-    const { snapshot } = snapshotArea(true);
-    const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
+    const proyecto = proyectoParaGate(clave);
     if (!proyecto) {
       json(res, 404, { error: 'Proyecto no encontrado', clave });
       return true;
@@ -267,7 +278,7 @@ export async function manejarRutasGate(
       json(res, 400, { error: 'El proyecto no usa sentinel (no se puede comparar)', clave });
       return true;
     }
-    const analisis = await analizarProyecto(proyecto, true);
+    const analisis = await analizarParaGate(proyecto, body.forzar === true);
     if (analisis.estado === 'error') {
       json(res, 502, { error: 'El análisis falló; no se puede comparar', clave, detalle: analisis.error });
       return true;

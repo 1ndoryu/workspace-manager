@@ -5,8 +5,9 @@ import { join } from 'node:path';
 import { parsearArgsGate, rutaSnapshot, leerComandos, formatearNuevos, RAIZ } from './gate.mjs';
 
 test('parsearArgsGate exige id y exactamente un modo', () => {
-  assert.deepEqual(parsearArgsGate(['glory-pulse', '--inicio']), { id: 'glory-pulse', modo: 'inicio' });
-  assert.deepEqual(parsearArgsGate(['glory-pulse', '--cierre']), { id: 'glory-pulse', modo: 'cierre' });
+  assert.deepEqual(parsearArgsGate(['glory-pulse', '--inicio']), { id: 'glory-pulse', modo: 'inicio', forzar: false });
+  assert.deepEqual(parsearArgsGate(['glory-pulse', '--cierre']), { id: 'glory-pulse', modo: 'cierre', forzar: false });
+  assert.equal(parsearArgsGate(['glory-pulse', '--cierre', '--forzar']).forzar, true);
   assert.ok(parsearArgsGate([]).error);
   assert.ok(parsearArgsGate(['--inicio']).error);
   assert.ok(parsearArgsGate(['x']).error);
