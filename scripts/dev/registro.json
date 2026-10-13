@@ -226,7 +226,8 @@
     "freebuff": "sin-mando-intencional",
     "freebuff-bridge": "sin-mando-intencional",
     "FREEBUFFPROXY": "sin-mando-intencional",
-    "ONG AGAPE": "sin-mando-intencional"
+    "ONG AGAPE": "sin-mando-intencional",
+    "opencode-delegate": "sin-servicio"
   },
   "ignoradosSistema": [
     { "exe": "C:\\Users\\Owner\\AppData\\Roaming\\uTorrent Web\\helper\\helper.exe", "motivo": "uTorrent Web: cliente de terceros con listener en loopback" },
