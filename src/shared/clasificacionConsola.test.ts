@@ -97,10 +97,9 @@ describe('dev: bajo mando', () => {
       errorSensor: null,
     }) as unknown as InformeDev;
 
-  it('bajo mando se muestra y cuenta como entrada', () => {
+  it('bajo mando no es problema: no aparece ni cuenta', () => {
     const p = problemasDevDe(proyecto, informe('bajo-mando'), null);
-    assert.ok(p);
-    assert.equal(contarProblemas(p.entradas), 1);
+    assert.equal(p, null);
   });
 
   it('deriva sigue contando como problema', () => {
