@@ -624,6 +624,83 @@ export function auxiliarDe(puerto, cmd, entradas) {
   return null;
 }
 
+/* Dueño de un puerto ocupado: primero por proceso (la ruta del proyecto que
+ * declara ese puerto), luego por auxiliar declarado. null = proceso ajeno.
+ * [por que] El rehusado debe nombrar a quien tiene el puerto: sin nombre el
+ * operador no sabe si es un tercero o un proyecto del propio registro. */
+export function duenoDePuerto(puerto, pids, procs, entradas, raiz = RAIZ_REPO) {
+  for (const pid of pids) {
+    const proc = procs.get(pid);
+    if (!proc) continue;
+    for (const e of entradas) {
+      if (typeof e.ruta !== 'string' || !(e.puertos ?? []).includes(puerto)) continue;
+      const rutaAbs = isAbsolute(e.ruta) ? normalize(e.ruta) : resolve(raiz, e.ruta);
+      if (esDelProyecto(proc, rutaAbs, marcadorPuerto(e, puerto))) return { id: e.id, pid, via: 'proceso' };
+    }
+    const aux = auxiliarDe(puerto, proc.cmd, entradas);
+    if (aux) return { id: aux, pid, via: 'auxiliar' };
+  }
+  return null;
+}
+
+/* Siguiente acción para un puerto que no se puede dar a `id`. Nunca mata: si
+ * el dueño es otro proyecto, la salida es mover un puerto (registro + .env)
+ * o parar ese proyecto a propósito, no un kill del mando. */
+export function accionParaPuerto(id, puerto, pids, dueno, reclamados = []) {
+  if (reclamados.length) {
+    return `el registro declara el puerto ${puerto} para ${[id, ...reclamados].join(' y ')}: deja un solo dueño en scripts/dev/registro.json`;
+  }
+  if (dueno && dueno.id !== id) {
+    return `lo ocupa ${dueno.id} (pid ${dueno.pid}, ${dueno.via}); no se mata. Siguiente: mueve el puerto de ${id} en scripts/dev/registro.json y su PORT en .env, o para ${dueno.id} si no lo necesitas ahora`;
+  }
+  return `lo ocupa un proceso ajeno (pid ${pids.join(',')}); no se mata. Siguiente: cierra ese proceso o mueve el puerto de ${id} en scripts/dev/registro.json`;
+}
+
+/* Puertos que una entrada declara como suyos (puertos + auxiliares). */
+function puertosDeclarados(e) {
+  return [...(e.puertos ?? []), ...(e.auxiliares ?? []).map((a) => a?.puerto)].filter((p) => Number.isInteger(p));
+}
+
+const RE_PORT_ENV = /^[ \t]*PORT[ \t]*=[ \t]*(\d{2,5})[ \t]*(?:#.*)?$/gm;
+
+/* Deriva entre `PORT=` de `.env`/`.env.example` y el registro. Solo aviso (no
+ * cambia el exit): el backend Rust lee PORT, y si ese valor no es el declarado
+ * (o lo reclama otro proyecto) el `up` del registro no lo ve hasta que falla.
+ * Fail-open: un archivo ilegible se omite. */
+export function detectarDerivaEnv(registro, { raiz = RAIZ_REPO } = {}) {
+  const entradas = [...(registro.entradas?.values() ?? [])].filter((e) => typeof e.ruta === 'string');
+  const reclamo = new Map(); // puerto -> ids que lo declaran
+  for (const e of entradas) {
+    for (const p of puertosDeclarados(e)) {
+      if (!reclamo.has(p)) reclamo.set(p, []);
+      reclamo.get(p).push(e.id);
+    }
+  }
+  const avisos = [];
+  for (const e of entradas) {
+    const rutaAbs = isAbsolute(e.ruta) ? normalize(e.ruta) : resolve(raiz, e.ruta);
+    const propios = new Set(puertosDeclarados(e));
+    for (const archivo of ['.env', '.env.example']) {
+      let texto;
+      try {
+        texto = readFileSync(join(rutaAbs, archivo), 'utf8');
+      } catch {
+        continue;
+      }
+      for (const m of texto.matchAll(RE_PORT_ENV)) {
+        const puerto = Number(m[1]);
+        if (propios.has(puerto)) continue;
+        const otros = (reclamo.get(puerto) ?? []).filter((x) => x !== e.id);
+        const motivo = otros.length
+          ? `PORT=${puerto} lo declara ${otros.join(', ')}`
+          : `PORT=${puerto} no esta en puertos/auxiliares de ${e.id}`;
+        avisos.push({ id: e.id, archivo, puerto, motivo });
+      }
+    }
+  }
+  return avisos;
+}
+
 /* Listener de tercero/sistema declarado en registro.ignoradosSistema. Por exe
  * (ruta exacta), por imagen (nombre .exe, para exe ocultos sin elevar), por
  * servicio de Windows (nombre, para exe protegidos) o por pid solo cuando no
@@ -867,6 +944,9 @@ function tabla(informe) {
   }
   for (const r of informe.rust ?? []) {
     lineas.push(`aviso       rust ${r.chequeo} [${r.proyectos.join(', ')}]: ${r.detalle}`);
+  }
+  for (const d of informe.derivaEnv ?? []) {
+    lineas.push(`aviso       env ${d.id} ${d.archivo}: ${d.motivo}`);
   }
   if (informe.errorSensor) lineas.push(`ERROR sensor: ${informe.errorSensor}`);
   lineas.push(`tomadoEn=${informe.tomadoEn} snapshotEn=${informe.snapshotEn}`);
@@ -1582,6 +1662,17 @@ async function asegurarExe(id, entrada, rutaAbs) {
   return null;
 }
 
+/* Entradas del registro activo (mismo --registro que contextoEntrada). Fail-open:
+ * sin registro legible el nombre del dueño queda sin resolver, no rompe `up`. */
+function registroDeArgs(args) {
+  try {
+    const i = args.indexOf('--registro');
+    return [...leerRegistro(i >= 0 ? args[i + 1] : undefined).entradas.values()];
+  } catch {
+    return [];
+  }
+}
+
 async function arrancarUno(id, args, visitados) {
   if (visitados.has(id)) return { codigo: 1, resumen: `up ${id}: ciclo en requiere (omitido)` };
   visitados.add(id);
@@ -1601,8 +1692,20 @@ async function arrancarUno(id, args, visitados) {
     if (fallo) return { codigo: 1, resumen: fallo };
   }
   const r = await clasificarEntrada(proyecto, entrada, porPuerto, procs);
+  // [por que] Preflight de auxiliares: el mando no los lanza, pero si su puerto
+  // lo tiene otro, el backend del proyecto no arrancara ahi. Se avisa antes de
+  // lanzar lo propio; no bloquea (el auxiliar es externo al mando).
+  const avisosAux = [];
+  for (const a of entrada.auxiliares ?? []) {
+    const ocupantes = (porPuerto.get(a.puerto) ?? []).map((o) => o.pid);
+    if (!ocupantes.length) continue;
+    const dueno = duenoDePuerto(a.puerto, ocupantes, procs, registroDeArgs(args));
+    if (dueno?.id === id) continue;
+    avisosAux.push(`auxiliar ${a.puerto} (${a.motivo}) ocupado por ${dueno?.id ?? `proceso ajeno pid ${ocupantes.join(',')}`}: ${id} no arrancara ahi; revisa PORT en su .env`);
+  }
+  const avisoSufijo = avisosAux.map((a) => `; aviso: ${a}`).join('');
   if (r.estado === 'bajo-mando') {
-    return await conDependencias(id, entrada, args, visitados, 0, `up ${id}: ya-arriba (${r.motivo})`);
+    return await conDependencias(id, entrada, args, visitados, 0, `up ${id}: ya-arriba (${r.motivo})${avisoSufijo}`);
   }
   const caidos = r.detalle.filter((d) => d.situacion === 'libre');
   const bloqueos = r.detalle.filter((d) => d.situacion !== 'libre' && d.situacion !== 'arriba');
@@ -1610,17 +1713,12 @@ async function arrancarUno(id, args, visitados) {
     const b = bloqueos[0];
     // [por que] Si el puerto lo reclaman dos entradas, el rehusado lo dice:
     // el choque es del registro, no del pid que escucha.
-    let reclamados = [];
-    try {
-      const iReg = args.indexOf('--registro');
-      const reg = leerRegistro(iReg >= 0 ? args[iReg + 1] : undefined);
-      reclamados = (detectarCompartidos(reg).find((c) => c.puerto === b.puerto)?.ids ?? []).filter((x) => x !== id);
-    } catch {
-      /* contextoEntrada ya valido el registro; sin hint. */
-    }
+    const entradasReg = registroDeArgs(args);
+    const reclamados = (detectarCompartidos({ entradas: new Map(entradasReg.map((e) => [e.id, e])) }).find((c) => c.puerto === b.puerto)?.ids ?? []).filter((x) => x !== id);
+    const dueno = duenoDePuerto(b.puerto, b.pids, procs, entradasReg);
     return {
       codigo: 1,
-      resumen: `up ${id}: rehusado (puerto ${b.puerto}: ${b.situacion}${b.pids.length ? ` pids ${b.pids.join(',')}` : ''}${reclamados.length ? `; reclamado tambien por: ${reclamados.join(', ')}` : ''}): el mando no mata ni suplanta`,
+      resumen: `up ${id}: rehusado (puerto ${b.puerto}: ${b.situacion}${b.pids.length ? ` pids ${b.pids.join(',')}` : ''}): ${accionParaPuerto(id, b.puerto, b.pids, dueno, reclamados)}`,
     };
   }
   if (caidos.length === 0) {
@@ -1663,7 +1761,7 @@ async function arrancarUno(id, args, visitados) {
     args,
     visitados,
     0,
-    `up ${id}: arrancado (${lanzados.map((l) => `${l.puerto} pid ${l.pid}`).join(', ')}) + probe verde`,
+    `up ${id}: arrancado (${lanzados.map((l) => `${l.puerto} pid ${l.pid}`).join(', ')}) + probe verde${avisoSufijo}`,
   );
 }
 
@@ -1755,7 +1853,9 @@ export async function main(argv) {
       errorSensor = `clasificar: ${e.message}`;
     }
   }
-  const informe = { version: 1, tomadoEn, snapshotEn, ttlMs: TTL_MS, errorSensor, compartidos: detectarCompartidos(registro), rust: detectarRust(registro), ...clasif };
+  // [por que] derivaEnv es aviso: no entra en codigoSalida (el registro manda
+  // sobre el .env, y un .env desfasado no debe tumbar el chequeo del tablero).
+  const informe = { version: 1, tomadoEn, snapshotEn, ttlMs: TTL_MS, errorSensor, compartidos: detectarCompartidos(registro), rust: detectarRust(registro), derivaEnv: detectarDerivaEnv(registro), ...clasif };
 
   if (conAssert) {
     const fallos = [];
