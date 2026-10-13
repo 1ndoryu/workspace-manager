@@ -18,7 +18,9 @@ import type { DatosArea, DatosProyecto, EstadoGuard, PlanActivo, RamaSuelta } fr
 const GB = 1024 ** 3;
 /* [por que] Presupuesto de la medición de C:\tmp: `du` tarda minutos; el tablero no
  * puede esperar eso. Si se corta, la comprobación lo dice (`parcial`). */
-const PRESUPUESTO_TMP_MS = 8_000;
+/* [por que] C:\tmp tiene ~8 GB en decenas de miles de ficheros: 8 s cortaba la medición (parcial, siempre). La
+ * medición es async y la salud tiene caché de 60 s; 60 s la completa sin bloquear el servidor. */
+const PRESUPUESTO_TMP_MS = 60_000;
 const DOCS_PROHIBIDOS = ['AGENTS.md', 'CLAUDE.md'];
 /* Carpetas de compilación que no deben existir dentro del árbol del proyecto. */
 const CARPETAS_COMPILACION = ['target', '.runtime/target'];
