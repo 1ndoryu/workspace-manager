@@ -208,7 +208,10 @@
       "timeoutMs": 3000,
       "arranqueMs": 60000,
       "expectedCmdline": "5183",
-      "tipoLauncher": "Front Vite (frontend/) en 5183; el backend Rust no entra en el mando",
+      "auxiliares": [
+        { "puerto": 3001, "marcador": "glory-backend", "motivo": "backend Rust Axum (cargo run manual, PORT=3001 en .env); 3000 es de glory-pulse" }
+      ],
+      "tipoLauncher": "Front Vite (frontend/) en 5183 (proxy /api a 3001); el backend Rust no entra en el mando",
       "comandos": { "gate": null, "typecheck": "npm --prefix frontend run type-check", "build": "npm --prefix frontend run build", "test-archivo": null }
     }
   ],

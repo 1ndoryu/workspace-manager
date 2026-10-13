@@ -90,6 +90,22 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
   const ignoradosSistema = crudo.ignoradosSistema ?? [];
   if (!Array.isArray(ignoradosSistema)) throw new Error('registro: ignoradosSistema no es array');
   ignoradosSistema.forEach((s, i) => validarIgnoradoSistema(s, `ignoradosSistema[${i}]`));
+  // [por que] Dos proyectos no pueden reclamar el mismo puerto (puertos o
+  // auxiliares): sin esto el choque solo aparecia al arrancar (glory-pulse y
+  // KAMPLES compartian 3000). Aviso en la entrada posterior, no error global
+  // (mismo criterio que 06AA-1).
+  const reclamados = new Map();
+  for (const e of entradas.values()) {
+    const puertos = [
+      ...(Array.isArray(e.puertos) ? e.puertos : []),
+      ...(Array.isArray(e.auxiliares) ? e.auxiliares.map((a) => a?.puerto) : []),
+    ];
+    for (const p of puertos) {
+      const dueno = reclamados.get(p);
+      if (dueno === undefined) reclamados.set(p, e.id);
+      else if (dueno !== e.id) e._avisoRegistro ??= `registro: '${e.id}' reclama el puerto ${p} ya declarado por '${dueno}'`;
+    }
+  }
   // [por que 06AA-1] Dependencia colgada = aviso de la entrada dependiente,
   // no error global: el resto del mando sigue clasificando y `up` la
   // rehusara con ese motivo si se la pide.
