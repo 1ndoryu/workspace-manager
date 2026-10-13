@@ -103,7 +103,7 @@
       "timeoutMs": 3000,
       "arranqueMs": 300000,
       "expectedCmdline": ["glory-backend", "5177"],
-      "env": { "PORT": "3104", "VITE_API_URL": "http://localhost:3104" },
+      "env": { "PORT": "3104", "VITE_API_URL": "http://localhost:3104", "CORS_ORIGINS": "https://wandori.us,http://localhost:5173,http://localhost:3000,http://localhost:5177" },
       "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp con PORT por env + Vite con --port por argv)",
       "comandos": { "gate": "npm run gate:check", "typecheck": "cargo check", "build": null, "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>" }
     },
