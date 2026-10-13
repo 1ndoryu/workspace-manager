@@ -155,6 +155,33 @@ test('leerRegistro: auxiliares con puerto de puertos quedan como aviso de regist
   }
 });
 
+test('leerRegistro: dos proyectos que reclaman el mismo puerto dejan aviso en el posterior', () => {
+  const dir = mkdtempSync(join('C:/tmp', 'wm-registro-test-'));
+  const ruta = join(dir, 'registro.json');
+  try {
+    const registro = {
+      version: 1,
+      proyectos: [
+        { id: 'A', ruta: '.', boton: [['npm', 'run', 'dev']], puertos: [3000], expectedCmdline: 'a' },
+        {
+          id: 'B',
+          ruta: '.',
+          boton: [['npm', 'run', 'dev']],
+          puertos: [5183],
+          expectedCmdline: 'b',
+          auxiliares: [{ puerto: 3000, marcador: 'backend', motivo: 'backend que choca con A' }],
+        },
+      ],
+    };
+    writeFileSync(ruta, JSON.stringify(registro));
+    const reg = leerRegistro(ruta);
+    assert.equal(reg.entradas.get('A')._avisoRegistro, undefined);
+    assert.match(reg.entradas.get('B')._avisoRegistro ?? '', /puerto 3000 ya declarado por 'A'/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('leerRegistro: el registro real carga y declara los auxiliares e ignorados de BDP-Net y MN-Inmobiliaria', () => {
   const reg = leerRegistro();
   assert.equal(reg.entradas.get('MN-Inmobiliaria')._avisoRegistro, undefined);
