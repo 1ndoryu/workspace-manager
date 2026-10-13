@@ -195,6 +195,21 @@
       "expectedCmdline": ["dist-server", "vite"],
       "tipoLauncher": "API = servidor COMPILADO en un solo proceso node (rebuild con npm run build:server tras cambios; reinicio con stop+up). Front con npm run dev (vite). Colab solo se llama al encolar un trabajo, nunca al arrancar",
       "comandos": { "gate": null, "typecheck": "npm run type-check", "build": "npm run build", "test-archivo": "node --import tsx --test <archivo>" }
+    },
+    {
+      "id": "KAMPLES",
+      "ruta": "../KAMPLES",
+      "dominio": "kamples.localhost",
+      "boton": [["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5183", "--strictPort"]],
+      "puertos": [5183],
+      "healths": [
+        { "puerto": 5183, "ruta": "/", "esperaJson": false }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 60000,
+      "expectedCmdline": "5183",
+      "tipoLauncher": "Front Vite (frontend/) en 5183; el backend Rust no entra en el mando",
+      "comandos": { "gate": null, "typecheck": "npm --prefix frontend run type-check", "build": "npm --prefix frontend run build", "test-archivo": null }
     }
   ],
   "noAplica": {
