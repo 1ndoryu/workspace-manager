@@ -8,7 +8,7 @@
 import { execFile, spawn } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
-import { isAbsolute, join, normalize, resolve } from 'node:path';
+import { dirname, isAbsolute, join, normalize, resolve } from 'node:path';
 import {
   argsSsh,
   asegurarSesion,
@@ -98,6 +98,38 @@ export function contenidoEnvRemoto(textoEnv, envRemoto, urlBd = null) {
   const pedidas = new Set(envRemoto);
   const elegidas = lineas.filter((l) => pedidas.has(claveDe(l))).map(reemplazar);
   return { contenido: `${elegidas.join('\n')}\n`, faltan };
+}
+
+// Sincronización BD local -> 89 (decidido 2026-10-14). Solo loopback: nunca se copia desde una base que no sea la del laptop.
+const HOSTS_LOCALES = new Set(['localhost', '127.0.0.1', '::1']);
+const decodificarUrl = (s) => {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+};
+
+// [por que] Los errores no incluyen la URL ni la clave: van a logs y al resumen.
+export function leerUrlBdLocal(textoEnv) {
+  const linea = textoEnv.split(/\r?\n/).find((l) => /^\s*(?:export\s+)?DATABASE_URL\s*=/.test(l));
+  if (linea === undefined) throw new Error('DATABASE_URL no está en el .env local');
+  const url = linea.replace(/^\s*(?:export\s+)?DATABASE_URL\s*=\s*/, '').trim();
+  // [por que] La clave puede llevar '@' sin codificar: el último '@' separa credenciales de host.
+  const m = url.match(/^postgres(?:ql)?:\/\/([^:/@]+):(.+)@(\[[^\]]+\]|[^:/@]+):(\d+)\/([^/?#\s]+)$/);
+  if (!m) throw new Error('DATABASE_URL del .env local no tiene el formato postgres://usuario:clave@host:puerto/nombre');
+  const host = m[3].replace(/^\[|\]$/g, '');
+  if (!HOSTS_LOCALES.has(host)) {
+    throw new Error(`DATABASE_URL del .env local apunta a '${host}', no a loopback: no se sincroniza desde una base que no sea la local`);
+  }
+  return { usuario: decodificarUrl(m[1]), clave: decodificarUrl(m[2]), host, puerto: Number(m[4]), nombre: decodificarUrl(m[5]) };
+}
+
+// [por que] pg_dump 18 (laptop) emite estas líneas, que psql 16 (89) no acepta; pg_dump -Fc tampoco se lee con 16.
+const LINEA_SOLO_PG18 = /^(?:SET transaction_timeout\b|\\restrict\b|\\unrestrict\b)/;
+export function filtrarSqlParaPg16(texto) {
+  // (?<=\n) conserva los finales de línea (CRLF incluido): el resto del fichero queda igual.
+  return texto.split(/(?<=\n)/).filter((linea) => !LINEA_SOLO_PG18.test(linea)).join('');
 }
 
 // Reenvio solo a loopback en ambos extremos; ExitOnForwardFailure hace que ssh salga si un puerto no se puede reenviar.
@@ -387,7 +419,9 @@ function entornoRemoto(config, id, entrada, rama) {
   let urlBd = null;
   let nombreBd = null;
   if (entrada.envRemoto !== undefined && config.bd && existsSync(join(ruta, 'Cargo.toml'))) {
-    nombreBd = nombreBaseDatos(readFileSync(join(ruta, 'Cargo.toml'), 'utf8'), rama, config.proyectos?.[id]?.basedatos);
+    // [por que] Decidido 2026-10-14 (2 bases como máximo): un proyecto con bdDesdeLocal usa su base de trabajo sin sufijo de rama; `main` como rama fuerza ese nombre.
+    const bdTrabajo = config.proyectos?.[id]?.bdDesdeLocal !== undefined;
+    nombreBd = nombreBaseDatos(readFileSync(join(ruta, 'Cargo.toml'), 'utf8'), bdTrabajo ? 'main' : rama, config.proyectos?.[id]?.basedatos);
     urlBd = urlBaseRemota(config.bd, nombreBd);
     env.DATABASE_URL = urlBd;
   }
@@ -433,7 +467,7 @@ async function prepararRemoto(config, id, entrada, rama, rutas) {
     if (r.codigo === 75) return { ok: false, resumen: `cm-heavy ocupado en ${config.host} (otro build pesado); reintenta en unos minutos` };
     if (!r.ok) return { ok: false, resumen: `precompilar fallo, log ${rutas.dirLogs}/precompilar-${id}.log en ${config.host}: ${r.error}` };
   }
-  return { ok: true, env };
+  return { ok: true, env, nombreBd };
 }
 
 // Puertos cuyo proceso vivo no tiene el entorno que pide el registro (otra rama, otro env). Solo lectura.
@@ -478,7 +512,103 @@ async function esperarLibre(config, puertos, limiteMs) {
   }
 }
 
-async function upRemoto(config, id, entrada) {
+function ejecutarLocal(binario, args, env, timeoutMs) {
+  return new Promise((resolveP) => {
+    execFile(binario, args, { env, timeout: timeoutMs, windowsHide: true, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
+      resolveP({ ok: !err, salida: String(stdout ?? ''), error: String(stderr || err?.message || '').trim().slice(0, 300) });
+    });
+  });
+}
+
+function marcaTiempo() {
+  const d = new Date();
+  const dos = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${dos(d.getMonth() + 1)}${dos(d.getDate())}-${dos(d.getHours())}${dos(d.getMinutes())}${dos(d.getSeconds())}`;
+}
+
+// Conteos "tabla=valor" de `psql -At`. Pura: se prueba sin base.
+export function parsearConteos(texto) {
+  const mapa = new Map();
+  for (const linea of texto.split(/\r?\n/)) {
+    const i = linea.indexOf('=');
+    if (i > 0) mapa.set(linea.slice(0, i).trim(), linea.slice(i + 1).trim());
+  }
+  return mapa;
+}
+
+// [por que] Un conteo ausente o no numérico nunca cuenta como coincidente: solo igualdad exacta de números.
+export function diferenciasConteos(local, remoto, tablas) {
+  const numero = (v) => v !== undefined && /^\d+$/.test(v);
+  return tablas
+    .filter((t) => !(numero(local.get(t)) && numero(remoto.get(t)) && local.get(t) === remoto.get(t)))
+    .map((t) => `${t}: laptop=${local.get(t) ?? 'sin conteo'}, 89=${remoto.get(t) ?? 'sin conteo'}`);
+}
+
+const DIR_DUMPS_LOCALES = 'C:/tmp/backups-bd';
+const COPIAS_PREVIAS_BD = 3;
+
+// Base de trabajo de la 89 = copia de la base de la laptop (decidido 2026-10-14: dos bases como máximo; la 89 es la de trabajo y la 66 no se toca desde aquí).
+// [por que] Orden: dump local filtrado -> copia previa en la 89 (si la base existe, sin copia no se restaura) -> restauración en una transacción -> conteos iguales en ambos lados.
+// La clave viaja en PGPASSWORD (entorno del proceso), nunca en argumentos ni en logs.
+export async function sincronizarBd(config, id, entrada, ruta, nombreBd) {
+  if (!nombreBd) return { ok: false, resumen: 'BD: el proyecto no tiene base remota (sin Cargo.toml o envRemoto)' };
+  const pgDump = config.bd?.pgDumpLocal;
+  if (!pgDump) return { ok: false, resumen: 'BD: taller.json bd.pgDumpLocal no declarado' };
+  const tablas = config.proyectos?.[id]?.bdDesdeLocal?.verificar ?? [];
+  let local;
+  try {
+    local = leerUrlBdLocal(readFileSync(join(ruta, '.env'), 'utf8'));
+  } catch (e) {
+    return { ok: false, resumen: `BD: ${e.message}` };
+  }
+  const envLocal = { ...process.env, PGPASSWORD: local.clave };
+  const conexion = ['-h', local.host, '-p', String(local.puerto), '-U', local.usuario];
+
+  mkdirSync(DIR_DUMPS_LOCALES, { recursive: true });
+  const rutaDump = `${DIR_DUMPS_LOCALES}/${local.nombre}-sync.sql`;
+  const dump = await ejecutarLocal(pgDump, [...conexion, '-Fp', '--no-owner', '--no-acl', '--clean', '--if-exists', '-f', rutaDump, local.nombre], envLocal, 600_000);
+  if (!dump.ok) return { ok: false, resumen: `BD: pg_dump de la laptop fallo: ${dump.error}` };
+  const sql = filtrarSqlParaPg16(readFileSync(rutaDump, 'utf8'));
+  writeFileSync(rutaDump, sql);
+
+  // [por que] escribirArchivoRemoto hace mkdir -p del directorio y deja el fichero en 0600.
+  const dirDatos = `${config.dirRemotoBase}/_datos`;
+  const rutaRemotaSql = `${dirDatos}/${nombreBd}-sync.sql`;
+  const subida = await escribirArchivoRemoto(config, rutaRemotaSql, sql, 300_000);
+  if (!subida.ok) return { ok: false, resumen: `BD: subida del dump a ${config.host} fallo: ${subida.error}` };
+
+  const dirCopias = `${dirDatos}/copias`;
+  const copiaPrevia = `${dirCopias}/${nombreBd}-previo-${marcaTiempo()}.dump`;
+  const previa = await sshRemoto(config, [
+    'PATH=$HOME/.local/bin:/usr/bin:/bin',
+    `mkdir -p ${shQuote(dirCopias)}`,
+    `existe=$(psql -X -At -d postgres -c ${shQuote(`select 1 from pg_database where datname='${nombreBd}'`)}) || { echo FALLO_COMPROBAR; exit 1; }`,
+    `if [ "$existe" = 1 ]; then pg_dump -Fc -d ${shQuote(nombreBd)} -f ${shQuote(copiaPrevia)} || { rm -f ${shQuote(copiaPrevia)}; echo FALLO_PREVIA; exit 1; }; echo PREVIA_OK; else echo SIN_PREVIA; fi`,
+    `ls -1t ${shQuote(dirCopias)}/${nombreBd}-previo-*.dump 2>/dev/null | tail -n +${COPIAS_PREVIAS_BD + 1} | xargs -r rm -f`,
+  ].join('; '), 300_000);
+  if (!previa.ok) return { ok: false, resumen: `BD: copia previa en ${config.host} fallo: ${previa.error || previa.salida.trim()}` };
+
+  const restauracion = await sshRemoto(config, `PATH=$HOME/.local/bin:/usr/bin:/bin; psql -X -q -v ON_ERROR_STOP=1 -1 -d ${shQuote(nombreBd)} -f ${shQuote(rutaRemotaSql)}`, 600_000);
+  if (!restauracion.ok) return { ok: false, resumen: `BD: restauracion en ${config.host} fallo (transaccion revertida): ${restauracion.error}` };
+
+  const cuentaRemota = await sshRemoto(config, [
+    'PATH=$HOME/.local/bin:/usr/bin:/bin',
+    ...tablas.map((t) => `printf '%s=' ${shQuote(t)}; psql -X -At -d ${shQuote(nombreBd)} -c ${shQuote(`select count(*) from "${t}"`)} 2>/dev/null || echo no-existe`),
+  ].join('; '), 120_000);
+  if (!cuentaRemota.ok) return { ok: false, resumen: `BD: conteo en ${config.host} fallo: ${cuentaRemota.error}` };
+  const cuentaLocal = new Map();
+  for (const t of tablas) {
+    const c = await ejecutarLocal(join(dirname(pgDump), 'psql.exe'), [...conexion, '-X', '-At', '-d', local.nombre, '-c', `select count(*) from "${t}"`], envLocal, 60_000);
+    cuentaLocal.set(t, c.ok ? c.salida.trim() : 'sin conteo');
+  }
+  const diffs = diferenciasConteos(cuentaLocal, parsearConteos(cuentaRemota.salida), tablas);
+  if (diffs.length) return { ok: false, resumen: `BD: conteos distintos tras restaurar (${diffs.join('; ')})` };
+  const remota = parsearConteos(cuentaRemota.salida);
+  const cuenta = tablas.map((t) => `${t}=${remota.get(t)}`).join(', ');
+  return { ok: true, resumen: `BD sincronizada desde laptop${cuenta ? ` (${cuenta})` : ''}` };
+}
+
+async function upRemoto(config, id, entrada, args = []) {
   const error = validarHostRemoto(entrada, config);
   if (error) return { codigo: 1, resumen: `up ${id}: rehusado (${error})` };
   const rama = detectarRama(rutaAbsDe(entrada));
@@ -487,14 +617,32 @@ async function upRemoto(config, id, entrada) {
   const sync = asegurarSesion({ config, proyecto: id, rutaLocal: rutaAbsDe(entrada), rutas });
   if (sync !== 0) return { codigo: 1, resumen: `up ${id}: sincronizacion con ${config.host} no lista (mutagen, codigo ${sync}): NO verde` };
   const previo = await estadoRemoto(config, id, entrada);
+  // [por que] Sin --sin-bd, un proyecto con base declarada (bdDesdeLocal) refresca su base al arrancar; si ya está arriba, solo con --bd.
+  const forzarBd = args.includes('--bd');
+  const sincronizar = config.proyectos?.[id]?.bdDesdeLocal !== undefined && !args.includes('--sin-bd') && (previo.estado !== 'bajo-mando' || forzarBd);
   let reiniciar = { puertos: [], detalle: [] };
   if (previo.estado === 'bajo-mando') {
     reiniciar = await puertosConEntornoDistinto(config, id, entrada, rama);
     if (!reiniciar.ok) return { codigo: 1, resumen: `up ${id}: ${reiniciar.motivo}: NO verde` };
-    if (!reiniciar.puertos.length) return { codigo: 0, resumen: `up ${id}: ya-arriba (${previo.motivo})` };
+    if (!reiniciar.puertos.length && !sincronizar) return { codigo: 0, resumen: `up ${id}: ya-arriba (${previo.motivo})` };
   }
   const prep = await prepararRemoto(config, id, entrada, rama, rutas);
   if (!prep.ok) return { codigo: 1, resumen: `up ${id}: ${prep.resumen}: NO verde` };
+  let bdResumen = null;
+  if (sincronizar) {
+    // [por que] La base solo se restaura con el backend parado: se paran todas las sesiones de este proyecto antes de tocarla.
+    if (previo.estado !== 'parado') {
+      const parado = await pararSesiones(config, id, entrada);
+      if (!parado.ok) return { codigo: 1, resumen: `up ${id}: no paro sesiones antes de sincronizar la BD en ${config.host}: ${parado.error}: NO verde` };
+      const libre = await esperarLibre(config, puertosRemotosDe(entrada), 15_000);
+      if (!libre.ok) return { codigo: 1, resumen: `up ${id}: ${libre.motivo}: NO verde` };
+    }
+    const bd = await sincronizarBd(config, id, entrada, rutaAbsDe(entrada), prep.nombreBd);
+    if (!bd.ok) return { codigo: 1, resumen: `up ${id}: ${bd.resumen}: NO verde` };
+    bdResumen = bd.resumen;
+    // Todas las sesiones se pararon arriba: no hay nada que reiniciar por entorno.
+    reiniciar = { puertos: [], detalle: [] };
+  }
   if (reiniciar.puertos.length) {
     // [por que] Solo nuestras sesiones tmux de esos puertos; el túnel se conserva y el probe final lo confirma.
     const parado = await pararSesionesPuertos(config, id, reiniciar.puertos);
@@ -534,7 +682,7 @@ async function upRemoto(config, id, entrada) {
     creadoEn: new Date().toISOString(),
   });
   const reinicio = reiniciar.puertos.length ? `, reiniciados por entorno distinto: ${reiniciar.detalle.join('; ')}` : '';
-  return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (puertos ${remotos.join(', ')}, tunel pid ${pid}${reinicio}) + probe verde` };
+  return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (puertos ${remotos.join(', ')}, tunel pid ${pid}${reinicio})${bdResumen ? `; ${bdResumen}` : ''} + probe verde` };
 }
 
 async function statusRemoto(config, id, entrada) {
@@ -593,7 +741,7 @@ export async function despachar(cmd, args, entrada) {
   } catch (e) {
     return sale({ codigo: 1, resumen: `${cmd} ${id}: taller.json no legible (${e.message})` });
   }
-  if (cmd === 'up') return sale(await upRemoto(config, id, entrada));
+  if (cmd === 'up') return sale(await upRemoto(config, id, entrada, args));
   if (cmd === 'status') return sale(await statusRemoto(config, id, entrada));
   if (cmd === 'stop') return sale(await stopRemoto(config, id, entrada));
   if (cmd === 'logs') {

@@ -14,9 +14,13 @@
   "bd": {
     "usuario": "dev",
     "socket": "/var/run/postgresql",
-    "subcomandos": ["test", "bench", "nextest", "run"]
+    "subcomandos": ["test", "bench", "nextest", "run"],
+    "pgDumpLocal": "C:/Program Files/PostgreSQL/18/bin/pg_dump.exe"
   },
   "proyectos": {
-    "MN-Inmobiliaria": { "basedatos": "glory_backend_inmobiliaria" }
+    "MN-Inmobiliaria": {
+      "basedatos": "glory_backend_inmobiliaria",
+      "bdDesdeLocal": { "verificar": ["inmuebles", "fotos", "_sqlx_migrations"] }
+    }
   }
 }

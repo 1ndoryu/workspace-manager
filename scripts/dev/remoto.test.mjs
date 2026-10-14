@@ -7,7 +7,11 @@ import {
   comandoPrecompilar,
   comandoRemotoUp,
   contenidoEnvRemoto,
+  diferenciasConteos,
   esEntradaRemota,
+  filtrarSqlParaPg16,
+  parsearConteos,
+  leerUrlBdLocal,
   marcadorTunel,
   pidDeEscucha,
   rutaLogNpmCi,
@@ -218,4 +222,50 @@ test('comandoNpmCi: marca por sha256 del lock y log por subproyecto fuera de la 
   assert.equal(cmd.includes('/home/dev/taller/P/logs'), false);
   assert.ok(cmd.includes('fnm/aliases/default/bin'));
   assert.equal(rutaLogNpmCi('/home/dev/taller/_logs/P', '.', 'P'), '/home/dev/taller/_logs/P/npm-ci-P-raiz.log');
+});
+
+test('leerUrlBdLocal: acepta loopback y extrae nombre, usuario, host y puerto', () => {
+  const r = leerUrlBdLocal('X=1\nDATABASE_URL=postgres://postgres:secreto@localhost:5432/glory_backend_inmobiliaria\n');
+  assert.equal(r.nombre, 'glory_backend_inmobiliaria');
+  assert.equal(r.usuario, 'postgres');
+  assert.equal(r.host, 'localhost');
+  assert.equal(r.puerto, 5432);
+  assert.equal(r.clave, 'secreto');
+  assert.equal(leerUrlBdLocal('DATABASE_URL=postgres://u:c@[::1]:5432/x').host, '::1');
+});
+
+test('leerUrlBdLocal: rechaza host no local, falta de DATABASE_URL y formato roto sin mostrar la clave', () => {
+  assert.throws(() => leerUrlBdLocal('DATABASE_URL=postgres://u:CLAVE-SECRETA@db.ejemplo.com:5432/x'), (e) => {
+    assert.match(e.message, /no a loopback/);
+    assert.equal(e.message.includes('CLAVE-SECRETA'), false);
+    return true;
+  });
+  assert.throws(() => leerUrlBdLocal('OTRA=1\n'), /DATABASE_URL no está/);
+  assert.throws(() => leerUrlBdLocal('DATABASE_URL=postgres://u:CLAVE-SECRETA@localhost'), (e) => {
+    assert.equal(e.message.includes('CLAVE-SECRETA'), false);
+    return true;
+  });
+});
+
+test('filtrarSqlParaPg16: quita las 3 líneas solo-PG18 y deja intacto el resto (incl. SET statement_timeout y CRLF)', () => {
+  const sql = 'SET statement_timeout = 0;\nSET transaction_timeout = 0;\n\\restrict abc123\nCREATE TABLE t (a int);\r\n\\unrestrict abc123\n';
+  assert.equal(filtrarSqlParaPg16(sql), 'SET statement_timeout = 0;\nCREATE TABLE t (a int);\r\n');
+});
+
+test('parsearConteos: lee pares tabla=valor y descarta lo que no lo es', () => {
+  const m = parsearConteos('inmuebles=20\nfotos=397\n_sqlx_migrations=34\nbasura sin igual\n');
+  assert.equal(m.get('inmuebles'), '20');
+  assert.equal(m.get('fotos'), '397');
+  assert.equal(m.get('_sqlx_migrations'), '34');
+  assert.equal(m.has('basura sin igual'), false);
+  assert.equal(parsearConteos('').size, 0);
+});
+
+test('diferenciasConteos: solo iguales numéricos cuentan como coincidentes; ausente o no numérico es diferencia', () => {
+  const tablas = ['inmuebles', 'fotos', '_sqlx_migrations'];
+  const local = parsearConteos('inmuebles=20\nfotos=397\n_sqlx_migrations=34\n');
+  assert.deepEqual(diferenciasConteos(local, parsearConteos('inmuebles=20\nfotos=397\n_sqlx_migrations=34\n'), tablas), []);
+  assert.deepEqual(diferenciasConteos(local, parsearConteos('inmuebles=0\nfotos=397\n_sqlx_migrations=34\n'), tablas), ['inmuebles: laptop=20, 89=0']);
+  assert.deepEqual(diferenciasConteos(local, parsearConteos('inmuebles=20\nfotos=no-existe\n_sqlx_migrations=34\n'), tablas), ['fotos: laptop=397, 89=no-existe']);
+  assert.deepEqual(diferenciasConteos(parsearConteos('inmuebles=sin conteo\n'), parsearConteos('inmuebles=sin conteo\n'), ['inmuebles']), ['inmuebles: laptop=sin conteo, 89=sin conteo']);
 });
