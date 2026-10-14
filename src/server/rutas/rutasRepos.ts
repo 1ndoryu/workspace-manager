@@ -12,7 +12,7 @@ import { detalleSync } from '../scanner/git.js';
 import { detalleArchivos } from '../scanner/gitDiffs.js';
 
 export async function manejarRutasRepos(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   url: URL,
   ruta: string,
@@ -20,6 +20,10 @@ export async function manejarRutasRepos(
   /* Detalle de sync: la clave se resuelve desde el snapshot (anti-traversal,
    * mismo patron que /api/proyecto/gate); 404 si no existe o no es git. */
   if (ruta === '/api/repos/detalle') {
+    if (req.method !== 'GET') {
+      json(res, 405, { error: 'Método no permitido' });
+      return true;
+    }
     const clave = url.searchParams.get('clave') ?? '';
     const { snapshot } = snapshotArea(false);
     const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
@@ -33,6 +37,10 @@ export async function manejarRutasRepos(
   /* Archivos con cambios + diffs para el lateral (299A-4): misma
    * resolución anti-traversal por clave del snapshot. */
   if (ruta === '/api/repos/archivos') {
+    if (req.method !== 'GET') {
+      json(res, 405, { error: 'Método no permitido' });
+      return true;
+    }
     const clave = url.searchParams.get('clave') ?? '';
     const { snapshot } = snapshotArea(false);
     const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
