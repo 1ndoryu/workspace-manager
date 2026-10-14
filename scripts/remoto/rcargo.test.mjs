@@ -106,6 +106,14 @@ test('base por rama: rechaza nombres fuera de [a-z0-9_] o de más de 63 caracter
   assert.equal(nombreBaseDatos(cargoToml, 'a'.repeat(40)).length, 'glory_pulse_'.length + 40);
 });
 
+test('base por proyecto: `basedatos` pisa al paquete y conserva el sufijo de rama', () => {
+  assert.equal(nombreBaseDatos(cargoToml, 'main', 'glory_backend_inmobiliaria'), 'glory_backend_inmobiliaria');
+  assert.equal(nombreBaseDatos(cargoToml, 'feature/x', 'glory_backend_inmobiliaria'), 'glory_backend_inmobiliaria_feature_x');
+  // Sin Cargo.toml válido no hace falta leerlo si la base viene del registro.
+  assert.equal(nombreBaseDatos('', 'main', 'glory_backend_inmobiliaria'), 'glory_backend_inmobiliaria');
+  assert.throws(() => nombreBaseDatos(cargoToml, 'main', 'Mal-Nombre'), /no válido/);
+});
+
 test('URL de la base: usuario por socket, sin contraseña', () => {
   assert.equal(urlBaseRemota(config.bd, 'glory_pulse'), 'postgres://dev@%2Fvar%2Frun%2Fpostgresql/glory_pulse');
 });
