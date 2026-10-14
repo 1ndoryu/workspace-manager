@@ -1435,7 +1435,8 @@ function envPara(entrada) {
     token = randomBytes(32).toString('hex');
     try {
       mkdirSync(join(RAIZ_REPO, 'logs'), { recursive: true });
-      writeFileSync(RUTA_TOKEN_PULSE, `${token}\n`);
+      /* Solo el dueño lee el token (en Linux; en Windows el modo se ignora). */
+      writeFileSync(RUTA_TOKEN_PULSE, `${token}\n`, { mode: 0o600 });
     } catch {
       /* Disco: se usa en memoria solo esta vez. */
     }

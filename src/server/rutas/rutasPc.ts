@@ -7,6 +7,7 @@
  * true si atendió la ruta, false si no es suya. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { iniciarSse, json, leerBody } from '../http.js';
+import { verificarPeticionEscritura } from '../guardian/operacion/seguridad.js';
 import { estadoBinario, reconstruirBinario } from '../pc/binario.js';
 import { escanearTodo, estadoScan, leerReporte } from '../pc/scan.js';
 import { adjuntarLimpieza, estadoLimpieza, limpiarPc, limpiarTodo } from '../pc/limpieza.js';
@@ -79,31 +80,28 @@ export async function manejarRutasPc(
   }
 
   /* Borrado con progreso en vivo por SSE: inicio → fase → fila (cada
-   * objetivo al completarse) → fin. La selección viaja en la query
-   * (base64url del JSON) porque EventSource solo hace GET. Sin selección
-   * se adjunta al borrado en curso (recarga a mitad).
+   * objetivo al completarse) → fin. Sin selección se adjunta al borrado en
+   * curso (recarga a mitad).
    * [por que] El borrado de GB tarda minutos en silencio: la UI muestra
-   * en vivo qué se está borrando en vez de esperar al total. */
+   * en vivo qué se está borrando en vez de esperar al total. Es POST con
+   * JSON y la guardia de escritura (Origin, Host, Content-Type): un GET que
+   * borra no debe depender solo del token. */
   if (ruta === '/api/pc/limpiar-stream') {
-    if (req.method !== 'GET') {
+    if (req.method !== 'POST') {
       json(res, 405, { error: 'Método no permitido' });
       return true;
     }
-    const confirmacion = url.searchParams.get('confirmacion');
-    if (confirmacion !== 'BORRAR') {
+    const veredicto = verificarPeticionEscritura(req.headers);
+    if (!veredicto.ok) {
+      json(res, veredicto.status, { error: veredicto.motivo });
+      return true;
+    }
+    const body = (await leerBody(req)) as { seleccion?: unknown; confirmacion?: unknown };
+    if (body.confirmacion !== 'BORRAR') {
       json(res, 400, { error: 'falta la confirmación de borrado' });
       return true;
     }
-    const selParam = url.searchParams.get('sel');
-    let seleccion: unknown = null;
-    if (selParam !== null) {
-      try {
-        seleccion = JSON.parse(Buffer.from(selParam, 'base64url').toString('utf8')) as unknown;
-      } catch {
-        json(res, 400, { error: 'selección inválida', detalle: 'no se pudo decodificar la selección' });
-        return true;
-      }
-    }
+    const seleccion: unknown = body.seleccion ?? null;
     const enviar = iniciarSse<EventoLimpieza>(res);
     try {
       if (seleccion === null) {

@@ -115,6 +115,12 @@ export function crearServidor(opciones: OpcionesServidor = {}) {
 
     if (ruta.startsWith('/api/')) {
       try {
+        /* Lecturas del tablero: solo GET. Sin esta comprobación un POST a la sonda
+         * (pública, sin token) o a una lectura respondía como si fuera GET. */
+        if (['/api/ping', '/api/workspace', '/api/proyectos'].includes(ruta) && req.method !== 'GET') {
+          json(res, 405, { error: 'Método no permitido' });
+          return;
+        }
         /* Sonda de vida sin token (única ruta pública de la API, ver seguridad/entrada.ts). */
         if (ruta === '/api/ping') {
           json(res, 200, { ok: true });

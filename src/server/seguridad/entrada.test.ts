@@ -118,4 +118,45 @@ describe('servidor HTTP con la guardia activa', () => {
     });
     assert.equal(estado, 403);
   });
+
+  /* Misma forma que la pestaña del tablero (Origin y JSON). Ninguna petición borra:
+   * se rechaza o responde antes de usar disco o procesos. */
+  function pedirMetodo(ruta: string, metodo: string, cabeceras: http.OutgoingHttpHeaders, cuerpo = ''): Promise<number> {
+    return new Promise((ok, ko) => {
+      const req = http.request(
+        { host: '127.0.0.1', port: puerto, path: ruta, method: metodo, headers: { ...cabeceras, 'content-length': Buffer.byteLength(cuerpo) } },
+        (res) => {
+          res.resume();
+          ok(res.statusCode ?? 0);
+        },
+      );
+      req.on('error', ko);
+      req.end(cuerpo);
+    });
+  }
+  const TABLERO: http.OutgoingHttpHeaders = {
+    host: 'localhost:8787',
+    origin: 'http://localhost:8787',
+    authorization: `Bearer ${TOKEN}`,
+    'content-type': 'application/json',
+  };
+
+  it('limpiar-stream solo acepta POST; el GET que borraba ya no', async () => {
+    assert.equal(await pedirMetodo('/api/pc/limpiar-stream?confirmacion=BORRAR', 'GET', TABLERO), 405);
+  });
+
+  it('limpiar-stream exige Origin y JSON; sin confirmación no borra', async () => {
+    /* Node no admite cabeceras con valor undefined: se quita la clave. */
+    const sinOrigin: http.OutgoingHttpHeaders = { ...TABLERO };
+    delete sinOrigin.origin;
+    assert.equal(await pedirMetodo('/api/pc/limpiar-stream', 'POST', sinOrigin, '{}'), 403);
+    assert.equal(await pedirMetodo('/api/pc/limpiar-stream', 'POST', { ...TABLERO, 'content-type': 'text/plain' }, '{}'), 415);
+    assert.equal(await pedirMetodo('/api/pc/limpiar-stream', 'POST', TABLERO, '{}'), 400);
+  });
+
+  it('las lecturas del tablero rechazan POST con 405', async () => {
+    assert.equal(await pedirMetodo('/api/ping', 'POST', { host: 'localhost:8787' }), 405);
+    assert.equal(await pedirMetodo('/api/workspace', 'POST', TABLERO), 405);
+    assert.equal(await pedirMetodo('/api/proyectos', 'POST', TABLERO), 405);
+  });
 });
