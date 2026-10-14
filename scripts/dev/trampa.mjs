@@ -17,16 +17,17 @@ import net from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cabeceraAutorizacion } from './token.mjs';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const DOCTOR = join(DIR, 'doctor.mjs');
 const REGISTRO = join(DIR, 'registro.json');
 const API = 'http://127.0.0.1:8787';
 
-function getJson(url) {
+function getJson(url, cabeceras) {
   return new Promise((res, rej) => {
     http
-      .get(url, (r) => {
+      .get(url, { headers: cabeceras }, (r) => {
         let b = '';
         r.on('data', (c) => (b += c));
         r.on('end', () => {
@@ -91,9 +92,11 @@ async function main() {
     if (!cond) fallos.push(nombre);
   };
 
+  // [por que] Fuera del try de abajo: un token ausente debe salir tal cual, no como "server 8787 caido".
+  const cabeceras = cabeceraAutorizacion();
   let snapshot;
   try {
-    snapshot = await getJson(`${API}/api/workspace`);
+    snapshot = await getJson(`${API}/api/workspace`, cabeceras);
   } catch (e) {
     console.error(`FAIL snapshot: server 8787 caido o sin respuesta (${String(e)})`);
     return 1;

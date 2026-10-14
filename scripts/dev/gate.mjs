@@ -11,6 +11,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cabeceraAutorizacion } from './token.mjs';
 
 export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const API = process.env.WM_API ?? 'http://127.0.0.1:8787';
@@ -62,11 +63,13 @@ export function formatearNuevos(nuevos) {
 
 /* Llamada al backend. Lanza con un mensaje accionable si no responde. */
 export async function pedir(metodo, ruta, cuerpo) {
+  // [por que] Fuera del try: un token ausente debe salir tal cual, no como "backend sin respuesta".
+  const cabeceras = cabeceraAutorizacion();
   let res;
   try {
     res = await fetch(`${API}${ruta}`, {
       method: metodo,
-      headers: { 'content-type': 'application/json' },
+      headers: { ...cabeceras, 'content-type': 'application/json' },
       body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
       signal: AbortSignal.timeout(200_000),
     });

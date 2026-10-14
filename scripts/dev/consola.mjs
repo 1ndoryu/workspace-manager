@@ -6,6 +6,7 @@
  * (`--proyecto` es solo filtro de visualizacion, jamas requisito).
  * Solo lectura por defecto; `--forzar` re-escanea (tarda minutos).
  * Sin backend, rehusa a ciegas (exit 1), igual que status/up/stop. */
+import { cabeceraAutorizacion } from './token.mjs';
 const API = process.env.WM_API ?? 'http://127.0.0.1:8787';
 
 function ayuda() {
@@ -26,9 +27,11 @@ export async function problemas(argv) {
   const soloProyecto = iProy >= 0 ? args[iProy + 1] : undefined;
   const comoJson = args.includes('--json');
 
+  // [por que] Fuera del try: un token ausente debe salir tal cual, no como "backend 8787 sin respuesta".
+  const cabeceras = cabeceraAutorizacion();
   let resp;
   try {
-    resp = await fetch(`${API}/api/consola/problemas${forzar ? '?forzar=1' : ''}`);
+    resp = await fetch(`${API}/api/consola/problemas${forzar ? '?forzar=1' : ''}`, { headers: cabeceras });
   } catch (e) {
     console.error(`consola: backend 8787 sin respuesta (${e?.message ?? e})`);
     return 1;

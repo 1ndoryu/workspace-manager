@@ -10,10 +10,14 @@ import type { IncomingHttpHeaders } from 'node:http';
  * puerto 5174 es de opencode-propio y nunca figura aquí. */
 export const PUERTOS_TABLERO: readonly number[] = [5175, 8787, 4173];
 
-const HOSTS_LOCALES = '(localhost|127\\.0\\.0\\.1|\\[::1\\])';
+/* [por que] <nombre>.localhost (p. ej. workspace.localhost, dominio del registro) entra
+ * porque el navegador lo resuelve solo a loopback y ningun DNS remoto puede redirigirlo:
+ * no abre DNS rebinding. El token sigue exigido en la API. */
+const HOSTS_LOCALES = '(localhost|127\\.0\\.0\\.1|\\[::1\\]|[a-z0-9-]+\\.localhost)';
 const PUERTOS = PUERTOS_TABLERO.join('|');
-const ORIGIN_LOCAL = new RegExp(`^http://${HOSTS_LOCALES}:(${PUERTOS})$`, 'u');
-const HOST_LOCAL = new RegExp(`^${HOSTS_LOCALES}:(${PUERTOS})$`, 'u');
+/* Exportadas: el guardia global de entrada (seguridad/entrada.ts) usa las mismas reglas. */
+export const ORIGIN_LOCAL = new RegExp(`^http://${HOSTS_LOCALES}:(${PUERTOS})$`, 'u');
+export const HOST_LOCAL = new RegExp(`^${HOSTS_LOCALES}:(${PUERTOS})$`, 'u');
 
 export type VeredictoPeticion = { ok: true } | { ok: false; status: 403 | 415; motivo: string };
 

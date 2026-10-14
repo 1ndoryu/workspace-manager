@@ -22,6 +22,9 @@ import { manejarRutasVps } from './vps/rutas/rutasVps.js';
 import { manejarRutasVpsHistorial } from './vps/rutas/rutasVpsHistorial.js';
 import { manejarRutasVpsPiezas } from './vps/rutas/rutasVpsPiezas.js';
 import { crearManejadorTareas } from './tareas/rutasTareas.js';
+import { verificarEntrada } from './seguridad/entrada.js';
+import { obtenerToken } from './seguridad/token.js';
+import { registrarAuditoria, rutaAuditoriaPorDefecto } from './seguridad/auditoria.js';
 import { logger } from '../shared/logger.js';
 
 export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
@@ -80,13 +83,43 @@ function servirEstatico(rutaRel: string, res: ServerResponse): void {
   res.end(readFileSync(archivo));
 }
 
-export function crearServidor() {
+export interface OpcionesServidor {
+  /* Inyectables para tests; en producción salen del entorno y del archivo de usuario. */
+  token?: string;
+  /* null = sin auditoría. */
+  auditoria?: string | null;
+}
+
+export function crearServidor(opciones: OpcionesServidor = {}) {
+  const token = opciones.token ?? obtenerToken();
+  const archivoAuditoria = opciones.auditoria === undefined
+    ? rutaAuditoriaPorDefecto(join(import.meta.dirname, '..', '..'))
+    : opciones.auditoria;
+
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
     const ruta = url.pathname;
 
+    /* Guardia de entrada (F9.1) antes de cualquier ruta: Host, Origin y token de la API. */
+    if (archivoAuditoria !== null && ruta.startsWith('/api/')) {
+      res.on('finish', () => {
+        const origin = typeof req.headers.origin === 'string' ? req.headers.origin : null;
+        registrarAuditoria(archivoAuditoria, { metodo: req.method, ruta, estado: res.statusCode, origin });
+      });
+    }
+    const veredicto = verificarEntrada(ruta, req.headers, token);
+    if (!veredicto.ok) {
+      json(res, veredicto.status, { error: veredicto.motivo });
+      return;
+    }
+
     if (ruta.startsWith('/api/')) {
       try {
+        /* Sonda de vida sin token (única ruta pública de la API, ver seguridad/entrada.ts). */
+        if (ruta === '/api/ping') {
+          json(res, 200, { ok: true });
+          return;
+        }
         if (ruta === '/api/workspace') {
           const forzar = url.searchParams.get('forzar') === '1';
           const { snapshot, desdeCache } = snapshotArea(forzar);
