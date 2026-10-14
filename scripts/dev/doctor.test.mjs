@@ -18,6 +18,7 @@ import {
   leerRegistro,
   parsearNetstat,
   validarIgnoradoSistema,
+  validarVps,
   veredictoUpSinCobertura,
 } from './doctor.mjs';
 
@@ -192,6 +193,41 @@ test('leerRegistro: el registro real carga y declara los auxiliares e ignorados 
   assert.equal(auxiliarDe(3122, 'node server/mejora.mjs', reg.entradas.values()), 'MN-Inmobiliaria');
   assert.equal(esSistemaIgnorado(53394, { exe: null, cmd: null, imagen: 'TpvNet.exe' }, reg.ignoradosSistema), true);
   assert.equal(esSistemaIgnorado(53401, { exe: null, cmd: null, imagen: 'SvrWCF.exe' }, reg.ignoradosSistema), true);
+});
+
+test('leerRegistro: vps — 89 completo con alias y 66 solo lectura sin alias; el registro real los declara', () => {
+  const reg = leerRegistro();
+  assert.deepEqual(
+    reg.vps.map((v) => [v.id, v.modo, v.alias]),
+    [['89', 'completo', 'dev89'], ['66', 'lectura', null]],
+  );
+});
+
+test('validarVps: rechaza lectura con alias SSH, completo sin alias, modo ajeno y claves extra', () => {
+  assert.doesNotThrow(() => validarVps({ id: 'x', alias: null, modo: 'lectura' }));
+  assert.throws(() => validarVps({ id: '66', alias: 'dev66', modo: 'lectura' }), /no admite alias/);
+  assert.throws(() => validarVps({ id: '89', alias: null, modo: 'completo' }), /necesita alias/);
+  assert.throws(() => validarVps({ id: '89', alias: 'dev89', modo: 'root' }), /modo debe ser/);
+  assert.throws(() => validarVps({ id: '89', alias: 'dev89', modo: 'completo', clave: 'x' }), /clave desconocida/);
+  assert.throws(() => validarVps({ id: 'Con Espacios', alias: 'dev', modo: 'completo' }), /vps.id no valido/);
+});
+
+test('leerRegistro: vps duplicado o no array falla cerrado; ausente es lista vacia', () => {
+  const dir = mkdtempSync(join('C:/tmp', 'wm-registro-test-'));
+  const ruta = join(dir, 'registro.json');
+  try {
+    writeFileSync(ruta, JSON.stringify({ version: 1, proyectos: [] }));
+    assert.deepEqual(leerRegistro(ruta).vps, []);
+    writeFileSync(ruta, JSON.stringify({ version: 1, proyectos: [], vps: { id: '89' } }));
+    assert.throws(() => leerRegistro(ruta), /vps no es array/);
+    writeFileSync(
+      ruta,
+      JSON.stringify({ version: 1, proyectos: [], vps: [{ id: '89', alias: 'dev89', modo: 'completo' }, { id: '89', alias: null, modo: 'lectura' }] }),
+    );
+    assert.throws(() => leerRegistro(ruta), /vps id duplicado/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('esSistemaIgnorado: pid 4 solo sin exe (System)', () => {

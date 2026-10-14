@@ -215,6 +215,10 @@
       "comandos": { "gate": null, "typecheck": "npm --prefix frontend run type-check", "build": "npm --prefix frontend run build", "test-archivo": null }
     }
   ],
+  "vps": [
+    { "id": "89", "alias": "dev89", "modo": "completo", "motivo": "taller remoto: usuario dev sin sudo ni docker, clave propia" },
+    { "id": "66", "alias": null, "modo": "lectura", "motivo": "VPS principal con Coolify: solo lectura via coolify-manager-rs; sin alias SSH" }
+  ],
   "noAplica": {
     "glory-agent": "sin-servicio",
     "glory-sentinel": "sin-servicio",
