@@ -121,17 +121,24 @@ install -d -m 755 -o dev -g dev /var/cache/sccache /var/tmp/glory-target
 cat > /usr/local/bin/cm-heavy <<'EOF'
 #!/usr/bin/env bash
 # Builds pesados de a uno (flock), con techo de memoria y preflight (plan F1, Presupuesto de RAM).
-# MemoryMax=4G es provisional mientras haya agentes residentes. Sale con 75 si no puede ejecutar.
+# MemoryMax=4G es provisional mientras haya agentes residentes. Sale con 75 si no puede ejecutar
+# (memoria o disco): el build no arranca y el mensaje dice qué falta. cm-sweep limpia antes (F5).
 set -euo pipefail
 ESPERA="${CM_HEAVY_ESPERA:-600}"
 MEM_MAX="${CM_HEAVY_MEM_MAX:-4G}"
 MIN_MB="${CM_HEAVY_MIN_MB:-4096}"
+MIN_DISCO_GB="${CM_HEAVY_MIN_DISK_GB:-15}"
 (($#)) || { echo "uso: cm-heavy <comando...>" >&2; exit 2; }
 exec 9>>/run/lock/cm-heavy.lock
 flock -w "$ESPERA" 9 || { echo "cm-heavy: otro build ocupa el lock tras ${ESPERA} s" >&2; exit 75; }
 DISPONIBLE_MB=$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)
 if ((DISPONIBLE_MB < MIN_MB)); then
   echo "cm-heavy: ${DISPONIBLE_MB} MB libres (mínimo ${MIN_MB})" >&2
+  exit 75
+fi
+LIBRE_GB=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+if ((LIBRE_GB < MIN_DISCO_GB)); then
+  echo "cm-heavy: ${LIBRE_GB} GB libres en / (mínimo ${MIN_DISCO_GB}); revisar /var/log/cm-sweep.log" >&2
   exit 75
 fi
 if [[ $EUID -eq 0 ]]; then SR=(systemd-run --scope); else SR=(systemd-run --user --scope); fi
@@ -143,6 +150,12 @@ f /run/lock/cm-heavy.lock 0666 root root -
 EOF
 systemd-tmpfiles --create /usr/lib/tmpfiles.d/cm-heavy.conf
 log "cm-heavy instalado"
+
+# 9b. Limpieza periódica (F5): cm-sweep.sh junto a este script es la única fuente; --instalar es idempotente.
+SWEEP_SRC="$(dirname "$(readlink -f "$0")")/cm-sweep.sh"
+[[ -f "$SWEEP_SRC" ]] || { echo "falta cm-sweep.sh junto a provision-89.sh" >&2; exit 1; }
+bash "$SWEEP_SRC" --instalar
+log "cm-sweep instalado (timer horario)"
 
 # 10. Toolchain de dev (sin root): rustup, componentes, nextest y node LTS con fnm.
 runuser -u dev -- bash -s <<'EOF'
