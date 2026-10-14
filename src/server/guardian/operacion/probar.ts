@@ -10,7 +10,7 @@ import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { ErrorValidacion } from '../configuracion/politica.js';
+import { ErrorValidacion, type Listas } from '../configuracion/politica.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -52,6 +52,23 @@ export interface DecisionProbada {
 export type ResultadoProbar =
   | { estado: 'ok'; codigo: number; decision: DecisionProbada }
   | { estado: 'error'; motivo: string };
+
+/* [por que] El probe solo consulta a Sentinel por lo que el Guardián tiene registrado en
+ * el proyecto: sus `tools` y los ejecutables que cubren sus listas de npm, npx y cargo.
+ * Así la API no sirve para sondear binarios arbitrarios del sistema. */
+export function herramientasRegistradas(listas: Listas): Set<string> {
+  const registro = new Set(listas.tools);
+  if (listas.npmScripts.length > 0) registro.add('npm');
+  if (listas.npxTools.length > 0) registro.add('npx');
+  if (listas.cargoSubcommands.length > 0) registro.add('cargo');
+  return registro;
+}
+
+export function comprobarRegistrada(ejecutable: string, listas: Listas): void {
+  if (!herramientasRegistradas(listas).has(ejecutable)) {
+    throw new ErrorValidacion(`«${ejecutable}» no está en el registro del Guardián de este proyecto`);
+  }
+}
 
 export function runtimeJsPorDefecto(): string {
   const local = process.env.LOCALAPPDATA ?? path.join(homedir(), 'AppData', 'Local');

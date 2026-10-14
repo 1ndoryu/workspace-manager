@@ -9,8 +9,10 @@ import {
   ErrorValidacion,
   guardarEdicion,
   guardarLote,
+  leerPolitica,
   validarCambio,
 } from '../../guardian/configuracion/politica.js';
+import { comprobarRegistrada } from '../../guardian/operacion/probar.js';
 import { calcularEdicionPlantilla, guardarEdicionPlantilla } from '../../guardian/configuracion/plantilla.js';
 import { calcularTopes, guardarTopes, validarCambioTopes } from '../../guardian/configuracion/topes.js';
 import type { EntradaMantenimiento } from '../../guardian/operacion/mantenimiento.js';
@@ -158,6 +160,13 @@ export async function probarRuta(c: Contexto): Promise<void> {
   const proyecto = proyectoElegible(c.deps, cuerpo.clave);
   const ejecutable = textoRequerido(cuerpo.ejecutable, 'ejecutable');
   if (!Array.isArray(cuerpo.args)) throw new ErrorValidacion('args debe ser una lista de textos');
+  /* [por que] Sin política válida no hay registro que comprobar: se rechaza en vez de
+   * sondear a ciegas. */
+  const politica = leerPolitica(proyecto.ruta);
+  if (politica.estado !== 'ok') {
+    throw new ErrorValidacion('el proyecto no tiene una política del Guardián válida: no hay registro que comprobar');
+  }
+  comprobarRegistrada(ejecutable, politica.listas);
   const args: string[] = cuerpo.args;
   const r = await c.deps.probarComando({ raiz: proyecto.ruta, ejecutable, args });
   json(c.res, 200, r);

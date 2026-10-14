@@ -183,6 +183,26 @@ describe('probar y mantenimiento', () => {
     assert.equal(r.status, 422);
   });
 
+  it('probar con un ejecutable fuera del registro responde 422 sin llamar a Sentinel', async () => {
+    registrar('probar-fuera', 'sentinel', CONFIG_BASE);
+    const antes = llamadas.probar.length;
+    const r = await pedir('POST', '/api/guardian/probar', {
+      cuerpo: { clave: 'probar-fuera', ejecutable: 'curl', args: ['https://example.com'] },
+    });
+    assert.equal(r.status, 422);
+    assert.equal(llamadas.probar.length, antes);
+  });
+
+  it('probar en un proyecto sin política del Guardián responde 422 sin llamar a Sentinel', async () => {
+    registrar('probar-sin-politica', 'sentinel', null);
+    const antes = llamadas.probar.length;
+    const r = await pedir('POST', '/api/guardian/probar', {
+      cuerpo: { clave: 'probar-sin-politica', ejecutable: 'npm', args: ['run', 'lint'] },
+    });
+    assert.equal(r.status, 422);
+    assert.equal(llamadas.probar.length, antes);
+  });
+
   it('mantenimiento no reenvía rutas del cliente, solo sus tres banderas', async () => {
     const antes = llamadas.mantenimiento.length;
     const r = await pedir('POST', '/api/guardian/mantenimiento', {
