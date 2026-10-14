@@ -117,7 +117,37 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
       }
     }
   }
-  return { version: 1, entradas, noAplica, ignoradosSistema };
+  // [por que F9.2] Equipos donde corre el taller. `completo` = el manager puede escribir
+  // (alias SSH propio); `lectura` = solo consulta y NUNCA lleva alias: un alias ahi seria
+  // un atajo a escribir en la VPS principal. Ausente = lista vacia (registro previo).
+  const vps = crudo.vps ?? [];
+  if (!Array.isArray(vps)) throw new Error('registro: vps no es array');
+  const idsVps = new Set();
+  for (const v of vps) {
+    validarVps(v);
+    if (idsVps.has(v.id)) throw new Error(`registro: vps id duplicado '${v.id}'`);
+    idsVps.add(v.id);
+  }
+  return { version: 1, entradas, noAplica, ignoradosSistema, vps };
+}
+
+const MODOS_VPS = ['completo', 'lectura'];
+
+export function validarVps(v) {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new Error('registro: vps[] no es objeto');
+  for (const k of Object.keys(v)) {
+    if (!['id', 'alias', 'modo', 'motivo'].includes(k)) throw new Error(`registro: vps clave desconocida '${k}'`);
+  }
+  if (typeof v.id !== 'string' || !/^[a-z0-9-]+$/.test(v.id)) throw new Error(`registro: vps.id no valido '${v.id}'`);
+  if (!MODOS_VPS.includes(v.modo)) throw new Error(`registro: vps '${v.id}' modo debe ser completo|lectura`);
+  if (v.modo === 'completo') {
+    if (typeof v.alias !== 'string' || !/^[A-Za-z0-9_-]+$/.test(v.alias)) {
+      throw new Error(`registro: vps '${v.id}' en modo completo necesita alias SSH`);
+    }
+  } else if (v.alias !== undefined && v.alias !== null) {
+    throw new Error(`registro: vps '${v.id}' en modo lectura no admite alias SSH`);
+  }
+  if (v.motivo !== undefined && typeof v.motivo !== 'string') throw new Error(`registro: vps '${v.id}' motivo no es texto`);
 }
 
 export function validarIgnoradoSistema(s, ctx) {
