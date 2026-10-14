@@ -6,9 +6,10 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { huellaArbol } from './huella.js';
+import { raizTemporales } from '../../plataforma/temporales.js';
 
-/* AGENTS §0.2: temporales solo en C:/tmp, nunca en %TEMP%. */
-const RAIZ_TMP = join(process.env.WM_TMP ?? 'C:/tmp', 'wm-tests');
+/* AGENTS §0.2: temporales en la raíz de temporales (C:/tmp en Windows), nunca en %TEMP%. */
+const RAIZ_TMP = join(raizTemporales(), 'wm-tests');
 mkdirSync(RAIZ_TMP, { recursive: true });
 
 const git = (dir: string, ...args: string[]) => execFileSync('git', ['-C', dir, ...args], { stdio: 'pipe' });

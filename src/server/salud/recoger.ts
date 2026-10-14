@@ -14,6 +14,7 @@ import { git } from '../scanner/git.js';
 import { diferenciasPlantilla, leerPolitica } from '../guardian/configuracion/politica.js';
 import type { LecturaPlantilla } from '../guardian/configuracion/plantilla.js';
 import type { DatosArea, DatosProyecto, EstadoGuard, PlanActivo, RamaSuelta } from './tipos.js';
+import { raizTemporales } from '../plataforma/temporales.js';
 
 const GB = 1024 ** 3;
 /* [por que] Presupuesto de la medición de C:\tmp: `du` tarda minutos; el tablero no
@@ -294,7 +295,7 @@ export async function recogerArea(
     carpetasGit,
     registradas: [...new Set([...proyectos.map((p) => p.clave), ...idsProyectos, ...noAplica])],
     discoLibreGb: discoLibreGb(),
-    tmp: await medirTmp('C:/tmp', PRESUPUESTO_TMP_MS),
+    tmp: await medirTmp(raizTemporales(), PRESUPUESTO_TMP_MS),
     /* [por que] process.env hereda las variables de usuario al arrancar el servidor. */
     incrementalUsuario: process.env.CARGO_INCREMENTAL ?? null,
     sentinelPin: pinArea,

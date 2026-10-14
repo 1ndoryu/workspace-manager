@@ -11,6 +11,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { ErrorValidacion, type Listas } from '../configuracion/politica.js';
+import { raizTemporales } from '../../plataforma/temporales.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -20,7 +21,9 @@ const CODIGO_BLOQUEO = 78;
 const PATRON_EJECUTABLE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/u;
 const MAX_ARGS = 64;
 const MAX_LONGITUD_ARG = 512;
-export const DIARIO_PRUEBAS = 'C:/tmp/glory-guardian-probe';
+/* [por que] Antes era 'C:/tmp/...' literal: en Linux es una ruta relativa al cwd del servidor.
+ * La barra fija (no path.join) mantiene el valor de Windows byte a byte. */
+export const DIARIO_PRUEBAS = `${raizTemporales()}/glory-guardian-probe`;
 
 export interface EntradaProbar {
   raiz: string;
