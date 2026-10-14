@@ -24,7 +24,10 @@ import { leerRegistro, procesosDe, PUERTOS_PROTEGIDOS, RAIZ_REPO } from './docto
 const DIR_LOGS = join(RAIZ_REPO, 'logs');
 const rutaEstado = (id) => join(DIR_LOGS, `remoto-${id}.json`);
 const sesionTmux = (id, puerto) => `dev-${id}-${puerto}`;
-const fragmentoReenvio = (puerto) => `127.0.0.1:${puerto}:127.0.0.1:${puerto}`;
+const fragmentoReenvio = (local, remoto) => `127.0.0.1:${local}:127.0.0.1:${remoto}`;
+// [por que] puertosLocales (opcional, misma longitud que puertos): el túnel abre ese puerto en el laptop y deja el remoto igual.
+// Permite tener el dev local encendido sin chocar con el remoto; el resto del flujo (probe, marcador) usa el local.
+const puertosLocalesDe = (entrada) => entrada.puertos.map((p, i) => entrada.puertosLocales?.[i] ?? p);
 
 export function esEntradaRemota(entrada) {
   return typeof entrada?.host === 'string' && entrada.host !== '';
@@ -40,6 +43,15 @@ export function validarHostRemoto(entrada, config) {
   if (entrada.requiere?.length) return 'requiere no se soporta en host remoto';
   const protegidos = entrada.puertos.filter((p) => PUERTOS_PROTEGIDOS.has(p));
   if (protegidos.length) return `puertos protegidos ${protegidos.join(',')} no se reenvian al laptop`;
+  if (entrada.puertosLocales !== undefined) {
+    const pl = entrada.puertosLocales;
+    if (!Array.isArray(pl) || pl.length !== entrada.puertos.length || pl.some((p) => !Number.isInteger(p) || p < 1024 || p > 65535)) {
+      return 'puertosLocales debe tener un puerto local (1024-65535) por cada puerto remoto';
+    }
+    if (new Set(pl).size !== pl.length) return 'puertosLocales repetidos';
+    const locProtegidos = pl.filter((p) => PUERTOS_PROTEGIDOS.has(p));
+    if (locProtegidos.length) return `puertos locales protegidos ${locProtegidos.join(',')}`;
+  }
   const envInvalidas = Object.keys(entrada.env ?? {}).filter((k) => !RE_NOMBRE_ENV.test(k));
   if (envInvalidas.length) return `nombres de variable no válidos en env: ${envInvalidas.join(',')}`;
   if (entrada.envRemoto !== undefined && entrada.envRemoto !== 'todo') {
@@ -84,6 +96,7 @@ export function contenidoEnvRemoto(textoEnv, envRemoto, urlBd = null) {
 // Reenvio solo a loopback en ambos extremos; ExitOnForwardFailure hace que ssh salga si un puerto no se puede reenviar.
 // ControlMaster=no: el PID de este proceso es el tunel (con multiplexado ssh delegaria y saldria).
 export function argsTunel(config, entrada) {
+  const locales = puertosLocalesDe(entrada);
   return [
     '-N',
     '-o', 'ExitOnForwardFailure=yes',
@@ -93,14 +106,15 @@ export function argsTunel(config, entrada) {
     '-o', 'ConnectTimeout=10',
     '-o', 'ServerAliveInterval=30',
     '-o', 'ServerAliveCountMax=3',
-    ...entrada.puertos.flatMap((p) => ['-L', fragmentoReenvio(p)]),
+    ...entrada.puertos.flatMap((p, i) => ['-L', fragmentoReenvio(locales[i], p)]),
     config.host,
   ];
 }
 
 // Para `expectedCmdline` del registro (fragmentos por puerto): doctor atribuye el tunel ssh como propio.
 export function marcadorTunel(config, entrada) {
-  return [config.host, ...entrada.puertos.map(fragmentoReenvio)];
+  const locales = puertosLocalesDe(entrada);
+  return [config.host, ...entrada.puertos.map((p, i) => fragmentoReenvio(locales[i], p))];
 }
 
 export function tunelEsNuestro(proc, config, entrada) {
@@ -290,7 +304,7 @@ async function estadoRemoto(config, id, entrada) {
   const sesionesVivas = entrada.puertos.filter((p) => vivas.includes(sesionTmux(id, p)));
   // [por que] Un solo intento de 2 s daba «deriva» falso tras un arranque en frío del túnel; se reintenta hasta 3 s.
   const sondasOk = pidTunel
-    ? await Promise.all(entrada.puertos.map((p) => esperarSonda(p, rutaSonda(entrada, p), 3000)))
+    ? await Promise.all(entrada.puertos.map((p, i) => esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), 3000)))
     : entrada.puertos.map(() => false);
   const detalle = `tmux ${sesionesVivas.length}/${entrada.puertos.length}, tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}, probe ${sondasOk.filter(Boolean).length}/${entrada.puertos.length}`;
   if (sesionesVivas.length === entrada.puertos.length && pidTunel && sondasOk.every(Boolean)) {
@@ -402,8 +416,8 @@ async function upRemoto(config, id, entrada) {
     pid = t.pid;
     creado = t.creado;
   }
-  for (const p of entrada.puertos) {
-    if (!(await esperarSonda(p, rutaSonda(entrada, p), limiteMs))) {
+  for (const [i, p] of entrada.puertos.entries()) {
+    if (!(await esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), limiteMs))) {
       return { codigo: 1, resumen: `up ${id}: probe sin respuesta por el tunel (puerto ${p}, ${limiteMs}ms): NO verde` };
     }
   }
