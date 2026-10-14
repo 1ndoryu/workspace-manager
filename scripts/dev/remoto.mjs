@@ -6,10 +6,19 @@
  * Sin probe por el tunel no hay verde; un puerto escuchando fuera de loopback
  * en 89 se mata antes de exponer nada. */
 import { execFile, spawn } from 'node:child_process';
-import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import { isAbsolute, join, normalize, resolve } from 'node:path';
-import { argsSsh, cargarConfig, detectarRama, rutasRemotas, shQuote } from '../remoto/rcargo.mjs';
+import {
+  argsSsh,
+  cargarConfig,
+  comandoBaseRemota,
+  detectarRama,
+  nombreBaseDatos,
+  rutasRemotas,
+  shQuote,
+  urlBaseRemota,
+} from '../remoto/rcargo.mjs';
 import { leerRegistro, procesosDe, PUERTOS_PROTEGIDOS, RAIZ_REPO } from './doctor.mjs';
 
 const DIR_LOGS = join(RAIZ_REPO, 'logs');
@@ -21,13 +30,50 @@ export function esEntradaRemota(entrada) {
   return typeof entrada?.host === 'string' && entrada.host !== '';
 }
 
+// [por que] Los nombres de variable van sin entrecomillar en el shell remoto y en el .env: solo identificadores.
+const RE_NOMBRE_ENV = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const dependenciaSegura = (d) => typeof d === 'string' && d !== '' && !isAbsolute(d) && !d.split(/[\\/]/).includes('..');
+
 // Solo el host declarado en taller.json; sin requiere (no hay orquestacion remota de dependencias).
 export function validarHostRemoto(entrada, config) {
   if (entrada.host !== config.host) return `host '${entrada.host}' no permitido (solo '${config.host}')`;
   if (entrada.requiere?.length) return 'requiere no se soporta en host remoto';
   const protegidos = entrada.puertos.filter((p) => PUERTOS_PROTEGIDOS.has(p));
   if (protegidos.length) return `puertos protegidos ${protegidos.join(',')} no se reenvian al laptop`;
+  const envInvalidas = Object.keys(entrada.env ?? {}).filter((k) => !RE_NOMBRE_ENV.test(k));
+  if (envInvalidas.length) return `nombres de variable no válidos en env: ${envInvalidas.join(',')}`;
+  if (entrada.envRemoto !== undefined && entrada.envRemoto !== 'todo') {
+    if (!Array.isArray(entrada.envRemoto)) return 'envRemoto debe ser "todo" o una lista de nombres';
+    const malas = entrada.envRemoto.filter((k) => typeof k !== 'string' || !RE_NOMBRE_ENV.test(k));
+    if (malas.length) return `nombres no válidos en envRemoto: ${malas.join(',')}`;
+  }
+  const deps = entrada.dependencias ?? [];
+  if (!Array.isArray(deps)) return 'dependencias debe ser una lista de rutas';
+  const fuera = deps.filter((d) => !dependenciaSegura(d));
+  if (fuera.length) return `dependencias fuera del proyecto: ${fuera.join(',')}`;
+  const pasos = entrada.precompilar ?? [];
+  if (!Array.isArray(pasos)) return 'precompilar debe ser una lista de comandos';
+  if (pasos.some((p) => !Array.isArray(p) || p.length === 0 || p.some((s) => typeof s !== 'string'))) {
+    return 'precompilar debe ser una lista de comandos (cada uno, una lista de textos)';
+  }
+  const conCargo = (entrada.boton ?? []).some((b) => Array.isArray(b) && b[0] === 'cargo');
+  if (conCargo && pasos.length === 0) return 'boton cargo sin precompilar: el build correría fuera de cm-heavy';
   return null;
+}
+
+// Protocolo del .env (envRemoto): "todo" copia el archivo; una lista copia solo esas claves.
+// [por que] Fail-closed: una clave pedida que no está en el .env local vuelve en `faltan` y no se arranca sin ella.
+// La DATABASE_URL se sustituye por la de la VPS cuando hay urlBd (base de la rama en la 89, nunca la del laptop).
+export function contenidoEnvRemoto(textoEnv, envRemoto, urlBd = null) {
+  const claveDe = (linea) => linea.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/)?.[1] ?? null;
+  const reemplazar = (linea) => (urlBd && claveDe(linea) === 'DATABASE_URL' ? `DATABASE_URL=${urlBd}` : linea);
+  const lineas = textoEnv.split(/\r?\n/);
+  if (envRemoto === 'todo') return { contenido: lineas.map(reemplazar).join('\n'), faltan: [] };
+  const presentes = new Set(lineas.map(claveDe).filter(Boolean));
+  const faltan = envRemoto.filter((k) => !presentes.has(k));
+  const pedidas = new Set(envRemoto);
+  const elegidas = lineas.filter((l) => pedidas.has(claveDe(l))).map(reemplazar);
+  return { contenido: `${elegidas.join('\n')}\n`, faltan };
 }
 
 // Reenvio solo a loopback en ambos extremos; ExitOnForwardFailure hace que ssh salga si un puerto no se puede reenviar.
@@ -58,18 +104,43 @@ export function tunelEsNuestro(proc, config, entrada) {
   return marcadorTunel(config, entrada).every((f) => proc.cmd.includes(f));
 }
 
+// cm-heavy (lock de carga pesada de la VPS, §5 del taller) solo al compilar: decidido 2026-10-14.
+// [por que] El candado dura lo que dura el build, no la vida del servidor; por eso `cargo` en `boton` exige `precompilar` (validarHostRemoto).
+const argvConCandado = (config, argv) => (argv[0] === 'cargo' ? [config.lockWrapper, ...argv] : argv);
+const prefijoEnv = (env) => Object.entries(env).map(([k, v]) => `${k}=${shQuote(v)} `).join('');
+// [por que] node no está en el PATH de `bash -lc`: fnm no se activa en shells no interactivos (.bashrc corta antes) y .profile no tiene `fnm env`. El alias default de fnm es una ruta estable.
+const PATH_NODE = 'export PATH="$HOME/.local/share/fnm/aliases/default/bin:$PATH"; ';
+
+// [por que] sqlx compila contra la caché .sqlx/ (como el Dockerfile del proyecto), no contra la base: la de la 89 puede estar vacía o sin migrar.
+const SQLX_OFFLINE = 'SQLX_OFFLINE=true ';
+
 // Una sesion tmux por puerto. Idempotente: si la sesion ya existe, no hace nada.
-// cm-heavy solo delante de cargo (lock de carga pesada de la VPS, §5 del taller).
-export function comandoRemotoUp(config, rutas, id, puerto, boton) {
-  const log = `${rutas.dirRemoto}/logs/dev-up-${id}-${puerto}.log`;
-  const [exe, ...resto] = boton;
-  const argv = exe === 'cargo' ? [config.lockWrapper, exe, ...resto] : boton;
-  const interno = `CARGO_TARGET_DIR=${shQuote(rutas.target)} ${argv.map(shQuote).join(' ')} >> ${shQuote(log)} 2>&1`;
+// env (registro + DATABASE_URL): el proceso lo recibe en la línea de comando, que gana al .env. Nombres validados en validarHostRemoto.
+export function comandoRemotoUp(config, rutas, id, puerto, boton, env = {}) {
+  const log = `${rutas.dirLogs}/dev-up-${id}-${puerto}.log`;
+  const interno = `${PATH_NODE}${SQLX_OFFLINE}${prefijoEnv(env)}CARGO_TARGET_DIR=${shQuote(rutas.target)} ${boton.map(shQuote).join(' ')} >> ${shQuote(log)} 2>&1`;
   const sesion = sesionTmux(id, puerto);
   return [
-    `mkdir -p ${shQuote(`${rutas.dirRemoto}/logs`)}`,
+    `mkdir -p ${shQuote(rutas.dirLogs)}`,
     `(tmux has-session -t ${shQuote(sesion)} 2>/dev/null || tmux new-session -d -s ${shQuote(sesion)} -c ${shQuote(rutas.dirRemoto)} ${shQuote(`bash -lc ${shQuote(interno)}`)})`,
   ].join(' && ');
+}
+
+// Precompilación: el build en frío (minutos) corre antes del tmux y deja el target listo para `cargo run`.
+// [por que] La salida va a un log: una compilación en frío no cabe en la salida de ssh. Mismo CARGO_TARGET_DIR que el arranque.
+export function comandoPrecompilar(config, rutas, id, argv, env = {}) {
+  const log = `${rutas.dirLogs}/precompilar-${id}.log`;
+  const interno = `${SQLX_OFFLINE}${prefijoEnv(env)}CARGO_TARGET_DIR=${shQuote(rutas.target)} ${argvConCandado(config, argv).map(shQuote).join(' ')}`;
+  return `mkdir -p ${shQuote(rutas.dirLogs)} && cd ${shQuote(rutas.dirRemoto)} && bash -lc ${shQuote(interno)} >> ${shQuote(log)} 2>&1`;
+}
+
+// npm ci solo si cambió package-lock.json: la marca es su sha256 dentro de node_modules (node_modules no viaja por Mutagen).
+const etiquetaNpm = (sub) => (sub === '.' ? 'raiz' : sub.replace(/[^A-Za-z0-9]+/g, '_'));
+export const rutaLogNpmCi = (dirLogs, sub, id) => `${dirLogs}/npm-ci-${id}-${etiquetaNpm(sub)}.log`;
+export function comandoNpmCi(dirRemoto, dirLogs, sub, id) {
+  const dir = sub === '.' ? dirRemoto : `${dirRemoto}/${sub}`;
+  const interno = `${PATH_NODE}set -eo pipefail; cd ${shQuote(dir)}; h=$(sha256sum package-lock.json | cut -d' ' -f1); if [ "$(cat node_modules/.taller-lock-sha256 2>/dev/null)" = "$h" ]; then echo 'npm ci: al dia'; else npm ci && mkdir -p node_modules && echo "$h" > node_modules/.taller-lock-sha256; fi`;
+  return `mkdir -p ${shQuote(dirLogs)} && bash -lc ${shQuote(interno)} >> ${shQuote(rutaLogNpmCi(dirLogs, sub, id))} 2>&1`;
 }
 
 // Salida de `ss -ltnH`: columna 4 = direccion local. Cualquier direccion no loopback es escucha publica.
@@ -106,15 +177,35 @@ async function esperarSonda(puerto, ruta, limiteMs) {
   return true;
 }
 
+// codigo: el de salida remoto (p. ej. 75 = cm-heavy ocupado); 1 si ssh no llegó a ejecutar o expiró el timeout.
 function sshRemoto(config, comando, timeoutMs = 30_000) {
   return new Promise((resolveP) => {
     execFile('ssh', argsSsh(config, [comando]), { timeout: timeoutMs, windowsHide: true, encoding: 'utf8' }, (err, stdout, stderr) => {
       resolveP({
         ok: !err,
+        codigo: err ? (typeof err.code === 'number' ? err.code : 1) : 0,
         salida: String(stdout ?? ''),
         error: String(stderr || err?.message || '').trim().slice(0, 300),
       });
     });
+  });
+}
+
+// [por que] El contenido viaja por stdin: no aparece en la línea de comando ni en `ps`. Temporal + mv: nunca un archivo a medias.
+function escribirArchivoRemoto(config, ruta, contenido, timeoutMs = 30_000) {
+  const tmp = `${ruta}.tmp-${process.pid}`;
+  const comando = `umask 077 && cat > ${shQuote(tmp)} && chmod 600 ${shQuote(tmp)} && mv -f ${shQuote(tmp)} ${shQuote(ruta)}`;
+  return new Promise((resolveP) => {
+    const hijo = spawn('ssh', argsSsh(config, [comando]), { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    let stderr = '';
+    hijo.stderr.on('data', (d) => { stderr += d; });
+    const reloj = setTimeout(() => hijo.kill(), timeoutMs);
+    hijo.on('error', (e) => { clearTimeout(reloj); resolveP({ ok: false, codigo: 1, error: e.message }); });
+    hijo.on('close', (code) => {
+      clearTimeout(reloj);
+      resolveP({ ok: code === 0, codigo: code ?? 1, error: stderr.trim().slice(0, 300) });
+    });
+    hijo.stdin.end(contenido);
   });
 }
 
@@ -192,8 +283,9 @@ async function estadoRemoto(config, id, entrada) {
   }
   const vivas = r.salida.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
   const sesionesVivas = entrada.puertos.filter((p) => vivas.includes(sesionTmux(id, p)));
+  // [por que] Un solo intento de 2 s daba «deriva» falso tras un arranque en frío del túnel; se reintenta hasta 3 s.
   const sondasOk = pidTunel
-    ? await Promise.all(entrada.puertos.map((p) => sondear(p, rutaSonda(entrada, p))))
+    ? await Promise.all(entrada.puertos.map((p) => esperarSonda(p, rutaSonda(entrada, p), 3000)))
     : entrada.puertos.map(() => false);
   const detalle = `tmux ${sesionesVivas.length}/${entrada.puertos.length}, tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}, probe ${sondasOk.filter(Boolean).length}/${entrada.puertos.length}`;
   if (sesionesVivas.length === entrada.puertos.length && pidTunel && sondasOk.every(Boolean)) {
@@ -222,6 +314,60 @@ async function esperarEscucha(config, entrada, limiteMs) {
   }
 }
 
+// Build en frío (241–307 s medidos) y npm ci: más que el timeout corto de ssh.
+const TIMEOUT_BUILD_MS = 900_000;
+
+// Protocolo de arranque remoto (decidido 2026-10-14). Orden fijo; cada paso falla cerrado con su motivo:
+// 1) .env local con las claves pedidas; 2) base de la rama en la 89 (si hay Cargo.toml y taller.json `bd`);
+// 3) .env remoto por stdin, 0600; 4) npm ci si cambió package-lock.json; 5) precompilar bajo cm-heavy.
+// Sin envRemoto no se copia nada: el proceso usa solo el env del registro.
+async function prepararRemoto(config, id, entrada, rama, rutas) {
+  const ruta = rutaAbsDe(entrada);
+  const env = { ...(entrada.env ?? {}) };
+  let urlBd = null;
+  let nombreBd = null;
+  if (entrada.envRemoto !== undefined && config.bd && existsSync(join(ruta, 'Cargo.toml'))) {
+    try {
+      nombreBd = nombreBaseDatos(readFileSync(join(ruta, 'Cargo.toml'), 'utf8'), rama);
+    } catch (e) {
+      return { ok: false, resumen: e.message };
+    }
+    urlBd = urlBaseRemota(config.bd, nombreBd);
+    env.DATABASE_URL = urlBd;
+  }
+  let contenidoEnv = null;
+  if (entrada.envRemoto !== undefined) {
+    const rutaEnv = join(ruta, '.env');
+    let textoEnv;
+    try {
+      textoEnv = readFileSync(rutaEnv, 'utf8');
+    } catch {
+      return { ok: false, resumen: `envRemoto pide copiar ${rutaEnv} y no existe` };
+    }
+    const { contenido, faltan } = contenidoEnvRemoto(textoEnv, entrada.envRemoto, urlBd);
+    if (faltan.length) return { ok: false, resumen: `envRemoto: faltan en ${rutaEnv}: ${faltan.join(', ')}` };
+    contenidoEnv = contenido;
+  }
+  if (nombreBd) {
+    const r = await sshRemoto(config, `bash -lc ${shQuote(comandoBaseRemota(config.bd, nombreBd))}`);
+    if (!r.ok) return { ok: false, resumen: `base ${nombreBd} no disponible en ${config.host}: ${r.error}` };
+  }
+  if (contenidoEnv !== null) {
+    const w = await escribirArchivoRemoto(config, `${rutas.dirRemoto}/.env`, contenidoEnv);
+    if (!w.ok) return { ok: false, resumen: `.env remoto no se pudo escribir: ${w.error}` };
+  }
+  for (const sub of entrada.dependencias ?? []) {
+    const r = await sshRemoto(config, comandoNpmCi(rutas.dirRemoto, rutas.dirLogs, sub, id), TIMEOUT_BUILD_MS);
+    if (!r.ok) return { ok: false, resumen: `npm ci (${sub}) fallo, log ${rutaLogNpmCi(rutas.dirLogs, sub, id)} en ${config.host}` };
+  }
+  for (const argv of entrada.precompilar ?? []) {
+    const r = await sshRemoto(config, comandoPrecompilar(config, rutas, id, argv), TIMEOUT_BUILD_MS);
+    if (r.codigo === 75) return { ok: false, resumen: `cm-heavy ocupado en ${config.host} (otro build pesado); reintenta en unos minutos` };
+    if (!r.ok) return { ok: false, resumen: `precompilar fallo, log ${rutas.dirLogs}/precompilar-${id}.log en ${config.host}: ${r.error}` };
+  }
+  return { ok: true, env };
+}
+
 async function upRemoto(config, id, entrada) {
   const error = validarHostRemoto(entrada, config);
   if (error) return { codigo: 1, resumen: `up ${id}: rehusado (${error})` };
@@ -229,9 +375,12 @@ async function upRemoto(config, id, entrada) {
   if (previo.estado === 'bajo-mando') {
     return { codigo: 0, resumen: `up ${id}: ya-arriba (${previo.motivo})` };
   }
-  const rutas = rutasRemotas(config, id, detectarRama(rutaAbsDe(entrada)));
+  const rama = detectarRama(rutaAbsDe(entrada));
+  const rutas = rutasRemotas(config, id, rama);
+  const prep = await prepararRemoto(config, id, entrada, rama, rutas);
+  if (!prep.ok) return { codigo: 1, resumen: `up ${id}: ${prep.resumen}: NO verde` };
   for (const [i, p] of entrada.puertos.entries()) {
-    const r = await sshRemoto(config, comandoRemotoUp(config, rutas, id, p, entrada.boton[i]));
+    const r = await sshRemoto(config, comandoRemotoUp(config, rutas, id, p, entrada.boton[i], prep.env));
     if (!r.ok) return { codigo: 1, resumen: `up ${id}: arranque remoto fallo (puerto ${p}): ${r.error}` };
   }
   const limiteMs = entrada.arranqueMs ?? 60_000;
@@ -284,7 +433,7 @@ async function stopRemoto(config, id, entrada) {
 
 async function logsRemoto(config, id, entrada, lineas) {
   const rutas = rutasRemotas(config, id, detectarRama(rutaAbsDe(entrada)));
-  const partes = entrada.puertos.map((p) => `echo ${shQuote(`== ${p}`)}; tail -n ${lineas} ${shQuote(`${rutas.dirRemoto}/logs/dev-up-${id}-${p}.log`)} 2>&1`);
+  const partes = entrada.puertos.map((p) => `echo ${shQuote(`== ${p}`)}; tail -n ${lineas} ${shQuote(`${rutas.dirLogs}/dev-up-${id}-${p}.log`)} 2>&1`);
   const r = await sshRemoto(config, partes.join('; '));
   return r.ok ? { codigo: 0, salida: r.salida } : { codigo: 1, salida: `logs ${id}: ${r.error}` };
 }
@@ -292,6 +441,8 @@ async function logsRemoto(config, id, entrada, lineas) {
 // Entrada del registro si es remota; null si no lo es o el registro no se puede leer (lo informa el camino local).
 export function entradaRemotaDe(id, args) {
   if (!id || id.startsWith('-')) return null;
+  // --local fuerza el camino local aunque el registro declare host (decidido 2026-10-14: todo en la 89 por defecto).
+  if (args.includes('--local')) return null;
   const iReg = args.indexOf('--registro');
   let registro;
   try {

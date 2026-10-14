@@ -46,9 +46,11 @@ export function nombreSesion(proyecto) {
   return `taller-${proyecto}`;
 }
 
+// [por que] Los logs viven fuera de dirRemoto: Mutagen (one-way-replica) borra en la 89 lo que no existe en el laptop, y dentro de la réplica se perdían.
 export function rutasRemotas(config, proyecto, rama) {
   return {
     dirRemoto: `${config.dirRemotoBase}/${proyecto}`,
+    dirLogs: `${config.dirRemotoBase}/_logs/${proyecto}`,
     target: `${config.targetBase}/${proyecto}_${slug(rama)}`,
   };
 }
