@@ -66,11 +66,45 @@ export function argsCrearSesion(config, proyecto, rutaLocal) {
   ];
 }
 
+// Base de datos por rama, como scripts/branch-db.mjs: {paquete}_{rama}; main/master usan {paquete}.
+// [14AA-1] Solo la necesitan los subcomandos de taller.json `bd.subcomandos`. La 89 no tiene .git
+// (Mutagen no lo sincroniza), por eso el nombre se calcula aquí y no con branch-db.mjs.
+export function nombreBaseDatos(cargoToml, rama) {
+  // Solo la sección [package]: un `name` de [[bin]] o [lib] no es el paquete.
+  const seccion = cargoToml.split(/^\[/m).find((s) => s.startsWith('package]'));
+  const m = seccion?.match(/^name\s*=\s*"([^"]+)"/m);
+  if (!m) throw new Error('Cargo.toml de la raíz sin [package].name: no se puede derivar la base de datos');
+  const paquete = m[1].replace(/-/g, '_');
+  const defecto = rama === 'main' || rama === 'master';
+  const nombre = (defecto ? paquete : `${paquete}_${String(rama).replace(/[^a-zA-Z0-9]/g, '_')}`).toLowerCase();
+  if (nombre.length > 63 || !/^[a-z0-9_]+$/.test(nombre)) {
+    throw new Error(`nombre de base de datos no válido o demasiado largo: ${nombre}`);
+  }
+  return nombre;
+}
+
+// [por que] Sin contraseña: el rol dev entra por el socket Unix (peer), igual que el resto de la 89.
+export function urlBaseRemota(bd, nombre) {
+  return `postgres://${bd.usuario}@${encodeURIComponent(bd.socket)}/${nombre}`;
+}
+
+// Crea la base si falta (idempotente). Va entre paréntesis: si `cd` falla, no se crea nada.
+export function comandoBaseRemota(bd, nombre) {
+  const psql = (sql) =>
+    `psql -h ${shQuote(bd.socket)} -U ${shQuote(bd.usuario)} -d postgres -v ON_ERROR_STOP=1 -qtAc ${shQuote(sql)}`;
+  return `( ${psql(`SELECT 1 FROM pg_database WHERE datname='${nombre}'`)} | grep -qx 1 || ${psql(`CREATE DATABASE "${nombre}"`)} )`;
+}
+
 // Comando que ssh ejecuta en la VPS. El lock de carga pesada (cm-heavy) va delante de cargo.
-export function construirComandoRemoto(config, rutas, args) {
+export function construirComandoRemoto(config, rutas, args, nombreBd = null) {
+  const entorno = [
+    ...(nombreBd ? [`DATABASE_URL=${shQuote(urlBaseRemota(config.bd, nombreBd))}`] : []),
+    `CARGO_TARGET_DIR=${shQuote(rutas.target)}`,
+  ].join(' ');
   const interno = [
     `cd ${shQuote(rutas.dirRemoto)}`,
-    `CARGO_TARGET_DIR=${shQuote(rutas.target)} ${config.lockWrapper} cargo ${args.map(shQuote).join(' ')}`,
+    ...(nombreBd ? [comandoBaseRemota(config.bd, nombreBd)] : []),
+    `${entorno} ${config.lockWrapper} cargo ${args.map(shQuote).join(' ')}`,
   ].join(' && ');
   return ['bash', '-lc', shQuote(interno)];
 }
@@ -127,12 +161,29 @@ function correr(cmd, args, { dryRun, cwd, heredar = false }) {
   return { status: r.status ?? 1, stdout: r.stdout ?? '' };
 }
 
+// La base se deriva de la raíz del repo, igual que el directorio remoto (dirRemoto).
+function leerCargoToml(cwd) {
+  const raiz = git(cwd, ['rev-parse', '--show-toplevel']) ?? cwd;
+  return readFileSync(path.join(raiz, 'Cargo.toml'), 'utf8');
+}
+
 // Asegura la sesión de Mutagen, fuerza el envío pendiente y ejecuta cargo en la VPS.
 export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
   const rutas = rutasRemotas(config, proyecto, rama);
   const sesion = nombreSesion(proyecto);
   // [14AA-1] Binario configurable: el instalado en el laptop no está en PATH.
   const mutagen = config.sync?.binario || 'mutagen';
+
+  // [14AA-1] Antes de sincronizar: si no se puede derivar el nombre, no se lanza nada.
+  let nombreBd = null;
+  if (config.bd?.subcomandos?.includes(args[0])) {
+    try {
+      nombreBd = nombreBaseDatos(leerCargoToml(cwd), rama);
+    } catch (e) {
+      console.error(`rcargo: ${e.message}`);
+      return 2;
+    }
+  }
 
   // En dry-run no se consulta Mutagen: se asume que la sesión no existe.
   const lista = correr(mutagen, ['sync', 'list', sesion], { dryRun, cwd });
@@ -145,7 +196,7 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
 
   if (correr(mutagen, ['sync', 'flush', sesion], { dryRun, cwd }).status !== 0) return 1;
 
-  const remoto = construirComandoRemoto(config, rutas, args);
+  const remoto = construirComandoRemoto(config, rutas, args, nombreBd);
   return correr('ssh', argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;
 }
 
