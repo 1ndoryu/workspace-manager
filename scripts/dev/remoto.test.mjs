@@ -115,6 +115,8 @@ test('puertosLocales: el túnel abre el puerto local y deja el remoto; validaci�
   assert.equal(args.includes('127.0.0.1:3110:127.0.0.1:3110'), false);
   assert.deepEqual(marcadorTunel(config, conLocales), ['dev89', '127.0.0.1:3210:127.0.0.1:3110', '127.0.0.1:5299:127.0.0.1:5199']);
   assert.equal(tunelEsNuestro({ creado: 1, imagen: 'ssh.exe', cmd: 'ssh -N -L 127.0.0.1:3210:127.0.0.1:3110 -L 127.0.0.1:5299:127.0.0.1:5199 dev89' }, config, conLocales), true);
+  // Túnel de la versión anterior: contiene los dos marcadores nuevos más un reenvío de sobra al 3102.
+  assert.equal(tunelEsNuestro({ creado: 1, imagen: 'ssh.exe', cmd: 'ssh -N -L 127.0.0.1:3210:127.0.0.1:3110 -L 127.0.0.1:5299:127.0.0.1:5199 -L 127.0.0.1:3202:127.0.0.1:3102 dev89' }, config, conLocales), false);
   assert.equal(comandoRemotoUp(config, rutas, 'P', 3110, ['npm', 'run', 'dev']).includes('3210'), false);
   assert.match(validarHostRemoto({ ...conLocales, puertosLocales: [3210] }, config), /puertosLocales debe tener/);
   assert.match(validarHostRemoto({ ...conLocales, puertosLocales: [3210, 3210] }, config), /repetidos/);
