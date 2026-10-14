@@ -127,7 +127,10 @@ export function marcadorTunel(config, entrada) {
 export function tunelEsNuestro(proc, config, entrada) {
   if (!proc?.creado || !proc.cmd) return false;
   if (!/^ssh(\.exe)?$/i.test(proc.imagen ?? '')) return false;
-  return marcadorTunel(config, entrada).every((f) => proc.cmd.includes(f));
+  if (!marcadorTunel(config, entrada).every((f) => proc.cmd.includes(f))) return false;
+  // [por que] Un túnel de una versión anterior con reenvíos de más (p. ej. 3202→3102) contiene todos los marcadores:
+  // se rechaza por exceso; si no, queda huérfano y ocupa el puerto local que `up` necesita.
+  return (proc.cmd.match(/(^|\s)-L\s/g) ?? []).length === puertosRemotosDe(entrada).length;
 }
 
 // cm-heavy (lock de carga pesada de la VPS, §5 del taller) solo al compilar: decidido 2026-10-14.
