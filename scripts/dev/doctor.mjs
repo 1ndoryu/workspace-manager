@@ -165,12 +165,17 @@ function validarEntrada(e) {
     if (!e._avisoRegistro) e._avisoRegistro = motivo;
   };
   // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) {
       mal(`registro: clave desconocida '${k}' en '${e.id}'`);
       return;
     }
+  }
+  // [por que] `host` = la entrada corre en esa VPS (scripts/dev/remoto.mjs). Solo el nombre; que coincida con taller.json lo exige remoto.mjs (fail-closed).
+  if ('host' in e && (typeof e.host !== 'string' || e.host === '')) {
+    mal(`registro: '${e.id}' host debe ser un alias no vacio`);
+    return;
   }
   const rutaAbs = isAbsolute(e.ruta) ? normalize(e.ruta) : resolve(RAIZ_REPO, e.ruta);
   // [por que] El mando gestiona proyectos hermanos (glory-pulse, ...): el

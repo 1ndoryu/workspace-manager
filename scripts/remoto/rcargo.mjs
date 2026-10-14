@@ -1,0 +1,169 @@
+#!/usr/bin/env node
+// Taller remoto (VPS 89): cargo se ejecuta en la VPS por defecto.
+// Sync laptop→89 con Mutagen (réplica unidireccional, sin commit ni GitHub).
+// Diseño y decisiones: Agente/planes/plan-taller-remoto-vps89-2026-10-14.md
+//
+// Uso: node rcargo.mjs [--proyecto=NOMBRE] [--dry-run] <args de cargo>
+// Modo local (sin VPS): lo decide el wrapper del proyecto con modoEfectivo().
+
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const DIR = path.dirname(fileURLToPath(import.meta.url));
+const MODOS = new Set(['local', 'remoto']);
+
+export function cargarConfig(ruta = path.join(DIR, 'taller.json')) {
+  return JSON.parse(readFileSync(ruta, 'utf8'));
+}
+
+// Precedencia: flag (--local/--remoto) > variable TALLER_MODO > proyectos.<nombre>.modo > modoPorDefecto.
+export function modoEfectivo(argv, config, proyecto, env = process.env) {
+  if (argv.includes('--local')) return 'local';
+  if (argv.includes('--remoto')) return 'remoto';
+  if (MODOS.has(env.TALLER_MODO)) return env.TALLER_MODO;
+  const porProyecto = config.proyectos?.[proyecto]?.modo;
+  if (MODOS.has(porProyecto)) return porProyecto;
+  return config.modoPorDefecto;
+}
+
+// Quita los flags del taller para que no lleguen a cargo.
+export function quitarFlagsTaller(argv) {
+  return argv.filter((a) => !['--local', '--remoto', '--dry-run'].includes(a) && !a.startsWith('--proyecto='));
+}
+
+export function shQuote(valor) {
+  return `'${String(valor).replace(/'/g, `'\\''`)}'`;
+}
+
+// Nombre de rama → slug para el directorio de target (minúsculas, [a-z0-9-]).
+export function slug(rama) {
+  return String(rama).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'main';
+}
+
+export function nombreSesion(proyecto) {
+  return `taller-${proyecto}`;
+}
+
+export function rutasRemotas(config, proyecto, rama) {
+  return {
+    dirRemoto: `${config.dirRemotoBase}/${proyecto}`,
+    target: `${config.targetBase}/${proyecto}_${slug(rama)}`,
+  };
+}
+
+// Argumentos de `mutagen sync create`. Réplica laptop→89: la VPS nunca escribe de vuelta.
+export function argsCrearSesion(config, proyecto, rutaLocal) {
+  const ignorar = config.sync.ignorar.flatMap((p) => ['--ignore', p]);
+  return [
+    'sync', 'create',
+    '--name', nombreSesion(proyecto),
+    '--mode', config.sync.modo,
+    ...ignorar,
+    rutaLocal,
+    `${config.host}:${config.dirRemotoBase}/${proyecto}`,
+  ];
+}
+
+// Comando que ssh ejecuta en la VPS. El lock de carga pesada (cm-heavy) va delante de cargo.
+export function construirComandoRemoto(config, rutas, args) {
+  const interno = [
+    `cd ${shQuote(rutas.dirRemoto)}`,
+    `CARGO_TARGET_DIR=${shQuote(rutas.target)} ${config.lockWrapper} cargo ${args.map(shQuote).join(' ')}`,
+  ].join(' && ');
+  return ['bash', '-lc', shQuote(interno)];
+}
+
+export function argsSsh(config, comandoRemoto) {
+  return [
+    '-o', 'BatchMode=yes',
+    '-o', 'ConnectTimeout=10',
+    '-o', 'ControlMaster=auto',
+    '-o', 'ControlPersist=10m',
+    '-o', 'ServerAliveInterval=30',
+    config.host,
+    ...comandoRemoto,
+  ];
+}
+
+function git(cwd, args) {
+  const r = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
+  return r.status === 0 ? r.stdout.trim() : null;
+}
+
+export function detectarProyecto(cwd) {
+  const raiz = git(cwd, ['rev-parse', '--show-toplevel']);
+  return path.basename(raiz ?? cwd);
+}
+
+export function detectarRama(cwd) {
+  return git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']) ?? 'main';
+}
+
+function mostrar(cmd, args) {
+  return [cmd, ...args].map((a) => (/\s|'/.test(a) ? shQuote(a) : a)).join(' ');
+}
+
+function correr(cmd, args, { dryRun, cwd, heredar = false }) {
+  if (dryRun) {
+    console.log(mostrar(cmd, args));
+    return { status: 0 };
+  }
+  const r = spawnSync(cmd, args, {
+    cwd,
+    encoding: 'utf8',
+    windowsHide: true,
+    stdio: heredar ? 'inherit' : ['ignore', 'pipe', 'pipe'],
+  });
+  if (r.error) {
+    console.error(`rcargo: no se pudo ejecutar "${cmd}": ${r.error.message}`);
+    return { status: 2 };
+  }
+  if (r.status !== 0 && !heredar) {
+    process.stderr.write(r.stderr ?? '');
+    process.stdout.write(r.stdout ?? '');
+  }
+  return { status: r.status ?? 1, stdout: r.stdout ?? '' };
+}
+
+// Asegura la sesión de Mutagen, fuerza el envío pendiente y ejecuta cargo en la VPS.
+export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
+  const rutas = rutasRemotas(config, proyecto, rama);
+  const sesion = nombreSesion(proyecto);
+  // [14AA-1] Binario configurable: el instalado en el laptop no está en PATH.
+  const mutagen = config.sync?.binario || 'mutagen';
+
+  // En dry-run no se consulta Mutagen: se asume que la sesión no existe.
+  const lista = correr(mutagen, ['sync', 'list', sesion], { dryRun, cwd });
+  if (lista.status === 2) return 2;
+  if (dryRun || !lista.stdout?.includes(sesion)) {
+    const crear = argsCrearSesion(config, proyecto, cwd);
+    if (correr(mutagen, crear, { dryRun, cwd }).status !== 0) return 1;
+    correr('ssh', argsSsh(config, ['mkdir', '-p', rutas.dirRemoto, rutas.target]), { dryRun, cwd });
+  }
+
+  if (correr(mutagen, ['sync', 'flush', sesion], { dryRun, cwd }).status !== 0) return 1;
+
+  const remoto = construirComandoRemoto(config, rutas, args);
+  return correr('ssh', argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;
+}
+
+async function main(argv) {
+  const dryRun = argv.includes('--dry-run');
+  const cwd = process.cwd();
+  const config = cargarConfig();
+  const opcion = argv.find((a) => a.startsWith('--proyecto='));
+  const proyecto = opcion ? opcion.split('=')[1] : detectarProyecto(cwd);
+  const args = quitarFlagsTaller(argv);
+
+  if (args.length === 0) {
+    console.error('rcargo: falta el subcomando de cargo (p. ej. check, test, build).');
+    return 64;
+  }
+  return ejecutarRemoto({ config, proyecto, rama: detectarRama(cwd), cwd, args, dryRun });
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main(process.argv.slice(2)).then((code) => process.exit(code));
+}
