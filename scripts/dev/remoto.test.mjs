@@ -97,6 +97,15 @@ test('analizarEscucha: no confunde puertos que terminan igual', () => {
   assert.deepEqual(analizarEscucha(salida, 3001), { escucha: false, publicas: [] });
 });
 
+test('validarHostRemoto: botonRemoto con un comando por puerto y cargo exige precompilar', () => {
+  const base = { host: config.host, puertos: [3001, 5182] };
+  const npm = ['npm', 'run', 'dev'];
+  assert.match(validarHostRemoto({ ...base, botonRemoto: [npm] }, config), /un comando por puerto/);
+  assert.match(validarHostRemoto({ ...base, botonRemoto: [['cargo', 'run'], npm] }, config), /precompilar/);
+  assert.equal(validarHostRemoto({ ...base, botonRemoto: [['cargo', 'run'], npm], precompilar: [['cargo', 'build']] }, config), null);
+  assert.equal(validarHostRemoto({ ...base, boton: [npm, npm] }, config), null);
+});
+
 test('validarHostRemoto: envRemoto, dependencias, precompilar y cargo sin precompilar', () => {
   const base = { host: config.host, puertos: [3001] };
   assert.match(validarHostRemoto({ ...base, envRemoto: 'x' }, config), /envRemoto/);

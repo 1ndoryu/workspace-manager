@@ -56,7 +56,12 @@ export function validarHostRemoto(entrada, config) {
   if (pasos.some((p) => !Array.isArray(p) || p.length === 0 || p.some((s) => typeof s !== 'string'))) {
     return 'precompilar debe ser una lista de comandos (cada uno, una lista de textos)';
   }
-  const conCargo = (entrada.boton ?? []).some((b) => Array.isArray(b) && b[0] === 'cargo');
+  // [por que] botonRemoto: el mando local usa `boton` (p. ej. `npm run dev:back`, que llama al wrapper local y no sirve en la 89).
+  if (entrada.botonRemoto !== undefined && (!Array.isArray(entrada.botonRemoto) || entrada.botonRemoto.length !== entrada.puertos.length)) {
+    return 'botonRemoto debe tener un comando por puerto';
+  }
+  const botones = entrada.botonRemoto ?? entrada.boton ?? [];
+  const conCargo = botones.some((b) => Array.isArray(b) && b[0] === 'cargo');
   if (conCargo && pasos.length === 0) return 'boton cargo sin precompilar: el build correría fuera de cm-heavy';
   return null;
 }
@@ -380,7 +385,7 @@ async function upRemoto(config, id, entrada) {
   const prep = await prepararRemoto(config, id, entrada, rama, rutas);
   if (!prep.ok) return { codigo: 1, resumen: `up ${id}: ${prep.resumen}: NO verde` };
   for (const [i, p] of entrada.puertos.entries()) {
-    const r = await sshRemoto(config, comandoRemotoUp(config, rutas, id, p, entrada.boton[i], prep.env));
+    const r = await sshRemoto(config, comandoRemotoUp(config, rutas, id, p, (entrada.botonRemoto ?? entrada.boton)[i], prep.env));
     if (!r.ok) return { codigo: 1, resumen: `up ${id}: arranque remoto fallo (puerto ${p}): ${r.error}` };
   }
   const limiteMs = entrada.arranqueMs ?? 60_000;
