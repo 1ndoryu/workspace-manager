@@ -3,15 +3,25 @@ import assert from 'node:assert/strict';
 import {
   analizarEscucha,
   argsTunel,
+  comandoNpmCi,
+  comandoPrecompilar,
   comandoRemotoUp,
+  contenidoEnvRemoto,
   esEntradaRemota,
   marcadorTunel,
+  rutaLogNpmCi,
   tunelEsNuestro,
   validarHostRemoto,
 } from './remoto.mjs';
 
 const config = { host: 'dev89', lockWrapper: 'cm-heavy' };
-const entrada = { id: 'P', host: 'dev89', puertos: [3001], boton: [['cargo', 'run', '--release']] };
+const entrada = {
+  id: 'P',
+  host: 'dev89',
+  puertos: [3001],
+  boton: [['cargo', 'run', '--release']],
+  precompilar: [['cargo', 'build', '--release']],
+};
 
 test('esEntradaRemota: solo con host no vacío', () => {
   assert.equal(esEntradaRemota({}), false);
@@ -44,20 +54,33 @@ test('tunelEsNuestro: exige ssh, host y el reenvio del puerto', () => {
   assert.deepEqual(marcadorTunel(config, entrada), ['dev89', '127.0.0.1:3001:127.0.0.1:3001']);
 });
 
-test('comandoRemotoUp: cargo detrás de cm-heavy, target propio e idempotente', () => {
-  const rutas = { dirRemoto: '/home/usuario/taller/P', target: '/var/tmp/glory-target/P_main' };
+test('comandoRemotoUp: cargo sin cm-heavy (el candado es solo del build), target propio e idempotente', () => {
+  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
   const cmd = comandoRemotoUp(config, rutas, 'P', 3001, ['cargo', 'run', '--release']);
-  // Las palabras van entrecomilladas para el shell remoto: se comprueba el orden, no el texto literal.
-  assert.match(cmd, /cm-heavy.*cargo/);
+  assert.equal(cmd.includes('cm-heavy'), false);
   assert.ok(cmd.includes('/var/tmp/glory-target/P_main'));
   assert.ok(cmd.includes('tmux has-session'));
   assert.ok(cmd.includes('dev-P-3001'));
+  assert.ok(cmd.includes('SQLX_OFFLINE=true'));
+});
+
+test('comandoRemotoUp: env del registro llega al proceso; nombres no válidos se rechazan', () => {
+  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+  const cmd = comandoRemotoUp(config, rutas, 'P', 3001, ['npm', 'run', 'dev'], { PORT: '3001', VITE_API_TARGET: 'http://127.0.0.1:3001' });
+  // Igual que los demás tests de este bloque: el valor va entrecomillado para el shell remoto, así que se comprueban las partes.
+  assert.ok(cmd.includes('PORT='));
+  assert.ok(cmd.includes('VITE_API_TARGET='));
+  assert.ok(cmd.includes('127.0.0.1:3001'));
+  assert.ok(cmd.indexOf('PORT=') < cmd.indexOf('CARGO_TARGET_DIR='));
+  assert.ok(validarHostRemoto({ host: config.host, puertos: [3001], env: { 'BAD NAME': 'x' } }, config).includes('BAD NAME'));
+  assert.equal(validarHostRemoto({ host: config.host, puertos: [3001], env: { PORT: '3001' } }, config), null);
 });
 
 test('comandoRemotoUp: comando no cargo no pasa por cm-heavy', () => {
-  const rutas = { dirRemoto: '/home/usuario/taller/P', target: '/var/tmp/glory-target/P_main' };
+  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
   const cmd = comandoRemotoUp(config, rutas, 'P', 3001, ['npm', 'run', 'dev']);
   assert.equal(cmd.includes('cm-heavy'), false);
+  assert.ok(cmd.includes('fnm/aliases/default/bin'));
 });
 
 test('analizarEscucha: solo loopback no es publico; 0.0.0.0, * y [::] sí', () => {
@@ -72,4 +95,55 @@ test('analizarEscucha: solo loopback no es publico; 0.0.0.0, * y [::] sí', () =
 test('analizarEscucha: no confunde puertos que terminan igual', () => {
   const salida = 'LISTEN 0 128 0.0.0.0:13001 0.0.0.0:*';
   assert.deepEqual(analizarEscucha(salida, 3001), { escucha: false, publicas: [] });
+});
+
+test('validarHostRemoto: envRemoto, dependencias, precompilar y cargo sin precompilar', () => {
+  const base = { host: config.host, puertos: [3001] };
+  assert.match(validarHostRemoto({ ...base, envRemoto: 'x' }, config), /envRemoto/);
+  assert.match(validarHostRemoto({ ...base, envRemoto: ['BAD NAME'] }, config), /BAD NAME/);
+  assert.equal(validarHostRemoto({ ...base, envRemoto: ['DATABASE_URL'] }, config), null);
+  assert.equal(validarHostRemoto({ ...base, envRemoto: 'todo' }, config), null);
+  assert.match(validarHostRemoto({ ...base, dependencias: ['../fuera'] }, config), /fuera del proyecto/);
+  assert.match(validarHostRemoto({ ...base, dependencias: ['/abs'] }, config), /fuera del proyecto/);
+  assert.equal(validarHostRemoto({ ...base, dependencias: ['.', 'frontend'] }, config), null);
+  assert.match(validarHostRemoto({ ...base, precompilar: ['cargo build'] }, config), /precompilar debe ser/);
+  assert.match(validarHostRemoto({ ...base, boton: [['cargo', 'run']] }, config), /sin precompilar/);
+  assert.equal(validarHostRemoto({ ...base, boton: [['cargo', 'run']], precompilar: [['cargo', 'build']] }, config), null);
+  assert.equal(validarHostRemoto({ ...base, boton: [['npm', 'run', 'dev']] }, config), null);
+});
+
+test('contenidoEnvRemoto: todo copia el archivo, sustituye DATABASE_URL y normaliza CRLF', () => {
+  const texto = 'A=1\r\nDATABASE_URL=postgres://local/x\r\nexport B=2\r\n';
+  const { contenido, faltan } = contenidoEnvRemoto(texto, 'todo', 'postgres://dev@%2Fvar%2Frun%2Fpostgresql/glory_backend');
+  assert.deepEqual(faltan, []);
+  assert.equal(contenido, 'A=1\nDATABASE_URL=postgres://dev@%2Fvar%2Frun%2Fpostgresql/glory_backend\nexport B=2\n');
+});
+
+test('contenidoEnvRemoto: lista copia solo las claves pedidas y avisa de las que faltan', () => {
+  const { contenido, faltan } = contenidoEnvRemoto('A=1\nB=2\nSECRETO=x\n', ['A', 'C'], null);
+  assert.deepEqual(faltan, ['C']);
+  assert.equal(contenido, 'A=1\n');
+});
+
+test('comandoPrecompilar: build bajo cm-heavy, mismo target que el arranque, log fuera de la réplica', () => {
+  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+  const cmd = comandoPrecompilar(config, rutas, 'P', ['cargo', 'build', '--bin', 'x']);
+  assert.match(cmd, /cm-heavy.*cargo/);
+  assert.ok(cmd.includes('/var/tmp/glory-target/P_main'));
+  assert.ok(cmd.includes('/home/usuario/taller/_logs/P/precompilar-P.log'));
+  // sqlx compila contra .sqlx/ y no contra la base de la 89 (puede estar vacía): SQLX_OFFLINE va antes del build.
+  assert.ok(cmd.includes('SQLX_OFFLINE=true'));
+  assert.ok(cmd.indexOf('SQLX_OFFLINE=true') < cmd.indexOf('cm-heavy'));
+  assert.equal(cmd.includes('/home/usuario/taller/P/logs'), false);
+});
+
+test('comandoNpmCi: marca por sha256 del lock y log por subproyecto fuera de la réplica', () => {
+  const cmd = comandoNpmCi('/home/usuario/taller/P', '/home/usuario/taller/_logs/P', 'frontend', 'P');
+  assert.ok(cmd.includes('package-lock.json'));
+  assert.ok(cmd.includes('npm ci'));
+  assert.ok(cmd.includes('node_modules/.taller-lock-sha256'));
+  assert.ok(cmd.includes('/home/usuario/taller/_logs/P/npm-ci-P-frontend.log'));
+  assert.equal(cmd.includes('/home/usuario/taller/P/logs'), false);
+  assert.ok(cmd.includes('fnm/aliases/default/bin'));
+  assert.equal(rutaLogNpmCi('/home/usuario/taller/_logs/P', '.', 'P'), '/home/usuario/taller/_logs/P/npm-ci-P-raiz.log');
 });

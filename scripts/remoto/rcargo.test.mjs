@@ -64,6 +64,8 @@ test('slug normaliza ramas', () => {
 test('rutas remotas: directorio del proyecto y target por rama', () => {
   const r = rutasRemotas(config, 'RESTAURANTE', 'feature/x');
   assert.equal(r.dirRemoto, '/home/usuario/taller/RESTAURANTE');
+  assert.equal(r.dirLogs, '/home/usuario/taller/_logs/RESTAURANTE');
+  assert.equal(r.dirLogs.startsWith(r.dirRemoto), false);
   assert.equal(r.target, '/var/tmp/glory-target/RESTAURANTE_feature-x');
 });
 
