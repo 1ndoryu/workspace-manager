@@ -347,7 +347,7 @@ async function prepararRemoto(config, id, entrada, rama, rutas) {
   let nombreBd = null;
   if (entrada.envRemoto !== undefined && config.bd && existsSync(join(ruta, 'Cargo.toml'))) {
     try {
-      nombreBd = nombreBaseDatos(readFileSync(join(ruta, 'Cargo.toml'), 'utf8'), rama);
+      nombreBd = nombreBaseDatos(readFileSync(join(ruta, 'Cargo.toml'), 'utf8'), rama, config.proyectos?.[id]?.basedatos);
     } catch (e) {
       return { ok: false, resumen: e.message };
     }

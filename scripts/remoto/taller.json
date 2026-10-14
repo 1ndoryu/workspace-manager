@@ -16,5 +16,7 @@
     "socket": "/var/run/postgresql",
     "subcomandos": ["test", "bench", "nextest", "run"]
   },
-  "proyectos": {}
+  "proyectos": {
+    "MN-Inmobiliaria": { "basedatos": "glory_backend_inmobiliaria" }
+  }
 }

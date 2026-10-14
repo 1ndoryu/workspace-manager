@@ -71,12 +71,17 @@ export function argsCrearSesion(config, proyecto, rutaLocal) {
 // Base de datos por rama, como scripts/branch-db.mjs: {paquete}_{rama}; main/master usan {paquete}.
 // [14AA-1] Solo la necesitan los subcomandos de taller.json `bd.subcomandos`. La 89 no tiene .git
 // (Mutagen no lo sincroniza), por eso el nombre se calcula aquí y no con branch-db.mjs.
-export function nombreBaseDatos(cargoToml, rama) {
-  // Solo la sección [package]: un `name` de [[bin]] o [lib] no es el paquete.
-  const seccion = cargoToml.split(/^\[/m).find((s) => s.startsWith('package]'));
-  const m = seccion?.match(/^name\s*=\s*"([^"]+)"/m);
-  if (!m) throw new Error('Cargo.toml de la raíz sin [package].name: no se puede derivar la base de datos');
-  const paquete = m[1].replace(/-/g, '_');
+// [por que] `base` (taller.json `proyectos.<nombre>.basedatos`) pisa al paquete: proyectos del
+// mismo template (p. ej. glory-backend) comparten `[package].name` y, sin él, colisionan en la 89.
+export function nombreBaseDatos(cargoToml, rama, base = null) {
+  let paquete = base;
+  if (!paquete) {
+    // Solo la sección [package]: un `name` de [[bin]] o [lib] no es el paquete.
+    const seccion = cargoToml.split(/^\[/m).find((s) => s.startsWith('package]'));
+    const m = seccion?.match(/^name\s*=\s*"([^"]+)"/m);
+    if (!m) throw new Error('Cargo.toml de la raíz sin [package].name: no se puede derivar la base de datos');
+    paquete = m[1].replace(/-/g, '_');
+  }
   const defecto = rama === 'main' || rama === 'master';
   const nombre = (defecto ? paquete : `${paquete}_${String(rama).replace(/[^a-zA-Z0-9]/g, '_')}`).toLowerCase();
   if (nombre.length > 63 || !/^[a-z0-9_]+$/.test(nombre)) {
@@ -180,7 +185,7 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
   let nombreBd = null;
   if (config.bd?.subcomandos?.includes(args[0])) {
     try {
-      nombreBd = nombreBaseDatos(leerCargoToml(cwd), rama);
+      nombreBd = nombreBaseDatos(leerCargoToml(cwd), rama, config.proyectos?.[proyecto]?.basedatos);
     } catch (e) {
       console.error(`rcargo: ${e.message}`);
       return 2;
