@@ -8,6 +8,7 @@ import { problemas } from './consola.mjs';
 import { comandos, gate } from './gate.mjs';
 import { cierre } from './cierre.mjs';
 import { alta } from './alta.mjs';
+import { despachar as remoto, entradaRemotaDe } from './remoto.mjs';
 
 const AYUDA = `uso: dev <comando>
   doctor --all [--json] [--snapshot-file <ruta>] [--assert]   clasifica (F0)
@@ -25,6 +26,11 @@ const AYUDA = `uso: dev <comando>
 export async function main(argv) {
   const args = argv ?? process.argv.slice(2);
   const [cmd, ...resto] = args;
+  // [por que] Solo estos cuatro tienen camino remoto; el resto de comandos sigue local. Entrada sin `host` = camino local intacto.
+  if (['up', 'status', 'logs', 'stop'].includes(cmd)) {
+    const entrada = entradaRemotaDe(resto[0], resto);
+    if (entrada) return remoto(cmd, resto, entrada);
+  }
   if (cmd === 'doctor') return doctor(resto);
   if (cmd === 'up') return up(resto);
   if (cmd === 'status') return status(resto);

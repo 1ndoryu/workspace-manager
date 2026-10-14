@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "modoPorDefecto": "local",
+  "host": "dev89",
+  "dirRemotoBase": "/home/dev/taller",
+  "targetBase": "/var/tmp/glory-target",
+  "lockWrapper": "cm-heavy",
+  "sync": {
+    "motor": "mutagen",
+    "binario": "C:/Users/Owner/bin/mutagen/mutagen.exe",
+    "modo": "one-way-replica",
+    "ignorar": [".git", "target", "node_modules", "dist", ".env", ".env.local", "config/settings.json", "*.pem", "*.key"]
+  },
+  "proyectos": {}
+}
