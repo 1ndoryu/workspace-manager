@@ -9,6 +9,9 @@ import {
   argsCrearSesion,
   construirComandoRemoto,
   cargarConfig,
+  nombreBaseDatos,
+  urlBaseRemota,
+  comandoBaseRemota,
 } from './rcargo.mjs';
 
 const config = cargarConfig();
@@ -81,4 +84,49 @@ test('comando remoto: cargo detrás de cm-heavy y con target propio', () => {
   assert.ok(cadena.includes('cm-heavy cargo '));
   assert.ok(cadena.includes('/var/tmp/glory-target/P_main'));
   assert.ok(cadena.includes('CARGO_TARGET_DIR='));
+});
+
+const cargoToml = '[package]\nname = "glory-pulse"\nversion = "0.1.0"\n\n[[bin]]\nname = "otro"\n';
+
+test('base por rama: paquete con guiones bajos; main/master sin sufijo', () => {
+  assert.equal(nombreBaseDatos(cargoToml, 'main'), 'glory_pulse');
+  assert.equal(nombreBaseDatos(cargoToml, 'master'), 'glory_pulse');
+  assert.equal(nombreBaseDatos(cargoToml, 'feature/Login-2'), 'glory_pulse_feature_login_2');
+});
+
+test('base por rama: solo cuenta [package].name, no [[bin]]', () => {
+  const sinPackage = '[workspace]\nmembers = []\n\n[[bin]]\nname = "x"\n';
+  assert.throws(() => nombreBaseDatos(sinPackage, 'main'), /sin \[package\]\.name/);
+});
+
+test('base por rama: rechaza nombres fuera de [a-z0-9_] o de más de 63 caracteres', () => {
+  assert.throws(() => nombreBaseDatos(cargoToml, 'x'.repeat(60)), /demasiado largo|no válido/);
+  assert.equal(nombreBaseDatos(cargoToml, 'a'.repeat(40)).length, 'glory_pulse_'.length + 40);
+});
+
+test('URL de la base: usuario por socket, sin contraseña', () => {
+  assert.equal(urlBaseRemota(config.bd, 'glory_pulse'), 'postgres://dev@%2Fvar%2Frun%2Fpostgresql/glory_pulse');
+});
+
+test('comando de base: crea solo si falta y con paréntesis', () => {
+  const cmd = comandoBaseRemota(config.bd, 'glory_pulse_x');
+  assert.ok(cmd.startsWith('( psql '));
+  // El SQL va entrecomillado para el shell (shQuote): se comprueban las partes, no el texto literal.
+  assert.ok(cmd.includes('pg_database WHERE datname='));
+  assert.ok(cmd.includes('glory_pulse_x'));
+  assert.ok(cmd.includes('CREATE DATABASE "glory_pulse_x"'));
+  assert.ok(cmd.includes('ON_ERROR_STOP=1'));
+  assert.ok(cmd.endsWith(' )'));
+});
+
+test('comando remoto con base: DATABASE_URL solo cuando se pasa nombre', () => {
+  const rutas = rutasRemotas(config, 'P', 'main');
+  const sin = construirComandoRemoto(config, rutas, ['check'])[2];
+  assert.ok(!sin.includes('DATABASE_URL'));
+  assert.ok(!sin.includes('CREATE DATABASE'));
+  const con = construirComandoRemoto(config, rutas, ['test'], 'p_main')[2];
+  assert.ok(con.includes("DATABASE_URL="));
+  assert.ok(con.includes('postgres://dev@'));
+  assert.ok(con.includes('CREATE DATABASE "p_main"'));
+  assert.ok(con.indexOf('CREATE DATABASE') < con.indexOf('cm-heavy cargo'));
 });

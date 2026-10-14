@@ -11,5 +11,10 @@
     "modo": "one-way-replica",
     "ignorar": [".git", "target", "node_modules", "dist", ".env", ".env.local", "config/settings.json", "*.pem", "*.key"]
   },
+  "bd": {
+    "usuario": "dev",
+    "socket": "/var/run/postgresql",
+    "subcomandos": ["test", "bench", "nextest", "run"]
+  },
   "proyectos": {}
 }
