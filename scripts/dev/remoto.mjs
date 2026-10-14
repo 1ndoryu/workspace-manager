@@ -218,6 +218,20 @@ export function analizarEscucha(salidaSs, puerto) {
   return { escucha: locales.length > 0, publicas };
 }
 
+// PIDs de los sockets en escucha loopback de esos puertos (`netstat -ano -p TCP`). Un escucha público (0.0.0.0) no cuenta.
+export function pidsEscuchandoLocal(salidaNetstat, puertos) {
+  const pids = new Set();
+  const enPuertos = new Set(puertos.map(Number));
+  for (const linea of salidaNetstat.split(/\r?\n/)) {
+    const t = linea.trim().split(/\s+/);
+    if (t[0] !== 'TCP' || t.length < 5 || !/^\d+$/.test(t[4])) continue;
+    if (!/^(0\.0\.0\.0|\[::\]):0$/.test(t[2])) continue;
+    const m = t[1].match(/^(127\.0\.0\.1|\[::1\]):(\d+)$/);
+    if (m && enPuertos.has(Number(m[2]))) pids.add(Number(t[4]));
+  }
+  return [...pids];
+}
+
 // PID del proceso que escucha en el puerto (`ss -ltnpH`); null si ss no lo muestra (sin permiso o sin escucha).
 export function pidDeEscucha(salidaSs, puerto) {
   const sufijo = `:${puerto}`;
@@ -355,6 +369,17 @@ async function matarTunel(pid) {
   return new Promise((resolveP) => {
     execFile('taskkill.exe', ['/F', '/PID', String(pid), '/T'], { timeout: 15_000, windowsHide: true }, (err) => resolveP(!err));
   });
+}
+
+// Túneles ssh nuestros que escuchan en los puertos locales, aunque el registro no los conozca (p. ej. tras perder el estado o un `up` desfasado).
+async function tunelesNuestrosEnPuertos(config, entrada) {
+  const netstat = await new Promise((resolveP) => {
+    execFile('netstat.exe', ['-ano', '-p', 'TCP'], { timeout: 10_000, windowsHide: true }, (err, salida) => resolveP(err ? '' : salida));
+  });
+  const pids = pidsEscuchandoLocal(netstat, puertosLocalesDe(entrada));
+  if (!pids.length) return [];
+  const procs = await procesosDe(pids);
+  return pids.filter((pid) => tunelEsNuestro(procs.get(pid), config, entrada));
 }
 
 function rutaAbsDe(entrada) {
@@ -692,11 +717,14 @@ async function statusRemoto(config, id, entrada) {
 
 async function stopRemoto(config, id, entrada) {
   const estado = leerEstado(id);
-  const pid = await tunelVivo(config, entrada, estado);
+  // [por que] Cerrar solo el PID registrado dejaba vivo el túnel real (ocupaba 3210/5299 y `up` fallaba después).
+  const registrado = await tunelVivo(config, entrada, estado);
+  const pids = [...new Set([registrado, ...(await tunelesNuestrosEnPuertos(config, entrada))].filter(Boolean))];
   const remoto = await pararSesiones(config, id, entrada);
-  const tunel = pid ? (await matarTunel(pid)) : null;
+  const cierres = await Promise.all(pids.map(async (pid) => ({ pid, cerrado: await matarTunel(pid) })));
   const tras = await estadoRemoto(config, id, entrada);
-  const nota = `remoto ${remoto.ok ? 'ok' : `fallo (${remoto.error})`}, tunel ${pid ? (tunel ? `pid ${pid} cerrado` : `pid ${pid} no cerrado`) : 'no era nuestro o ya caido'}`;
+  const tunel = cierres.length ? cierres.map(({ pid, cerrado }) => `pid ${pid} ${cerrado ? 'cerrado' : 'no cerrado'}`).join(', ') : 'no era nuestro o ya caido';
+  const nota = `remoto ${remoto.ok ? 'ok' : `fallo (${remoto.error})`}, tunel ${tunel}`;
   if (tras.estado === 'parado') {
     rmSync(rutaEstado(id), { force: true });
     return { codigo: 0, resumen: `stop ${id}: detenido (${nota}) + sin sesiones ni tunel` };

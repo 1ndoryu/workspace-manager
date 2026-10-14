@@ -14,6 +14,7 @@ import {
   leerUrlBdLocal,
   marcadorTunel,
   pidDeEscucha,
+  pidsEscuchandoLocal,
   rutaLogNpmCi,
   tunelEsNuestro,
   validarHostRemoto,
@@ -112,6 +113,19 @@ test('pidDeEscucha: saca el pid del proceso que escucha en ese puerto, no de otr
   assert.equal(pidDeEscucha(salida, 3110), 4321);
   assert.equal(pidDeEscucha(salida, 5199), null);
   assert.equal(pidDeEscucha(salida, 3001), null);
+});
+
+test('pidsEscuchandoLocal: solo escuchas loopback de nuestros puertos, no conexiones ni escuchas públicas', () => {
+  const salida = [
+    '  TCP    127.0.0.1:3210         0.0.0.0:0              LISTENING       4321',
+    '  TCP    [::1]:3210             [::]:0                 LISTENING       4321',
+    '  TCP    127.0.0.1:5299         0.0.0.0:0              LISTENING       4322',
+    '  TCP    0.0.0.0:3210           0.0.0.0:0              LISTENING       9999',
+    '  TCP    127.0.0.1:3210         127.0.0.1:52000        ESTABLISHED     4321',
+    '  TCP    127.0.0.1:3001         0.0.0.0:0              LISTENING       7777',
+  ].join('\r\n');
+  assert.deepEqual(pidsEscuchandoLocal(salida, [3210, 5299]), [4321, 4322]);
+  assert.deepEqual(pidsEscuchandoLocal(salida, [3001]), [7777]);
 });
 
 test('variablesDistintas: detecta valores distintos o ausentes; ignora el resto del entorno', () => {
