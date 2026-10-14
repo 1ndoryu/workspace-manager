@@ -58,8 +58,7 @@
       "puertosLocales": [3210, 5299, 3202],
       "botonRemoto": [
         ["env", "PUBLIC_BASE_URL=http://127.0.0.1:3210", "cargo", "run", "--bin", "glory-backend"],
-        ["env", "VITE_API_URL=http://127.0.0.1:3210", "npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5199", "--strictPort", "--host", "127.0.0.1"],
-        ["npm", "run", "dev:gateway"]
+        ["env", "VITE_API_URL=http://127.0.0.1:3210", "npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5199", "--strictPort", "--host", "127.0.0.1"]
       ],
       "auxiliares": [
         { "puerto": 3122, "marcador": "mejora.mjs", "motivo": "server:mejora (frontend/server/mejora.mjs), arranque manual fuera del mando" }
