@@ -146,7 +146,7 @@ function mostrar(cmd, args) {
   return [cmd, ...args].map((a) => (/\s|'/.test(a) ? shQuote(a) : a)).join(' ');
 }
 
-function correr(cmd, args, { dryRun, cwd, heredar = false }) {
+function correr(cmd, args, { dryRun, cwd, heredar = false, silencioso = false }) {
   if (dryRun) {
     console.log(mostrar(cmd, args));
     return { status: 0 };
@@ -161,7 +161,7 @@ function correr(cmd, args, { dryRun, cwd, heredar = false }) {
     console.error(`rcargo: no se pudo ejecutar "${cmd}": ${r.error.message}`);
     return { status: 2 };
   }
-  if (r.status !== 0 && !heredar) {
+  if (r.status !== 0 && !heredar && !silencioso) {
     process.stderr.write(r.stderr ?? '');
     process.stdout.write(r.stdout ?? '');
   }
@@ -174,13 +174,25 @@ function leerCargoToml(cwd) {
   return readFileSync(path.join(raiz, 'Cargo.toml'), 'utf8');
 }
 
+// Deja la réplica lista: crea el directorio y la sesión si faltan, y fuerza el envío pendiente.
+// Código 0 si el árbol de la VPS coincide con el laptop; 2 si no se pudo ejecutar mutagen; 1 en otro fallo.
+// [por que] `up` escribía .env en un directorio que aún no existía y no esperaba el envío inicial: npm ci y precompilar podían leer un árbol a medias.
+export function asegurarSesion({ config, proyecto, rutaLocal, rutas, dryRun = false, cwd = rutaLocal }) {
+  const mutagen = config.sync?.binario || 'mutagen';
+  const sesion = nombreSesion(proyecto);
+  // [14AA-1] `sync list` sale con 1 si no existe la sesión (stderr); ese 1 no es un fallo, es la señal de crearla.
+  const lista = correr(mutagen, ['sync', 'list', sesion], { dryRun, cwd, silencioso: true });
+  if (lista.status === 2) return 2;
+  if (dryRun || lista.status !== 0) {
+    if (correr('ssh', argsSsh(config, ['mkdir', '-p', rutas.dirRemoto, rutas.target]), { dryRun, cwd }).status !== 0) return 1;
+    if (correr(mutagen, argsCrearSesion(config, proyecto, rutaLocal), { dryRun, cwd }).status !== 0) return 1;
+  }
+  return correr(mutagen, ['sync', 'flush', sesion], { dryRun, cwd }).status === 0 ? 0 : 1;
+}
+
 // Asegura la sesión de Mutagen, fuerza el envío pendiente y ejecuta cargo en la VPS.
 export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
   const rutas = rutasRemotas(config, proyecto, rama);
-  const sesion = nombreSesion(proyecto);
-  // [14AA-1] Binario configurable: el instalado en el laptop no está en PATH.
-  const mutagen = config.sync?.binario || 'mutagen';
-
   // [14AA-1] Antes de sincronizar: si no se puede derivar el nombre, no se lanza nada.
   let nombreBd = null;
   if (config.bd?.subcomandos?.includes(args[0])) {
@@ -192,16 +204,8 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
     }
   }
 
-  // En dry-run no se consulta Mutagen: se asume que la sesión no existe.
-  const lista = correr(mutagen, ['sync', 'list', sesion], { dryRun, cwd });
-  if (lista.status === 2) return 2;
-  if (dryRun || !lista.stdout?.includes(sesion)) {
-    const crear = argsCrearSesion(config, proyecto, cwd);
-    if (correr(mutagen, crear, { dryRun, cwd }).status !== 0) return 1;
-    correr('ssh', argsSsh(config, ['mkdir', '-p', rutas.dirRemoto, rutas.target]), { dryRun, cwd });
-  }
-
-  if (correr(mutagen, ['sync', 'flush', sesion], { dryRun, cwd }).status !== 0) return 1;
+  const sync = asegurarSesion({ config, proyecto, rutaLocal: cwd, rutas, dryRun, cwd });
+  if (sync !== 0) return sync;
 
   const remoto = construirComandoRemoto(config, rutas, args, nombreBd);
   return correr('ssh', argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;

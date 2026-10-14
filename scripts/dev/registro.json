@@ -55,7 +55,8 @@
       "envRemoto": ["DATABASE_URL", "JWT_SECRET", "HOST", "PORT", "UPLOAD_DIR", "RUST_LOG", "PUBLIC_BASE_URL"],
       "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
       "dependencias": ["frontend", "gateway"],
-      "puertosLocales": [3210, 5299, 3202],
+      "puertosRemotos": [3110, 5199],
+      "puertosLocales": [3210, 5299],
       "botonRemoto": [
         ["env", "PUBLIC_BASE_URL=http://127.0.0.1:3210", "cargo", "run", "--bin", "glory-backend"],
         ["env", "VITE_API_URL=http://127.0.0.1:3210", "npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5199", "--strictPort", "--host", "127.0.0.1"]

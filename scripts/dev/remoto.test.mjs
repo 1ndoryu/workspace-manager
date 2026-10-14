@@ -123,6 +123,28 @@ test('puertosLocales: el túnel abre el puerto local y deja el remoto; validaci�
   assert.equal(validarHostRemoto(conLocales, config), null);
 });
 
+// [por que] puertosRemotos: la VPS escucha otros puertos que el dev local (MN: el gateway 3102 no corre en la 89).
+test('puertosRemotos: el túnel y la validación usan la lista remota; puertos queda para el dev local', () => {
+  const e = {
+    ...entrada,
+    puertos: [3110, 5199, 3102],
+    puertosRemotos: [3110, 5199],
+    puertosLocales: [3210, 5299],
+    botonRemoto: [['cargo', 'run'], ['npm', 'run', 'dev']],
+    precompilar: [['cargo', 'build']],
+  };
+  const args = argsTunel(config, e);
+  assert.ok(args.includes('127.0.0.1:3210:127.0.0.1:3110'));
+  assert.ok(args.includes('127.0.0.1:5299:127.0.0.1:5199'));
+  assert.equal(args.some((a) => a.includes(':3102')), false);
+  assert.equal(validarHostRemoto(e, config), null);
+  assert.match(validarHostRemoto({ ...e, puertosLocales: [3210, 5299, 3202] }, config), /puertosLocales debe tener/);
+  assert.match(validarHostRemoto({ ...e, botonRemoto: [['cargo', 'run'], ['npm'], ['x']] }, config), /un comando por puerto/);
+  assert.match(validarHostRemoto({ ...e, puertosRemotos: [3110, 8787] }, config), /protegidos/);
+  assert.match(validarHostRemoto({ host: config.host, puertos: [3001], puertosRemotos: [] }, config), /puertos remotos/);
+  assert.match(validarHostRemoto({ host: config.host, puertos: [3001], puertosRemotos: [80] }, config), /puertos remotos/);
+});
+
 test('validarHostRemoto: envRemoto, dependencias, precompilar y cargo sin precompilar', () => {
   const base = { host: config.host, puertos: [3001] };
   assert.match(validarHostRemoto({ ...base, envRemoto: 'x' }, config), /envRemoto/);
