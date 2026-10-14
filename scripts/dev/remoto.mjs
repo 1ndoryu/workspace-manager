@@ -11,6 +11,7 @@ import http from 'node:http';
 import { isAbsolute, join, normalize, resolve } from 'node:path';
 import {
   argsSsh,
+  asegurarSesion,
   cargarConfig,
   comandoBaseRemota,
   detectarRama,
@@ -25,9 +26,11 @@ const DIR_LOGS = join(RAIZ_REPO, 'logs');
 const rutaEstado = (id) => join(DIR_LOGS, `remoto-${id}.json`);
 const sesionTmux = (id, puerto) => `dev-${id}-${puerto}`;
 const fragmentoReenvio = (local, remoto) => `127.0.0.1:${local}:127.0.0.1:${remoto}`;
-// [por que] puertosLocales (opcional, misma longitud que puertos): el túnel abre ese puerto en el laptop y deja el remoto igual.
+// [por que] puertosRemotos (opcional): puertos que escucha la VPS cuando difieren de `puertos` (el dev local). Todo el flujo remoto usa esta lista.
+const puertosRemotosDe = (entrada) => entrada.puertosRemotos ?? entrada.puertos;
+// [por que] puertosLocales (opcional, misma longitud que los remotos): el túnel abre ese puerto en el laptop y deja el remoto igual.
 // Permite tener el dev local encendido sin chocar con el remoto; el resto del flujo (probe, marcador) usa el local.
-const puertosLocalesDe = (entrada) => entrada.puertos.map((p, i) => entrada.puertosLocales?.[i] ?? p);
+const puertosLocalesDe = (entrada) => puertosRemotosDe(entrada).map((p, i) => entrada.puertosLocales?.[i] ?? p);
 
 export function esEntradaRemota(entrada) {
   return typeof entrada?.host === 'string' && entrada.host !== '';
@@ -41,11 +44,15 @@ const dependenciaSegura = (d) => typeof d === 'string' && d !== '' && !isAbsolut
 export function validarHostRemoto(entrada, config) {
   if (entrada.host !== config.host) return `host '${entrada.host}' no permitido (solo '${config.host}')`;
   if (entrada.requiere?.length) return 'requiere no se soporta en host remoto';
-  const protegidos = entrada.puertos.filter((p) => PUERTOS_PROTEGIDOS.has(p));
+  const remotos = puertosRemotosDe(entrada);
+  if (!Array.isArray(remotos) || remotos.length === 0 || remotos.some((p) => !Number.isInteger(p) || p < 1024 || p > 65535)) {
+    return 'puertos remotos: lista de puertos (1024-65535), no vacía';
+  }
+  const protegidos = remotos.filter((p) => PUERTOS_PROTEGIDOS.has(p));
   if (protegidos.length) return `puertos protegidos ${protegidos.join(',')} no se reenvian al laptop`;
   if (entrada.puertosLocales !== undefined) {
     const pl = entrada.puertosLocales;
-    if (!Array.isArray(pl) || pl.length !== entrada.puertos.length || pl.some((p) => !Number.isInteger(p) || p < 1024 || p > 65535)) {
+    if (!Array.isArray(pl) || pl.length !== remotos.length || pl.some((p) => !Number.isInteger(p) || p < 1024 || p > 65535)) {
       return 'puertosLocales debe tener un puerto local (1024-65535) por cada puerto remoto';
     }
     if (new Set(pl).size !== pl.length) return 'puertosLocales repetidos';
@@ -69,7 +76,7 @@ export function validarHostRemoto(entrada, config) {
     return 'precompilar debe ser una lista de comandos (cada uno, una lista de textos)';
   }
   // [por que] botonRemoto: el mando local usa `boton` (p. ej. `npm run dev:back`, que llama al wrapper local y no sirve en la 89).
-  if (entrada.botonRemoto !== undefined && (!Array.isArray(entrada.botonRemoto) || entrada.botonRemoto.length !== entrada.puertos.length)) {
+  if (entrada.botonRemoto !== undefined && (!Array.isArray(entrada.botonRemoto) || entrada.botonRemoto.length !== remotos.length)) {
     return 'botonRemoto debe tener un comando por puerto';
   }
   const botones = entrada.botonRemoto ?? entrada.boton ?? [];
@@ -106,7 +113,7 @@ export function argsTunel(config, entrada) {
     '-o', 'ConnectTimeout=10',
     '-o', 'ServerAliveInterval=30',
     '-o', 'ServerAliveCountMax=3',
-    ...entrada.puertos.flatMap((p, i) => ['-L', fragmentoReenvio(locales[i], p)]),
+    ...puertosRemotosDe(entrada).flatMap((p, i) => ['-L', fragmentoReenvio(locales[i], p)]),
     config.host,
   ];
 }
@@ -114,7 +121,7 @@ export function argsTunel(config, entrada) {
 // Para `expectedCmdline` del registro (fragmentos por puerto): doctor atribuye el tunel ssh como propio.
 export function marcadorTunel(config, entrada) {
   const locales = puertosLocalesDe(entrada);
-  return [config.host, ...entrada.puertos.map((p, i) => fragmentoReenvio(locales[i], p))];
+  return [config.host, ...puertosRemotosDe(entrada).map((p, i) => fragmentoReenvio(locales[i], p))];
 }
 
 export function tunelEsNuestro(proc, config, entrada) {
@@ -213,7 +220,8 @@ function sshRemoto(config, comando, timeoutMs = 30_000) {
 // [por que] El contenido viaja por stdin: no aparece en la línea de comando ni en `ps`. Temporal + mv: nunca un archivo a medias.
 function escribirArchivoRemoto(config, ruta, contenido, timeoutMs = 30_000) {
   const tmp = `${ruta}.tmp-${process.pid}`;
-  const comando = `umask 077 && cat > ${shQuote(tmp)} && chmod 600 ${shQuote(tmp)} && mv -f ${shQuote(tmp)} ${shQuote(ruta)}`;
+  // [por que] mkdir -p del padre en la misma llamada: el directorio puede no existir aún (primer `up` de un proyecto).
+  const comando = `mkdir -p ${shQuote(ruta.slice(0, ruta.lastIndexOf('/')))} && umask 077 && cat > ${shQuote(tmp)} && chmod 600 ${shQuote(tmp)} && mv -f ${shQuote(tmp)} ${shQuote(ruta)}`;
   return new Promise((resolveP) => {
     const hijo = spawn('ssh', argsSsh(config, [comando]), { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     let stderr = '';
@@ -234,7 +242,7 @@ function comandoSesiones(sesiones) {
 
 // Pide Ctrl-C y luego mata la sesion. Si ssh falla, lo devuelve: el tunel se cierra igual.
 function pararSesiones(config, id, entrada) {
-  const comando = entrada.puertos
+  const comando = puertosRemotosDe(entrada)
     .map((p) => {
       const s = shQuote(sesionTmux(id, p));
       return `tmux send-keys -t ${s} C-c 2>/dev/null; sleep 2; tmux kill-session -t ${s} 2>/dev/null; true`;
@@ -296,18 +304,19 @@ function rutaSonda(entrada, puerto) {
 
 async function estadoRemoto(config, id, entrada) {
   const pidTunel = await tunelVivo(config, entrada, leerEstado(id));
-  const r = await sshRemoto(config, comandoSesiones(entrada.puertos.map((p) => sesionTmux(id, p))));
+  const remotos = puertosRemotosDe(entrada);
+  const r = await sshRemoto(config, comandoSesiones(remotos.map((p) => sesionTmux(id, p))));
   if (!r.ok) {
     return { estado: 'deriva', pidTunel, motivo: `sin ssh a ${config.host} (${r.error})` };
   }
   const vivas = r.salida.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
-  const sesionesVivas = entrada.puertos.filter((p) => vivas.includes(sesionTmux(id, p)));
+  const sesionesVivas = remotos.filter((p) => vivas.includes(sesionTmux(id, p)));
   // [por que] Un solo intento de 2 s daba «deriva» falso tras un arranque en frío del túnel; se reintenta hasta 3 s.
   const sondasOk = pidTunel
-    ? await Promise.all(entrada.puertos.map((p, i) => esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), 3000)))
-    : entrada.puertos.map(() => false);
-  const detalle = `tmux ${sesionesVivas.length}/${entrada.puertos.length}, tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}, probe ${sondasOk.filter(Boolean).length}/${entrada.puertos.length}`;
-  if (sesionesVivas.length === entrada.puertos.length && pidTunel && sondasOk.every(Boolean)) {
+    ? await Promise.all(remotos.map((p, i) => esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), 3000)))
+    : remotos.map(() => false);
+  const detalle = `tmux ${sesionesVivas.length}/${remotos.length}, tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}, probe ${sondasOk.filter(Boolean).length}/${remotos.length}`;
+  if (sesionesVivas.length === remotos.length && pidTunel && sondasOk.every(Boolean)) {
     return { estado: 'bajo-mando', pidTunel, motivo: `${config.host}: ${detalle}` };
   }
   if (sesionesVivas.length === 0 && !pidTunel) {
@@ -321,7 +330,7 @@ async function esperarEscucha(config, entrada, limiteMs) {
   for (;;) {
     const r = await sshRemoto(config, 'ss -ltnH');
     if (!r.ok) return { ok: false, motivo: `ss remoto fallo: ${r.error}` };
-    const analisis = entrada.puertos.map((p) => ({ p, ...analizarEscucha(r.salida, p) }));
+    const analisis = puertosRemotosDe(entrada).map((p) => ({ p, ...analizarEscucha(r.salida, p) }));
     const publicas = analisis.flatMap((a) => a.publicas.map((d) => `${d} (puerto ${a.p})`));
     if (publicas.length) return { ok: false, publico: true, motivo: `escucha publica en ${config.host}: ${publicas.join(', ')}` };
     if (analisis.every((a) => a.escucha)) return { ok: true };
@@ -390,15 +399,19 @@ async function prepararRemoto(config, id, entrada, rama, rutas) {
 async function upRemoto(config, id, entrada) {
   const error = validarHostRemoto(entrada, config);
   if (error) return { codigo: 1, resumen: `up ${id}: rehusado (${error})` };
+  const rama = detectarRama(rutaAbsDe(entrada));
+  const rutas = rutasRemotas(config, id, rama);
+  // [por que] Antes del estado: si la sesión de sync se perdió, `up` la restaura aunque los procesos sigan vivos.
+  const sync = asegurarSesion({ config, proyecto: id, rutaLocal: rutaAbsDe(entrada), rutas });
+  if (sync !== 0) return { codigo: 1, resumen: `up ${id}: sincronizacion con ${config.host} no lista (mutagen, codigo ${sync}): NO verde` };
   const previo = await estadoRemoto(config, id, entrada);
   if (previo.estado === 'bajo-mando') {
     return { codigo: 0, resumen: `up ${id}: ya-arriba (${previo.motivo})` };
   }
-  const rama = detectarRama(rutaAbsDe(entrada));
-  const rutas = rutasRemotas(config, id, rama);
   const prep = await prepararRemoto(config, id, entrada, rama, rutas);
   if (!prep.ok) return { codigo: 1, resumen: `up ${id}: ${prep.resumen}: NO verde` };
-  for (const [i, p] of entrada.puertos.entries()) {
+  const remotos = puertosRemotosDe(entrada);
+  for (const [i, p] of remotos.entries()) {
     const r = await sshRemoto(config, comandoRemotoUp(config, rutas, id, p, (entrada.botonRemoto ?? entrada.boton)[i], prep.env));
     if (!r.ok) return { codigo: 1, resumen: `up ${id}: arranque remoto fallo (puerto ${p}): ${r.error}` };
   }
@@ -416,7 +429,7 @@ async function upRemoto(config, id, entrada) {
     pid = t.pid;
     creado = t.creado;
   }
-  for (const [i, p] of entrada.puertos.entries()) {
+  for (const [i, p] of remotos.entries()) {
     if (!(await esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), limiteMs))) {
       return { codigo: 1, resumen: `up ${id}: probe sin respuesta por el tunel (puerto ${p}, ${limiteMs}ms): NO verde` };
     }
@@ -425,10 +438,10 @@ async function upRemoto(config, id, entrada) {
     host: config.host,
     tunelPid: pid,
     tunelCreado: creado,
-    puertos: entrada.puertos,
+    puertos: remotos,
     creadoEn: new Date().toISOString(),
   });
-  return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (puertos ${entrada.puertos.join(', ')}, tunel pid ${pid}) + probe verde` };
+  return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (puertos ${remotos.join(', ')}, tunel pid ${pid}) + probe verde` };
 }
 
 async function statusRemoto(config, id, entrada) {
@@ -452,7 +465,7 @@ async function stopRemoto(config, id, entrada) {
 
 async function logsRemoto(config, id, entrada, lineas) {
   const rutas = rutasRemotas(config, id, detectarRama(rutaAbsDe(entrada)));
-  const partes = entrada.puertos.map((p) => `echo ${shQuote(`== ${p}`)}; tail -n ${lineas} ${shQuote(`${rutas.dirLogs}/dev-up-${id}-${p}.log`)} 2>&1`);
+  const partes = puertosRemotosDe(entrada).map((p) => `echo ${shQuote(`== ${p}`)}; tail -n ${lineas} ${shQuote(`${rutas.dirLogs}/dev-up-${id}-${p}.log`)} 2>&1`);
   const r = await sshRemoto(config, partes.join('; '));
   return r.ok ? { codigo: 0, salida: r.salida } : { codigo: 1, salida: `logs ${id}: ${r.error}` };
 }

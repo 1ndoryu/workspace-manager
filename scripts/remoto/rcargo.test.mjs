@@ -7,6 +7,7 @@ import {
   slug,
   rutasRemotas,
   argsCrearSesion,
+  asegurarSesion,
   construirComandoRemoto,
   cargarConfig,
   nombreBaseDatos,
@@ -75,6 +76,25 @@ test('sesión Mutagen: réplica unidireccional con exclusiones', () => {
   assert.ok(args.includes('.git'));
   assert.ok(args.includes('config/settings.json'));
   assert.equal(args.at(-1), 'dev89:/home/dev/taller/RESTAURANTE');
+});
+
+// [por que] Orden de la sincronización: el directorio existe antes de crear la sesión, y el envío se fuerza al final.
+test('sincronización: directorio antes que la sesión; envío forzado al final', () => {
+  const lineas = [];
+  const log = console.log;
+  console.log = (s) => lineas.push(s);
+  let codigo;
+  try {
+    codigo = asegurarSesion({ config, proyecto: 'X', rutaLocal: 'C:\\x', rutas: rutasRemotas(config, 'X', 'main'), dryRun: true });
+  } finally {
+    console.log = log;
+  }
+  const idx = (re) => lineas.findIndex((l) => re.test(l));
+  const mkdir = idx(/mkdir -p/);
+  const crea = idx(/sync create/);
+  const flush = idx(/sync flush/);
+  assert.equal(codigo, 0);
+  assert.ok(mkdir >= 0 && crea > mkdir && flush > crea, lineas.join('\n'));
 });
 
 test('comando remoto: cargo detrás de cm-heavy y con target propio', () => {
