@@ -9,7 +9,7 @@
     "motor": "mutagen",
     "binario": "C:/Users/usuario/bin/mutagen/mutagen.exe",
     "modo": "one-way-replica",
-    "ignorar": [".git", "target", "node_modules", "dist", ".env", ".env.*", "config/settings.json", "*.pem", "*.key"]
+    "ignorar": [".git", "target", "node_modules", "dist", ".env", ".env.*", "config/settings.json", "*.pem", "*.key", "gateway/sesiones", "gateway/media", "gateway/qr-wa_*.png"]
   },
   "bd": {
     "usuario": "dev",
