@@ -15,6 +15,7 @@ import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, readdirS
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
+import { cabeceraAutorizacion } from './token.mjs';
 
 export const DIR_DEV = dirname(fileURLToPath(import.meta.url));
 export const RAIZ_REPO = resolve(DIR_DEV, '..', '..');
@@ -726,11 +727,14 @@ function sondear(puerto, rutaRecurso, esperaJson, timeoutMs, dominio) {
   // verifica que el servicio sirve ese nombre virtual. Sin dominio, como antes.
   // [por que 2] Vite por defecto escucha solo en ::1 (IPv6): si 127.0.0.1
   // rehusa la conexion se reintenta contra ::1 con la misma cabecera Host.
-  const cabeceras = dominio && dominio !== '127.0.0.1' ? { Host: dominio } : undefined;
+  // [por que 3] Host con puerto: la guardia del manager (8787) exige host:puerto, como un navegador.
+  const cabeceras = dominio && dominio !== '127.0.0.1' ? { Host: `${dominio}:${puerto}` } : undefined;
+  // [por que] El token solo va al manager (8787): sondear sirve a todos los puertos y no debe filtrarlo a otros servicios.
+  const conAuth = puerto === 8787 ? cabeceraAutorizacion() : undefined;
   const intentar = (host) =>
     new Promise((resolveP) => {
       const req = http.get(
-        { host, port: puerto, path: rutaRecurso || '/', timeout: timeoutMs, headers: cabeceras },
+        { host, port: puerto, path: rutaRecurso || '/', timeout: timeoutMs, headers: { ...cabeceras, ...conAuth } },
         (res) => {
           let cuerpo = '';
           res.on('data', (t) => {
@@ -1140,9 +1144,17 @@ async function oyenteDelProyecto(entrada, rutaAbs, puerto) {
 
 function esperarProbe(puerto, rutaRecurso, esperaJson, timeoutMs, limiteMs, dominio) {
   const t0 = Date.now();
-  return new Promise((resolveP) => {
+  return new Promise((resolveP, rejectP) => {
     const intento = async () => {
-      const s = await sondear(puerto, rutaRecurso, esperaJson, timeoutMs, dominio);
+      // [por que] sondear lanza si falta el token del manager: sin este try el rechazo
+      // quedaba sin manejar y la promesa nunca resolvia.
+      let s;
+      try {
+        s = await sondear(puerto, rutaRecurso, esperaJson, timeoutMs, dominio);
+      } catch (e) {
+        rejectP(e);
+        return;
+      }
       if (s.ok) {
         resolveP(true);
         return;
@@ -1160,7 +1172,7 @@ function esperarProbe(puerto, rutaRecurso, esperaJson, timeoutMs, limiteMs, domi
 function leerSnapshotServidor(forzar = false) {
   return new Promise((resolveP) => {
     const req = http.get(
-      { host: '127.0.0.1', port: 8787, path: forzar ? '/api/workspace?forzar=1' : '/api/workspace', timeout: 30_000 },
+      { host: '127.0.0.1', port: 8787, path: forzar ? '/api/workspace?forzar=1' : '/api/workspace', timeout: 30_000, headers: cabeceraAutorizacion() },
       (res) => {
         let cuerpo = '';
         res.on('data', (t) => {
