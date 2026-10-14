@@ -106,6 +106,23 @@ test('validarHostRemoto: botonRemoto con un comando por puerto y cargo exige pre
   assert.equal(validarHostRemoto({ ...base, boton: [npm, npm] }, config), null);
 });
 
+test('puertosLocales: el túnel abre el puerto local y deja el remoto; validación fail-closed', () => {
+  const rutas = { dirRemoto: '/home/dev/taller/P', dirLogs: '/home/dev/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+  const conLocales = { ...entrada, puertos: [3110, 5199], puertosLocales: [3210, 5299] };
+  const args = argsTunel(config, conLocales);
+  assert.ok(args.includes('127.0.0.1:3210:127.0.0.1:3110'));
+  assert.ok(args.includes('127.0.0.1:5299:127.0.0.1:5199'));
+  assert.equal(args.includes('127.0.0.1:3110:127.0.0.1:3110'), false);
+  assert.deepEqual(marcadorTunel(config, conLocales), ['dev89', '127.0.0.1:3210:127.0.0.1:3110', '127.0.0.1:5299:127.0.0.1:5199']);
+  assert.equal(tunelEsNuestro({ creado: 1, imagen: 'ssh.exe', cmd: 'ssh -N -L 127.0.0.1:3210:127.0.0.1:3110 -L 127.0.0.1:5299:127.0.0.1:5199 dev89' }, config, conLocales), true);
+  assert.equal(comandoRemotoUp(config, rutas, 'P', 3110, ['npm', 'run', 'dev']).includes('3210'), false);
+  assert.match(validarHostRemoto({ ...conLocales, puertosLocales: [3210] }, config), /puertosLocales debe tener/);
+  assert.match(validarHostRemoto({ ...conLocales, puertosLocales: [3210, 3210] }, config), /repetidos/);
+  assert.match(validarHostRemoto({ ...conLocales, puertosLocales: [3210, 5174] }, config), /protegidos/);
+  assert.match(validarHostRemoto({ ...conLocales, puertosLocales: [3210, 80] }, config), /puertosLocales debe tener/);
+  assert.equal(validarHostRemoto(conLocales, config), null);
+});
+
 test('validarHostRemoto: envRemoto, dependencias, precompilar y cargo sin precompilar', () => {
   const base = { host: config.host, puertos: [3001] };
   assert.match(validarHostRemoto({ ...base, envRemoto: 'x' }, config), /envRemoto/);
