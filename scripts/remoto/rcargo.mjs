@@ -75,12 +75,12 @@ export function construirComandoRemoto(config, rutas, args) {
   return ['bash', '-lc', shQuote(interno)];
 }
 
+// [por que] Sin ControlMaster/ControlPersist: el OpenSSH de Windows no abre el maestro
+// ("Failed to connect to new control master", 2026-10-14). Cada comando abre su conexion.
 export function argsSsh(config, comandoRemoto) {
   return [
     '-o', 'BatchMode=yes',
     '-o', 'ConnectTimeout=10',
-    '-o', 'ControlMaster=auto',
-    '-o', 'ControlPersist=10m',
     '-o', 'ServerAliveInterval=30',
     config.host,
     ...comandoRemoto,
