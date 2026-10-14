@@ -9,9 +9,11 @@ import {
   contenidoEnvRemoto,
   esEntradaRemota,
   marcadorTunel,
+  pidDeEscucha,
   rutaLogNpmCi,
   tunelEsNuestro,
   validarHostRemoto,
+  variablesDistintas,
 } from './remoto.mjs';
 
 const config = { host: 'dev89', lockWrapper: 'cm-heavy' };
@@ -95,6 +97,26 @@ test('analizarEscucha: solo loopback no es publico; 0.0.0.0, * y [::] sí', () =
 test('analizarEscucha: no confunde puertos que terminan igual', () => {
   const salida = 'LISTEN 0 128 0.0.0.0:13001 0.0.0.0:*';
   assert.deepEqual(analizarEscucha(salida, 3001), { escucha: false, publicas: [] });
+});
+
+test('pidDeEscucha: saca el pid del proceso que escucha en ese puerto, no de otro', () => {
+  const salida = [
+    'LISTEN 0 511 127.0.0.1:3110 0.0.0.0:* users:(("node",pid=4321,fd=20))',
+    'LISTEN 0 511 127.0.0.1:13110 0.0.0.0:* users:(("sshd",pid=99,fd=3))',
+    'LISTEN 0 128 127.0.0.1:5199 0.0.0.0:*',
+  ].join('\n');
+  assert.equal(pidDeEscucha(salida, 3110), 4321);
+  assert.equal(pidDeEscucha(salida, 5199), null);
+  assert.equal(pidDeEscucha(salida, 3001), null);
+});
+
+test('variablesDistintas: detecta valores distintos o ausentes; ignora el resto del entorno', () => {
+  const environ = 'PATH=/usr/bin\nPORT=5199\nDATABASE_URL=postgres://x\nHOME=/home/usuario\n';
+  assert.deepEqual(variablesDistintas(environ, { PORT: '5199', DATABASE_URL: 'postgres://x' }), []);
+  assert.deepEqual(variablesDistintas(environ, { PORT: '3110' }), ['PORT']);
+  assert.deepEqual(variablesDistintas(environ, { PORT: '5199', SQLX_OFFLINE: 'true' }), ['SQLX_OFFLINE']);
+  // [por que] Sin entorno legible (pid desaparecido) no hay nada que confirmar: todo cuenta como distinto.
+  assert.deepEqual(variablesDistintas('', { PORT: '5199' }), ['PORT']);
 });
 
 test('validarHostRemoto: botonRemoto con un comando por puerto y cargo exige precompilar', () => {

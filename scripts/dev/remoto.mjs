@@ -186,6 +186,30 @@ export function analizarEscucha(salidaSs, puerto) {
   return { escucha: locales.length > 0, publicas };
 }
 
+// PID del proceso que escucha en el puerto (`ss -ltnpH`); null si ss no lo muestra (sin permiso o sin escucha).
+export function pidDeEscucha(salidaSs, puerto) {
+  const sufijo = `:${puerto}`;
+  for (const linea of salidaSs.split(/\r?\n/)) {
+    if (!(linea.trim().split(/\s+/)[3] ?? '').endsWith(sufijo)) continue;
+    const m = linea.match(/pid=(\d+)/);
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+
+// [por que] Lo que cuenta es el entorno del proceso vivo (/proc/<pid>/environ), no el registro ni el de la última `up`:
+// un proceso arrancado con otro entorno da el puerto por bueno aunque el estado diga otra cosa.
+export function variablesDistintas(textoEnviron, esperado) {
+  const actual = new Map();
+  for (const linea of textoEnviron.split(/\r?\n/)) {
+    const i = linea.indexOf('=');
+    if (i > 0) actual.set(linea.slice(0, i), linea.slice(i + 1));
+  }
+  return Object.entries(esperado)
+    .filter(([k, v]) => actual.get(k) !== String(v))
+    .map(([k]) => k);
+}
+
 function sondear(puerto, ruta = '/', timeoutMs = 2000) {
   return new Promise((resolveP) => {
     const req = http.get({ host: '127.0.0.1', port: puerto, path: ruta, timeout: timeoutMs }, (res) => {
@@ -245,7 +269,11 @@ function comandoSesiones(sesiones) {
 
 // Pide Ctrl-C y luego mata la sesion. Si ssh falla, lo devuelve: el tunel se cierra igual.
 function pararSesiones(config, id, entrada) {
-  const comando = puertosRemotosDe(entrada)
+  return pararSesionesPuertos(config, id, puertosRemotosDe(entrada));
+}
+
+function pararSesionesPuertos(config, id, puertos) {
+  const comando = puertos
     .map((p) => {
       const s = shQuote(sesionTmux(id, p));
       return `tmux send-keys -t ${s} C-c 2>/dev/null; sleep 2; tmux kill-session -t ${s} 2>/dev/null; true`;
@@ -352,20 +380,29 @@ const TIMEOUT_BUILD_MS = 900_000;
 // 1) .env local con las claves pedidas; 2) base de la rama en la 89 (si hay Cargo.toml y taller.json `bd`);
 // 3) .env remoto por stdin, 0600; 4) npm ci si cambió package-lock.json; 5) precompilar bajo cm-heavy.
 // Sin envRemoto no se copia nada: el proceso usa solo el env del registro.
-async function prepararRemoto(config, id, entrada, rama, rutas) {
+// Entorno que debe ver el proceso remoto: registro + DATABASE_URL si hay envRemoto y BD. Solo lectura; lanza si el nombre de BD no sale del Cargo.toml.
+function entornoRemoto(config, id, entrada, rama) {
   const ruta = rutaAbsDe(entrada);
   const env = { ...(entrada.env ?? {}) };
   let urlBd = null;
   let nombreBd = null;
   if (entrada.envRemoto !== undefined && config.bd && existsSync(join(ruta, 'Cargo.toml'))) {
-    try {
-      nombreBd = nombreBaseDatos(readFileSync(join(ruta, 'Cargo.toml'), 'utf8'), rama, config.proyectos?.[id]?.basedatos);
-    } catch (e) {
-      return { ok: false, resumen: e.message };
-    }
+    nombreBd = nombreBaseDatos(readFileSync(join(ruta, 'Cargo.toml'), 'utf8'), rama, config.proyectos?.[id]?.basedatos);
     urlBd = urlBaseRemota(config.bd, nombreBd);
     env.DATABASE_URL = urlBd;
   }
+  return { env, urlBd, nombreBd };
+}
+
+async function prepararRemoto(config, id, entrada, rama, rutas) {
+  const ruta = rutaAbsDe(entrada);
+  let base;
+  try {
+    base = entornoRemoto(config, id, entrada, rama);
+  } catch (e) {
+    return { ok: false, resumen: e.message };
+  }
+  const { env, urlBd, nombreBd } = base;
   let contenidoEnv = null;
   if (entrada.envRemoto !== undefined) {
     const rutaEnv = join(ruta, '.env');
@@ -399,6 +436,48 @@ async function prepararRemoto(config, id, entrada, rama, rutas) {
   return { ok: true, env };
 }
 
+// Puertos cuyo proceso vivo no tiene el entorno que pide el registro (otra rama, otro env). Solo lectura.
+// [por que] Sin pid visible no hay forma de comprobarlo: ese puerto se reinicia en vez de darlo por bueno.
+async function puertosConEntornoDistinto(config, id, entrada, rama) {
+  let esperado;
+  try {
+    esperado = entornoRemoto(config, id, entrada, rama).env;
+  } catch (e) {
+    return { ok: false, motivo: e.message };
+  }
+  const ss = await sshRemoto(config, 'ss -ltnpH');
+  if (!ss.ok) return { ok: false, motivo: `ss remoto fallo: ${ss.error}` };
+  const puertos = [];
+  const detalle = [];
+  for (const p of puertosRemotosDe(entrada)) {
+    const pid = pidDeEscucha(ss.salida, p);
+    let texto = '';
+    if (pid) {
+      const r = await sshRemoto(config, `tr '\\0' '\\n' < /proc/${pid}/environ`);
+      texto = r.ok ? r.salida : '';
+    }
+    const claves = variablesDistintas(texto, esperado);
+    if (!pid || claves.length) {
+      puertos.push(p);
+      detalle.push(pid ? `puerto ${p}: ${claves.join(', ')}` : `puerto ${p}: sin pid`);
+    }
+  }
+  return { ok: true, puertos, detalle };
+}
+
+// Espera a que los puertos queden libres tras parar sus sesiones; si no, el arranque nuevo chocaría con el viejo.
+async function esperarLibre(config, puertos, limiteMs) {
+  const t0 = Date.now();
+  for (;;) {
+    const r = await sshRemoto(config, 'ss -ltnH');
+    if (!r.ok) return { ok: false, motivo: `ss remoto fallo: ${r.error}` };
+    const ocupados = puertos.filter((p) => analizarEscucha(r.salida, p).escucha);
+    if (!ocupados.length) return { ok: true };
+    if (Date.now() - t0 > limiteMs) return { ok: false, motivo: `puertos ${ocupados.join(',')} siguen ocupados en ${config.host} tras parar la sesion` };
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
+
 async function upRemoto(config, id, entrada) {
   const error = validarHostRemoto(entrada, config);
   if (error) return { codigo: 1, resumen: `up ${id}: rehusado (${error})` };
@@ -408,11 +487,21 @@ async function upRemoto(config, id, entrada) {
   const sync = asegurarSesion({ config, proyecto: id, rutaLocal: rutaAbsDe(entrada), rutas });
   if (sync !== 0) return { codigo: 1, resumen: `up ${id}: sincronizacion con ${config.host} no lista (mutagen, codigo ${sync}): NO verde` };
   const previo = await estadoRemoto(config, id, entrada);
+  let reiniciar = { puertos: [], detalle: [] };
   if (previo.estado === 'bajo-mando') {
-    return { codigo: 0, resumen: `up ${id}: ya-arriba (${previo.motivo})` };
+    reiniciar = await puertosConEntornoDistinto(config, id, entrada, rama);
+    if (!reiniciar.ok) return { codigo: 1, resumen: `up ${id}: ${reiniciar.motivo}: NO verde` };
+    if (!reiniciar.puertos.length) return { codigo: 0, resumen: `up ${id}: ya-arriba (${previo.motivo})` };
   }
   const prep = await prepararRemoto(config, id, entrada, rama, rutas);
   if (!prep.ok) return { codigo: 1, resumen: `up ${id}: ${prep.resumen}: NO verde` };
+  if (reiniciar.puertos.length) {
+    // [por que] Solo nuestras sesiones tmux de esos puertos; el túnel se conserva y el probe final lo confirma.
+    const parado = await pararSesionesPuertos(config, id, reiniciar.puertos);
+    if (!parado.ok) return { codigo: 1, resumen: `up ${id}: no paro sesiones con entorno distinto (${reiniciar.detalle.join('; ')}) en ${config.host}: ${parado.error}: NO verde` };
+    const libre = await esperarLibre(config, reiniciar.puertos, 15_000);
+    if (!libre.ok) return { codigo: 1, resumen: `up ${id}: ${libre.motivo}: NO verde` };
+  }
   const remotos = puertosRemotosDe(entrada);
   for (const [i, p] of remotos.entries()) {
     const r = await sshRemoto(config, comandoRemotoUp(config, rutas, id, p, (entrada.botonRemoto ?? entrada.boton)[i], prep.env));
@@ -444,7 +533,8 @@ async function upRemoto(config, id, entrada) {
     puertos: remotos,
     creadoEn: new Date().toISOString(),
   });
-  return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (puertos ${remotos.join(', ')}, tunel pid ${pid}) + probe verde` };
+  const reinicio = reiniciar.puertos.length ? `, reiniciados por entorno distinto: ${reiniciar.detalle.join('; ')}` : '';
+  return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (puertos ${remotos.join(', ')}, tunel pid ${pid}${reinicio}) + probe verde` };
 }
 
 async function statusRemoto(config, id, entrada) {
