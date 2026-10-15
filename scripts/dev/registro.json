@@ -187,9 +187,11 @@
       "envRemoto": "todo",
       "buildMode": "builder",
       "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
-      "botonRemoto": [["cargo", "run", "--bin", "glory-backend"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5182", "--strictPort", "--host", "127.0.0.1"]],
+      "botonRemoto": [["cargo", "run", "--bin", "glory-backend"], ["env", "RESTAURANTE_DEV_PUBLIC_HOST=rest-dev.wandori.us", "npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5182", "--strictPort", "--host", "127.0.0.1"]],
       "boton": [["npm", "run", "dev:back"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5182", "--strictPort", "--host", "127.0.0.1"]],
       "puertos": [3105, 5182],
+      "hostsPublicos": ["rest-dev.wandori.us"],
+      "puertosPublicos": [5182],
       "healths": [
         { "puerto": 3105, "ruta": "/api/health", "esperaJson": true },
         { "puerto": 5182, "ruta": "/", "esperaJson": false }
