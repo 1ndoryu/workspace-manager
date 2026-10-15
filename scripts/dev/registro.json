@@ -45,7 +45,8 @@
       "healths": [
         { "puerto": 3110, "ruta": "/api/health", "esperaJson": true },
         { "puerto": 5199, "ruta": "/", "esperaJson": false },
-        { "puerto": 3102, "ruta": "/health", "esperaJson": true }
+        { "puerto": 3102, "ruta": "/health", "esperaJson": true },
+        { "puerto": 20241, "ruta": "/ready", "esperaJson": true }
       ],
       "timeoutMs": 3000,
       "arranqueMs": 300000,
@@ -55,14 +56,15 @@
       "envRemoto": ["DATABASE_URL", "JWT_SECRET", "HOST", "PORT", "UPLOAD_DIR", "RUST_LOG", "PUBLIC_BASE_URL", "OPENCODE_GO_API_KEY"],
       "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
       "dependencias": ["frontend", "gateway"],
-      "puertosRemotos": [3110, 5199],
-      "puertosLocales": [3210, 5299],
+      "puertosRemotos": [3110, 5199, 20241],
+      "puertosLocales": [3210, 5299, 20241],
       "hostsPublicos": ["mn-dev.wandori.us"],
       "puertosPublicos": [5199],
       "buildMode": "builder",
       "botonRemoto": [
-        ["env", "PUBLIC_BASE_URL=http://127.0.0.1:3210", "cargo", "run", "--bin", "glory-backend"],
-        ["env", "VITE_API_URL=http://127.0.0.1:3210", "npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5199", "--strictPort", "--host", "127.0.0.1"]
+        ["env", "PUBLIC_BASE_URL=https://mn-dev.wandori.us/rust", "cargo", "run", "--bin", "glory-backend"],
+        ["env", "VITE_API_URL=/rust", "MN_DEV_PUBLIC_HOST=mn-dev.wandori.us", "npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5199", "--strictPort", "--host", "127.0.0.1"],
+        ["sh", "-c", "set -a; . /home/usuario/.config/cloudflared/mn-dev.env; set +a; exec /home/usuario/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run"]
       ],
       "auxiliares": [
         { "puerto": 3122, "marcador": "mejora.mjs", "motivo": "server:mejora (frontend/server/mejora.mjs), arranque manual fuera del mando" }

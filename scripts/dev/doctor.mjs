@@ -359,7 +359,7 @@ function validarEntrada(e) {
     return;
   }
   for (const h of healths) {
-    if (!Number.isInteger(h?.puerto) || !e.puertos.includes(h.puerto)) {
+    if (!Number.isInteger(h?.puerto) || !puertoDeSaludValido(h.puerto, e)) {
       mal(`registro: '${e.id}' health con puerto fuera de la entrada`);
       return;
     }
@@ -609,6 +609,13 @@ export { normalizarRuta };
 /* Marcador de deteccion para un puerto: string unico o posicion i del
  * array (misma alineacion 1:1 que boton). Fuera de rango = primero (no hay
  * healths fuera de puertos: validarEntrada lo impide, esto es red). */
+// [por que] Un health puede sondear un puerto solo remoto: el /ready del
+// conector cloudflared (20241) vive en la 89 y no tiene oyente local.
+export function puertoDeSaludValido(puerto, entrada) {
+  const remotos = Array.isArray(entrada.puertosRemotos) ? entrada.puertosRemotos : [];
+  return entrada.puertos.includes(puerto) || remotos.includes(puerto);
+}
+
 export function marcadorPuerto(entrada, puerto) {
   const m = entrada.expectedCmdline;
   if (!Array.isArray(m)) return m;
@@ -917,7 +924,9 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
     estado = 'deriva';
     motivo = texto;
   };
-  for (const h of healths) {
+  // [por que] Un health remoto no tiene oyente local: se sondea por el tunel, no aqui.
+  const saludLocal = healths.filter((h) => entrada.puertos.includes(h.puerto));
+  for (const h of saludLocal) {
     const oyentes = porPuerto.get(h.puerto) ?? [];
     // [por que] Dos `tsx watch` del mismo servidor pelean el puerto
     // (caso real 2026-10-01: pids 23444+16484 en 8787, probe intermitente).
@@ -959,7 +968,7 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
   // puertos propios restantes: salian como huerfanos "(sin proyecto)" aunque
   // fueran del proyecto (MN-Inmobiliaria: gateway 3102 tras 5199 caido). La
   // atribucion no cambia el estado; solo evita falsos huerfanos.
-  for (const h of healths) {
+  for (const h of saludLocal) {
     for (const o of porPuerto.get(h.puerto) ?? []) {
       if (esDelProyecto(procs.get(o.pid), p.ruta, marcadorPuerto(entrada, h.puerto))) {
         consumidos.add(`${o.ip}:${o.puerto}:${o.pid}`);
