@@ -67,9 +67,11 @@ export async function pedir(metodo, ruta, cuerpo) {
   const cabeceras = cabeceraAutorizacion();
   let res;
   try {
+    // [por que 14AA-5] connection: close: sin keep-alive no queda socket abierto al salir por
+    // process.exit (dev.mjs); con dos sockets así Node en Windows aborta con exit 127.
     res = await fetch(`${API}${ruta}`, {
       method: metodo,
-      headers: { ...cabeceras, 'content-type': 'application/json' },
+      headers: { ...cabeceras, 'content-type': 'application/json', connection: 'close' },
       body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
       signal: AbortSignal.timeout(200_000),
     });
