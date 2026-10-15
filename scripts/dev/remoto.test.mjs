@@ -7,6 +7,7 @@ import {
   comandoPrecompilar,
   comandoRemotoUp,
   comandoSondaRemota,
+  contenidoEnvFrontend,
   contenidoEnvRemoto,
   diferenciasConteos,
   esEntradaRemota,
@@ -214,6 +215,12 @@ test('contenidoEnvRemoto: lista copia solo las claves pedidas y avisa de las que
   const { contenido, faltan } = contenidoEnvRemoto('A=1\nB=2\nSECRETO=x\n', ['A', 'C'], null);
   assert.deepEqual(faltan, ['C']);
   assert.equal(contenido, 'A=1\n');
+});
+
+test('contenidoEnvFrontend: deja solo las claves VITE_* del .env copiado, o nada', () => {
+  const { contenido } = contenidoEnvRemoto('DATABASE_URL=x\nVITE_DEV_EMAIL=a@b\nJWT_SECRET=y\nVITE_DEV_PASSWORD=p\n', ['DATABASE_URL', 'VITE_DEV_EMAIL', 'JWT_SECRET', 'VITE_DEV_PASSWORD'], null);
+  assert.equal(contenidoEnvFrontend(contenido), 'VITE_DEV_EMAIL=a@b\nVITE_DEV_PASSWORD=p\n');
+  assert.equal(contenidoEnvFrontend('JWT_SECRET=y\n'), null);
 });
 
 test('comandoPrecompilar: build bajo cm-heavy, mismo target que el arranque, log fuera de la réplica', () => {
