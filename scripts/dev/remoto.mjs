@@ -105,6 +105,14 @@ export function contenidoEnvRemoto(textoEnv, envRemoto, urlBd = null) {
   return { contenido: `${elegidas.join('\n')}\n`, faltan };
 }
 
+// [por que] Vite solo lee su propio entorno (su `envDir` es la raíz del front, no la del proyecto), así que las
+// claves VITE_* del `.env` que se copia a la 89 nunca llegan a `import.meta.env`: van además a frontend/.env.local,
+// que es donde Vite las busca. Sin esto, la auto-entrada del dev público se queda sin credenciales [15AA-1].
+export function contenidoEnvFrontend(contenidoEnv) {
+  const claves = contenidoEnv.split(/\r?\n/).filter((l) => /^\s*(?:export\s+)?VITE_[A-Za-z0-9_]*\s*=/.test(l));
+  return claves.length ? `${claves.join('\n')}\n` : null;
+}
+
 // Sincronización BD local -> 89 (decidido 2026-10-14). Solo loopback: nunca se copia desde una base que no sea la del laptop.
 const HOSTS_LOCALES = new Set(['localhost', '127.0.0.1', '::1']);
 const decodificarUrl = (s) => {
@@ -507,6 +515,11 @@ async function prepararRemoto(config, id, entrada, rama, rutas) {
   if (contenidoEnv !== null) {
     const w = await escribirArchivoRemoto(config, `${rutas.dirRemoto}/.env`, contenidoEnv);
     if (!w.ok) return { ok: false, resumen: `.env remoto no se pudo escribir: ${w.error}` };
+    const front = contenidoEnvFrontend(contenidoEnv);
+    if (front !== null && existsSync(join(ruta, 'frontend'))) {
+      const wf = await escribirArchivoRemoto(config, `${rutas.dirRemoto}/frontend/.env.local`, front);
+      if (!wf.ok) return { ok: false, resumen: `frontend/.env.local remoto no se pudo escribir: ${wf.error}` };
+    }
   }
   for (const sub of entrada.dependencias ?? []) {
     const r = await sshRemoto(config, comandoNpmCi(rutas.dirRemoto, rutas.dirLogs, sub, id), TIMEOUT_BUILD_MS);
