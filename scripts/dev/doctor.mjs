@@ -196,7 +196,7 @@ function validarEntrada(e) {
     if (!e._avisoRegistro) e._avisoRegistro = motivo;
   };
   // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) {
       mal(`registro: clave desconocida '${k}' en '${e.id}'`);
@@ -292,6 +292,11 @@ function validarEntrada(e) {
   }
   if ('puertosPublicos' in e && (!Array.isArray(e.puertosPublicos) || e.puertosPublicos.some((p) => !Number.isInteger(p) || p < 1 || p > 65535))) {
     mal(`registro: '${e.id}' puertosPublicos invalidos`);
+    return;
+  }
+  // [por que] tunelSsh: lo lee remoto.mjs (false = la VPS expone sus puertos sola; sin túnel no hay puertosLocales).
+  if ('tunelSsh' in e && typeof e.tunelSsh !== 'boolean') {
+    mal(`registro: '${e.id}' tunelSsh debe ser true o false`);
     return;
   }
   if ('buildMode' in e && (typeof e.buildMode !== 'string' || e.buildMode === '')) {

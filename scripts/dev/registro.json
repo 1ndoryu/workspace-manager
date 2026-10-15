@@ -57,7 +57,7 @@
       "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
       "dependencias": ["frontend", "gateway"],
       "puertosRemotos": [3110, 5199, 20241],
-      "puertosLocales": [3210, 5299, 20241],
+      "tunelSsh": false,
       "hostsPublicos": ["mn-dev.wandori.us"],
       "puertosPublicos": [5199],
       "buildMode": "builder",

@@ -6,6 +6,7 @@ import {
   comandoNpmCi,
   comandoPrecompilar,
   comandoRemotoUp,
+  comandoSondaRemota,
   contenidoEnvRemoto,
   diferenciasConteos,
   esEntradaRemota,
@@ -282,4 +283,18 @@ test('diferenciasConteos: solo iguales numéricos cuentan como coincidentes; aus
   assert.deepEqual(diferenciasConteos(local, parsearConteos('inmuebles=0\nfotos=397\n_sqlx_migrations=34\n'), tablas), ['inmuebles: laptop=20, 89=0']);
   assert.deepEqual(diferenciasConteos(local, parsearConteos('inmuebles=20\nfotos=no-existe\n_sqlx_migrations=34\n'), tablas), ['fotos: laptop=397, 89=no-existe']);
   assert.deepEqual(diferenciasConteos(parsearConteos('inmuebles=sin conteo\n'), parsearConteos('inmuebles=sin conteo\n'), ['inmuebles']), ['inmuebles: laptop=sin conteo, 89=sin conteo']);
+});
+
+// [por que] tunelSsh:false: la VPS expone sus puertos sola (Cloudflare Tunnel); el laptop no reenvía y el probe corre en la 89.
+test('tunelSsh: false no reenvía y la sonda va por el loopback de la 89; valores no booleanos y mezclas se rechazan', () => {
+  const sinTunel = { ...entrada, puertos: [3110, 5199], puertosRemotos: [3110, 5199], tunelSsh: false };
+  assert.equal(validarHostRemoto(sinTunel, config), null);
+  assert.match(validarHostRemoto({ ...sinTunel, tunelSsh: 'no' }, config), /tunelSsh debe ser true o false/);
+  assert.match(validarHostRemoto({ ...sinTunel, puertosLocales: [3210, 5299] }, config), /puertosLocales no aplica/);
+  assert.equal(validarHostRemoto({ ...sinTunel, tunelSsh: true, puertosLocales: [3210, 5299] }, config), null);
+  assert.equal(validarHostRemoto({ ...entrada, tunelSsh: true }, config), null);
+  const sonda = comandoSondaRemota(3110, '/api/health');
+  assert.ok(sonda.includes('curl'));
+  assert.ok(sonda.includes("'http://127.0.0.1:3110/api/health'"));
+  assert.ok(sonda.includes('%{http_code}'));
 });
