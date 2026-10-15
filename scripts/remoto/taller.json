@@ -22,6 +22,9 @@
     "MN-Inmobiliaria": {
       "basedatos": "glory_backend_inmobiliaria",
       "bdDesdeLocal": { "verificar": ["inmuebles", "fotos", "_sqlx_migrations"] }
+    },
+    "KAMPLES": {
+      "basedatos": "kamples"
     }
   }
 }

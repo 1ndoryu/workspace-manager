@@ -222,18 +222,29 @@
       "id": "KAMPLES",
       "ruta": "../KAMPLES",
       "dominio": "kamples.localhost",
-      "boton": [["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5183", "--strictPort"]],
-      "puertos": [5183],
+      "boton": [
+        ["cargo", "run", "--bin", "glory-backend"],
+        ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5183", "--strictPort"]
+      ],
+      "puertos": [3001, 5183],
       "healths": [
+        { "puerto": 3001, "ruta": "/api/health", "esperaJson": true },
         { "puerto": 5183, "ruta": "/", "esperaJson": false }
       ],
       "timeoutMs": 3000,
-      "arranqueMs": 60000,
-      "expectedCmdline": "5183",
-      "auxiliares": [
-        { "puerto": 3001, "marcador": "glory-backend", "motivo": "backend Rust Axum (cargo run manual, PORT=3001 en .env); 3000 es de glory-pulse" }
+      "arranqueMs": 300000,
+      "expectedCmdline": ["glory-backend", "5183"],
+      "host": "dev89",
+      "envRemoto": ["DATABASE_URL", "JWT_SECRET", "WS_SECRET", "WS_TICKET_TTL_SECS", "HOST", "PORT", "RUST_LOG", "PUBLIC_BASE_URL", "WS_PUBLIC_URL"],
+      "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
+      "dependencias": ["frontend", "clients/desktop"],
+      "puertosRemotos": [3001, 5183],
+      "buildMode": "builder",
+      "botonRemoto": [
+        ["cargo", "run", "--bin", "glory-backend"],
+        ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5183", "--strictPort", "--host", "127.0.0.1"]
       ],
-      "tipoLauncher": "Front Vite (frontend/) en 5183 (proxy /api a 3001); el backend Rust no entra en el mando",
+      "tipoLauncher": "Taller remoto: backend Rust Axum en 3001 (precompilado bajo cm-heavy, SQLX_OFFLINE) y front Vite en 5183, una sesion tmux por puerto. El front hace proxy /api a 3001.",
       "comandos": { "gate": null, "typecheck": "npm --prefix frontend run type-check", "build": "npm --prefix frontend run build", "test-archivo": null }
     }
   ],
