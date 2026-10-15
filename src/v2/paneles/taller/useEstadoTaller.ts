@@ -10,6 +10,7 @@ import type {
   EstadoPublico,
   EstadoTaller89,
   Hallazgo,
+  MuestraHistorial,
   RegistroConformidad,
 } from '../../../shared/taller/conformidad.js';
 
@@ -27,6 +28,8 @@ export interface RespuestaTaller {
     sinLectura: string | null;
   };
   registro: RegistroConformidad;
+  historial: MuestraHistorial[];
+  motivoHistorial: string | null;
 }
 
 export interface EstadoVistaTaller {

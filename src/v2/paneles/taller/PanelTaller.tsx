@@ -3,7 +3,7 @@
  * está en usePanelTaller.ts. */
 import { Caja, Seccion } from '../../ui/caja/Caja.js';
 import { Button } from '../../ui/form/Button.js';
-import { ETIQUETA_VEREDICTO, usePanelTaller, type Fila } from './usePanelTaller.js';
+import { ETIQUETA_VEREDICTO, HISTORIAL_VISIBLE, usePanelTaller, type Fila } from './usePanelTaller.js';
 import './taller.css';
 
 function Filas({ filas }: { filas: Fila[] }) {
@@ -31,6 +31,7 @@ export function PanelTaller() {
     filasVps,
     filasPublico,
     filasLaptop,
+    filasHistorial,
     recargar,
   } = usePanelTaller();
 
@@ -58,6 +59,9 @@ export function PanelTaller() {
           <Filas filas={filasLaptop} />
         </Seccion>
       </div>
+      <Seccion titulo={`Historial (últimas ${HISTORIAL_VISIBLE} muestras, cada 5 min)`} fallo={false}>
+        <Filas filas={filasHistorial} />
+      </Seccion>
       <Seccion titulo={`Conformidad (${hallazgos.length})`} fallo={veredicto === 'errores'}>
         {hallazgos.length === 0 ? (
           <p className="tallerDato">{datos ? 'Ninguna comprobación falla.' : 'Sin datos todavía.'}</p>

@@ -5,6 +5,7 @@ import {
   type EstadoPublico,
   type EstadoTaller89,
   type Hallazgo,
+  type MuestraHistorial,
 } from '../../../shared/taller/conformidad.js';
 import {
   recargarTaller,
@@ -72,6 +73,18 @@ function filasLaptop(l: RespuestaTaller['local'] | null): Fila[] {
   return out;
 }
 
+/* [por que] Las muestras más recientes primero y solo una hora (12 de 5 min): el panel es una
+ * vista de estado, no un gráfico; el resto queda en estado.jsonl de la 89. */
+export const HISTORIAL_VISIBLE = 12;
+
+function filasHistorial(muestras: MuestraHistorial[], motivo: string | null): Fila[] {
+  if (muestras.length === 0) return [['historial', motivo ?? 'sin datos']];
+  return muestras.slice(-HISTORIAL_VISIBLE).reverse().map((m): Fila => [
+    new Date(m.tomadaEn).toLocaleTimeString(),
+    `disco ${m.libreGb} GB · RAM ${m.disponibleMiB} MiB · swap ${m.swapUsadaMiB} MiB · cm-heavy ${m.cmHeavyOcupado ? 'ocupado' : 'libre'} · cloudflared ${m.cloudflaredViva ? 'vivo' : 'parado'}${m.managerDaemonVivo ? ' · daemon vivo' : ''}`,
+  ]);
+}
+
 export function usePanelTaller() {
   const { datos, cargando, error } = useEstadoTaller();
   const hallazgos: Hallazgo[] = datos?.hallazgos ?? [];
@@ -88,6 +101,7 @@ export function usePanelTaller() {
     filasVps: filasVps(datos?.taller89 ?? null, datos?.motivoSinLectura ?? null),
     filasPublico: filasPublico(datos?.registro.hostsPublicos ?? [], datos?.publico ?? null),
     filasLaptop: filasLaptop(datos?.local ?? null),
+    filasHistorial: filasHistorial(datos?.historial ?? [], datos?.motivoHistorial ?? null),
     recargar: recargarTaller,
   };
 }

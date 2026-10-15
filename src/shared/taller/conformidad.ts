@@ -34,6 +34,18 @@ export interface EstadoTaller89 {
   managerDaemonVivo: boolean;
 }
 
+/* Foto resumida de una línea de `~/taller/_datos/estado.jsonl` (S3.4). Solo los campos que el
+ * panel pinta; el resto de la sonda queda fuera para que la respuesta no crezca sin medida. */
+export interface MuestraHistorial {
+  tomadaEn: string;
+  libreGb: number;
+  disponibleMiB: number;
+  swapUsadaMiB: number;
+  cmHeavyOcupado: boolean;
+  cloudflaredViva: boolean;
+  managerDaemonVivo: boolean;
+}
+
 /* Resultado de pedir cada hostname público sin credenciales (P1). `location` es la
  * cabecera Location de la respuesta, si la hay. */
 export interface EstadoPublico {
