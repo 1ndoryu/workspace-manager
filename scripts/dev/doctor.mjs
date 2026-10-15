@@ -197,7 +197,7 @@ function validarEntrada(e) {
     if (!e._avisoRegistro) e._avisoRegistro = motivo;
   };
   // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) {
       mal(`registro: clave desconocida '${k}' en '${e.id}'`);
@@ -298,6 +298,11 @@ function validarEntrada(e) {
   // [por que] tunelSsh: lo lee remoto.mjs (false = la VPS expone sus puertos sola; sin túnel no hay puertosLocales).
   if ('tunelSsh' in e && typeof e.tunelSsh !== 'boolean') {
     mal(`registro: '${e.id}' tunelSsh debe ser true o false`);
+    return;
+  }
+  // [por que S3.7] analisisEn: dónde corre el análisis Sentinel/VarSense del gate. Ausente = local.
+  if ('analisisEn' in e && e.analisisEn !== 'local' && e.analisisEn !== 'dev89') {
+    mal(`registro: '${e.id}' analisisEn debe ser 'local' o 'dev89'`);
     return;
   }
   if ('buildMode' in e && (typeof e.buildMode !== 'string' || e.buildMode === '')) {

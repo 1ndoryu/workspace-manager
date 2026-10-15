@@ -4,6 +4,7 @@
   "host": "dev89",
   "dirRemotoBase": "/home/usuario/taller",
   "targetBase": "/var/tmp/glory-target",
+  "nodeRemoto": "/home/usuario/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
   "lockWrapper": "cm-heavy",
   "sync": {
     "motor": "mutagen",
