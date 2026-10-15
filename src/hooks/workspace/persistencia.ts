@@ -48,7 +48,8 @@ function uiGuardada(): { panelCentral: PanelCentral; visibles: VisibilidadPanele
     d.panelCentral === 'sentinel' ||
     d.panelCentral === 'guardian' ||
     d.panelCentral === 'pc' ||
-    d.panelCentral === 'vps'
+    d.panelCentral === 'vps' ||
+    d.panelCentral === 'taller'
       ? d.panelCentral
       : 'mapa';
   const visibles: VisibilidadPaneles = { ...UI_DEFECTO.visibles, ...(d.visibles ?? {}) };

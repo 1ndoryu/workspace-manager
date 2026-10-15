@@ -21,11 +21,14 @@ import {
   problemasDevDe,
   problemasSaludDe,
   problemasSentinelDe,
+  problemasTallerDe,
   problemasVulnerabilidadDe,
   type Entrada,
 } from '../../shared/clasificacionConsola.js';
 import { CLAVE_AREA } from '../../shared/salud/salud.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades } from '../../shared/types.js';
+import { estadoTaller } from '../taller/estado.js';
+import type { Hallazgo } from '../../shared/taller/conformidad.js';
 
 export async function manejarRutasConsola(
   req: IncomingMessage,
@@ -79,6 +82,21 @@ export async function manejarRutasConsola(
   /* Grupo sintético del área (comprobaciones de disco, runtime, AGENTS.md...). */
   const salArea = problemaSaludArea(saludDelArea);
   if (salArea) poner(CLAVE_AREA, salArea.p.id, salArea.entradas);
+  /* Conformidad del taller remoto (S3): VPS 89, HTTP público y laptop. [por que] Va en la
+   * caché de 60 s de estado.ts (sin SSH por consulta). Si la evaluación lanza, no tumba la
+   * consola: se avisa con T0 en vez de callarlo. */
+  let hallazgosTaller: Hallazgo[];
+  try {
+    hallazgosTaller = (await estadoTaller()).hallazgos;
+  } catch (err) {
+    hallazgosTaller = [{
+      id: 'T0', ambito: 'local', severidad: 'advertencia',
+      detalle: `no se pudo evaluar el taller: ${String(err)}`,
+      remedio: 'Revisar scripts/dev/registro.json y el log del manager.',
+    }];
+  }
+  const taller = problemasTallerDe(hallazgosTaller);
+  if (taller) poner(CLAVE_AREA, taller.p.id, taller.entradas);
   /* Grupo sintético de huérfanos sin proyecto (misma regla que el hook:
    * nunca participa en selección, solo en el conteo). */
   const solos = problemaHuerfanosSinProyecto(dev);

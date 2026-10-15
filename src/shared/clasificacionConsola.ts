@@ -6,8 +6,9 @@
 import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from './types.js';
 import type { InformeDev } from './dev.js';
 import { CLAVE_AREA, type ResultadoSalud } from './salud/salud.js';
+import type { Hallazgo } from './taller/conformidad.js';
 
-export type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad' | 'dev' | 'salud';
+export type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad' | 'dev' | 'salud' | 'taller';
 
 /* Severidad real del hallazgo de sentinel (analyze); solo la categoria
  * 'sentinel' la usa. El badge del proyecto y de la linea deriva de aqui. */
@@ -256,9 +257,22 @@ export function problemaSaludArea(s: ResultadoSalud | undefined): Problema | nul
   return problemasSaludDe({ id: '(área)', clave: CLAVE_AREA, ruta: CLAVE_AREA, esGit: false, tipo: 'carpeta' }, s);
 }
 
+/* Hallazgos de conformidad del taller (S3, plan sucesor 2026-10-14) en el grupo del área.
+ * [por que] Cada hallazgo lleva su ID de regla (A1, P2, L3...) para que la consola diga qué
+ * falla sin abrir el código. */
+export function problemasTallerDe(hallazgos: Hallazgo[] | undefined): Problema | null {
+  if (!hallazgos || hallazgos.length === 0) return null;
+  const entradas: Entrada[] = hallazgos.map((h) => ({
+    categoria: 'taller',
+    motivo: `${h.id} ${h.detalle} — ${h.remedio}`,
+    seriedad: h.severidad,
+  }));
+  return { p: { id: '(área)', clave: CLAVE_AREA, ruta: CLAVE_AREA, esGit: false, tipo: 'carpeta' }, entradas };
+}
+
 /* Categorias unicas de un proyecto (para sus badges), en orden fijo. */
 export function categoriasDe(pr: Problema): Categoria[] {
-  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'vulnerabilidad', 'huerfano', 'dev', 'salud'];
+  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'vulnerabilidad', 'huerfano', 'dev', 'salud', 'taller'];
   return orden.filter((c) => pr.entradas.some((e) => e.categoria === c));
 }
 
