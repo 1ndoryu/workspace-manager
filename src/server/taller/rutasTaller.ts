@@ -20,7 +20,7 @@ export async function manejarRutasTaller(
   }
   const forzar = url.searchParams.get('forzar') === '1';
   try {
-    const { tomadoEn, hallazgos, entrada } = await estadoTaller(forzar);
+    const { tomadoEn, hallazgos, entrada, historial, motivoHistorial } = await estadoTaller(forzar);
     json(res, 200, {
       tomadoEn,
       hallazgos,
@@ -34,6 +34,8 @@ export async function manejarRutasTaller(
         sinLectura: entrada.local.sinLectura ?? null,
       },
       registro: entrada.registro,
+      historial,
+      motivoHistorial,
     });
   } catch (err) {
     json(res, 500, { error: 'No se pudo evaluar el taller', detalle: String(err) });

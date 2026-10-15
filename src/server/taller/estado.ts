@@ -15,6 +15,7 @@ import {
   type EstadoPublico,
   type EstadoTaller89,
   type Hallazgo,
+  type MuestraHistorial,
   type RegistroConformidad,
 } from '../../shared/taller/conformidad.js';
 
@@ -32,6 +33,8 @@ export interface EstadoTallerCompleto {
   tomadoEn: string;
   hallazgos: Hallazgo[];
   entrada: EntradaConformidad;
+  historial: MuestraHistorial[];
+  motivoHistorial: string | null;
 }
 
 /* Lectura de un comando sin shell. `error` es null si salió con 0; si no, la primera línea
@@ -127,6 +130,56 @@ async function leerTaller89(): Promise<{ t89: EstadoTaller89 | null; motivo?: st
   }
   const forma = errorFormaTaller89(crudo);
   return forma ? { t89: null, motivo: forma } : { t89: crudo as EstadoTaller89 };
+}
+
+/* ---------- Historial (S3.4): estado.jsonl, que la sonda escribe con --registrar cada 5 min ---------- */
+
+/* [por que] 48 líneas = 4 h de cron de 5 min: lo que el panel enseña, sin bajar el fichero
+ * entero (rota a 5 MiB en la sonda). */
+const HISTORIAL_LINEAS = 48;
+const RUTA_HISTORIAL_REMOTA = '$HOME/taller/_datos/estado.jsonl';
+
+/* Convierte el texto de estado.jsonl en muestras, de la más antigua a la más reciente. Una
+ * línea rota o de otra forma se descarta sin parar la lectura: una mala no oculta las buenas. */
+export function parsearHistorial(texto: string): MuestraHistorial[] {
+  const muestras: MuestraHistorial[] = [];
+  for (const linea of texto.split('\n')) {
+    if (!linea.trim()) continue;
+    let x: unknown;
+    try {
+      x = JSON.parse(linea);
+    } catch {
+      continue;
+    }
+    if (errorFormaTaller89(x) || typeof (x as { tomadaEn?: unknown }).tomadaEn !== 'string') continue;
+    const t = x as EstadoTaller89;
+    muestras.push({
+      tomadaEn: t.tomadaEn,
+      libreGb: t.disco.libreGb,
+      disponibleMiB: t.memoria.disponibleMiB,
+      swapUsadaMiB: t.memoria.swapUsadaMiB,
+      cmHeavyOcupado: t.cmHeavy.ocupado,
+      cloudflaredViva: t.cloudflared.viva,
+      managerDaemonVivo: t.managerDaemonVivo,
+    });
+  }
+  return muestras;
+}
+
+/* Lectura por SSH de solo lectura. `|| true`: si el fichero aún no existe (el cron no ha
+ * escrito) no es un fallo; un fallo de SSH sí sale con código distinto de 0 y se reporta. */
+async function leerHistorial(): Promise<{ historial: MuestraHistorial[]; motivo?: string }> {
+  const r = await correr('ssh', [
+    '-o', 'BatchMode=yes',
+    '-o', 'ConnectTimeout=10',
+    TALLER_HOST,
+    `tail -n ${HISTORIAL_LINEAS} ${RUTA_HISTORIAL_REMOTA} 2>/dev/null || true`,
+  ], TIMEOUT_SSH_MS);
+  if (r.error) return { historial: [], motivo: r.error };
+  const historial = parsearHistorial(r.salida);
+  return historial.length > 0
+    ? { historial }
+    : { historial, motivo: 'sin muestras todavía (el cron de la sonda aún no ha escrito)' };
 }
 
 /* ---------- HTTP público (P1, sin credenciales) ---------- */
@@ -225,10 +278,11 @@ async function leerLocal(): Promise<EstadoLocal> {
 
 async function calcular(): Promise<EstadoTallerCompleto> {
   const registro = leerRegistroConformidad();
-  const [taller, publico, local] = await Promise.all([
+  const [taller, publico, local, hist] = await Promise.all([
     leerTaller89(),
     leerPublico(registro.hostsPublicos),
     leerLocal(),
+    leerHistorial(),
   ]);
   const entrada: EntradaConformidad = {
     t89: taller.t89,
@@ -237,7 +291,13 @@ async function calcular(): Promise<EstadoTallerCompleto> {
     local,
     registro,
   };
-  return { tomadoEn: new Date().toISOString(), hallazgos: evaluarConformidad(entrada), entrada };
+  return {
+    tomadoEn: new Date().toISOString(),
+    hallazgos: evaluarConformidad(entrada),
+    entrada,
+    historial: hist.historial,
+    motivoHistorial: hist.motivo ?? null,
+  };
 }
 
 let cache: { en: number; valor: EstadoTallerCompleto } | null = null;
