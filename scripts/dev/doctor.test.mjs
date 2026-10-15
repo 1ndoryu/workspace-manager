@@ -17,6 +17,7 @@ import {
   esSistemaIgnorado,
   leerRegistro,
   parsearNetstat,
+  puertoDeSaludValido,
   validarIgnoradoSistema,
   validarVps,
   veredictoUpSinCobertura,
@@ -67,6 +68,14 @@ test('enRuta: exige frontera de ruta', () => {
   assert.equal(enRuta('c:\\a\\glory\\x', 'c:\\a\\glory'), true);
   assert.equal(enRuta('"c:\\a\\glory" --x', 'c:\\a\\glory'), true);
   assert.equal(enRuta('', 'c:\\a\\glory'), false);
+});
+
+test('puertoDeSaludValido: acepta un puerto solo remoto (readiness del conector 20241), rechaza uno ajeno', () => {
+  const e = { puertos: [3110, 5199, 3102], puertosRemotos: [3110, 5199, 20241] };
+  assert.equal(puertoDeSaludValido(20241, e), true);
+  assert.equal(puertoDeSaludValido(3110, e), true);
+  assert.equal(puertoDeSaludValido(9999, e), false);
+  assert.equal(puertoDeSaludValido(20241, { puertos: [3110] }), false);
 });
 
 test('atribuirHuerfano: gana la ruta mas larga que contiene el proceso', () => {
