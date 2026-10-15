@@ -196,7 +196,7 @@ function validarEntrada(e) {
     if (!e._avisoRegistro) e._avisoRegistro = motivo;
   };
   // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'precompilar', 'dependencias']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) {
       mal(`registro: clave desconocida '${k}' en '${e.id}'`);
@@ -283,6 +283,20 @@ function validarEntrada(e) {
         return;
       }
     }
+  }
+  // [por que] Campos del taller (14AA-5): los lee la conformidad (src/shared/taller/conformidad.ts),
+  // el mando solo los valida para no marcar deriva a una entrada bien declarada.
+  if ('hostsPublicos' in e && (!Array.isArray(e.hostsPublicos) || e.hostsPublicos.some((h) => typeof h !== 'string' || h === ''))) {
+    mal(`registro: '${e.id}' hostsPublicos debe ser array de hostnames`);
+    return;
+  }
+  if ('puertosPublicos' in e && (!Array.isArray(e.puertosPublicos) || e.puertosPublicos.some((p) => !Number.isInteger(p) || p < 1 || p > 65535))) {
+    mal(`registro: '${e.id}' puertosPublicos invalidos`);
+    return;
+  }
+  if ('buildMode' in e && (typeof e.buildMode !== 'string' || e.buildMode === '')) {
+    mal(`registro: '${e.id}' buildMode debe ser string no vacio`);
+    return;
   }
   // [por que] argv[i] <-> puertos[i]: sin igualdad posicional el `up` no sabe
   // que lanzar ante un puerto caido y cualquier suposicion seria verde fingido.

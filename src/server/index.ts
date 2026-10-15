@@ -16,6 +16,7 @@ import { manejarRutasArchivos } from './rutas/rutasArchivos.js';
 import { manejarRutasPc } from './rutas/rutasPc.js';
 import { manejarRutasDev } from './rutas/rutasDev.js';
 import { manejarRutasConsola } from './rutas/rutasConsola.js';
+import { manejarRutasTaller } from './taller/rutasTaller.js';
 import { manejarRutasSalud } from './rutas/salud/rutasSalud.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutas/rutasVps.js';
@@ -195,6 +196,10 @@ export function crearServidor(opciones: OpcionesServidor = {}) {
         /* Consola de problemas agregada (/api/consola/*, 07AA-1): mismo
          * conteo que la cabecera, con desglose. Viven en rutasConsola.ts. */
         if (await manejarRutasConsola(req, res, url, ruta)) {
+          return;
+        }
+        /* Estado del taller remoto (/api/taller/estado, S3): viven en taller/rutasTaller.ts. */
+        if (await manejarRutasTaller(req, res, url, ruta)) {
           return;
         }
         /* Salud del entorno y de los proyectos (/api/salud/*, 10AA-2 F8): viven en

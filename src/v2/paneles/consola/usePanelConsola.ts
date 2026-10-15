@@ -12,11 +12,13 @@ import {
   problemasSaludDe,
   contarProblemas,
   problemasSentinelDe,
+  problemasTallerDe,
   problemasVulnerabilidadDe,
   type Categoria,
   type Problema,
 } from '../../../shared/clasificacionConsola.js';
 import { CLAVE_AREA } from '../../../shared/salud/salud.js';
+import { hallazgosTallerDe, useEstadoTaller } from '../taller/useEstadoTaller.js';
 
 export function usePanelConsola() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
@@ -84,12 +86,21 @@ export function usePanelConsola() {
     return lista;
   }, [snapshot, salud]);
 
-  /* Base filtrable: regulares + dev + salud (los filtros por categoria solo
+  /* Taller remoto (14AA-5 S3): conformidad de la 89, HTTP publico y laptop, en el
+   * grupo sintetico del area (CLAVE_AREA). Viven en el filtro 'taller' y su conteo
+   * entra en 'todos'. useEstadoTaller es singleton: PanelTaller comparte la peticion. */
+  const { datos: datosTaller, error: errorTaller } = useEstadoTaller();
+  const problemasTaller = useMemo(() => {
+    const area = problemasTallerDe(hallazgosTallerDe(datosTaller, errorTaller));
+    return area ? [area] : [];
+  }, [datosTaller, errorTaller]);
+
+  /* Base filtrable: regulares + dev + salud + taller (los filtros por categoria solo
    * miran entradas de su categoria, asi que un proyecto con varias categorias no
    * se duplica al filtrar). */
   const problemasBase = useMemo(
-    () => [...problemas, ...problemasDev, ...problemasSalud],
-    [problemas, problemasDev, problemasSalud],
+    () => [...problemas, ...problemasDev, ...problemasSalud, ...problemasTaller],
+    [problemas, problemasDev, problemasSalud, problemasTaller],
   );
 
   /* 'todos' fusiona los problemas regulares con los hallazgos de sentinel y
@@ -116,8 +127,9 @@ export function usePanelConsola() {
     problemasVuln.forEach(poner);
     problemasDev.forEach(poner);
     problemasSalud.forEach(poner);
+    problemasTaller.forEach(poner);
     return [...porProyecto.values()];
-  }, [problemas, problemasSentinel, problemasVuln, problemasDev, problemasSalud]);
+  }, [problemas, problemasSentinel, problemasVuln, problemasDev, problemasSalud, problemasTaller]);
 
   const visibles = useMemo(() => {
     if (filtro === 'sentinel') return problemasSentinel;

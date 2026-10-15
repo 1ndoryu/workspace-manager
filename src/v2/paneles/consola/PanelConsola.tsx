@@ -34,6 +34,7 @@ const FILTROS: { clave: 'todos' | Categoria; etiqueta: string }[] = [
   { clave: 'sentinel', etiqueta: 'análisis' },
   { clave: 'vulnerabilidad', etiqueta: 'vulnerabilidades' },
   { clave: 'salud', etiqueta: 'salud' },
+  { clave: 'taller', etiqueta: 'taller' },
   { clave: 'dev', etiqueta: 'dev' },
   { clave: 'huerfano', etiqueta: 'huérfanos' },
 ];

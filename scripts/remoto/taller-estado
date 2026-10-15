@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# taller-estado: foto de solo lectura del taller (VPS 89) para workspace-manager (plan sucesor S3.2).
+# Uso: taller-estado                  imprime un JSON en stdout (lo pide el manager por SSH).
+#      taller-estado --registrar      además añade la foto a ~/taller/_datos/estado.jsonl (cron cada 5 min).
+# [por que] Solo lectura, sin sudo ni docker y acotada (< 2 s): el manager la llama al pintar el panel
+# y el cron deja histórico sin que el laptop haga nada. Cada comando va con timeout o sin escritura.
+# Instalación (idempotente, la hace el plan con autorización): ~/bin/taller-estado modo 0700 y
+# crontab de dev: */5 * * * * $HOME/bin/taller-estado --registrar >/dev/null 2>&1
+set -u
+export LC_ALL=C
+
+REGISTRAR=0
+[ "${1:-}" = "--registrar" ] && REGISTRAR=1
+
+LIMITE_BYTES=5242880
+DATOS="$HOME/taller/_datos"
+LOCK=/run/lock/cm-heavy.lock
+LOG_SWEEP=/var/log/cm-sweep.log
+USUARIO="$(id -un)"
+
+# Cadena JSON segura para rutas y nombres (comillas y barras invertidas).
+json_str() {
+  local s=${1//\\/\\\\}
+  s=${s//\"/\\\"}
+  printf '"%s"' "$s"
+}
+
+# Disco libre de / en GB (mismo punto que cm-heavy).
+LIBRE_GB=$(df -BG --output=avail / 2>/dev/null | tail -n1 | tr -dc '0-9')
+LIBRE_GB=${LIBRE_GB:-0}
+
+# Antigüedad del último sweep en horas (null si no hay log legible).
+if [ -r "$LOG_SWEEP" ]; then
+  SWEEP_H=$(awk -v now="$(date +%s)" -v m="$(stat -c %Y "$LOG_SWEEP")" 'BEGIN{printf "%.1f", (now-m)/3600}')
+else
+  SWEEP_H=null
+fi
+if systemctl is-active --quiet cm-sweep.timer 2>/dev/null; then TIMER=true; else TIMER=false; fi
+
+# Memoria disponible y swap en uso (MiB).
+MEM_MIB=$(awk '/^MemAvailable:/{print int($2/1024)}' /proc/meminfo)
+SWAP_MIB=$(awk '/^SwapTotal:/{t=$2} /^SwapFree:/{f=$2} END{print int((t-f)/1024)}' /proc/meminfo)
+
+# Escuchas TCP y UDP. Formato de ss -H: columna 4 = dirección local:puerto.
+escuchas() {
+  ss -H "-l$1n" 2>/dev/null | awk '{print $4}' | while read -r dir; do
+    local puerto=${dir##*:} addr=${dir%:*}
+    [[ "$puerto" =~ ^[0-9]+$ ]] || continue
+    addr=${addr#[}; addr=${addr%]}
+    [ "$addr" = "*" ] && addr=0.0.0.0
+    printf '{"direccion":"%s","puerto":%s,"proto":"%s"}\n' "$addr" "$puerto" "$2"
+  done
+}
+ESCUCHAS=$({ escuchas t tcp; escuchas u udp; } | paste -sd, -)
+
+# Sesiones tmux (las dev-* se cruzan con el registro en el manager).
+TMUX_LISTA=$(timeout 2 tmux ls -F '#S' 2>/dev/null | while IFS= read -r s; do json_str "$s"; echo; done | paste -sd, -)
+
+# cm-heavy: ocupado si otro proceso tiene el lock. Sin fichero de lock, no hay build en marcha.
+OCUPADO=false
+if [ -e "$LOCK" ] && ! flock -n "$LOCK" true; then OCUPADO=true; fi
+
+# cargo/rustc fuera de cm-heavy: cm-heavy hace exec con el lock abierto en fd 9, y ese fd se hereda.
+# Un proceso sin ese fd abierto sobre el lock no pasó por cm-heavy.
+FUERA=$(ps -u "$USUARIO" -o pid=,comm= 2>/dev/null | awk '$2=="cargo"||$2=="rustc"{print $1}' | while read -r pid; do
+  if readlink /proc/"$pid"/fd/* 2>/dev/null | grep -qx "$LOCK"; then continue; fi
+  printf '{"pid":%s,"cmd":"%s"}\n' "$pid" "$(tr -d '"\\' < /proc/"$pid"/comm 2>/dev/null)"
+done | paste -sd, -)
+
+# Permisos de los secretos de cloudflared (solo ruta y modo, nunca contenido).
+SECRETOS=$(for f in "$HOME"/.config/cloudflared/*.env; do
+  [ -e "$f" ] || continue
+  printf '{"ruta":%s,"modo":"%s"}\n' "$(json_str "${f/#$HOME/~}")" "$(stat -c %a "$f")"
+done | paste -sd, -)
+
+# cloudflared: versión, modo del token del túnel y si el conector está vivo.
+CF_VER=$(timeout 2 cloudflared --version 2>/dev/null | awk '{print $3}')
+if [ -n "$CF_VER" ]; then CF_VER_J=$(json_str "$CF_VER"); else CF_VER_J=null; fi
+CF_MODO=$(stat -c %a "$HOME/.config/cloudflared/mn-dev.env" 2>/dev/null)
+if [ -n "$CF_MODO" ]; then CF_MODO_J=$(json_str "$CF_MODO"); else CF_MODO_J=null; fi
+CF_VIVA=false
+pgrep -u "$USUARIO" -x cloudflared >/dev/null 2>&1 && CF_VIVA=true
+
+# Copia de trabajo de la BD (solo existencia; la edad no se mide aquí).
+BD_EXISTE=false
+if timeout 1 psql -tAc "select 1 from pg_database where datname='glory_backend_inmobiliaria'" postgres 2>/dev/null | grep -qx 1; then
+  BD_EXISTE=true
+fi
+
+# Daemon del manager en la 89 (transitorio hasta S3.6).
+DAEMON=false
+pgrep -u "$USUARIO" -f 'dist-server/server/index.js' >/dev/null 2>&1 && DAEMON=true
+
+TOMADA=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+JSON="{\"version\":1,\"tomadaEn\":\"$TOMADA\",\"disco\":{\"libreGb\":$LIBRE_GB},\"sweep\":{\"edadHoras\":$SWEEP_H,\"timerActivo\":$TIMER},\"memoria\":{\"disponibleMiB\":${MEM_MIB:-0},\"swapUsadaMiB\":${SWAP_MIB:-0}},\"escuchas\":[$ESCUCHAS],\"tmux\":[$TMUX_LISTA],\"cmHeavy\":{\"ocupado\":$OCUPADO},\"buildsFueraDeCmHeavy\":[$FUERA],\"secretos\":[$SECRETOS],\"cloudflared\":{\"version\":$CF_VER_J,\"tokenModo\":$CF_MODO_J,\"viva\":$CF_VIVA},\"bdTrabajo\":{\"existe\":$BD_EXISTE,\"edadHoras\":null},\"managerDaemonVivo\":$DAEMON}"
+
+if [ "$REGISTRAR" = 1 ]; then
+  mkdir -p "$DATOS"
+  F="$DATOS/estado.jsonl"
+  if [ -f "$F" ] && [ "$(stat -c %s "$F")" -gt "$LIMITE_BYTES" ]; then mv -f "$F" "$F.1"; fi
+  printf '%s\n' "$JSON" >> "$F"
+fi
+printf '%s\n' "$JSON"

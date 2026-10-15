@@ -57,6 +57,9 @@
       "dependencias": ["frontend", "gateway"],
       "puertosRemotos": [3110, 5199],
       "puertosLocales": [3210, 5299],
+      "hostsPublicos": ["mn-dev.wandori.us"],
+      "puertosPublicos": [5199],
+      "buildMode": "builder",
       "botonRemoto": [
         ["env", "PUBLIC_BASE_URL=http://127.0.0.1:3210", "cargo", "run", "--bin", "glory-backend"],
         ["env", "VITE_API_URL=http://127.0.0.1:3210", "npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5199", "--strictPort", "--host", "127.0.0.1"]
@@ -180,6 +183,7 @@
       "dominio": "restaurante.localhost",
       "host": "dev89",
       "envRemoto": "todo",
+      "buildMode": "builder",
       "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
       "botonRemoto": [["cargo", "run", "--bin", "glory-backend"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5182", "--strictPort", "--host", "127.0.0.1"]],
       "boton": [["npm", "run", "dev:back"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5182", "--strictPort", "--host", "127.0.0.1"]],
