@@ -16,6 +16,7 @@ import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'no
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
 import { cabeceraAutorizacion } from './token.mjs';
+import { avisoTaller } from './taller-aviso.mjs';
 
 export const DIR_DEV = dirname(fileURLToPath(import.meta.url));
 export const RAIZ_REPO = resolve(DIR_DEV, '..', '..');
@@ -2004,7 +2005,11 @@ export async function main(argv) {
   }
 
   if (comoJson) console.log(JSON.stringify(informe));
-  else console.log(tabla(informe));
+  else {
+    console.log(tabla(informe));
+    // [por que 14AA-5] Aviso bajo la tabla; no entra en codigoSalida.
+    await avisoTaller();
+  }
   return codigoSalida(informe);
 }
 
