@@ -187,7 +187,7 @@
       "envRemoto": "todo",
       "buildMode": "builder",
       "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
-      "botonRemoto": [["cargo", "run", "--bin", "glory-backend"], ["env", "RESTAURANTE_DEV_PUBLIC_HOST=rest-dev.wandori.us", "npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5182", "--strictPort", "--host", "127.0.0.1"]],
+      "botonRemoto": [["env", "BDP_BOOTSTRAP_USER_EMAIL=", "cargo", "run", "--bin", "glory-backend"], ["env", "RESTAURANTE_DEV_PUBLIC_HOST=rest-dev.wandori.us", "npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5182", "--strictPort", "--host", "127.0.0.1"]],
       "boton": [["npm", "run", "dev:back"], ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5182", "--strictPort", "--host", "127.0.0.1"]],
       "puertos": [3105, 5182],
       "hostsPublicos": ["rest-dev.wandori.us"],
