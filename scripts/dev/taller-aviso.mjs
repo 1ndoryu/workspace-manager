@@ -17,8 +17,11 @@ export function resumenTaller(hallazgos) {
 /* Las dependencias van por parámetro para probarlo sin red ni manager. */
 export async function avisoTaller({ fetchFn = fetch, log = console.log, url = URL_ESTADO_TALLER } = {}) {
   try {
+    // [por que 14AA-5] connection: close. Con keep-alive el socket queda abierto al salir
+    // por process.exit (dev.mjs) junto al del gate, y Node en Windows aborta con el assert
+    // de libuv (exit 127) aunque el cierre sea correcto.
     const r = await fetchFn(url, {
-      headers: cabeceraAutorizacion(),
+      headers: { ...cabeceraAutorizacion(), connection: 'close' },
       signal: AbortSignal.timeout(25_000),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
