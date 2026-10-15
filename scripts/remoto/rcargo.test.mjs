@@ -17,8 +17,7 @@ import {
 
 const config = cargarConfig();
 
-// [14AA-1] El default lo fija taller.json. Hasta F0 (VPS 89 sin usuario dev) es local,
-// para no romper el cargo diario; el paso a remoto es el último de F0/E2E.
+// [14AA-1] El default lo fija taller.json. Desde 2026-10-15 es remoto (la 89 compila; local solo con --local).
 test('modo por defecto lo fija taller.json; con remoto configurado, remoto', () => {
   assert.equal(modoEfectivo([], config, 'RESTAURANTE', {}), config.modoPorDefecto);
   assert.equal(modoEfectivo([], { ...config, modoPorDefecto: 'remoto' }, 'RESTAURANTE', {}), 'remoto');

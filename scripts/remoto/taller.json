@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "modoPorDefecto": "local",
+  "modoPorDefecto": "remoto",
   "host": "dev89",
   "dirRemotoBase": "/home/usuario/taller",
   "targetBase": "/var/tmp/glory-target",

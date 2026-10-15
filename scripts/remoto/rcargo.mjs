@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Taller remoto (VPS 89): cargo se ejecuta en la VPS por defecto.
+// Taller remoto (VPS 89): este script SIEMPRE ejecuta cargo en la 89.
 // Sync laptop→89 con Mutagen (réplica unidireccional, sin commit ni GitHub).
-// Diseño y decisiones: Agente/planes/plan-taller-remoto-vps89-2026-10-14.md
+// Diseño y decisiones: Agente/planes/plan-taller-remoto-vps89-fase-2-2026-10-14.md
 //
 // Uso: node rcargo.mjs [--proyecto=NOMBRE] [--dry-run] <args de cargo>
-// Modo local (sin VPS): lo decide el wrapper del proyecto con modoEfectivo().
+// El modo local (cargo en el laptop, solo con --local) no vive aquí: lo decide el
+// wrapper del proyecto (scripts/run-cargo.mjs) con modoEfectivo(). Usa ese wrapper.
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
