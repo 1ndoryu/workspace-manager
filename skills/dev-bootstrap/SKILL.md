@@ -25,7 +25,7 @@ Los `<id>` válidos están en `scripts/dev/registro.json` (p. ej. `MN-Inmobiliar
 
 ## Alta de proyecto nuevo
 
-Añadir una entrada en `scripts/dev/registro.json`. Campos admitidos (el `doctor` rechaza cualquier otro; la lista exacta es `conocidas` en `scripts/dev/doctor.mjs:151`: además de los del ejemplo, `reconstruir`, `auxiliares` y `comandos`):
+Añadir una entrada en `scripts/dev/registro.json`. Campos admitidos (el `doctor` rechaza cualquier otro; la lista exacta es `conocidas` en `scripts/dev/doctor.mjs:199`: además de los del ejemplo, `procesosAceptados`, `reconstruir`, `auxiliares`, `comandos`, `host`, `envRemoto`, `botonRemoto`, `puertosRemotos`, `puertosLocales`, `tunelSsh`, `hostsPublicos`, `puertosPublicos`, `buildMode`, `precompilar` y `dependencias`):
 
 ```json
 {
@@ -51,6 +51,7 @@ Reglas:
 - `boton`: el comando exacto que levanta el proyecto; `expectedCmdline`: subcadena que lo identifica en la lista de procesos.
 - `requiere`: solo si necesita otro servicio antes (p. ej. `glory-pulse`); `env`: objeto string→string no vacío (p. ej. `VITE_PORT`, vars de sccache) — llega al hijo vía `envPara()`/`lanzar()`, sin reiniciar el backend.
 - Sin servicio que levantar (solo docs o estático): no va en entradas, va en `noAplica` con motivo (`sin-servicio`).
+- Host remoto (`host`, p. ej. `dev89`): la entrada corre en esa VPS y su alta la valida `remoto.mjs` (fail-closed). `tunelSsh: false` = sin túnel SSH (dev público por Cloudflare Access, ver skill `taller-remoto`); `puertosLocales` no aplica con `tunelSsh: false`.
 - Validar el alta con `Arranque doctor --all` (falla si la entrada está mal formada) y luego `status "<id>"`.
 - Alta completa del proyecto (11 puntos: stack, git, README, roadmap y `Agente/`, registro, Sentinel, varsense, `quality:check`, `target-dir`, `.gitignore`, sin AGENTS/CLAUDE propios): fuente canónica `Agente/documentacion/alta-proyectos-2026-10-11.md`. `Arranque alta "<id>"` dice qué falta; `--aplicar` crea solo lo mecánico y nunca sobrescribe ni escribe en el registro.
 

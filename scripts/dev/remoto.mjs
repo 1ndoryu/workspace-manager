@@ -1,6 +1,7 @@
 /* F3 taller remoto (VPS 89): una entrada del registro con `host` corre en la VPS,
- * en una sesion tmux por puerto, y el laptop solo mantiene un tunel SSH hacia
- * 127.0.0.1. Diseno: Agente/planes/plan-taller-remoto-vps89-2026-10-14.md.
+ * en una sesion tmux por puerto. El laptop mantiene un tunel SSH hacia 127.0.0.1,
+ * salvo tunelSsh:false (la VPS expone sus puertos sola, p. ej. Cloudflare Tunnel).
+ * Diseno: Agente/planes/plan-taller-remoto-vps89-2026-10-14.md.
  * [por que] El mando local no ve procesos remotos: la verdad es la sesion tmux
  * (en 89) y el PID del tunel (local, validado por creationTime e imagen/cmdline).
  * Sin probe por el tunel no hay verde; un puerto escuchando fuera de loopback
@@ -31,6 +32,8 @@ const puertosRemotosDe = (entrada) => entrada.puertosRemotos ?? entrada.puertos;
 // [por que] puertosLocales (opcional, misma longitud que los remotos): el túnel abre ese puerto en el laptop y deja el remoto igual.
 // Permite tener el dev local encendido sin chocar con el remoto; el resto del flujo (probe, marcador) usa el local.
 const puertosLocalesDe = (entrada) => puertosRemotosDe(entrada).map((p, i) => entrada.puertosLocales?.[i] ?? p);
+// [por que] tunelSsh (opcional, true por defecto): false = la VPS expone sus puertos sola (Cloudflare Tunnel en la 89); el laptop no reenvía nada y el probe corre en la 89.
+const usaTunel = (entrada) => entrada.tunelSsh !== false;
 
 export function esEntradaRemota(entrada) {
   return typeof entrada?.host === 'string' && entrada.host !== '';
@@ -50,6 +53,8 @@ export function validarHostRemoto(entrada, config) {
   }
   const protegidos = remotos.filter((p) => PUERTOS_PROTEGIDOS.has(p));
   if (protegidos.length) return `puertos protegidos ${protegidos.join(',')} no se reenvian al laptop`;
+  if (entrada.tunelSsh !== undefined && typeof entrada.tunelSsh !== 'boolean') return 'tunelSsh debe ser true o false';
+  if (entrada.tunelSsh === false && entrada.puertosLocales !== undefined) return 'puertosLocales no aplica con tunelSsh false';
   if (entrada.puertosLocales !== undefined) {
     const pl = entrada.puertosLocales;
     if (!Array.isArray(pl) || pl.length !== remotos.length || pl.some((p) => !Number.isInteger(p) || p < 1024 || p > 65535)) {
@@ -276,6 +281,20 @@ async function esperarSonda(puerto, ruta, limiteMs) {
   return true;
 }
 
+// Sin túnel, el probe corre en la 89 contra su loopback, con el mismo criterio que sondear (solo 200).
+// [por que] La salida es el código HTTP; el código de salida de curl no se usa (000 = sin respuesta).
+export const comandoSondaRemota = (puerto, ruta) => `curl -s -o /dev/null -w '%{http_code}' --max-time 2 ${shQuote(`http://127.0.0.1:${puerto}${ruta}`)}`;
+
+async function esperarSondaRemota(config, puerto, ruta, limiteMs) {
+  const t0 = Date.now();
+  for (;;) {
+    const r = await sshRemoto(config, comandoSondaRemota(puerto, ruta), 10_000);
+    if (r.salida.trim() === '200') return true;
+    if (Date.now() - t0 > limiteMs) return false;
+    await new Promise((res) => setTimeout(res, 1000));
+  }
+}
+
 // codigo: el de salida remoto (p. ej. 75 = cm-heavy ocupado); 1 si ssh no llegó a ejecutar o expiró el timeout.
 function sshRemoto(config, comando, timeoutMs = 30_000) {
   return new Promise((resolveP) => {
@@ -391,7 +410,8 @@ function rutaSonda(entrada, puerto) {
 }
 
 async function estadoRemoto(config, id, entrada) {
-  const pidTunel = await tunelVivo(config, entrada, leerEstado(id));
+  const tunel = usaTunel(entrada);
+  const pidTunel = tunel ? await tunelVivo(config, entrada, leerEstado(id)) : null;
   const remotos = puertosRemotosDe(entrada);
   const r = await sshRemoto(config, comandoSesiones(remotos.map((p) => sesionTmux(id, p))));
   if (!r.ok) {
@@ -400,11 +420,16 @@ async function estadoRemoto(config, id, entrada) {
   const vivas = r.salida.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
   const sesionesVivas = remotos.filter((p) => vivas.includes(sesionTmux(id, p)));
   // [por que] Un solo intento de 2 s daba «deriva» falso tras un arranque en frío del túnel; se reintenta hasta 3 s.
-  const sondasOk = pidTunel
-    ? await Promise.all(remotos.map((p, i) => esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), 3000)))
-    : remotos.map(() => false);
-  const detalle = `tmux ${sesionesVivas.length}/${remotos.length}, tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}, probe ${sondasOk.filter(Boolean).length}/${remotos.length}`;
-  if (sesionesVivas.length === remotos.length && pidTunel && sondasOk.every(Boolean)) {
+  // Sin túnel, el probe solo corre si hay sesiones: sin ellas no hay nada que sondear.
+  let sondasOk = remotos.map(() => false);
+  if (tunel && pidTunel) {
+    sondasOk = await Promise.all(remotos.map((p, i) => esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), 3000)));
+  } else if (!tunel && sesionesVivas.length) {
+    sondasOk = await Promise.all(remotos.map((p) => esperarSondaRemota(config, p, rutaSonda(entrada, p), 3000)));
+  }
+  const conexion = tunel ? `tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}` : 'sin tunel';
+  const detalle = `tmux ${sesionesVivas.length}/${remotos.length}, ${conexion}, probe ${sondasOk.filter(Boolean).length}/${remotos.length}`;
+  if (sesionesVivas.length === remotos.length && (pidTunel || !tunel) && sondasOk.every(Boolean)) {
     return { estado: 'bajo-mando', pidTunel, motivo: `${config.host}: ${detalle}` };
   }
   if (sesionesVivas.length === 0 && !pidTunel) {
@@ -686,18 +711,25 @@ async function upRemoto(config, id, entrada, args = []) {
     if (escucha.publico) await pararSesiones(config, id, entrada);
     return { codigo: 1, resumen: `up ${id}: ${escucha.motivo}: NO verde` };
   }
-  let pid = previo.pidTunel;
-  let creado = leerEstado(id)?.tunelCreado ?? null;
-  if (!pid) {
-    const t = await abrirTunel(config, entrada, id);
-    if (!t.pid) return { codigo: 1, resumen: `up ${id}: tunel ssh no levanto o no es el nuestro (log ${t.rutaLog}): NO verde` };
-    pid = t.pid;
-    creado = t.creado;
+  let pid = null;
+  let creado = null;
+  if (usaTunel(entrada)) {
+    pid = previo.pidTunel;
+    creado = leerEstado(id)?.tunelCreado ?? null;
+    if (!pid) {
+      const t = await abrirTunel(config, entrada, id);
+      if (!t.pid) return { codigo: 1, resumen: `up ${id}: tunel ssh no levanto o no es el nuestro (log ${t.rutaLog}): NO verde` };
+      pid = t.pid;
+      creado = t.creado;
+    }
   }
   for (const [i, p] of remotos.entries()) {
-    if (!(await esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), limiteMs))) {
-      return { codigo: 1, resumen: `up ${id}: probe sin respuesta por el tunel (puerto ${p}, ${limiteMs}ms): NO verde` };
-    }
+    const ruta = rutaSonda(entrada, p);
+    // [por que] Sin túnel el probe corre en la 89: es el loopback que expone cloudflared (o el propio servicio).
+    const ok = usaTunel(entrada)
+      ? await esperarSonda(puertosLocalesDe(entrada)[i], ruta, limiteMs)
+      : await esperarSondaRemota(config, p, ruta, limiteMs);
+    if (!ok) return { codigo: 1, resumen: `up ${id}: probe sin respuesta ${usaTunel(entrada) ? 'por el tunel' : `en ${config.host}`} (puerto ${p}, ${limiteMs}ms): NO verde` };
   }
   escribirEstado(id, {
     host: config.host,
@@ -707,7 +739,8 @@ async function upRemoto(config, id, entrada, args = []) {
     creadoEn: new Date().toISOString(),
   });
   const reinicio = reiniciar.puertos.length ? `, reiniciados por entorno distinto: ${reiniciar.detalle.join('; ')}` : '';
-  return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (puertos ${remotos.join(', ')}, tunel pid ${pid}${reinicio})${bdResumen ? `; ${bdResumen}` : ''} + probe verde` };
+  const via = pid ? `tunel pid ${pid}` : 'sin tunel';
+  return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (puertos ${remotos.join(', ')}, ${via}${reinicio})${bdResumen ? `; ${bdResumen}` : ''} + probe verde` };
 }
 
 async function statusRemoto(config, id, entrada) {
@@ -719,7 +752,8 @@ async function stopRemoto(config, id, entrada) {
   const estado = leerEstado(id);
   // [por que] Cerrar solo el PID registrado dejaba vivo el túnel real (ocupaba 3210/5299 y `up` fallaba después).
   const registrado = await tunelVivo(config, entrada, estado);
-  const pids = [...new Set([registrado, ...(await tunelesNuestrosEnPuertos(config, entrada))].filter(Boolean))];
+  const enPuertos = usaTunel(entrada) ? await tunelesNuestrosEnPuertos(config, entrada) : [];
+  const pids = [...new Set([registrado, ...enPuertos].filter(Boolean))];
   const remoto = await pararSesiones(config, id, entrada);
   const cierres = await Promise.all(pids.map(async (pid) => ({ pid, cerrado: await matarTunel(pid) })));
   const tras = await estadoRemoto(config, id, entrada);
