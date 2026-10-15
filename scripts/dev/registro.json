@@ -53,7 +53,7 @@
       "expectedCmdline": ["glory-backend", "MN-Inmobiliaria\\frontend", "gateway"],
       "env": { "PORT": "3110" },
       "host": "dev89",
-      "envRemoto": ["DATABASE_URL", "JWT_SECRET", "HOST", "PORT", "UPLOAD_DIR", "RUST_LOG", "PUBLIC_BASE_URL", "OPENCODE_GO_API_KEY"],
+      "envRemoto": ["DATABASE_URL", "JWT_SECRET", "HOST", "PORT", "UPLOAD_DIR", "RUST_LOG", "PUBLIC_BASE_URL", "OPENCODE_GO_API_KEY", "VITE_DEV_EMAIL", "VITE_DEV_PASSWORD"],
       "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
       "dependencias": ["frontend", "gateway"],
       "puertosRemotos": [3110, 5199, 20241],
