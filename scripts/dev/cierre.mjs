@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import net from 'node:net';
 import { RAIZ, formatearNuevos, pedir, rutaSnapshot } from './gate.mjs';
+import { avisoTaller } from './taller-aviso.mjs';
 
 /* Tablero y opencode-propio: nunca se cuentan como procesos propios del proyecto
  * (AGENTS §5 y §9.2). */
@@ -202,6 +203,8 @@ export async function cierre(argv, raiz = RAIZ) {
       for (const l of c.lineas ?? []) console.log(`      ${l}`);
     }
     const pendientes = checks.filter((c) => !c.ok).length;
+    // [por que 14AA-5] El aviso del taller va antes del veredicto y no lo altera.
+    await avisoTaller();
     console.log(pendientes === 0 ? `cierre ${id}: listo` : `cierre ${id}: NO listo (${pendientes} pendiente(s))`);
     return pendientes === 0 ? 0 : 1;
   } catch (e) {

@@ -16,7 +16,6 @@ import {
   procesosDe,
   RAIZ_REPO,
 } from './doctor.mjs';
-import { cabeceraAutorizacion } from './token.mjs';
 
 function taskkill(pid, forzado) {
   const args = forzado ? ['/F', '/PID', String(pid), '/T'] : ['/PID', String(pid), '/T'];
@@ -88,26 +87,6 @@ function entradaDe(id, args) {
   return { ok: true, entrada, rutaAbs };
 }
 
-/* [por que 14AA-5] Conformidad del taller como aviso: lo evalúa el manager (local,
- * 8787), que es quien ve la 89 y el HTTP público. No cambia el exit de status; si el
- * manager no responde, se dice en una línea en vez de fallar en silencio. */
-async function avisoTaller() {
-  try {
-    const r = await fetch('http://127.0.0.1:8787/api/taller/estado', {
-      headers: cabeceraAutorizacion(),
-      signal: AbortSignal.timeout(25_000),
-    });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const d = await r.json();
-    const errores = d.hallazgos.filter((h) => h.severidad === 'error').length;
-    const avisos = d.hallazgos.length - errores;
-    const veredicto = errores ? 'con errores' : avisos ? 'con avisos' : 'conforme';
-    console.log(`taller: ${veredicto} (${errores} error(es), ${avisos} aviso(s)); detalle en el panel taller`);
-  } catch (e) {
-    console.log(`taller: no consultado (${e.message}); arranca el manager: Arranque up "workspace-manager"`);
-  }
-}
-
 /* F2 `status [id]`: sin id = tabla global (delega en doctor --all, misma
  * salida); con id = una linea verificada de la entrada. */
 export async function status(argv) {
@@ -115,9 +94,7 @@ export async function status(argv) {
   const id = args[0] && !args[0].startsWith('-') ? args[0] : null;
   if (!id) {
     const { main } = await import('./doctor.mjs');
-    const codigo = await main(['--all', ...args]);
-    if (!args.includes('--json')) await avisoTaller();
-    return codigo;
+    return main(['--all', ...args]);
   }
   const comoJson = args.includes('--json');
   const ctx = await contextoEntrada(id, args);
