@@ -9,10 +9,12 @@
  *  - es ejecucion ASINCRONA en cola serial: los spawns ceden el event loop
  *    para no congelar toda la API durante un analizar-todo (un barrido con
  *    execFileSync bloqueaba snapshot/config/doctor durante segundos);
- *  - ante fallo marca 'error' y NUNCA rompe el snapshot.
+ *  - ante fallo marca 'error' y NUNCA rompe el snapshot;
+ *  - si el proyecto declara `analisisEn: "dev89"` (registro.json), el analisis corre
+ *    en la 89 sobre su replica (remoto.ts, S3.7). Lo demas no cambia.
  * El cliente es 'tonto': pide y muestra; este modulo es el dueno de la ejecucion. */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, posix, relative } from 'node:path';
 import { huellaArbol } from './arbol/huella.js';
 import { compartirVuelo } from './vuelo.js';
 import type {
@@ -33,7 +35,9 @@ import {
   varsenseConfigHash,
   varsenseRuntime,
 } from './ejecucion.js';
-import type { EntryJson, FindingJson, ReporteJson } from './ejecucion.js';
+import type { EntryJson, FindingJson, ReporteJson, ResultadoSpawn } from './ejecucion.js';
+import { correrSentinelRemoto, correrVarsenseRemoto, leerConfigRemota, mensaje, modoAnalisis, rutaRemota, sincronizar } from './remoto.js';
+import type { ConfigRemota } from './remoto.js';
 
 /* Dueno de la cache en memoria (clave -> resultado con su frescura). */
 
@@ -109,7 +113,9 @@ function sev(s: unknown): SeveridadSentinel {
 function relArchivo(abs: string, raiz: string): string {
   if (!abs || !raiz) return abs;
   try {
-    const rel = relative(raiz, abs);
+    /* [por que] S3.7: los reportes de la 89 traen rutas POSIX; `relative` de Windows
+     * las trataría como rutas de unidad y no relativizaría nada. */
+    const rel = raiz.startsWith('/') ? posix.relative(raiz, abs) : relative(raiz, abs);
     if (rel && !rel.startsWith('..')) return rel;
   } catch {
     /* ruta no relativizable */
@@ -198,12 +204,104 @@ export function esCacheable(dato: AnalisisSentinel): boolean {
  * salida no JSON o spawn fallido) no puede dar 'ok': el tablero afirmaria "sin
  * problemas" sin haber analizado varsense. Queda en 'error' (no se cachea, el
  * siguiente analisis reintenta) y conserva los hallazgos de sentinel. */
-export function marcarVarsenseFallido(dato: AnalisisSentinel): AnalisisSentinel {
+export function marcarVarsenseFallido(dato: AnalisisSentinel, motivo?: string): AnalisisSentinel {
   return {
     ...dato,
     estado: 'error',
-    error: dato.error ?? 'varsense declarado no produjo reporte (timeout, salida no JSON o fallo de spawn)',
+    error: dato.error ?? (motivo
+      ? `varsense declarado no produjo reporte: ${motivo}`
+      : 'varsense declarado no produjo reporte (timeout, salida no JSON o fallo de spawn)'),
   };
+}
+
+/* Resultado de error de un análisis que no llegó a obtener reportes. */
+function datoError(clave: string, error: string): AnalisisSentinel {
+  return {
+    clave,
+    version: '—',
+    fuente: null,
+    estado: 'error',
+    analizadoEn: new Date().toISOString(),
+    resumen: { error: 0, warning: 0, information: 0, hint: 0 },
+    hallazgos: [],
+    error,
+  };
+}
+
+/* Motivos de fallo por herramienta (remoto: el error de la corrida; local: sin motivo). */
+export interface Motivos {
+  sentinel?: string;
+  varsense?: string;
+}
+
+/* Une los reportes de sentinel y varsense en un AnalisisSentinel. `raiz` es la ruta que
+ * se quita de los archivos del reporte: la local, o la de la réplica en la 89. */
+export function montarAnalisis(
+  p: Proyecto,
+  res: ResultadoSpawn | null,
+  resVs: ResultadoSpawn | null,
+  raiz: string = p.ruta,
+  motivos: Motivos = {},
+): AnalisisSentinel {
+  const clave = p.clave;
+  let dato: AnalisisSentinel;
+  if (!res) {
+    dato = datoError(clave, motivos.sentinel ?? 'runtime sentinel no disponible o analisis fallo');
+    if (resVs) {
+      const vs = normalizar(resVs.dato, clave, resVs.version, raiz, 'varsense');
+      dato.resumen = vs.resumen;
+      dato.hallazgos = vs.hallazgos;
+      dato.varsense = { version: resVs.version, resumen: vs.resumen };
+    }
+  } else {
+    dato = normalizar(res.dato, clave, res.version, raiz, 'sentinel', res.commit);
+    if (resVs) {
+      const vs = normalizar(resVs.dato, clave, resVs.version, raiz, 'varsense');
+      dato.resumen = sumarResumen(dato.resumen, vs.resumen);
+      dato.hallazgos = [...dato.hallazgos, ...vs.hallazgos];
+      dato.varsense = { version: resVs.version, resumen: vs.resumen };
+      if (dato.estado === 'ok' && vs.estado === 'conHallazgos') dato.estado = 'conHallazgos';
+    }
+  }
+  if (!resVs && varsenseAplica(p.ruta)) dato = marcarVarsenseFallido(dato, motivos.varsense);
+  return dato;
+}
+
+/* Ejecuta una corrida remota: un fallo se convierte en motivo, no en excepción. */
+async function intentar(f: () => Promise<ResultadoSpawn | null>): Promise<[ResultadoSpawn | null, string | undefined]> {
+  try {
+    return [await f(), undefined];
+  } catch (err) {
+    return [null, mensaje(err)];
+  }
+}
+
+/* Análisis local del proyecto: sentinel y varsense en paralelo. */
+async function analizarEnLocal(p: Proyecto): Promise<AnalisisSentinel> {
+  const [res, resVs] = await Promise.all([correrSentinel(p.ruta), correrVarsense(p.ruta)]);
+  return montarAnalisis(p, res, resVs);
+}
+
+/* [por que] S3.7: la 89 analiza su réplica del proyecto. Antes se vacía la cola de
+ * mutagen, así la réplica coincide con el árbol local. Un fallo remoto no lanza: queda
+ * en 'error' con su motivo, y no se cachea (el siguiente análisis reintenta). */
+async function analizarEnDev89(p: Proyecto): Promise<AnalisisSentinel> {
+  const clave = p.clave;
+  let cfg: ConfigRemota;
+  let raiz: string;
+  try {
+    cfg = leerConfigRemota();
+    raiz = rutaRemota(cfg, clave);
+    await sincronizar(clave, cfg);
+  } catch (err) {
+    return datoError(clave, `análisis en dev89 no arrancó: ${mensaje(err)}`);
+  }
+  const conVs = varsenseAplica(p.ruta);
+  const [[res, errorRes], [resVs, errorVs]] = await Promise.all([
+    intentar(() => correrSentinelRemoto(clave, cfg)),
+    intentar(() => (conVs ? correrVarsenseRemoto(clave, cfg) : Promise.resolve(null))),
+  ]);
+  return montarAnalisis(p, res, resVs, raiz, { sentinel: errorRes, varsense: errorVs });
 }
 
 /* Analiza UN proyecto, con cache por frescura (sin spawn si esta fresco) y
@@ -222,36 +320,13 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
   const mem = cache.get(clave);
   if (!forzar && mem && mem.fresco === fresco) return Promise.resolve(mem.dato);
   return compartirVuelo(enVuelo, clave, async (): Promise<AnalisisSentinel> => {
-    const [res, resVs] = await Promise.all([correrSentinel(p.ruta), correrVarsense(p.ruta)]);
+    /* [por que] Cualquier fallo del despacho queda en 'error' (nunca rompe el snapshot). */
     let dato: AnalisisSentinel;
-    if (!res) {
-      dato = {
-        clave,
-        version: '—',
-        fuente: null,
-        estado: 'error',
-        analizadoEn: new Date().toISOString(),
-        resumen: { error: 0, warning: 0, information: 0, hint: 0 },
-        hallazgos: [],
-        error: 'runtime sentinel no disponible o analisis fallo',
-      };
-      if (resVs) {
-        const vs = normalizar(resVs.dato, clave, resVs.version, p.ruta, 'varsense');
-        dato.resumen = vs.resumen;
-        dato.hallazgos = vs.hallazgos;
-        dato.varsense = { version: resVs.version, resumen: vs.resumen };
-      }
-    } else {
-      dato = normalizar(res.dato, clave, res.version, p.ruta, 'sentinel', res.commit);
-      if (resVs) {
-        const vs = normalizar(resVs.dato, clave, resVs.version, p.ruta, 'varsense');
-        dato.resumen = sumarResumen(dato.resumen, vs.resumen);
-        dato.hallazgos = [...dato.hallazgos, ...vs.hallazgos];
-        dato.varsense = { version: resVs.version, resumen: vs.resumen };
-        if (dato.estado === 'ok' && vs.estado === 'conHallazgos') dato.estado = 'conHallazgos';
-      }
+    try {
+      dato = modoAnalisis(clave) === 'dev89' ? await analizarEnDev89(p) : await analizarEnLocal(p);
+    } catch (err) {
+      dato = datoError(clave, mensaje(err));
     }
-    if (!resVs && varsenseAplica(p.ruta)) dato = marcarVarsenseFallido(dato);
     if (esCacheable(dato)) {
       cache.set(clave, { fresco, dato });
       persistir();
