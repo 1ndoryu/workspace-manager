@@ -572,7 +572,11 @@ function main() {
     );
   } else {
     imprimirTabla(filas);
-    const cambios = filas.filter(fila => fila.pin === 'cambiado').length;
+    /* [por que] En dry-run `pin` nunca llega a 'cambiado' —esa rama exige
+     * `--write`—, así que contar solo 'cambiado' hacía que el resumen dijera
+     * "0 manifiesto(s) por reescribir" justo debajo de una tabla con trece
+     * filas "cambiaría". El resumen tiene que contar lo que se va a escribir. */
+    const cambios = filas.filter(fila => fila.pin === 'cambiado' || fila.pin === 'cambiaría').length;
     process.stdout.write(
       `\n[quality:bump] ${filas.length} consumidor(es) · ${cambios} manifiesto(s) ${escribir ? 'reescrito(s)' : 'por reescribir'}` +
         ` · ${problemas.length} con problema\n`,

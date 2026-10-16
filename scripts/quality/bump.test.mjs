@@ -97,3 +97,33 @@ test('un bump de pin en dry-run no toca ningún archivo', () => {
     assert.equal(fs.readFileSync(ruta, 'utf8'), antes[indice], `${ruta} cambió en un dry-run`);
   });
 });
+
+/* Regresión del resumen mentiroso del dry-run (2026-10-16).
+ *
+ * Qué pasaba: el resumen contaba solo las filas `cambiado`, una rama que exige
+ * `--write`, así que un dry-run imprimía "0 manifiesto(s) por reescribir" justo
+ * debajo de una tabla con trece filas "cambiaría". El número que interesa antes
+ * de escribir es justo el que se iba a escribir.
+ *
+ * Cobertura declarada: es una invariante, no un caso con fixture. Si el área
+ * está alineada, el esperado es 0 y el código viejo también daba 0, así que el
+ * test no discrimina; lo que sí impide es que el resumen vuelva a contradecir a
+ * la tabla que tiene encima.
+ */
+test('el resumen del dry-run cuenta lo mismo que la tabla', () => {
+  const { salida: json } = bump(['--tool', 'sentinel', '--json']);
+  const inicio = json.indexOf('{');
+  const fin = json.lastIndexOf('}');
+  assert.ok(inicio >= 0 && fin > inicio, `--json no devolvió JSON:\n${json}`);
+  const filas = JSON.parse(json.slice(inicio, fin + 1)).filas;
+  const pendientes = filas.filter(fila => fila.pin === 'cambiaría').length;
+
+  const { status, salida } = bump(['--tool', 'sentinel']);
+  assert.equal(status, 0, 'el bump de pin en dry-run debe salir 0');
+  const resumen = salida.split('\n').find(linea => linea.includes('manifiesto(s) por reescribir'));
+  assert.ok(resumen, `el dry-run no imprimió el resumen:\n${salida}`);
+  assert.ok(
+    resumen.includes(`· ${pendientes} manifiesto(s) por reescribir`),
+    `el resumen dice "${resumen.trim()}" pero la tabla tiene ${pendientes} fila(s) "cambiaría"`,
+  );
+});
