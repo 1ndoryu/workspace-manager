@@ -8,9 +8,11 @@
  * commit para todos = quality:sync falla si uno difiere"). Este script es la
  * guarda: recorre los consumidores del gate, compara el `sentinel.commit` /
  * `varsense.commit` de cada `quality-tools.json` contra el HEAD real del
- * checkout compartido, y falla (fail-closed, exit != 0) si hay desync, un
- * checkout compartido sucio, una ruta que no apunta al compartido, o un
- * consumidor con gate que no tiene `quality-tools.json`.
+ * checkout que ese mismo manifiesto declara —el compartido para casi todos, el
+ * del arnés (`../.quality-tools-harness/*`) o el submódulo propio (familia B)
+ * para el resto— y falla (fail-closed, exit != 0) si hay desync, un checkout
+ * compartido sucio o no provisto, o un consumidor con gate que no tiene
+ * `quality-tools.json`. No declarar una herramienta no es un problema.
  *
  * La resolucion es server-side / en-repo: lee el HEAD del checkout compartido y
  * el JSON real de cada consumidor (carpetas exactas del area), igual que el
@@ -74,6 +76,13 @@ const CONSUMIDORES = [
    * pins al día (8c2b65d / caffa80), pero no estaba aquí: su quality-tools.json
    * se editaba a mano y el bump nunca lo actualizaba (16A-4). */
   { nombre: 'KAMPLES', ruta: 'KAMPLES', fase: 'F1' },
+  /* glory-pulse, glory-lab y glory-harness: gate declarado desde su alta pero
+   * nunca registrados, así que su deriva era invisible (16A-4). glory-lab apunta
+   * al checkout compartido; glory-pulse y glory-harness, al del arnés
+   * (`../.quality-tools-harness/*`), que se valida contra su propio HEAD. */
+  { nombre: 'glory-pulse', ruta: 'glory-pulse', fase: 'F1' },
+  { nombre: 'glory-lab', ruta: 'glory-lab', fase: 'F1' },
+  { nombre: 'glory-harness', ruta: 'glory-harness', fase: 'F1' },
 ];
 
 /* Herramientas del checkout compartido y su subcarpeta. */
@@ -150,48 +159,41 @@ function corto(h) {
 
 /* Compara el commit de una herramienta declarada por el consumidor contra el
  * HEAD real del checkout compartido. Devuelve { estado, detalle }. */
-function compararTool(manifest, dirRepo, tool, headCompartido, resaltar) {
+function compararTool(manifest, dirRepo, tool, headCompartido) {
   const t = manifest?.tools?.[tool];
-  if (!t) return { estado: 'ausente', detalle: `sin tool '${tool}' en el manifest` };
+  /* No declarar una herramienta no es un problema: no aplica. */
+  if (!t) return { estado: 'no-declarado', checkout: null, detalle: `el manifiesto no declara '${tool}'` };
   const commitDe = t.commit ?? null;
-  const mismatches = [];
-  if (!headCompartido) {
-    mismatches.push('checkout compartido sin HEAD (no provisto o no es repo git)');
-  } else if (!commitDe || corto(commitDe) !== corto(headCompartido)) {
-    mismatches.push(
-      `commit ${commitDe ? corto(commitDe) : 'sin-commit'} <> compartido ${headCompartido ? corto(headCompartido) : 'n/a'}`,
-    );
-  }
-  /* Ruta del runtime (219A-2): tres casos. (1) Dentro del checkout compartido:
-   * caso normal, nada que anadir (el commit ya se comparo arriba). (2) Dentro
-   * del propio repo (familia B, submodulo versionado como WANDORIUS/RESTAURANTE
-   * tools/*): legitimo por diseno — se valida pin contra el HEAD del submodulo
-   * en vez de exigir la ruta compartida. (3) Fuera de ambos: drift real.
-   * sourcePathEnv es un NOMBRE de variable, no una ruta: no se evalua aqui.
-   * [por que] 219A-1 exigia la ruta compartida a todos y marcaba desync a dos
-   * consumidores coherentes (RESTAURANTE tenia submodulos en el mismo pin);
-   * la guarda debe validar consistencia interna, no imponer centralizacion
-   * (esa migracion es decision aparte, no un drift). */
+  /* [por que] La guarda valida consistencia INTERNA: el pin debe coincidir con el
+   * HEAD del checkout que el propio manifiesto declara. Exigir el checkout
+   * compartido a todos marcaba desync a consumidores coherentes —los del arnés
+   * (`../.quality-tools-harness/*`, MN-Inmobiliaria y plugins-opencode) y la
+   * familia B (`tools/*`)— y escondía el chequeo que sí importa. Un pin que no
+   * cuadra con su propio checkout es desync, apunte donde apunte.
+   * `sourcePathEnv` es un NOMBRE de variable, no una ruta: si el manifiesto no
+   * declara `sourcePath`, manda el checkout compartido (comportamiento previo). */
   const rutaDirecta = typeof t.sourcePath === 'string' && t.sourcePath.length ? t.sourcePath : null;
-  if (rutaDirecta) {
-    const abs = resolve(dirRepo, rutaDirecta);
-    if (esCompartido(abs, tool)) {
-      /* caso 1: ok, sin chequeo extra */
-    } else if (keyRuta(abs) === keyRuta(dirRepo) || keyRuta(abs).startsWith(keyRuta(dirRepo) + '\\')) {
-      const headSub = gitHead(abs);
-      if (!headSub) {
-        mismatches.push(`ruta ${rutaDirecta} no es un checkout git legible`);
-      } else if (commitDe && corto(commitDe) !== corto(headSub)) {
-        mismatches.push(`submodulo ${rutaDirecta} en ${corto(headSub)} <> pin ${corto(commitDe)}`);
-      }
-    } else {
-      mismatches.push(`ruta ${rutaDirecta} no apunta al checkout compartido`);
-    }
+  const abs = rutaDirecta ? resolve(dirRepo, rutaDirecta) : null;
+  const enCompartido = abs ? esCompartido(abs, tool) : true;
+  const headRef = enCompartido ? headCompartido : gitHead(abs);
+  const donde = enCompartido ? 'compartido' : rutaDirecta;
+  const mismatches = [];
+  if (!headRef) {
+    mismatches.push(
+      enCompartido
+        ? 'checkout compartido sin HEAD (no provisto o no es repo git)'
+        : `ruta ${rutaDirecta} no es un checkout git legible`,
+    );
+  } else if (!commitDe || corto(commitDe) !== corto(headRef)) {
+    mismatches.push(`commit ${commitDe ? corto(commitDe) : 'sin-commit'} <> ${donde} ${corto(headRef)}`);
   }
   const env = t.sourcePathEnv ? ` (sourcePathEnv=${t.sourcePathEnv})` : '';
   return {
     estado: mismatches.length ? 'desync' : 'ok',
-    detalle: mismatches.length ? mismatches.join('; ') : 'alineado' + (resaltar ? ` @${corto(headCompartido)}` : ''),
+    checkout: enCompartido ? 'compartido' : 'propio',
+    detalle: mismatches.length
+      ? mismatches.join('; ')
+      : `alineado @${corto(headRef)}${enCompartido ? '' : ` (checkout propio ${rutaDirecta})`}${env}`,
   };
 }
 
@@ -199,6 +201,7 @@ function main() {
   const useJson = process.argv.includes('--json');
   const reporte = { area: RAIZ_AREA, checkout: CHECKOUT, consumidores: [] };
   let problemas = 0;
+  const sinDirectorio = [];
 
   /* HEAD y limpieza de cada herramienta del checkout compartido. */
   const cabeceras = {};
@@ -215,22 +218,38 @@ function main() {
     if (dirty === null) sucios[tool] = ['no es git'];
     else if (dirty.length) sucios[tool] = dirty;
   }
+  /* Un checkout compartido limpio no es un problema: se cuenta solo lo que de
+   * verdad lo es (no provisto o sucio). Antes la condición daba por sucio todo
+   * checkout limpio —`sucios[tool]` es `[]`, que es *truthy*, y `[][0]` no es
+   * `'no es git'`— y el área sana salía con 2 problemas fantasma. */
   for (const [tool, sub] of Object.entries(HERRAMIENTAS)) {
-    if (cabeceras[tool] === null || (sucios[tool] && sucios[tool][0] !== 'no es git')) {
-      reporte[`checkout_${tool}`] = {
-        head: cabeceras[tool] ? corto(cabeceras[tool]) : null,
-        sucio: sucios[tool]?.length ? sucios[tool].length : 0,
-      };
-      if (sucios[tool]?.[0] === 'no provisto' || sucios[tool]?.[0] !== 'no es git') problemas++;
-    }
+    const noProvisto = sucios[tool]?.[0] === 'no provisto';
+    const sucio = Array.isArray(sucios[tool]) && sucios[tool].length > 0;
+    if (!noProvisto && !sucio) continue;
+    reporte[`checkout_${tool}`] = {
+      head: cabeceras[tool] ? corto(cabeceras[tool]) : null,
+      sucio: noProvisto ? 0 : sucios[tool].length,
+    };
+    problemas++;
   }
 
   /* Recorre consumidores. */
   for (const c of CONSUMIDORES) {
     const dir = join(RAIZ_AREA, c.ruta);
-    const manifest = leerManifest(dir);
     const entry = { nombre: c.nombre, fase: c.fase, ruta: c.ruta, problemas: [] };
 
+    /* Proyecto registrado cuyo directorio no está en el área: no hay pin que
+     * validar. Se reporta como tal —no como desync, que sería un diagnóstico
+     * falso— y no cuenta como problema del gate. */
+    if (!existsSync(dir)) {
+      entry.estado = 'sin-directorio';
+      entry.detalle = `no existe ${dir} en el área (registro obsoleto o repo fuera)`;
+      sinDirectorio.push(c.nombre);
+      reporte.consumidores.push(entry);
+      continue;
+    }
+
+    const manifest = leerManifest(dir);
     if (!manifest) {
       entry.estado = c.fase === 'F4' ? 'pendiente-F4' : 'sin-manifest';
       entry.detalle =
@@ -249,10 +268,9 @@ function main() {
       continue;
     }
 
-    entry.headShared = {};
     for (const [tool] of Object.entries(HERRAMIENTAS)) {
-      const r = compararTool(manifest, dir, tool, cabeceras[tool], true);
-      entry[tool] = { estado: r.estado, detalle: r.detalle };
+      const r = compararTool(manifest, dir, tool, cabeceras[tool]);
+      entry[tool] = { estado: r.estado, checkout: r.checkout, detalle: r.detalle };
       if (r.estado === 'desync') {
         problemas++;
         entry.problemas.push(`${tool}: ${r.detalle}`);
@@ -263,6 +281,7 @@ function main() {
   }
 
   reporte.problemas = problemas;
+  reporte.sinDirectorio = sinDirectorio;
 
   if (useJson) {
     console.log(JSON.stringify(reporte, null, 2));
@@ -281,12 +300,23 @@ function main() {
       const badges =
         (e.sentinel ? `sentinel=${e.sentinel.estado} ` : '') +
         (e.varsense ? `varsense=${e.varsense.estado} ` : '') +
-        (e.estado === 'ok' ? '✓' : e.estado === 'pendiente-F4' ? '· (F4 pendiente)' : `✗ ${e.problemas.length ? e.problemas.join('; ') : e.detalle || e.estado}`);
+        (e.estado === 'ok'
+          ? '✓'
+          : e.estado === 'pendiente-F4'
+            ? '· (F4 pendiente)'
+            : e.estado === 'sin-directorio'
+              ? '· (sin directorio en el área)'
+              : `✗ ${e.problemas.length ? e.problemas.join('; ') : e.detalle || e.estado}`);
       console.log(`  ${e.nombre.padEnd(16)} ${badges}`);
     }
     console.log('');
+    if (sinDirectorio.length) {
+      console.log(
+        `· ${sinDirectorio.length} registrado(s) sin directorio en el área, no validables: ${sinDirectorio.join(', ')}`,
+      );
+    }
     if (problemas === 0) {
-      console.log(`OK: ${reporte.consumidores.length} consumidores alineados con el checkout compartido.`);
+      console.log(`OK: ${reporte.consumidores.length} consumidores registrados, sin desync de gate.`);
       return 0;
     }
     console.error(`DESYNC: ${problemas} problema(s) de consistencia del gate.`);
