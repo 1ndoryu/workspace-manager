@@ -19,6 +19,7 @@ import {
   nombreBaseDatos,
   rutasRemotas,
   shQuote,
+  SIN_RUSTC_WRAPPER,
   slugSesion,
   urlBaseRemota,
 } from '../remoto/rcargo.mjs';
@@ -194,7 +195,7 @@ const SQLX_OFFLINE = 'SQLX_OFFLINE=true ';
 // env (registro + DATABASE_URL): el proceso lo recibe en la línea de comando, que gana al .env. Nombres validados en validarHostRemoto.
 export function comandoRemotoUp(config, rutas, id, puerto, boton, env = {}) {
   const log = `${rutas.dirLogs}/dev-up-${id}-${puerto}.log`;
-  const interno = `${PATH_NODE}${SQLX_OFFLINE}${prefijoEnv(env)}CARGO_TARGET_DIR=${shQuote(rutas.target)} ${boton.map(shQuote).join(' ')} >> ${shQuote(log)} 2>&1`;
+  const interno = `${PATH_NODE}${SQLX_OFFLINE}${SIN_RUSTC_WRAPPER}${prefijoEnv(env)}CARGO_TARGET_DIR=${shQuote(rutas.target)} ${boton.map(shQuote).join(' ')} >> ${shQuote(log)} 2>&1`;
   const sesion = sesionTmux(id, puerto);
   return [
     `mkdir -p ${shQuote(rutas.dirLogs)}`,
@@ -206,7 +207,7 @@ export function comandoRemotoUp(config, rutas, id, puerto, boton, env = {}) {
 // [por que] La salida va a un log: una compilación en frío no cabe en la salida de ssh. Mismo CARGO_TARGET_DIR que el arranque.
 export function comandoPrecompilar(config, rutas, id, argv, env = {}) {
   const log = `${rutas.dirLogs}/precompilar-${id}.log`;
-  const interno = `${SQLX_OFFLINE}${prefijoEnv(env)}CARGO_TARGET_DIR=${shQuote(rutas.target)} ${argvConCandado(config, argv).map(shQuote).join(' ')}`;
+  const interno = `${SQLX_OFFLINE}${SIN_RUSTC_WRAPPER}${prefijoEnv(env)}CARGO_TARGET_DIR=${shQuote(rutas.target)} ${argvConCandado(config, argv).map(shQuote).join(' ')}`;
   return `mkdir -p ${shQuote(rutas.dirLogs)} && cd ${shQuote(rutas.dirRemoto)} && bash -lc ${shQuote(interno)} >> ${shQuote(log)} 2>&1`;
 }
 
