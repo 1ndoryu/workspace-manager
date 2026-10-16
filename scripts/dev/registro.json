@@ -87,7 +87,7 @@
       "expectedCmdline": ["glory-backend", "5176"],
       "env": { "PORT": "3103", "VITE_API_URL": "http://localhost:3103" },
       "tipoLauncher": "glory-template (dev:back = cargo run directo en-arbol con PORT por env + Vite con --port por argv via --prefix+--, sin wrapper; VITE_API_URL por env pisa .env.development)",
-      "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>" }
+      "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": "node scripts/run-cargo.mjs test --test <archivo>" }
     },
     {
       "id": "PROYECTO TASKS",
