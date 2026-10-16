@@ -610,10 +610,41 @@ export function diferenciasConteos(local, remoto, tablas) {
 const DIR_DUMPS_LOCALES = 'C:/tmp/backups-bd';
 const COPIAS_PREVIAS_BD = 3;
 
+// [por que] La 89 es la base de trabajo: si alguien escribio alli (el panel, subir fotos), tiene mas filas que
+// la laptop, y restaurar la de la laptop destruiria ese trabajo. Solo se rehusa esa direccion: si la 89 tiene
+// menos, la laptop es la verdad y refrescar es justo lo que se pide. Se comprueba antes de volcar nada.
+export async function desvioConLaptop(config, nombreBd, tablas, local, envLocal, pgDump) {
+  if (!tablas.length) return { diffs: [] };
+  const remoto = await sshRemoto(config, [
+    'PATH=$HOME/.local/bin:/usr/bin:/bin',
+    `existe=$(psql -X -At -d postgres -c ${shQuote(`select 1 from pg_database where datname='${nombreBd}'`)}) || { echo FALLO; exit 1; }`,
+    `[ "$existe" = 1 ] || { echo SIN_BD; exit 0; }`,
+    ...tablas.map((t) => `printf '%s=' ${shQuote(t)}; psql -X -At -d ${shQuote(nombreBd)} -c ${shQuote(`select count(*) from "${t}"`)} 2>/dev/null || echo no-existe`),
+  ].join('; '), 120_000);
+  // [por que] Sin dato fiable no se rehusa: la restauracion vuelve a verificar los conteos al final.
+  if (!remoto.ok || remoto.salida.includes('FALLO') || remoto.salida.includes('SIN_BD')) return { diffs: [] };
+  const cuentaRemota = parsearConteos(remoto.salida);
+  const conexion = ['-h', local.host, '-p', String(local.puerto), '-U', local.usuario];
+  const cuentaLocal = new Map();
+  for (const t of tablas) {
+    const c = await ejecutarLocal(join(dirname(pgDump), 'psql.exe'), [...conexion, '-X', '-At', '-d', local.nombre, '-c', `select count(*) from "${t}"`], envLocal, 60_000);
+    cuentaLocal.set(t, c.ok ? c.salida.trim() : 'sin conteo');
+  }
+  return { diffs: desviosDeConteos(cuentaLocal, cuentaRemota, tablas) };
+}
+
+// [por que] Solo cuenta como desvio que la 89 tenga MAS filas: eso es trabajo hecho alli que la laptop no tiene.
+// Que tenga menos es lo normal (la laptop gano filas) y refrescar es justo lo que se pide. Sin numero fiable, no hay desvio.
+export function desviosDeConteos(local, remoto, tablas) {
+  return tablas
+    .filter((t) => /^\d+$/.test(remoto.get(t) ?? '') && /^\d+$/.test(local.get(t) ?? '') && Number(remoto.get(t)) > Number(local.get(t)))
+    .map((t) => `${t}: 89=${remoto.get(t)} > laptop=${local.get(t)}`);
+}
+
 // Base de trabajo de la 89 = copia de la base de la laptop (decidido 2026-10-14: dos bases como máximo; la 89 es la de trabajo y la 66 no se toca desde aquí).
 // [por que] Orden: dump local filtrado -> copia previa en la 89 (si la base existe, sin copia no se restaura) -> restauración en una transacción -> conteos iguales en ambos lados.
 // La clave viaja en PGPASSWORD (entorno del proceso), nunca en argumentos ni en logs.
-export async function sincronizarBd(config, id, entrada, ruta, nombreBd) {
+export async function sincronizarBd(config, id, entrada, ruta, nombreBd, forzar = false) {
   if (!nombreBd) return { ok: false, resumen: 'BD: el proyecto no tiene base remota (sin Cargo.toml o envRemoto)' };
   const pgDump = config.bd?.pgDumpLocal;
   if (!pgDump) return { ok: false, resumen: 'BD: taller.json bd.pgDumpLocal no declarado' };
@@ -626,6 +657,14 @@ export async function sincronizarBd(config, id, entrada, ruta, nombreBd) {
   }
   const envLocal = { ...process.env, PGPASSWORD: local.clave };
   const conexion = ['-h', local.host, '-p', String(local.puerto), '-U', local.usuario];
+
+  const desvio = await desvioConLaptop(config, nombreBd, tablas, local, envLocal, pgDump);
+  if (desvio.diffs.length && !forzar) {
+    return {
+      ok: false,
+      resumen: `BD: la base de ${config.host} tiene datos que la laptop no tiene (${desvio.diffs.join('; ')}); no se restaura para no perderlos. Sigue con --sin-bd (conserva la de la 89) o fuerza con --bd (vuelve a la de la laptop)`,
+    };
+  }
 
   mkdirSync(DIR_DUMPS_LOCALES, { recursive: true });
   const rutaDump = `${DIR_DUMPS_LOCALES}/${local.nombre}-sync.sql`;
@@ -700,7 +739,7 @@ async function upRemoto(config, id, entrada, args = []) {
       const libre = await esperarLibre(config, puertosRemotosDe(entrada), 15_000);
       if (!libre.ok) return { codigo: 1, resumen: `up ${id}: ${libre.motivo}: NO verde` };
     }
-    const bd = await sincronizarBd(config, id, entrada, rutaAbsDe(entrada), prep.nombreBd);
+    const bd = await sincronizarBd(config, id, entrada, rutaAbsDe(entrada), prep.nombreBd, forzarBd);
     if (!bd.ok) return { codigo: 1, resumen: `up ${id}: ${bd.resumen}: NO verde` };
     bdResumen = bd.resumen;
     // Todas las sesiones se pararon arriba: no hay nada que reiniciar por entorno.

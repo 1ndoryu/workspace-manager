@@ -12,7 +12,9 @@ import { despachar as remoto, entradaRemotaDe } from './remoto.mjs';
 
 const AYUDA = `uso: dev <comando>
   doctor --all [--json] [--snapshot-file <ruta>] [--assert]   clasifica (F0)
-  up <id> [--snapshot-file <ruta>] [--registro <ruta>] [--json]   arranca/verifica (F1)
+  up <id> [--sin-bd] [--bd] [--snapshot-file <ruta>] [--registro <ruta>] [--json]   arranca/verifica (F1)
+      --sin-bd: no toca la base de la 89 (para reiniciar codigo sin perder lo escrito alli)
+      --bd:     refresca la base de la 89 desde la laptop aunque ya este arriba (pisa lo de la 89)
   status [id] [--snapshot-file <ruta>] [--registro <ruta>] [--json]  estado (F2)
   logs <id> [--lineas N] [--registro <ruta>]                  cola del log (F2)
   open <id> [--registro <ruta>]                               imprime URLs (F2)
