@@ -72,6 +72,9 @@ test('comandoRemotoUp: cargo sin cm-heavy (el candado es solo del build), target
   assert.ok(cmd.includes('tmux has-session'));
   assert.ok(cmd.includes('dev-P-3001'));
   assert.ok(cmd.includes('SQLX_OFFLINE=true'));
+  // [por que] Un `.cargo/config.toml` con `rustc-wrapper` de Windows rompe el build en la 89 (WANDORIUS).
+  assert.ok(cmd.includes('RUSTC_WRAPPER='));
+  assert.ok(cmd.indexOf('RUSTC_WRAPPER=') < cmd.indexOf('CARGO_TARGET_DIR='));
 });
 
 test('comandoRemotoUp: env del registro llega al proceso; nombres no válidos se rechazan', () => {
@@ -233,6 +236,7 @@ test('comandoPrecompilar: build bajo cm-heavy, mismo target que el arranque, log
   // sqlx compila contra .sqlx/ y no contra la base de la 89 (puede estar vacía): SQLX_OFFLINE va antes del build.
   assert.ok(cmd.includes('SQLX_OFFLINE=true'));
   assert.ok(cmd.indexOf('SQLX_OFFLINE=true') < cmd.indexOf('cm-heavy'));
+  assert.ok(cmd.indexOf('RUSTC_WRAPPER=') < cmd.indexOf('cm-heavy'));
   assert.equal(cmd.includes('/home/dev/taller/P/logs'), false);
 });
 

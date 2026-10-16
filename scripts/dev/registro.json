@@ -86,7 +86,17 @@
       "arranqueMs": 300000,
       "expectedCmdline": ["glory-backend", "5176"],
       "env": { "PORT": "3103", "VITE_API_URL": "http://localhost:3103" },
-      "tipoLauncher": "glory-template (dev:back = cargo run directo en-arbol con PORT por env + Vite con --port por argv via --prefix+--, sin wrapper; VITE_API_URL por env pisa .env.development)",
+      "host": "dev89",
+      "puertosRemotos": [3103, 5176],
+      "puertosLocales": [13103, 15176],
+      "envRemoto": ["DATABASE_URL", "HOST", "PORT"],
+      "botonRemoto": [
+        ["env", "JWT_SECRET=taller-89-dev-nakomi", "cargo", "run", "--bin", "glory-backend"],
+        ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5176", "--strictPort", "--host", "127.0.0.1"]
+      ],
+      "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
+      "dependencias": ["frontend"],
+      "tipoLauncher": "glory-template (dev:back = cargo run directo en-arbol con PORT por env + Vite con --port por argv via --prefix+--, sin wrapper; VITE_API_URL por env pisa .env.development). En la 89 el botonRemoto es cargo directo (igual) y JWT_SECRET se inyecta con un valor solo-dev: el .env local no viaja a la 89",
       "comandos": { "gate": null, "typecheck": "cargo check", "build": null, "test-archivo": "node scripts/run-cargo.mjs test --test <archivo>" }
     },
     {
@@ -128,8 +138,18 @@
       "timeoutMs": 3000,
       "arranqueMs": 300000,
       "expectedCmdline": ["glory-backend", "5177"],
-      "env": { "PORT": "3104", "VITE_API_URL": "http://localhost:3104", "CORS_ORIGINS": "https://wandori.us,http://localhost:5173,http://localhost:3000,http://localhost:5177" },
-      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp con PORT por env + Vite con --port por argv)",
+      "env": { "PORT": "3104", "VITE_API_URL": "http://localhost:3104", "CORS_ORIGINS": "https://wandori.us,http://localhost:5173,http://localhost:3000,http://localhost:5177,http://localhost:15177" },
+      "host": "dev89",
+      "puertosRemotos": [3104, 5177],
+      "puertosLocales": [13104, 15177],
+      "envRemoto": ["DATABASE_URL", "HOST", "PORT"],
+      "botonRemoto": [
+        ["cargo", "run", "--bin", "glory-backend"],
+        ["npm", "--prefix", "frontend", "run", "dev", "--", "--port", "5177", "--strictPort", "--host", "127.0.0.1"]
+      ],
+      "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
+      "dependencias": ["frontend"],
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp con PORT por env + Vite con --port por argv). En la 89 cargo directo: el wrapper exige DATABASE_URL con usuario:clave@host:puerto y la de la 89 va por socket, asi que no la parsea (branch-db.mjs:108)",
       "comandos": { "gate": "npm run gate:check", "typecheck": "cargo check", "build": null, "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>" }
     },
     {

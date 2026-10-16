@@ -38,6 +38,12 @@ export function shQuote(valor) {
   return `'${String(valor).replace(/'/g, `'\\''`)}'`;
 }
 
+// [por que] El .cargo/config.toml de un proyecto puede fijar `build.rustc-wrapper` a un binario de
+// Windows (WANDORIUS lo hace con sccache): en la 89 no existe y el build muere con «could not execute
+// process .../sccache.exe (os error 2)». El entorno manda sobre el fichero, así que se limpia en todo
+// lo que compile o arranque en la 89. Fuente única: scripts/dev/remoto.mjs la importa de aquí.
+export const SIN_RUSTC_WRAPPER = 'RUSTC_WRAPPER= ';
+
 // Nombre de rama → slug para el directorio de target (minúsculas, [a-z0-9-]).
 export function slug(rama) {
   return String(rama).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'main';
@@ -132,6 +138,7 @@ export function comandoPrepararRama(bd, nombre, base, semilla = null) {
 // `preparar` ({base, semilla}) es opcional: solo lo usa la base de rama.
 export function construirComandoRemoto(config, rutas, args, nombreBd = null, preparar = null) {
   const entorno = [
+    SIN_RUSTC_WRAPPER,
     ...(nombreBd ? [`DATABASE_URL=${shQuote(urlBaseRemota(config.bd, nombreBd))}`] : []),
     `CARGO_TARGET_DIR=${shQuote(rutas.target)}`,
   ].join(' ');

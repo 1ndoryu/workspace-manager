@@ -30,11 +30,16 @@
       "basedatos": "kamples"
     },
     "NAKOMI": {
-      "basedatos": "glory_backend_nakomi"
+      "basedatos": "glory_backend_nakomi",
+      "bdDesdeLocal": { "verificar": ["users", "services", "orders", "_sqlx_migrations"] }
     },
     "PROYECTO TASKS": {
       "basedatos": "glory_backend_local",
       "bdDesdeLocal": { "verificar": ["users", "notes", "_sqlx_migrations"] }
+    },
+    "WANDORIUS": {
+      "basedatos": "glory_backend_wandorius",
+      "bdDesdeLocal": { "verificar": ["users", "workspace_releases", "articles", "_sqlx_migrations"] }
     }
   }
 }
