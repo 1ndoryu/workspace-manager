@@ -19,13 +19,15 @@ import {
   nombreBaseDatos,
   rutasRemotas,
   shQuote,
+  slugSesion,
   urlBaseRemota,
 } from '../remoto/rcargo.mjs';
 import { leerRegistro, procesosDe, PUERTOS_PROTEGIDOS, RAIZ_REPO } from './doctor.mjs';
 
 const DIR_LOGS = join(RAIZ_REPO, 'logs');
 const rutaEstado = (id) => join(DIR_LOGS, `remoto-${id}.json`);
-const sesionTmux = (id, puerto) => `dev-${id}-${puerto}`;
+// slugSesion: mismo saneado que la sesión de Mutagen (rcargo.mjs), para que el id con espacio no rompa el nombre.
+const sesionTmux = (id, puerto) => `dev-${slugSesion(id)}-${puerto}`;
 const fragmentoReenvio = (local, remoto) => `127.0.0.1:${local}:127.0.0.1:${remoto}`;
 // [por que] puertosRemotos (opcional): puertos que escucha la VPS cuando difieren de `puertos` (el dev local). Todo el flujo remoto usa esta lista.
 const puertosRemotosDe = (entrada) => entrada.puertosRemotos ?? entrada.puertos;
