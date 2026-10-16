@@ -105,6 +105,16 @@ function rutaCli(proyecto, config) {
   return path.join(path.resolve(proyecto, config.provisionPath ?? '.quality-tools'), config.cli);
 }
 
+/* Versión que declara el CLI provisionado, o null si no se puede leer. Misma
+ * invocación que el lock-generator: `node <cli> --version` desde el workspace. */
+function versionDelCli(cli, cwd) {
+  const resultado = spawnSync(process.execPath, [cli, '--version'], {
+    cwd, encoding: 'utf8', windowsHide: true, timeout: 30_000,
+  });
+  if (resultado.error || resultado.status !== 0) return null;
+  return (resultado.stdout ?? '').trim() || null;
+}
+
 /* Fallo explícito antes que un stack de ENOENT: el adapter se ejecuta desde cada
  * consumidor y una ruta equivocada debe decir qué falta y cómo arreglarlo. */
 const rutaManifiesto = path.join(workspace, 'quality-tools.json');
@@ -174,8 +184,21 @@ for (const [name, config] of Object.entries(tools)) {
   const cli = rutaCli(workspace, config);
   const cliPresente = cli === null ? null : fs.existsSync(cli);
 
+  /* Existir no es ser el CLI del pin: un `.quality-tools/<tool>/` viejo (o un
+   * `install-state.json` que declara otra versión) pasaría como bueno. Se
+   * compara `--version` con lo que fija el manifiesto —misma fuente que el lock—
+   * y si no cuadra se trata la provisión como ausente y se recompila. */
+  const versionEsperada = typeof config.version === 'string' && config.version ? config.version : null;
+  const versionCli = cliPresente === true ? versionDelCli(cli, workspace) : null;
+  const cliAlDia = cliPresente !== true || versionEsperada === null || versionCli === versionEsperada;
+  if (cliPresente === true && !cliAlDia) {
+    process.stdout.write(
+      `[quality:setup] ${name}: el CLI provisionado se declara ${versionCli ?? 'ilegible'} y el manifiesto fija ${versionEsperada}; se ejecuta compile+suite\n`,
+    );
+  }
+
   let origen = 'ejecutada';
-  if (cacheActiva && !refrescar && cliPresente !== false) {
+  if (cacheActiva && !refrescar && cliPresente !== false && cliAlDia) {
     const { entrada, ruta, motivo } = leerCertificacion(clave);
     if (entrada) {
       origen = 'reutilizada';

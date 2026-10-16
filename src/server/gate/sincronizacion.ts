@@ -28,7 +28,10 @@ function rutaScript(): string {
 /* Tipos del reporte que devuelve quality-sync.mjs --json (normalizado minimo
  * para tipar la UI; el shape real del script es authoritative). */
 export interface ToolSyncState {
-  estado: 'ok' | 'desync' | 'ausente';
+  /* 'no-declarado' = el manifiesto no usa esa herramienta: no aplica, no es un
+   * problema (antes se reportaba como 'ausente' y el panel lo pintaba rojo). */
+  estado: 'ok' | 'desync' | 'ausente' | 'no-declarado';
+  checkout?: 'compartido' | 'propio' | null;
   detalle: string;
 }
 
@@ -36,7 +39,7 @@ export interface ConsumidorSync {
   nombre: string;
   fase: string;
   ruta: string;
-  estado: 'ok' | 'desync' | 'pendiente-F4' | 'sin-manifest' | 'error';
+  estado: 'ok' | 'desync' | 'pendiente-F4' | 'sin-manifest' | 'error' | 'sin-directorio';
   detalle?: string;
   problemas?: string[];
   sentinel?: ToolSyncState;
@@ -48,6 +51,9 @@ export interface ReporteSincronizacion {
   checkout: string;
   consumidores: ConsumidorSync[];
   problemas: number;
+  /* Registrados cuyo directorio no está en el área: no hay pin que validar, así
+   * que no cuentan como desync (16A-4). */
+  sinDirectorio?: string[];
   checkout_sentinel?: { head: string | null; sucio: number };
   checkout_varsense?: { head: string | null; sucio: number };
   /* Alineacion pin/runtime/publicado por consumidor + vigencia upstream

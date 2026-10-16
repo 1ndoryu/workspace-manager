@@ -39,20 +39,28 @@ function puntosDe(rep: ReporteSincronizacion, tool: Tool): Punto[] {
       (f) => f.proyecto === proyecto && (f.tool ?? f.herramienta) === tool,
     );
     const prob: string[] = [];
+    /* 'no-declarado' = ese consumidor no usa la herramienta: no aplica. */
+    const declara = f7 ? f7.estado !== 'no-declarado' : false;
     if (fila && fila.estado !== 'ALINEADO' && fila.estado !== 'SIN-PROVISION') {
       prob.push(...(fila.problemas?.length ? fila.problemas : [fila.estado]));
     }
-    if (f7 && f7.estado !== 'ok') prob.push(f7.detalle);
-    if (!f7 && !fila && cons && cons.estado !== 'ok') prob.push(cons.detalle ?? cons.estado);
+    if (f7 && declara && f7.estado !== 'ok') prob.push(f7.detalle);
+    if (!f7 && !fila && cons && cons.estado !== 'ok' && cons.estado !== 'sin-directorio') {
+      prob.push(cons.detalle ?? cons.estado);
+    }
     const partes: string[] = [];
     if (fila) {
       partes.push(`pin ${corto(fila.pin)} → runtime ${corto(fila.runtime)}`);
       if (fila.publicado === false) partes.push('NO publicado');
     }
+    if (!declara && f7) partes.push('no usa esta herramienta');
+    if (cons?.estado === 'sin-directorio') partes.push('sin directorio en el área');
     return {
       proyecto,
       ok: prob.length === 0,
-      sinDatos: !f7 && !fila,
+      /* Un consumidor sin directorio no tiene datos que enseñar: se muestra
+       * apagado, nunca como problema. */
+      sinDatos: (!f7 && !fila) || cons?.estado === 'sin-directorio' || (!declara && !fila),
       detalle: [...partes, ...prob].filter(Boolean).join(' · ') || 'sin datos de esta herramienta',
     };
   });
