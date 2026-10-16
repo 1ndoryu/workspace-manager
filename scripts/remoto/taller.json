@@ -21,6 +21,9 @@
   "proyectos": {
     "MN-Inmobiliaria": {
       "basedatos": "glory_backend_inmobiliaria",
+      "bdRama": {
+        "semilla": "scripts/fixtures/seed-test-inmobiliaria.sql"
+      },
       "bdDesdeLocal": { "verificar": ["inmuebles", "fotos", "_sqlx_migrations"] }
     },
     "KAMPLES": {

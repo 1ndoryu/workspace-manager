@@ -13,6 +13,7 @@ import {
   nombreBaseDatos,
   urlBaseRemota,
   comandoBaseRemota,
+  comandoPrepararRama,
 } from './rcargo.mjs';
 
 const config = cargarConfig();
@@ -158,4 +159,38 @@ test('comando remoto con base: DATABASE_URL solo cuando se pasa nombre', () => {
   assert.ok(con.includes('postgres://dev@'));
   assert.ok(con.includes('CREATE DATABASE "p_main"'));
   assert.ok(con.indexOf('CREATE DATABASE') < con.indexOf('cm-heavy cargo'));
+});
+
+// [16AA-9 F3] La base de rama nace vacía: sin clonar el esquema y sembrar, los
+// tests de base viva fallan con «no existe la relación …» (el portátil lo
+// cubría con run-with-db.mjs, que compila en el portátil y está prohibido).
+test('base de rama: clona el esquema de la base de trabajo solo si está vacía', () => {
+  const cmd = comandoPrepararRama(config.bd, 'glory_pulse_x', 'glory_pulse', 'scripts/fixtures/seed.sql');
+  assert.ok(cmd.startsWith('if [ "$(psql '));
+  // El SQL va entrecomillado para el shell (shQuote): se comprueban las partes, no el texto literal.
+  assert.ok(cmd.includes('information_schema.tables WHERE table_schema='));
+  assert.ok(cmd.includes('pg_dump -h'));
+  assert.ok(cmd.includes('--schema-only'));
+  assert.ok(cmd.includes("glory_pulse'"), 'la base de trabajo va como origen del clon');
+  assert.ok(cmd.includes('-f -'), 'el clon entra por stdin');
+  assert.ok(cmd.includes("'scripts/fixtures/seed.sql'"));
+  assert.ok(cmd.endsWith('; fi'));
+});
+
+test('base de rama: sin semilla declarada solo clona el esquema', () => {
+  const cmd = comandoPrepararRama(config.bd, 'glory_pulse_x', 'glory_pulse');
+  assert.ok(cmd.includes('pg_dump'));
+  assert.ok(!cmd.includes('seed.sql'));
+  assert.equal(cmd.match(/-f /g).length, 1);
+});
+
+test('comando remoto: la base de rama se prepara antes de cargo, y solo con `preparar`', () => {
+  const rutas = rutasRemotas(config, 'P', 'main');
+  const con = construirComandoRemoto(config, rutas, ['test'], 'p_x', { base: 'p', semilla: null })[2];
+  assert.ok(con.includes('pg_dump'));
+  assert.ok(con.indexOf('pg_dump') < con.indexOf('cm-heavy cargo'));
+  assert.ok(con.indexOf('CREATE DATABASE') < con.indexOf('pg_dump'));
+  // Sin `preparar` (la base de trabajo de `main`) no se toca nada.
+  const sin = construirComandoRemoto(config, rutas, ['test'], 'p_main')[2];
+  assert.ok(!sin.includes('pg_dump'));
 });

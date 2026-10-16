@@ -103,8 +103,25 @@ export function comandoBaseRemota(bd, nombre) {
   return `( ${psql(`SELECT 1 FROM pg_database WHERE datname='${nombre}'`)} | grep -qx 1 || ${psql(`CREATE DATABASE "${nombre}"`)} )`;
 }
 
+// [16AA-9 F3] La base de rama se creaba vacía y los tests de base viva
+// fallaban con «no existe la relación …»; en el portátil lo cubría
+// `scripts/run-with-db.mjs` (migrar + sembrar), pero ese camino compila en el
+// portátil y AGENTS §1 lo prohíbe. Aquí se clona el esquema de la base de
+// trabajo (ya migrada y sincronizada por `Arranque up`) y se aplica la semilla
+// que declare el proyecto (`taller.json` `proyectos.<id>.bdRama.semilla`).
+// Solo si la base de rama está vacía: si ya tiene tablas, manda lo que hay.
+export function comandoPrepararRama(bd, nombre, base, semilla = null) {
+  const psql = (db, extra) => `psql -h ${shQuote(bd.socket)} -U ${shQuote(bd.usuario)} -d ${shQuote(db)} -v ON_ERROR_STOP=1 -q ${extra}`;
+  const tablas = "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'";
+  const vacia = `[ "$(${psql(nombre, `-qtAc ${shQuote(tablas)}`)})" = 0 ]`;
+  const clon = `pg_dump -h ${shQuote(bd.socket)} -U ${shQuote(bd.usuario)} --schema-only --no-owner --no-acl ${shQuote(base)} | ${psql(nombre, '-f -')}`;
+  const pasos = [clon, ...(semilla ? [psql(nombre, `-f ${shQuote(semilla)}`)] : [])].join(' && ');
+  return `if ${vacia}; then ${pasos}; fi`;
+}
+
 // Comando que ssh ejecuta en la VPS. El lock de carga pesada (cm-heavy) va delante de cargo.
-export function construirComandoRemoto(config, rutas, args, nombreBd = null) {
+// `preparar` ({base, semilla}) es opcional: solo lo usa la base de rama.
+export function construirComandoRemoto(config, rutas, args, nombreBd = null, preparar = null) {
   const entorno = [
     ...(nombreBd ? [`DATABASE_URL=${shQuote(urlBaseRemota(config.bd, nombreBd))}`] : []),
     `CARGO_TARGET_DIR=${shQuote(rutas.target)}`,
@@ -112,6 +129,7 @@ export function construirComandoRemoto(config, rutas, args, nombreBd = null) {
   const interno = [
     `cd ${shQuote(rutas.dirRemoto)}`,
     ...(nombreBd ? [comandoBaseRemota(config.bd, nombreBd)] : []),
+    ...(nombreBd && preparar ? [comandoPrepararRama(config.bd, nombreBd, preparar.base, preparar.semilla)] : []),
     `${entorno} ${config.lockWrapper} cargo ${args.map(shQuote).join(' ')}`,
   ].join(' && ');
   return ['bash', '-lc', shQuote(interno)];
@@ -196,9 +214,15 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
   const rutas = rutasRemotas(config, proyecto, rama);
   // [14AA-1] Antes de sincronizar: si no se puede derivar el nombre, no se lanza nada.
   let nombreBd = null;
+  let preparar = null;
   if (config.bd?.subcomandos?.includes(args[0])) {
     try {
-      nombreBd = nombreBaseDatos(leerCargoToml(cwd), rama, config.proyectos?.[proyecto]?.basedatos);
+      const basedatos = config.proyectos?.[proyecto]?.basedatos;
+      const cargoToml = leerCargoToml(cwd);
+      nombreBd = nombreBaseDatos(cargoToml, rama, basedatos);
+      const base = nombreBaseDatos(cargoToml, 'main', basedatos);
+      // [16AA-9 F3] Solo la base de rama: la base de trabajo la mantiene `Arranque up`.
+      if (nombreBd !== base) preparar = { base, semilla: config.proyectos?.[proyecto]?.bdRama?.semilla ?? null };
     } catch (e) {
       console.error(`rcargo: ${e.message}`);
       return 2;
@@ -208,7 +232,7 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
   const sync = asegurarSesion({ config, proyecto, rutaLocal: cwd, rutas, dryRun, cwd });
   if (sync !== 0) return sync;
 
-  const remoto = construirComandoRemoto(config, rutas, args, nombreBd);
+  const remoto = construirComandoRemoto(config, rutas, args, nombreBd, preparar);
   return correr('ssh', argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;
 }
 
