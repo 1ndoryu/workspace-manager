@@ -33,7 +33,8 @@
       "basedatos": "glory_backend_nakomi"
     },
     "PROYECTO TASKS": {
-      "basedatos": "glory_backend_local"
+      "basedatos": "glory_backend_local",
+      "bdDesdeLocal": { "verificar": ["users", "notes", "_sqlx_migrations"] }
     }
   }
 }

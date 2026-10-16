@@ -102,7 +102,17 @@
       "timeoutMs": 3000,
       "arranqueMs": 300000,
       "expectedCmdline": ["glory-backend", "4191"],
-      "tipoLauncher": "glory-template (wrapper run-with-db.mjs lee .env 4190/4191 + Vite via --prefix+-- para que --port llegue)",
+      "host": "dev89",
+      "puertosRemotos": [4190, 4191],
+      "puertosLocales": [14190, 14191],
+      "envRemoto": ["DATABASE_URL", "HOST", "PORT", "VITE_PORT", "CORS_ORIGINS", "CEREBRAS_API_KEY", "GROQ_API", "GROQ_API_1", "GROQ_API_2", "GROQ_API_3", "DEEPSEEK_API", "DEEPSEEK_API_KEY", "GLORY_API_URL", "GLORY_API_KEY", "COMMAND_CODE_API_KEY"],
+      "botonRemoto": [
+        ["env", "CORS_ORIGINS=http://127.0.0.1:4191,http://localhost:4191,http://localhost:14191,http://127.0.0.1:14191", "cargo", "run", "--bin", "glory-backend"],
+        ["env", "VITE_API_PROXY_TARGET=http://127.0.0.1:4190", "VITE_PORT=4191", "npm", "--prefix", "frontend", "run", "dev", "--", "--port", "4191", "--strictPort", "--host", "127.0.0.1"]
+      ],
+      "precompilar": [["cargo", "build", "--bin", "glory-backend"]],
+      "dependencias": ["frontend"],
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs lee .env 4190/4191 + Vite via --prefix+-- para que --port llegue). En la 89 los puertos remotos son los mismos del .env y el tunel los abre en 14190/14191 para no chocar con el dev local",
       "comandos": { "gate": "npm run quality:check", "typecheck": "cargo check", "build": null, "test-archivo": null }
     },
     {
