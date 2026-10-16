@@ -298,8 +298,8 @@ async function analizarEnDev89(p: Proyecto): Promise<AnalisisSentinel> {
   }
   const conVs = varsenseAplica(p.ruta);
   const [[res, errorRes], [resVs, errorVs]] = await Promise.all([
-    intentar(() => correrSentinelRemoto(clave, cfg)),
-    intentar(() => (conVs ? correrVarsenseRemoto(clave, cfg) : Promise.resolve(null))),
+    intentar(() => correrSentinelRemoto(clave, cfg, p.ruta)),
+    intentar(() => (conVs ? correrVarsenseRemoto(clave, cfg, p.ruta) : Promise.resolve(null))),
   ]);
   return montarAnalisis(p, res, resVs, raiz, { sentinel: errorRes, varsense: errorVs });
 }
