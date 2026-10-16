@@ -28,6 +28,12 @@
     },
     "KAMPLES": {
       "basedatos": "kamples"
+    },
+    "NAKOMI": {
+      "basedatos": "glory_backend_nakomi"
+    },
+    "PROYECTO TASKS": {
+      "basedatos": "glory_backend_local"
     }
   }
 }
