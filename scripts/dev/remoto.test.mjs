@@ -10,6 +10,7 @@ import {
   contenidoEnvFrontend,
   contenidoEnvRemoto,
   diferenciasConteos,
+  desviosDeConteos,
   esEntradaRemota,
   filtrarSqlParaPg16,
   parsearConteos,
@@ -281,6 +282,19 @@ test('parsearConteos: lee pares tabla=valor y descarta lo que no lo es', () => {
   assert.equal(m.get('_sqlx_migrations'), '34');
   assert.equal(m.has('basura sin igual'), false);
   assert.equal(parsearConteos('').size, 0);
+});
+
+test('desviosDeConteos: solo la 89 con más filas frena la restauración; menos o igual no', () => {
+  const tablas = ['inmuebles', 'fotos'];
+  const local = parsearConteos('inmuebles=20\nfotos=397\n');
+  // El caso real del 2026-10-16: la 89 tenia las fotos subidas por el panel y la laptop no.
+  assert.deepEqual(desviosDeConteos(local, parsearConteos('inmuebles=20\nfotos=462\n'), tablas), ['fotos: 89=462 > laptop=397']);
+  // La laptop gano filas: refrescar es lo que se pide.
+  assert.deepEqual(desviosDeConteos(parsearConteos('inmuebles=20\nfotos=462\n'), local, tablas), []);
+  assert.deepEqual(desviosDeConteos(local, local, tablas), []);
+  // Sin numero fiable en cualquiera de los lados no se rehusa.
+  assert.deepEqual(desviosDeConteos(local, parsearConteos('inmuebles=no-existe\nfotos=sin conteo\n'), tablas), []);
+  assert.deepEqual(desviosDeConteos(parsearConteos('inmuebles=sin conteo\nfotos=sin conteo\n'), parsearConteos('inmuebles=20\nfotos=462\n'), tablas), []);
 });
 
 test('diferenciasConteos: solo iguales numéricos cuentan como coincidentes; ausente o no numérico es diferencia', () => {

@@ -1407,7 +1407,7 @@ export async function up(argv) {
   const args = argv ?? [];
   const id = args[0];
   if (!id || id.startsWith('-')) {
-    console.error('uso: dev up <id> [--snapshot-file <ruta>] [--registro <ruta>] [--json]');
+    console.error('uso: dev up <id> [--sin-bd] [--bd] [--snapshot-file <ruta>] [--registro <ruta>] [--json]');
     return 1;
   }
   const comoJson = args.includes('--json');
