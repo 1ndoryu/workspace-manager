@@ -59,3 +59,48 @@ test('base vacía: todo lo actual es nuevo', () => {
   assert.equal(r.nuevos.length, 2);
   assert.equal(r.resueltos, 0);
 });
+
+test('escalada de severidad en la misma clave sí es nueva (regresion: warning -> error)', () => {
+  const r = compararHallazgos(
+    [h({ severidad: 'warning', linea: 800 })],
+    [h({ severidad: 'error', linea: 803 })],
+  );
+  assert.equal(r.nuevos.length, 1);
+  assert.equal(r.nuevos[0].severidad, 'error');
+  assert.equal(r.resueltos, 1);
+});
+
+test('bajar la severidad no cuenta como nuevo: el arreglo a medias no bloquea', () => {
+  const r = compararHallazgos([h({ severidad: 'error' })], [h({ severidad: 'warning' })]);
+  assert.deepEqual(r.nuevos, []);
+  assert.equal(r.resueltos, 0);
+});
+
+test('escalada con la misma clave pero más grave: consume el leve y deja el grave de la base libre', () => {
+  /* base: un warning y un error de la misma regla+archivo; ahora: un error.
+   * El error actual se aparea con el error de la base, así que el warning
+   * sobra y cuenta como resuelto; nada nuevo. */
+  const r = compararHallazgos(
+    [h({ severidad: 'warning' }), h({ severidad: 'error' })],
+    [h({ severidad: 'error' })],
+  );
+  assert.deepEqual(r.nuevos, []);
+  assert.equal(r.resueltos, 1);
+});
+
+test('una severidad desconocida no se lee como empeoramiento', () => {
+  /* El tipo es una unión, pero la severidad llega de un JSON externo: el cast
+   * reproduce lo que se cuela por el límite. */
+  const desconocida = h({ severidad: 'nueva-regla' as HallazgoSentinel['severidad'] });
+  const r = compararHallazgos([h({ severidad: 'information' })], [desconocida]);
+  assert.deepEqual(r.nuevos, []);
+});
+
+test('dos escaladas de la misma clave cuentan las dos (multiconjunto)', () => {
+  const r = compararHallazgos(
+    [h({ severidad: 'warning', linea: 1 }), h({ severidad: 'warning', linea: 2 })],
+    [h({ severidad: 'error', linea: 1 }), h({ severidad: 'error', linea: 2 })],
+  );
+  assert.equal(r.nuevos.length, 2);
+  assert.equal(r.resueltos, 2);
+});
