@@ -18,6 +18,7 @@ import {
   type MuestraHistorial,
   type RegistroConformidad,
 } from '../../shared/taller/conformidad.js';
+import { sesionDev } from '../../shared/taller/sesiones.js';
 
 const RUTA_REGISTRO = join(import.meta.dirname, '..', '..', '..', 'scripts', 'dev', 'registro.json');
 /* Alias SSH del taller (AGENTS §9.4): el único acceso SSH directo autorizado. */
@@ -80,7 +81,7 @@ export function leerRegistroConformidad(): RegistroConformidad {
     /* [por que] Las sesiones tmux remotas se llaman dev-<id>-<puerto> (scripts/dev/remoto.mjs:27)
      * y el puerto es el remoto (puertosRemotos ?? puertos, remoto.mjs:30). */
     if (typeof p.host === 'string' && p.host !== '') {
-      for (const puerto of numeros(p.puertosRemotos ?? p.puertos)) sesionesDev.push(`dev-${id}-${puerto}`);
+      for (const puerto of numeros(p.puertosRemotos ?? p.puertos)) sesionesDev.push(sesionDev(id, puerto));
     }
     textos(p.hostsPublicos).forEach((h) => hostsPublicos.add(h));
     numeros(p.puertosPublicos).forEach((n) => puertosLocalesPublicos.add(n));

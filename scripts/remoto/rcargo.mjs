@@ -43,8 +43,17 @@ export function slug(rama) {
   return String(rama).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'main';
 }
 
+/* [por que] Mutagen rechaza los nombres de sesión con espacios («invalid session name:
+ * invalid name character at index 15: ' '») y los ids del taller los llevan («PROYECTO TASKS»),
+ * así que un proyecto con espacio en el nombre no se podía subir. Se normaliza a [A-Za-z0-9._-].
+ * Los ids normales (MN-Inmobiliaria, KAMPLES) no cambian. Misma regla, en TypeScript, en
+ * src/shared/taller/sesiones.ts: al tocar una, tocar la otra. */
+export function slugSesion(valor) {
+  return String(valor).replace(/[^A-Za-z0-9._-]+/g, '-');
+}
+
 export function nombreSesion(proyecto) {
-  return `taller-${proyecto}`;
+  return `taller-${slugSesion(proyecto)}`;
 }
 
 // [por que] Los logs viven fuera de dirRemoto: Mutagen (one-way-replica) borra en la 89 lo que no existe en el laptop, y dentro de la réplica se perdían.

@@ -8,6 +8,7 @@ import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { sesionMutagen } from '../../shared/taller/sesiones.js';
 import { checkoutVarsense, parsearReporte, varsenseRuntime } from './ejecucion.js';
 import type { ResultadoSpawn } from './ejecucion.js';
 
@@ -132,7 +133,7 @@ export async function ssh(cfg: ConfigRemota, comando: string, timeout: number): 
  * misma que usa rcargo.mjs). Tras esto la réplica de la 89 coincide con el árbol local.
  * Lanza si no puede (sesión ausente, cola atascada o timeout). */
 export async function sincronizar(clave: string, cfg: ConfigRemota): Promise<void> {
-  const sesion = `taller-${clave}`;
+  const sesion = sesionMutagen(clave);
   try {
     await execFileAsync(cfg.mutagen, ['sync', 'flush', sesion], {
       encoding: 'utf8',
