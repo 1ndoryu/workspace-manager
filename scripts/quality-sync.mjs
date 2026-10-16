@@ -70,6 +70,10 @@ const CONSUMIDORES = [
   /* plugins-opencode: su pin se fijó a mano (d401ded, 0.7.23) y el bump no lo
    * propagaba; se registra para que el bump lo alinee con el pin del área. */
   { nombre: 'plugins-opencode', ruta: 'plugins-opencode', fase: 'F1' },
+  /* KAMPLES: gate declarado (sentinel+varsense, checkout compartido del área) y
+   * pins al día (8c2b65d / caffa80), pero no estaba aquí: su quality-tools.json
+   * se editaba a mano y el bump nunca lo actualizaba (16A-4). */
+  { nombre: 'KAMPLES', ruta: 'KAMPLES', fase: 'F1' },
 ];
 
 /* Herramientas del checkout compartido y su subcarpeta. */
