@@ -358,6 +358,15 @@ function pasosDe(consumidor, config, configSentinel) {
   };
 }
 
+/* Compara el router ignorando el fin de línea. [por que] Un proyecto clonado con
+ * `core.autocrlf` guarda el router con CRLF y el canónico con LF: mismo contenido,
+ * mismo comportamiento, y aun así se reportaba `drift`. Ruido que esconde la
+ * deriva de verdad. El BOM sí se respeta: un fichero con BOM lo ejecuta Node, pero
+ * no es lo que reparte el propagador. */
+function sinFinDeLinea(texto) {
+  return texto.replace(/\r\n/g, '\n');
+}
+
 function revisarRouters(consumidor, escribirAhora) {
   return ROUTERS.map(router => {
     const destino = path.join(consumidor.dir, 'scripts', 'quality', router.archivo);
@@ -376,7 +385,9 @@ function revisarRouters(consumidor, escribirAhora) {
       fs.writeFileSync(destino, esperado);
       return { router: router.archivo, estado: 'creado' };
     }
-    if (fs.readFileSync(destino, 'utf8') === esperado) return { router: router.archivo, estado: 'ok' };
+    if (sinFinDeLinea(fs.readFileSync(destino, 'utf8')) === sinFinDeLinea(esperado)) {
+      return { router: router.archivo, estado: 'ok' };
+    }
     if (escribirAhora) {
       fs.writeFileSync(destino, esperado);
       return { router: router.archivo, estado: 'actualizado' };
