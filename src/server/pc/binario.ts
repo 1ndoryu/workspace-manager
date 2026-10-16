@@ -1,14 +1,21 @@
 /* Binario de limpiador-pc: resolucion versionada con auto-reconstruccion.
  * [por que] El binario NO vive en C:\tmp (se purga) ni se commitea: reside en
  * `data/bin/` (gitignored, pocos MB) y el server lo reconstruye solo cuando la
- * version del binario difiere de la del `Cargo.toml` de limpiador-pc. Asi una
- * actualizacion del limpiador se propaga sola al proximo analisis; el roadmap
- * documenta el flujo manual para quien quiera forzarlo. La compilacion usa
- * CARGO_TARGET_DIR en C:\tmp (regla del area) y copia solo el .exe final. */
-import { execFile, execFileSync } from 'node:child_process';
+ * fuente cambia. Asi una mejora del limpiador se propaga sola al proximo
+ * analisis; el roadmap documenta el flujo manual para quien quiera forzarlo.
+ *
+ * [16AA-1] La compilacion NO ocurre en el laptop: `scripts/build-windows.mjs`
+ * del propio proyecto la hace cruzada en la VPS 89 (cargo-xwin) y devuelve el
+ * .exe. Antes se compilaba aqui con el MSVC local (vswhere + link.exe), lo que
+ * dejaba un `target/` en C:\tmp y ataba el build a que hubiera Visual Studio.
+ * Como el limpiador es Windows-only, la deteccion de cambios ya no puede ser
+ * solo la version del `Cargo.toml`: mejoras sin subir version no se veian. Se
+ * guarda una huella del codigo junto al binario y se compara. */
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { RAIZ_AREA } from '../http.js';
 
 const execFileAsync = promisify(execFile);
@@ -16,9 +23,11 @@ const execFileAsync = promisify(execFile);
 export const DIR_LIMPIADOR = join(RAIZ_AREA, 'limpiador-pc');
 export const BIN_PC =
   process.env.LIMPIADOR_BIN || join(RAIZ_AREA, 'workspace-manager', 'data', 'bin', 'limpiador-pc.exe');
-/* Target de compilacion: temporal por regla del area (se puede purgar; el
- * binario final ya copiado en data/bin sigue funcionando). */
-export const TARGET_PC = 'C:\\tmp\\limpiador-pc-target';
+/* Huella de la fuente que produjo el binario actual. Si falta (binario de antes
+ * de este flujo) `actualizado` es false y se reconstruye una vez. */
+const HUELLA_PC = join(dirname(BIN_PC), 'limpiador-pc.huella.json');
+/* Tiempo maximo del build remoto: incluye envio de fuente + cargo-xwin en la 89. */
+const TIMEOUT_MS = 600000;
 
 export interface EstadoBinario {
   existe: boolean;
@@ -54,93 +63,60 @@ async function versionBinaria(bin: string): Promise<string | null> {
   }
 }
 
-/* Toolchain REAL para el hijo de compilacion, resuelto una vez y cacheado.
- * [por que] El backend debe invocar el cargo real, nunca el shim de
- * GlorySentinel (bloquea con exit 100 fuera del gate) ni depender del orden
- * del PATH heredado: el `spawn cargo ENOENT` del 2026-10-04 vino de un server
- * sin toolchain a la vista. `link.exe` vive en ruta versionada (rota con cada
- * update de VS): se resuelve via vswhere, nunca fijada a mano. */
-function dirsToolchain(): string[] {
-  const home = process.env.USERPROFILE ?? '';
-  const cargoBin = join(home, '.cargo', 'bin');
-  const dirs = existsSync(join(cargoBin, 'cargo.exe')) ? [cargoBin] : [];
-  const msvc = resolverMsvc();
-  if (msvc) dirs.push(msvc);
-  return dirs;
-}
-
-/* Localiza `.../VC/Tools/MSVC/<ver>/bin/Hostx64/x64` (la mayor version).
- * null si no hay VS con C++ instalado: el hijo fallara con su propio error. */
-function resolverMsvc(): string | null {
-  const candidatos: string[] = [];
-  try {
-    const vswhere = join(
-      process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)',
-      'Microsoft Visual Studio',
-      'Installer',
-      'vswhere.exe',
-    );
-    if (existsSync(vswhere)) {
-      const inst = execFileSync(
-        vswhere,
-        ['-latest', '-prerelease', '-products', '*', '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'installationPath'],
-        { encoding: 'utf8', windowsHide: true, timeout: 15000 },
-      )
-        .trim()
-        .split(/\r?\n/, 1)[0];
-      if (inst) candidatos.push(join(inst, 'VC', 'Tools', 'MSVC'));
+/* Ficheros que definen el binario: manifiesto, lock y todo el codigo Rust. */
+function archivosFuente(): string[] {
+  const salida: string[] = [];
+  const recorrer = (dir: string): void => {
+    let entradas;
+    try {
+      entradas = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
     }
-  } catch {
-    /* sin vswhere o sin componente C++: se intenta el glob de abajo */
-  }
-  candidatos.push('C:\\Program Files\\Microsoft Visual Studio');
-  for (const base of candidatos) {
-    const mejor = mejorMsvcBajo(base);
-    if (mejor) return mejor;
-  }
-  return null;
+    for (const e of entradas) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) recorrer(p);
+      else if (e.name.endsWith('.rs')) salida.push(p);
+    }
+  };
+  recorrer(join(DIR_LIMPIADOR, 'src'));
+  return salida.sort();
 }
 
-/* Mayor `<base>[/<edicion>]/VC/Tools/MSVC/<ver>/bin/Hostx64/x64` existente. */
-function mejorMsvcBajo(base: string): string | null {
-  let ediciones: string[];
+/* Huella del codigo que produce el binario: rutas + contenido, en orden estable.
+ * [por que] El CRLF se normaliza: el repo tiene `core.autocrlf=true`, asi que
+ * un `git checkout` reescribe los .rs a CRLF sin cambiar el codigo. Sin
+ * normalizar, cualquier operacion de git disparaba una recompilacion entera.
+ * null si la fuente no es legible (entonces no se puede afirmar que este al dia). */
+export function huellaFuente(): string | null {
   try {
-    ediciones = base.endsWith('MSVC') ? [''] : readdirSync(base);
+    const h = createHash('sha256');
+    const ficheros = [
+      join(DIR_LIMPIADOR, 'Cargo.toml'),
+      join(DIR_LIMPIADOR, 'Cargo.lock'),
+      ...archivosFuente(),
+    ];
+    for (const f of ficheros) {
+      h.update(relative(DIR_LIMPIADOR, f).replace(/\\/g, '/'));
+      h.update('\0');
+      h.update(readFileSync(f, 'utf8').replace(/\r\n/g, '\n'));
+      h.update('\0');
+    }
+    return h.digest('hex').slice(0, 16);
   } catch {
     return null;
   }
-  const duenos =
-    base.endsWith('MSVC') ? [base] : ediciones.flatMap((ed) => {
-      const raizEd = join(base, ed);
-      const vars = [join(raizEd, 'VC', 'Tools', 'MSVC')];
-      /* ediciones con canal (`...\18\Insiders\VC\...`): un nivel mas */
-      try {
-        for (const sub of readdirSync(raizEd)) vars.push(join(raizEd, sub, 'VC', 'Tools', 'MSVC'));
-      } catch {
-        /* sin permiso o no es dir: solo el directo */
-      }
-      return vars.filter((v) => existsSync(v));
-    });
-  for (const dueno of duenos) {
-    let versiones: string[];
-    try {
-      versiones = readdirSync(dueno);
-    } catch {
-      continue;
-    }
-    for (const ver of versiones.sort().reverse()) {
-      const bin = join(dueno, ver, 'bin', 'Hostx64', 'x64');
-      if (existsSync(join(bin, 'link.exe'))) return bin;
-    }
-  }
-  return null;
 }
 
-const DIRS_TOOLCHAIN = dirsToolchain();
-/* cargo REAL (ruta absoluta si existe; si no, `cargo` del PATH y que el hijo
- * reporte su propio error). Nunca el shim: se evita por ruta, no por orden. */
-const CARGO_REAL =
-  DIRS_TOOLCHAIN.length > 0 ? join(DIRS_TOOLCHAIN[0], 'cargo.exe') : 'cargo';
+/* Huella anotada tras el ultimo build. null si aun no hay ninguna. */
+function huellaGuardada(): string | null {
+  try {
+    const j = JSON.parse(readFileSync(HUELLA_PC, 'utf8')) as { huella?: string };
+    return typeof j.huella === 'string' ? j.huella : null;
+  } catch {
+    return null;
+  }
+}
 
 let vueloReconstruccion: Promise<string> | null = null;
 
@@ -148,45 +124,41 @@ export function enReconstruccion(): boolean {
   return vueloReconstruccion !== null;
 }
 
-/* Estado sin construir nada: solo compara binario vs fuente. */
+/* Estado sin construir nada: compara binario y fuente (version y codigo). */
 export async function estadoBinario(): Promise<EstadoBinario> {
   const fuente = versionFuente();
   if (!existsSync(BIN_PC)) {
     return { existe: false, versionBinario: null, versionFuente: fuente, actualizado: false, reconstruyendo: enReconstruccion() };
   }
   const vb = await versionBinaria(BIN_PC);
+  const huella = huellaFuente();
   return {
     existe: true,
     versionBinario: vb,
     versionFuente: fuente,
-    actualizado: vb !== null && fuente !== null && vb === fuente,
+    actualizado:
+      vb !== null && fuente !== null && vb === fuente && huella !== null && huella === huellaGuardada(),
     reconstruyendo: enReconstruccion(),
   };
 }
 
-/* Reconstruye el binario con cargo (target en C:\tmp) y lo copia a data/bin.
- * Single-flight: llamadores concurrentes esperan el mismo vuelo. */
+/* Reconstruye el binario en la 89 y lo deja en data/bin. Single-flight:
+ * llamadores concurrentes esperan el mismo vuelo. */
 export function reconstruirBinario(): Promise<string> {
   if (vueloReconstruccion) return vueloReconstruccion;
   vueloReconstruccion = (async () => {
-    mkdirSync(join(RAIZ_AREA, 'workspace-manager', 'data', 'bin'), { recursive: true });
-    await execFileAsync(
-      CARGO_REAL,
-      ['build', '--release', '--manifest-path', join(DIR_LIMPIADOR, 'Cargo.toml')],
-      {
-        encoding: 'utf8',
-        windowsHide: true,
-        timeout: 600000,
-        maxBuffer: 32 * 1024 * 1024,
-        env: {
-          ...process.env,
-          CARGO_TARGET_DIR: TARGET_PC,
-          /* rustc necesita link.exe a la vista aunque cargo vaya por ruta */
-          PATH: [...DIRS_TOOLCHAIN, process.env.PATH ?? ''].filter((p) => p !== '').join(';'),
-        },
-      },
-    );
-    copyFileSync(join(TARGET_PC, 'release', 'limpiador-pc.exe'), BIN_PC);
+    const guion = join(DIR_LIMPIADOR, 'scripts', 'build-windows.mjs');
+    /* Se ejecuta con el node actual, no con `node` del PATH: el server puede
+     * arrancar sin el PATH del usuario. */
+    await execFileAsync(process.execPath, [guion, '--salida', BIN_PC], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: TIMEOUT_MS,
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    const huella = huellaFuente();
+    if (huella === null) throw new Error('no se pudo calcular la huella de limpiador-pc tras compilar');
+    writeFileSync(HUELLA_PC, `${JSON.stringify({ huella, version: versionFuente() }, null, 2)}\n`);
     return BIN_PC;
   })();
   const vuelo = vueloReconstruccion;
