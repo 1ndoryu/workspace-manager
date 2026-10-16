@@ -218,12 +218,13 @@ $escuchas = @(Get-NetTCPConnection -State Listen | ForEach-Object {
   $dueno = $cim[[int]$_.OwningProcess]
   [pscustomobject]@{ direccion = [string]$_.LocalAddress; puerto = [int]$_.LocalPort; proceso = $(if ($dueno) { [string]$dueno.Name } else { '' }) }
 })
-$mutagenPresente = [bool](Get-Command mutagen -ErrorAction SilentlyContinue)
+$mutagenExe = resolverMutagen
+$mutagenPresente = [bool]$mutagenExe
 $mutagenOk = $false
 $mutagenSalida = ''
 if ($mutagenPresente) {
   try {
-    $mutagenSalida = (& mutagen sync list 2>&1 | Out-String)
+    $mutagenSalida = (& $mutagenExe sync list 2>&1 | Out-String)
     $mutagenOk = ($LASTEXITCODE -eq 0)
   } catch {
     $mutagenSalida = $_.ToString()
@@ -232,12 +233,29 @@ if ($mutagenPresente) {
 [pscustomobject]@{ procesos = $procesos; escuchas = $escuchas; mutagenPresente = $mutagenPresente; mutagenOk = $mutagenOk; mutagenSalida = $mutagenSalida } | ConvertTo-Json -Compress -Depth 4
 `;
 
+/* [por que] `Get-Command mutagen` no basta: en este laptop el binario está en
+ * C:\Users\Owner\bin\mutagen, que no entra en el PATH del PowerShell no interactivo
+ * que arranca el manager (16AA-13). Sin esto, L3 sale en error siempre y el sync
+ * L→89 no se comprueba nunca. Se prueba el PATH primero y luego las rutas conocidas. */
+const FUNCION_MUTAGEN = `
+function resolverMutagen {
+  $cmd = Get-Command mutagen -ErrorAction SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+  $candidatos = @(
+    (Join-Path $env:USERPROFILE 'bin\\mutagen\\mutagen.exe'),
+    (Join-Path $env:LOCALAPPDATA 'Mutagen\\mutagen.exe')
+  )
+  foreach ($c in $candidatos) { if (Test-Path -LiteralPath $c) { return $c } }
+  return $null
+}
+`;
+
 /* Sesiones taller-* de Mutagen malas: parada, con conflictos o con problemas.
- * [por que] El formato de `mutagen sync list` no se ha verificado en este laptop (Mutagen no
- * está en el PATH); el parser es conservador: sin «Watching» u otro estado de sync, avisa. */
+ * [por que] El parser es conservador: sin «Watching» u otro estado de sync, avisa. */
 export function sesionesMutagenMalas(salida: string): string[] {
   const malas: string[] = [];
-  for (const bloque of salida.split(/^(?=Name: )/m)) {
+  /* PowerShell devuelve CRLF: se normaliza antes de partir por líneas. */
+  for (const bloque of salida.replace(/\r\n/g, '\n').split(/^(?=Name: )/m)) {
     const nombre = /^Name: (.+)$/m.exec(bloque)?.[1]?.trim();
     if (!nombre || !nombre.startsWith('taller-')) continue;
     const estado = /^Status: (.+)$/m.exec(bloque)?.[1]?.trim() ?? 'sin estado';
@@ -250,7 +268,7 @@ export function sesionesMutagenMalas(salida: string): string[] {
 async function leerLocal(): Promise<EstadoLocal> {
   const r = await correr('powershell.exe', [
     '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-EncodedCommand', Buffer.from(SCRIPT_LOCAL, 'utf16le').toString('base64'),
+    '-EncodedCommand', Buffer.from(FUNCION_MUTAGEN + SCRIPT_LOCAL, 'utf16le').toString('base64'),
   ], TIMEOUT_LOCAL_MS);
   if (r.error) return { procesos: [], escuchas: [], mutagen: null, sinLectura: r.error };
   let d: {

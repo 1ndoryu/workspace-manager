@@ -53,8 +53,9 @@ export interface EstadoPublico {
 }
 
 /* Procesos y escuchas del laptop (lectura de Win32_Process y Get-NetTCPConnection) y
- * estado de Mutagen. `mutagen` es null si el binario no está en el PATH: entonces no se
- * afirma nada del sync (L3 lo avisa en vez de dar el daemon por vivo). */
+ * estado de Mutagen. `mutagen` es null si no aparece el binario ni en el PATH ni en las
+ * rutas conocidas: entonces no se afirma nada del sync (L3 lo avisa en vez de dar el
+ * daemon por vivo). */
 export interface EstadoLocal {
   procesos: { pid: number; nombre: string; cmd: string }[];
   escuchas: { direccion: string; puerto: number; proceso: string }[];
@@ -228,9 +229,9 @@ const REGLAS_LOCAL: ReglaLocal[] = [
   },
   {
     id: 'L3', ambito: 'local', severidad: 'advertencia',
-    remedio: 'Mutagen en el PATH con el daemon arrancado (`mutagen daemon start`) y las sesiones taller-* en marcha.',
+    remedio: 'Mutagen instalado (PATH o C:\\Users\\Owner\\bin\\mutagen) con el daemon arrancado (`mutagen daemon start`) y las sesiones taller-* en marcha.',
     falla: (e) => {
-      if (e.local.mutagen === null) return 'mutagen no encontrado en el PATH: el sync L→89 no se comprueba';
+      if (e.local.mutagen === null) return 'mutagen no encontrado (ni en el PATH ni en C:\\Users\\Owner\\bin\\mutagen): el sync L→89 no se comprueba';
       return e.local.mutagen.daemonVivo ? null : 'daemon de Mutagen parado';
     },
   },
