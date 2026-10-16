@@ -66,6 +66,38 @@ function git(cwd, ...args) {
   return result.stdout.trim();
 }
 
+/* Refresca las refs del checkout antes de dar por bueno el pin.
+ *
+ * [por que] `doctor` decide `tool-release-unpublished` con
+ * `git for-each-ref --contains <commit> refs/remotes refs/tags` sobre el propio
+ * checkout, y esas refs SOLO avanzan con un fetch. Provisionar con
+ * `git checkout <sha>` las deja atrás, así que el pin recién puesto sale «no
+ * publicado» aunque sí lo esté: el 2026-10-16 los 9 consumidores alineados
+ * dieron `doctor no-listo` con dos issues por esta causa, y se arreglaron a
+ * mano con un fetch. Best-effort y con timeout: sin remoto, sin red o con un
+ * remoto que no responde se avisa y se sigue, porque el fetch no es la
+ * evidencia —la evidencia es compile + suite sobre el commit. */
+function refrescarRefs(source, name) {
+  const remoto = git(source, 'remote', 'get-url', 'origin');
+  if (!remoto) return;
+  /* Sin `--tags`: con él, una etiqueta local que apunte a otro sitio aborta el
+   * fetch entero («would clobber existing tag», visto con v0.7.6) y el aviso
+   * saldría por un motivo que no impide nada. El refspec por defecto ya trae
+   * las etiquetas alcanzables sin pisar las existentes. */
+  const resultado = spawnSync('git', ['fetch', 'origin'], {
+    cwd: source,
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 60_000,
+  });
+  if (resultado.error || resultado.status !== 0) {
+    process.stdout.write(
+      `[quality:setup] ${name}: no se pudo refrescar ${remoto} (${resultado.error?.code ?? `exit ${resultado.status}`}); ` +
+        'las refs de release pueden quedar obsoletas\n',
+    );
+  }
+}
+
 /* Ruta del CLI provisionado declarado por el manifiesto (misma resolución que
  * el lock-generator: `provisionPath` + `cli`). Null si no se declara. */
 function rutaCli(proyecto, config) {
@@ -118,6 +150,7 @@ for (const [name, config] of Object.entries(tools)) {
     nodeVersion: process.version,
   };
   process.stdout.write(`[quality:setup] ${name}: staging ${source} (${commit})\n`);
+  refrescarRefs(source, name);
 
   const head = git(source, 'rev-parse', 'HEAD');
   if (head !== commit) {
