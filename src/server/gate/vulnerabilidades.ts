@@ -8,7 +8,7 @@
  * Fuentes: el CLI de audit del gestor de cada lockfile:
  *   pnpm-lock.yaml  -> pnpm audit --json (o corepack pnpm si pnpm no esta en PATH)
  *   package-lock.json -> npm audit --json
- *   Cargo.lock      -> cargo audit --json (si cargo-audit esta instalado)
+ *   Cargo.lock      -> cargo audit --json (en la VPS 89: ver cargo-remoto.ts)
  * Un proyecto puede tener varios lockfile (WANDORIUS: raiz, frontend/,
  * glory-rs/): se auditan todos y se agregan. Los crates de Cargo.lock que no
  * alcanzan el build (cargo tree -i) no cuentan como hallazgo. Proyectos sin
@@ -20,6 +20,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { compartirVuelo } from './vuelo.js';
+import { ejecutarCargoRemoto, prepararArbolRemoto } from './cargo-remoto.js';
 import {
   contar,
   esNoAlcanzable,
@@ -196,17 +197,24 @@ async function cliDeAudit(g: LockDetectado['gestor'], cwd: string): Promise<stri
   return 'npm audit --json';
 }
 
+/* Quien ejecuta los comandos del audit: en local, o en la 89 si es cargo. */
+type Corredor = (comando: string) => Promise<Ejecucion>;
+
 /* Un hallazgo de cargo solo cuenta si el crate alcanza el build. `memo` es de
- * UNA auditoria: varios advisories del mismo crate cuestan un solo cargo tree. */
+ * UNA auditoria: varios advisories del mismo crate cuestan un solo cargo tree.
+ * [16AA-11] Sin `--offline`: la cache de registro de la 89 no cubre todos los
+ * targets y `--target all` fallaba pidiendo crates que no tenia. Si el comando
+ * falla, `esNoAlcanzable` da falso y el crate CUENTA: fallo cerrado, mas vale
+ * sobrar que esconder una vulnerabilidad real. */
 async function alcanzable(
-  cwd: string,
+  correr: Corredor,
   paquete: string,
   memo: Map<string, boolean>,
 ): Promise<boolean> {
   if (!nombrePaqueteValido(paquete)) return true;
   const previo = memo.get(paquete);
   if (previo !== undefined) return previo;
-  const r = await ejecutar(`cargo tree -i ${paquete} --offline -e normal,build --target all`, cwd);
+  const r = await correr(`cargo tree -i ${paquete} -e normal,build --target all`);
   const si = !esNoAlcanzable(r.codigo, r.stdout);
   memo.set(paquete, si);
   return si;
@@ -241,10 +249,25 @@ async function correrAudit(p: Proyecto, lock: LockDetectado): Promise<AnalisisVu
     return sinDatos(base, 'noAuditable', 'pnpm no disponible (ni pnpm ni corepack en PATH)');
   }
 
+  /* [16AA-11] cargo no vive en el portatil desde el 2026-10-16: `cargo audit` y
+   * `cargo tree` los corre la 89 sobre un arbol enviado a /var/tmp. El resto de
+   * gestores (npm/pnpm) siguen en local. Si no se puede preparar el arbol, se
+   * deja el lockfile como noAuditable, que es como estaba: sin ruido nuevo. */
+  let correr: Corredor = (comando) => ejecutar(comando, cwdAudit);
+  if (lock.gestor === 'cargo') {
+    try {
+      await prepararArbolRemoto(p.ruta);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'fallo desconocido';
+      return sinDatos(base, 'noAuditable', `no se pudo preparar el arbol en la 89: ${msg.slice(0, 120)}`);
+    }
+    correr = (comando) => ejecutarCargoRemoto(comando, p.ruta, lock.base);
+  }
+
   /* [por que] npm/pnpm/cargo audit devuelven exit != 0 cuando HAY vulnerabilidades
    * (exit 1) o cargo-audit no esta. El JSON valido viaja en stdout, asi que la
    * decision se toma por el contenido parseable, no por el exit code. */
-  const { stdout } = await ejecutar(cli, cwdAudit);
+  const { stdout } = await correr(cli);
   try {
     const crudo = JSON.parse(stdout) as JsonAudit;
     if (!crudo || typeof crudo !== 'object') throw new Error('respuesta invalida');
@@ -254,7 +277,7 @@ async function correrAudit(p: Proyecto, lock: LockDetectado): Promise<AnalisisVu
       const memo = new Map<string, boolean>();
       const alcanzan: HallazgoVulnerabilidad[] = [];
       for (const h of hallazgos) {
-        if (await alcanzable(cwdAudit, h.paquete, memo)) alcanzan.push(h);
+        if (await alcanzable(correr, h.paquete, memo)) alcanzan.push(h);
         else noAlcanzables.push(h);
       }
       hallazgos = alcanzan;
@@ -273,7 +296,7 @@ async function correrAudit(p: Proyecto, lock: LockDetectado): Promise<AnalisisVu
     /* [por que] cargo-audit ausente produce stdout vacio o no-JSON. Se marca
      * 'noAuditable' (visible sin problema) como limitacion documentada. */
     if (lock.gestor === 'cargo') {
-      return sinDatos(base, 'noAuditable', 'cargo-audit no disponible (no instalado o sin salida)');
+      return sinDatos(base, 'noAuditable', 'cargo-audit no disponible en la 89 (no instalado o sin salida)');
     }
     const msg = stdout.trim() === '' ? 'sin salida del CLI' : err instanceof Error ? err.message : 'audit fallo';
     return sinDatos(base, 'error', `audit fallo: ${msg.slice(0, 120)}`);
