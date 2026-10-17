@@ -5,7 +5,7 @@
  * Reemplaza los ~20 scripts desechables (v9_brk/v10_det/v11_inline/v12_clasif...)
  * usados en los bloques V9-V12 con un único comando:
  *
- *   node scripts/quality/analyze-blocks.mjs <proyecto> [--json] [--detalle ruleId]
+ *   node scripts/quality/auditoria/analyze-blocks.mjs <proyecto> [--json] [--detalle ruleId]
  *
  * Qué hace, en orden:
  *   1. Ejecuta el CLI varsense PINNEADO (dist del checkout compartido fijado
@@ -31,7 +31,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RAIZ_AREA, RAIZ_REPO, rutaConfigPrivada } from '../shared/rutas.mjs';
+import { RAIZ_AREA, RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -49,7 +49,7 @@ const VARSENSE_CLI = join(
   RAIZ_AREA,
   '.quality-tools/varsense/dist/cli/index.js',
 );
-const EXCEPCIONES = join(__dirname, 'excepciones.json');
+const EXCEPCIONES = join(__dirname, '..', 'excepciones.json');
 
 function severidadKey(s) {
   const sev = String(s || '').toLowerCase();
@@ -124,7 +124,7 @@ function main() {
   const repos = reposDelRegistro();
   if (!arg || !repos.has(arg)) {
     console.error(
-      `Uso: node scripts/quality/analyze-blocks.mjs <proyecto> [--json] [--detalle ruleId]\n` +
+      `Uso: node scripts/quality/auditoria/analyze-blocks.mjs <proyecto> [--json] [--detalle ruleId]\n` +
         `Proyectos: ${[...repos.keys()].join(', ')}`,
     );
     process.exit(2);

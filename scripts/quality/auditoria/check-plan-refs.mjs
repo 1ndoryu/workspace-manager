@@ -12,14 +12,14 @@
  *   3. El plan vigente PLAN-corregir-hallazgos-2026-09-06.md existe y está referenciado por
  *      roadmap.md y excepciones.json.
  *
- * Solo valida: no muta nada. Uso: node scripts/quality/check-plan-refs.mjs
+ * Solo valida: no muta nada. Uso: node scripts/quality/auditoria/check-plan-refs.mjs
  * Exit 0 = coherente · exit 1 = DESYNC documental (con el detalle).
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const ROAD = join(root, 'roadmap.md');
 const EXC = join(root, 'scripts', 'quality', 'excepciones.json');
 const PLAN_VIGENTE = 'PLAN-corregir-hallazgos-2026-09-06.md';

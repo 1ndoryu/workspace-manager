@@ -144,7 +144,7 @@ export async function correrSincronizacion(): Promise<ReporteSincronizacion> {
  * desalineamiento real (hoy 7/17 filas varsense), asi que se lee stdout hasta
  * 'close' sin depender del codigo. Solo lanza si el stdout no es JSON. */
 export async function correrAlineacion(): Promise<ReporteAlineacion> {
-  const script = join(RAIZ_REPO, 'scripts', 'quality', 'verificar-alineacion.mjs');
+  const script = join(RAIZ_REPO, 'scripts', 'quality', 'auditoria', 'verificar-alineacion.mjs');
   const hijo = spawn(process.execPath, [script, '--json'], {
     cwd: RAIZ_REPO,
     windowsHide: true,

@@ -25,7 +25,7 @@
  *                     sentinel) → no es un problema
  *
  * Uso:
- *   node scripts/quality/verificar-alineacion.mjs [proyecto] [--json]
+ *   node scripts/quality/auditoria/verificar-alineacion.mjs [proyecto] [--json]
  *
  * Exit: 0 si TODOS los proyectos×herramientas están ALINEADO (o SIN-PROVISION);
  *       1 si hay algún desalineamiento; 2 si falla la resolución (checkout
@@ -35,7 +35,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { RAIZ_REPO, rutaConfigPrivada } from '../shared/rutas.mjs';
+import { RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.mjs';
 
 /* Mapa id → ruta absoluta del repo, derivado del registro privado.
  * [por que] Antes era una lista de proyectos incrustada en el código: ataba el
