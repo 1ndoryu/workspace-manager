@@ -25,9 +25,10 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 - **Sentinel 0.7.21** — decisiones tomadas el 2026-10-11; ver `Agente/planes/` y el histórico.
 - **`guard-sin-shim`** — bloqueado.
 - **`10AA-2` F4** — cerrado el 2026-10-13 con limitación conocida.
-- **`16A-5`** — 5 consumidores con el pin de Sentinel atrasado (`8c2b65d8` frente a `2babcd4`):
-  MN-Inmobiliaria, plugins-opencode, glory-pulse, WANDORIUS y RESTAURANTE. Se desbloquea al
-  propagar el pin con `quality:bump`.
+- **`16A-5`** — **CERRADO (2026-10-17):** `quality:bump` sobre los 16 consumidores da 0 con
+  problemas (Lock, Setup y Doctor en verde). Los dos family-B —WANDORIUS y RESTAURANTE— quedaron
+  con `provisionPath` de forma distinta a propósito: el `setup.mjs` de WANDORIUS lo admite dentro
+  del submódulo, el de RESTAURANTE lo prohíbe.
 - **`16A-4`** — 3 consumidores declarados en `quality-sync.mjs` sin directorio en el área
   (`ONG AGAPE`, `freebuff-bridge`, `GLORYINSPECTOR`): no hay pin que validar. Ver 16A-4 bis.
 - **`J` (17AA-2)** — semántica de `includePatterns`: **reemplaza** los defaults en vez de
@@ -60,12 +61,6 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
   (`bump.mjs` `pasosDe` prefiere el `scripts/quality/setup.mjs` del consumidor).
 - `308A-8` — **Invertir la regla del escáner**: un directorio es proyecto solo con señal real, en
   vez de la lista negra `IGNORADAS` de `src/server/scanner/workspace.ts`.
-- `07AA-5` — **ACTIVA (2026-10-07): pestaña `tareas` (kanban por proyecto)** con TASKS como
-  dependencia (auth por cookie+CSRF, falta token servicio-a-servicio).
-- `07AA-3` — **ACTIVA (2026-10-07): barrido de la consola** (142 → 0 accionable). Plan:
-  `Agente/planes/plan-barrido-consola-2026-10-07.md`.
-- `299A-12` — **ACTIVA (2026-09-29): `glory-pulse`**, agente en la VPS para tiempo real. Plan:
-  `Agente/planes/PLAN-glory-pulse-2026-09-29.md` (Rev.3 + §F0).
 - `04AA-1` — **REPLANTEADA (2026-10-05, veredicto REPLANTEAR).**
 - `039A-1` — plan vivo del frente cero-deuda:
   `PROYECTO TASKS/Agente/planes/plan-cero-deuda-todos-proyectos-2026-09-03.md` §9.
@@ -73,7 +68,8 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 ## Planes activos
 
 - `Agente/planes/plan-orden-workspace-manager-2026-10-17.md` — `17AA-2` (este encargo).
-- `Agente/planes/plan-barrido-consola-2026-10-07.md` — `07AA-3`.
-- `Agente/planes/plan-tareas-tasks-2026-10-07.md` — `07AA-5`.
-- `Agente/planes/PLAN-glory-pulse-2026-09-29.md` — `299A-12`.
-- `Agente/planes/PLAN-saneamiento-agents-y-analisis.md` — `S2` (en ejecución controlada).
+
+Archivados el 2026-10-17 en `Agente/planes/completados/`, con su DoD cumplido: `07AA-3`
+(barrido de la consola), `07AA-5` (pestaña `tareas`), `299A-12` (`glory-pulse`) y `S2`
+(saneamiento de AGENTS.md; su protocolo de backup sigue vivo como regla en
+`Agente/documentacion/protocolo-backup-mutaciones-2026-10-17.md`).
