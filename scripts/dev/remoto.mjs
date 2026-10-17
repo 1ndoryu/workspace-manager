@@ -23,60 +23,41 @@ import {
   slugSesion,
   urlBaseRemota,
 } from '../remoto/rcargo.mjs';
-import { leerRegistro, procesosDe, PUERTOS_PROTEGIDOS, RAIZ_REPO } from './doctor.mjs';
+/* [por que] El modo y la deteccion de entrada remota viven en doctor.mjs (la
+ * base de la que este modulo ya depende): el doctor tambien los necesita para
+ * clasificar una ficha con `host`, y definirlos dos veces los desincronizaria. */
+import {
+  esEntradaRemota,
+  entradaEfectiva,
+  leerRegistro,
+  localesDeModo,
+  MODOS,
+  MODO_POR_DEFECTO,
+  modoDe,
+  procesosDe,
+  PUERTOS_PROTEGIDOS,
+  puertosRemotosDe,
+  RAIZ_REPO,
+  reenviosTunel,
+} from './doctor.mjs';
+
+export { esEntradaRemota, entradaEfectiva, MODO_POR_DEFECTO, modoDe };
 
 const DIR_LOGS = join(RAIZ_REPO, 'logs');
 const rutaEstado = (id) => join(DIR_LOGS, `remoto-${id}.json`);
 // slugSesion: mismo saneado que la sesión de Mutagen (rcargo.mjs), para que el id con espacio no rompa el nombre.
 const sesionTmux = (id, puerto) => `dev-${slugSesion(id)}-${puerto}`;
 const fragmentoReenvio = (local, remoto) => `127.0.0.1:${local}:127.0.0.1:${remoto}`;
-// [por que] puertosRemotos (opcional): puertos que escucha la VPS cuando difieren de `puertos` (el dev local). Todo el flujo remoto usa esta lista.
-const puertosRemotosDe = (entrada) => entrada.puertosRemotos ?? entrada.puertos;
+// [por que] `puertosRemotosDe`/`localesDeModo` vienen de doctor.mjs (una sola definicion). Todo el
+// flujo remoto usa `puertosRemotosDe`: puertos que escucha la VPS cuando difieren de `puertos`.
 // [por que] puertosLocales (opcional, misma longitud que los remotos): el túnel abre ese puerto en el laptop y deja el remoto igual.
 // Permite tener el dev local encendido sin chocar con el remoto; el resto del flujo (probe, marcador) usa el local.
 const puertosLocalesDe = (entrada) => puertosRemotosDe(entrada).map((p, i) => entrada.puertosLocales?.[i] ?? p);
 // [por que] tunelSsh (opcional, true por defecto): false = la VPS expone sus puertos sola (Cloudflare Tunnel en la 89); el laptop no reenvía nada y el probe corre en la 89.
 const usaTunel = (entrada) => entrada.tunelSsh !== false;
 
-export function esEntradaRemota(entrada) {
-  return typeof entrada?.host === 'string' && entrada.host !== '';
-}
-
-// --- Modo del proyecto (16AA-18) ---
-// `dev` = vite + backend, con HMR. `build` = front construido a `dist/` y servido por el backend
-// Rust, como producción: se cae el vite, que son 150-650 MB de RAM por proyecto.
-// [16AA-18 F8] El defecto es `build` (decidido por la usuaria el 2026-10-17): el taller es para
-// probar lo que se despliega, y el vite se come la RAM que necesita `cm-heavy`.
-export const MODO_POR_DEFECTO = 'build';
-const MODOS = new Set(['dev', 'build']);
-
-// `override` = lo que pidan `up --dev` / `up --build` para esa sesión, sin tocar la ficha.
-// [por que] El defecto solo alcanza a las fichas que tienen bloque `build`: una sin él no tiene
-// nada a lo que cambiar (`entradaEfectiva` devolvería puertos vacíos), así que se queda en `dev`.
-// Poner `modo: "build"` a mano sin bloque lo rechaza `validarHostRemoto` en claro.
-export function modoDe(entrada, override) {
-  if (override) return override;
-  if (entrada.modo) return entrada.modo;
-  return entrada.build ? MODO_POR_DEFECTO : 'dev';
-}
-
-// El bloque `build` declara sus propios puertos, botones, healths y locales porque no siempre es
-// «un puerto menos»: la sesión de MN también aloja el conector de Cloudflare (20241).
-// [por que] Todo el camino de arranque lee `puertosRemotos`/`botonRemoto`/`healths`/`puertosLocales`
-// alineados por índice, así que devolver una copia con los del modo efectivo evita ramificar en
-// cada función. En `dev` devuelve la entrada tal cual: cero cambios de comportamiento.
-export function entradaEfectiva(entrada, modo = modoDe(entrada)) {
-  if (modo !== 'build') return entrada;
-  const b = entrada.build ?? {};
-  return {
-    ...entrada,
-    puertos: b.puertos,
-    puertosRemotos: b.puertos,
-    puertosLocales: b.puertosLocales,
-    botonRemoto: b.boton,
-    healths: b.healths ?? [],
-  };
-}
+/* `esEntradaRemota`, `MODO_POR_DEFECTO`, `MODOS`, `modoDe` y `entradaEfectiva`
+ * se importan de doctor.mjs y se reexportan arriba: una sola definicion. */
 
 // Lo mínimo para que `entradaEfectiva` dé algo arrancable; el resto lo comprueba el doctor sobre el
 // registro entero (`build.healths`, `marcador`, claves del bloque).
@@ -247,9 +228,9 @@ export function tunelDePuertosNuestros(proc, config, locales, remotos = locales)
   if (!proc?.creado || !proc.cmd) return false;
   if (!/^ssh(\.exe)?$/i.test(proc.imagen ?? '')) return false;
   if (!proc.cmd.includes(config.host)) return false;
-  const reenvios = [...proc.cmd.matchAll(/-L\s+(?:127\.0\.0\.1:)?(\d+):(?:127\.0\.0\.1|localhost):(\d+)/g)];
+  const reenvios = reenviosTunel(proc.cmd);
   if (!reenvios.length) return false;
-  return reenvios.every((m) => locales.includes(Number(m[1])) && remotos.includes(Number(m[2])));
+  return reenvios.every(([l, r]) => locales.includes(l) && remotos.includes(r));
 }
 
 // cm-heavy (lock de carga pesada de la VPS, §5 del taller) solo al compilar: decidido 2026-10-14.
@@ -447,7 +428,6 @@ export function puertosTodos(ficha) {
 
 // Puertos locales de los dos modos, con la misma regla que `puertosLocalesDe` (sin `puertosLocales`,
 // el local es el remoto). Sirve para encontrar el tunel huerfano del modo que se deja.
-const localesDeModo = (e) => (e.puertosRemotos ?? e.puertos ?? []).map((p, i) => e.puertosLocales?.[i] ?? p);
 export function localesTodos(ficha) {
   const b = ficha.build;
   return [...new Set([...localesDeModo(ficha), ...(b ? localesDeModo({ puertos: b.puertos, puertosLocales: b.puertosLocales }) : [])])];

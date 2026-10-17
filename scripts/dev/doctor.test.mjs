@@ -13,11 +13,18 @@ import {
   detectarRust,
   duenoDePuerto,
   enRuta,
+  entradaEfectiva,
   esDelProyecto,
+  esEntradaRemota,
   esSistemaIgnorado,
   leerRegistro,
+  modoDe,
+  paresTunel,
   parsearNetstat,
   puertoDeSaludValido,
+  reenviosTunel,
+  tunelDeEntrada,
+  tunelDeQuien,
   validarBloqueBuild,
   validarIgnoradoSistema,
   validarVps,
@@ -400,4 +407,194 @@ test('validarBloqueBuild: healths atados a build.puertos y marcador acotado', ()
   assert.equal(validarBloqueBuild(e([{ puerto: 3105, ruta: '/', esperaJson: true }])), null);
   // [por que] En build `/` tambien lo sirve la API: sin marcador un 200 no distingue SPA de API.
   assert.equal(validarBloqueBuild(e([{ puerto: 3105, ruta: '/', marcador: 'id="root"' }])), null);
+});
+
+/* --- 16AA-20: fichas remotas y sus tuneles --------------------------------
+ * El doctor clasificaba una ficha con `host` contra puertos locales que no
+ * existen (los de la 89), asi que cinco proyectos que sirven 200 en el taller
+ * salian en deriva o parados, y sus tuneles ssh sumaban ocho huerfanos
+ * «(sin proyecto)». La ficha de abajo copia la de MN-Inmobiliaria del registro. */
+
+const FICHA = {
+  id: 'X',
+  host: 'dev89',
+  puertos: [3110, 5199, 3102],
+  puertosRemotos: [3110, 5199, 20241],
+  healths: [
+    { puerto: 3110, ruta: '/api/health', esperaJson: true },
+    { puerto: 20241, ruta: '/ready', esperaJson: true },
+  ],
+  tunelSsh: false,
+  modo: 'build',
+  build: {
+    puertos: [3110, 20241],
+    puertosLocales: [13110, 12024],
+    healths: [{ puerto: 3110, ruta: '/', marcador: '<title>MN Inmobiliaria' }],
+    boton: [['cargo', 'run'], ['cloudflared', 'run']],
+    construirFront: [['npm', 'run', 'build']],
+  },
+};
+
+/* Proceso con la forma que le da `procesosDe`: solo lo que miran los ayudantes. */
+const ssh = (cmd) => ({ creado: true, imagen: 'ssh.exe', cmd });
+
+test('esEntradaRemota: solo una ficha con host no vacio', () => {
+  assert.equal(esEntradaRemota({ host: 'dev89' }), true);
+  assert.equal(esEntradaRemota({ host: '' }), false);
+  assert.equal(esEntradaRemota({ host: null }), false);
+  assert.equal(esEntradaRemota({ puertos: [8787] }), false);
+  assert.equal(esEntradaRemota(undefined), false);
+});
+
+test('modoDe: el defecto es build, pero solo si hay bloque al que cambiar', () => {
+  assert.equal(modoDe(FICHA), 'build');
+  // Una ficha sin bloque se queda en dev: `entradaEfectiva` daria puertos vacios.
+  assert.equal(modoDe({ host: 'dev89', puertos: [3105] }), 'dev');
+  assert.equal(modoDe({ modo: 'dev', build: {} }), 'dev');
+  // El override de `up --dev` / `up --build` manda sobre la ficha.
+  assert.equal(modoDe(FICHA, 'dev'), 'dev');
+  assert.equal(modoDe({ modo: 'dev' }, 'build'), 'build');
+});
+
+test('entradaEfectiva: en build cambia puertos, boton, healths y locales; en dev no toca nada', () => {
+  const ef = entradaEfectiva(FICHA);
+  assert.deepEqual(ef.puertos, [3110, 20241]);
+  assert.deepEqual(ef.puertosRemotos, [3110, 20241]);
+  assert.deepEqual(ef.puertosLocales, [13110, 12024]);
+  assert.deepEqual(ef.botonRemoto, FICHA.build.boton);
+  assert.deepEqual(ef.healths, FICHA.build.healths);
+  // La entrada original no se muta: el resto del camino la sigue leyendo.
+  assert.deepEqual(FICHA.puertos, [3110, 5199, 3102]);
+  // En dev es la identidad exacta, no una copia: cero cambios de comportamiento.
+  assert.equal(entradaEfectiva(FICHA, 'dev'), FICHA);
+});
+
+test('paresTunel: los pares de los dos modos, en orden, sin `puertosLocales` local = remoto', () => {
+  assert.deepEqual(paresTunel(FICHA), [
+    [3110, 3110],
+    [5199, 5199],
+    [20241, 20241],
+    [13110, 3110],
+    [12024, 20241],
+  ]);
+  // Sin `puertosRemotos` el remoto es `puertos`, y sin locales el local es el remoto.
+  assert.deepEqual(paresTunel({ puertos: [3105] }), [[3105, 3105]]);
+  // Sin puertos no hay pares (una ficha remota sin `build` ni `puertos`).
+  assert.deepEqual(paresTunel({ host: 'dev89' }), []);
+});
+
+test('reenviosTunel: lee `-L` con y sin bind explicito, y con localhost', () => {
+  assert.deepEqual(reenviosTunel('ssh -N -L 3110:127.0.0.1:3110 dev89'), [[3110, 3110]]);
+  assert.deepEqual(reenviosTunel('ssh -N -L 127.0.0.1:13110:127.0.0.1:3110 dev89'), [[13110, 3110]]);
+  assert.deepEqual(reenviosTunel('ssh -N -L 12024:localhost:20241 dev89'), [[12024, 20241]]);
+  assert.deepEqual(reenviosTunel('ssh -N -L 3110:127.0.0.1:3110 -L 5199:127.0.0.1:5199 dev89'), [
+    [3110, 3110],
+    [5199, 5199],
+  ]);
+  // `-R` (saliente) no es un reenvio local, y sin `-L` no hay nada.
+  assert.deepEqual(reenviosTunel('ssh -N -R 3102:127.0.0.1:3102 dev89'), []);
+  assert.deepEqual(reenviosTunel(undefined), []);
+});
+
+test('tunelDeEntrada: el tunel declarado es suyo; uno con un reenvio de mas, no', () => {
+  // Los dos tuneles de la ficha (dev en 3110/5199) y los del modo build.
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 3110:127.0.0.1:3110 dev89'), FICHA), true);
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 5199:127.0.0.1:5199 dev89'), FICHA), true);
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 13110:127.0.0.1:3110 dev89'), FICHA), true);
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 12024:127.0.0.1:20241 dev89'), FICHA), true);
+  // Un reenvio que la ficha no declara no es el tunel de la ficha.
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 3110:127.0.0.1:3110 -L 9999:127.0.0.1:9999 dev89'), FICHA), false);
+  // De otra maquina no es nuestro.
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 3110:127.0.0.1:3110 dev66'), FICHA), false);
+  // Un proceso que no es ssh, o sin linea de comando, no es un tunel.
+  assert.equal(tunelDeEntrada({ creado: true, imagen: 'node.exe', cmd: 'ssh -N -L 3110:127.0.0.1:3110 dev89' }, FICHA), false);
+  assert.equal(tunelDeEntrada({ creado: true, imagen: 'ssh.exe' }, FICHA), false);
+  // Y una entrada local no tiene tunel.
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 8787:127.0.0.1:8787 dev89'), { puertos: [8787] }), false);
+});
+
+test('tunelDeQuien: nombra la ficha del tunel y null si no es de nadie', () => {
+  assert.equal(tunelDeQuien(ssh('ssh -N -L 13110:127.0.0.1:3110 dev89'), [FICHA])?.id, 'X');
+  // Testigo: el mismo barrido si reconoce el tunel de la ficha, asi que el
+  // null de la lab no es un «no existe» ciego.
+  assert.equal(tunelDeQuien(ssh('ssh -N -L 12024:127.0.0.1:20241 dev89'), [FICHA])?.id, 'X');
+  // Los tres tuneles de la lab no son de ninguna ficha: siguen siendo lo que son.
+  assert.equal(tunelDeQuien(ssh('ssh -N -L 13103:127.0.0.1:3103 dev89'), [FICHA]), null);
+  assert.equal(tunelDeQuien(ssh('ssh -N -L 14190:127.0.0.1:4190 dev89'), [FICHA]), null);
+});
+
+test('paresTunel: `tunelesExtra` añade el puente del gateway (33110 -> 3110 de la 89)', () => {
+  const conPuente = { ...FICHA, tunelesExtra: [[33110, 3110]] };
+  assert.ok(paresTunel(conPuente).some(([l, r]) => l === 33110 && r === 3110));
+  // El puente es del proyecto aunque el local (33110) no salga de sus puertos.
+  const puente = ssh('ssh -N -o ControlMaster=no -L 33110:127.0.0.1:3110 -R 3102:127.0.0.1:3102 dev89');
+  assert.equal(tunelDeEntrada(puente, conPuente), true);
+  // Sin declararlo no es suyo: asi salia huerfano «(sin proyecto)» en 16AA-20.
+  assert.equal(tunelDeEntrada(puente, FICHA), false);
+  assert.equal(tunelDeQuien(puente, [conPuente])?.id, 'X');
+});
+
+test('leerRegistro: un auxiliar sobre un puerto que el mando solo sirve en dev es valido en build', () => {
+  const dir = mkdtempSync(join('C:/tmp', 'wm-registro-test-'));
+  const ruta = join(dir, 'registro.json');
+  try {
+    const base = {
+      version: 1,
+      proyectos: [
+        {
+          id: 'X',
+          ruta: '.',
+          boton: [['npm', 'run', 'dev'], ['npm', 'run', 'gateway']],
+          puertos: [3110, 3102],
+          healths: [{ puerto: 3110, ruta: '/' }],
+          expectedCmdline: ['x', 'gateway'],
+          auxiliares: [{ puerto: 3102, marcador: '--gateway-x', motivo: 'vive en el portatil' }],
+        },
+      ],
+    };
+    // Sin bloque `build` el modo es dev y 3102 si es del mando: auxiliar invalido.
+    writeFileSync(ruta, JSON.stringify(base));
+    assert.match(leerRegistro(ruta).entradas.get('X')._avisoRegistro ?? '', /auxiliares/);
+    // Con `build` el mando sirve 3110 y el gateway queda fuera: auxiliar legitimo.
+    base.proyectos[0].modo = 'build';
+    base.proyectos[0].build = { puertos: [3110], boton: [['cargo', 'run']], construirFront: [['npm', 'run', 'build']] };
+    writeFileSync(ruta, JSON.stringify(base));
+    const e = leerRegistro(ruta).entradas.get('X');
+    assert.equal(e._avisoRegistro, undefined);
+    assert.equal(auxiliarDe(3102, 'node src/index.mjs --gateway-x', [e]), 'X');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('leerRegistro: el registro real declara el gateway y el puente de MN sin aviso', () => {
+  const reg = leerRegistro();
+  const mn = reg.entradas.get('MN-Inmobiliaria');
+  assert.equal(mn._avisoRegistro, undefined);
+  assert.equal(auxiliarDe(3102, 'node  src/index.mjs --gateway-mn ', reg.entradas.values()), 'MN-Inmobiliaria');
+  assert.deepEqual(mn.tunelesExtra, [[33110, 3110]]);
+  assert.equal(
+    tunelDeEntrada(ssh('ssh.exe -N -o ControlMaster=no -L 33110:127.0.0.1:3110 -R 3102:127.0.0.1:3102 dev89'), mn),
+    true,
+  );
+});
+
+test('esSistemaIgnorado: identidad por puerto solo para un proceso ilegible', () => {
+  const lista = [{ puerto: 8790, motivo: 'gateway local de Claude Desktop' }];
+  const ilegible = { exe: null, cmd: '', imagen: null };
+  assert.equal(esSistemaIgnorado(8204, ilegible, lista, null, 8790), true);
+  // Otro puerto no casa.
+  assert.equal(esSistemaIgnorado(8204, ilegible, lista, null, 8791), false);
+  // Sin puerto (llamada vieja) tampoco: no se ignora por accidente.
+  assert.equal(esSistemaIgnorado(8204, ilegible, lista), false);
+  /* Testigo de que no tapa un hueco real: si el puerto pasa a ser de un
+   * proyecto, su proceso tiene exe legible y el ignorado deja de casar. */
+  assert.equal(esSistemaIgnorado(9001, { exe: 'C:\area\glory-lab\node.exe', cmd: 'node server' }, lista, null, 8790), false);
+});
+
+test('validarIgnoradoSistema: puerto exige rango y es excluyente con exe/pid/imagen/servicio', () => {
+  assert.throws(() => validarIgnoradoSistema({ puerto: 80, motivo: 'puerto privilegiado' }, 't'), /exactamente uno/);
+  assert.throws(() => validarIgnoradoSistema({ puerto: 8790, pid: 4, motivo: 'los dos' }, 't'), /exactamente uno/);
+  assert.throws(() => validarIgnoradoSistema({ puerto: 8790, imagen: 'algo.exe', motivo: 'los dos' }, 't'), /exactamente uno/);
+  assert.doesNotThrow(() => validarIgnoradoSistema({ puerto: 8790, motivo: 'gateway local de Claude Desktop' }, 't'));
 });

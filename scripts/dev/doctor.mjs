@@ -154,16 +154,22 @@ export function validarVps(v) {
 export function validarIgnoradoSistema(s, ctx) {
   if (typeof s !== 'object' || s === null || Array.isArray(s)) throw new Error(`registro: ${ctx} no es objeto`);
   for (const k of Object.keys(s)) {
-    if (!['exe', 'imagen', 'pid', 'servicio', 'cmdContiene', 'motivo'].includes(k)) throw new Error(`registro: ${ctx} clave desconocida '${k}'`);
+    if (!['exe', 'imagen', 'pid', 'puerto', 'servicio', 'cmdContiene', 'motivo'].includes(k)) throw new Error(`registro: ${ctx} clave desconocida '${k}'`);
   }
   const tieneExe = typeof s.exe === 'string' && isAbsolute(s.exe);
   // [por que] imagen = nombre de ejecutable sin ruta (p. ej. TpvNet.exe): para
   // terceros cuyo exe no es legible sin elevar. Sin separadores: nunca una ruta.
   const tieneImagen = typeof s.imagen === 'string' && /^[^\\/:*?"<>|]{3,80}\.exe$/i.test(s.imagen);
   const tienePid = Number.isInteger(s.pid) && s.pid > 0;
+  // [por que 16AA-20] puerto = identidad por puerto, para el tercero elevado del
+  // que Windows no deja leer ni exe ni linea de comando (el gateway local de
+  // Claude Desktop en 8790). Se exige ademas que el proceso sea ilegible, asi
+  // que no tapa a un proyecto que mañana quiera ese puerto: entonces el suyo
+  // tendria exe y cmd y el ignorado no casaria.
+  const tienePuerto = Number.isInteger(s.puerto) && s.puerto >= 1024 && s.puerto <= 65535;
   const tieneServicio = typeof s.servicio === 'string' && s.servicio.length >= 2 && s.servicio.length <= 200;
-  if ([tieneExe, tieneImagen, tienePid, tieneServicio].filter(Boolean).length !== 1) {
-    throw new Error(`registro: ${ctx} requiere exactamente uno de exe (ruta absoluta), imagen (nombre .exe), pid o servicio`);
+  if ([tieneExe, tieneImagen, tienePid, tienePuerto, tieneServicio].filter(Boolean).length !== 1) {
+    throw new Error(`registro: ${ctx} requiere exactamente uno de exe (ruta absoluta), imagen (nombre .exe), pid, puerto o servicio`);
   }
   // [por que] Un exe generico (bun.exe) puede lanzar mas de un servicio: cmdContiene
   // acota el ignorado a una linea de comando concreta, nunca vale solo con pid.
@@ -197,7 +203,7 @@ function validarEntrada(e) {
     if (!e._avisoRegistro) e._avisoRegistro = motivo;
   };
   // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) {
       mal(`registro: clave desconocida '${k}' en '${e.id}'`);
@@ -299,6 +305,15 @@ function validarEntrada(e) {
   if ('tunelSsh' in e && typeof e.tunelSsh !== 'boolean') {
     mal(`registro: '${e.id}' tunelSsh debe ser true o false`);
     return;
+  }
+  // [por que] tunelesExtra: reenvíos declarados que no salen de `puertos` ni del
+  // bloque `build` (el puente del gateway de MN: 33110 -> 3110 de la 89). Sin
+  // esto el túnel del proyecto salía huérfano «(sin proyecto)».
+  if ('tunelesExtra' in e) {
+    if (!Array.isArray(e.tunelesExtra) || e.tunelesExtra.some((p) => !Array.isArray(p) || p.length !== 2 || p.some((n) => !Number.isInteger(n) || n < 1024 || n > 65535))) {
+      mal(`registro: '${e.id}' tunelesExtra debe ser array de pares [local, remoto] (1024-65535)`);
+      return;
+    }
   }
   // [por que S3.7] analisisEn: dónde corre el análisis Sentinel/VarSense del gate. Ausente = local.
   if ('analisisEn' in e && e.analisisEn !== 'local' && e.analisisEn !== 'dev89') {
@@ -451,8 +466,14 @@ function validarEntrada(e) {
       mal(`registro: '${e.id}' auxiliares no es array`);
       return;
     }
+    // [por que 16AA-20] Que un puerto sea del mando depende del modo: en `build`
+    // el mando sirve los del bloque y el resto no son suyos. MN declara su
+    // gateway (3102) en `puertos` —lo arranca en dev— pero en build vive en el
+    // portatil y lo mantiene el guardian, asi que ahi si es un auxiliar legitimo.
+    // Se compara contra los puertos efectivos, no contra los de la ficha.
+    const gestionados = new Set(entradaEfectiva(e).puertos ?? []);
     for (const a of e.auxiliares) {
-      const enPuertos = Array.isArray(e.puertos) && e.puertos.includes(a?.puerto);
+      const enPuertos = gestionados.has(a?.puerto);
       const valido =
         typeof a === 'object' && a !== null &&
         Number.isInteger(a.puerto) && a.puerto >= 1 && a.puerto <= 65535 && !enPuertos &&
@@ -627,6 +648,101 @@ function normalizarRuta(r) {
 }
 
 export { normalizarRuta };
+
+/* --- Modo del proyecto (16AA-18) y entrada remota ---------------------------
+ * [por que] Viven aqui, en la base, y no en remoto.mjs: el doctor tambien los
+ * necesita para clasificar una ficha con `host` (el tunel ssh ocupa su puerto
+ * local), y definirlos dos veces los desincronizaria. remoto.mjs los reexporta. */
+
+export function esEntradaRemota(entrada) {
+  return typeof entrada?.host === 'string' && entrada.host !== '';
+}
+
+// `dev` = vite + backend, con HMR. `build` = front construido a `dist/` y servido por el backend
+// Rust, como producción: se cae el vite, que son 150-650 MB de RAM por proyecto.
+// [16AA-18 F8] El defecto es `build` (decidido por la usuaria el 2026-10-17): el taller es para
+// probar lo que se despliega, y el vite se come la RAM que necesita `cm-heavy`.
+export const MODO_POR_DEFECTO = 'build';
+export const MODOS = new Set(['dev', 'build']);
+
+// `override` = lo que pidan `up --dev` / `up --build` para esa sesión, sin tocar la ficha.
+// [por que] El defecto solo alcanza a las fichas que tienen bloque `build`: una sin él no tiene
+// nada a lo que cambiar (`entradaEfectiva` devolvería puertos vacíos), así que se queda en `dev`.
+// Poner `modo: "build"` a mano sin bloque lo rechaza `validarHostRemoto` en claro.
+export function modoDe(entrada, override) {
+  if (override) return override;
+  if (entrada.modo) return entrada.modo;
+  return entrada.build ? MODO_POR_DEFECTO : 'dev';
+}
+
+// El bloque `build` declara sus propios puertos, botones, healths y locales porque no siempre es
+// «un puerto menos»: la sesión de MN también aloja el conector de Cloudflare (20241).
+// [por que] Todo el camino de arranque lee `puertosRemotos`/`botonRemoto`/`healths`/`puertosLocales`
+// alineados por índice, así que devolver una copia con los del modo efectivo evita ramificar en
+// cada función. En `dev` devuelve la entrada tal cual: cero cambios de comportamiento.
+export function entradaEfectiva(entrada, modo = modoDe(entrada)) {
+  if (modo !== 'build') return entrada;
+  const b = entrada.build ?? {};
+  return {
+    ...entrada,
+    puertos: b.puertos,
+    puertosRemotos: b.puertos,
+    puertosLocales: b.puertosLocales,
+    botonRemoto: b.boton,
+    healths: b.healths ?? [],
+  };
+}
+
+// [por que] puertosRemotos (opcional): puertos que escucha la VPS cuando difieren de `puertos`.
+export const puertosRemotosDe = (entrada) => entrada.puertosRemotos ?? entrada.puertos ?? [];
+
+// [por que] puertosLocales (opcional, misma longitud que los remotos): el túnel abre ese puerto en
+// el laptop y deja el remoto igual; sin él, el local es el remoto.
+export const localesDeModo = (e) => puertosRemotosDe(e).map((p, i) => e.puertosLocales?.[i] ?? p);
+
+/* Pares (local, remoto) que la ficha declara para sus túneles, en los dos modos:
+ * es exactamente lo que el portátil puede alcanzar de un proyecto remoto.
+ * `tunelesExtra` añade reenvíos que no salen de los puertos: el puente del
+ * gateway de MN (`-L 33110:127.0.0.1:3110`) lleva a un puerto ya declarado
+ * (3110) desde uno que no lo está, y `puertosLocales` no puede decir las dos
+ * cosas a la vez (3110 y 33110 apuntando al mismo remoto). */
+export function paresTunel(entrada) {
+  const deModo = (e) => puertosRemotosDe(e).map((r, i) => [localesDeModo(e)[i], r]);
+  const pares = deModo(entrada);
+  const b = entrada.build;
+  if (b) pares.push(...deModo({ puertos: b.puertos, puertosLocales: b.puertosLocales }));
+  for (const p of entrada.tunelesExtra ?? []) pares.push([p[0], p[1]]);
+  return pares;
+}
+
+/* Reenvíos `-L` de un túnel ssh, como pares [local, remoto]. Puro.
+ * [por que] El bind explícito es opcional: `-L 3110:127.0.0.1:3110` (lo que
+ * escribe `ssh -f`) y `-L 127.0.0.1:3110:127.0.0.1:3110` son el mismo reenvío. */
+export function reenviosTunel(cmd) {
+  return [...String(cmd ?? '').matchAll(/-L\s+(?:127\.0\.0\.1:)?(\d+):(?:127\.0\.0\.1|localhost):(\d+)/g)].map(
+    (m) => [Number(m[1]), Number(m[2])],
+  );
+}
+
+/* ¿`proc` es el túnel ssh que la ficha `entrada` declara hacia su host? Todos
+ * sus reenvíos tienen que ser pares declarados: un túnel de una versión
+ * anterior, con reenvíos de más, no es el de esta ficha. */
+export function tunelDeEntrada(proc, entrada) {
+  if (!proc?.creado || !proc.cmd) return false;
+  if (!/^ssh(\.exe)?$/i.test(proc.imagen ?? '')) return false;
+  if (!esEntradaRemota(entrada) || !proc.cmd.includes(entrada.host)) return false;
+  const reenvios = reenviosTunel(proc.cmd);
+  if (!reenvios.length) return false;
+  const pares = paresTunel(entrada);
+  return reenvios.every(([l, r]) => pares.some(([pl, pr]) => pl === l && pr === r));
+}
+
+/* Entrada remota cuyo túnel es `proc`, o null. [por que] El túnel no es un
+ * hueco del área: ocupa el puerto local del proyecto a propósito. */
+export function tunelDeQuien(proc, entradas) {
+  for (const e of entradas) if (tunelDeEntrada(proc, e)) return e;
+  return null;
+}
 
 /* Marcador de deteccion para un puerto: string unico o posicion i del
  * array (misma alineacion 1:1 que boton). Fuera de rango = primero (no hay
@@ -831,10 +947,13 @@ export function detectarDerivaEnv(registro, { raiz = RAIZ_REPO } = {}) {
  * (ruta exacta), por imagen (nombre .exe, para exe ocultos sin elevar), por
  * servicio de Windows (nombre, para exe protegidos) o por pid solo cuando no
  * hay exe (System = PID 4 en Windows). */
-export function esSistemaIgnorado(pid, proc, lista = [], servicio = null) {
+export function esSistemaIgnorado(pid, proc, lista = [], servicio = null, puerto = null) {
   return lista.some((s) => {
     if (s.servicio) return servicio?.nombre === s.servicio;
     if (s.imagen) return typeof proc?.imagen === 'string' && proc.imagen.toLowerCase() === s.imagen.toLowerCase();
+    // [por que 16AA-20] Identidad por puerto solo para un proceso ilegible: si
+    // tuviera exe, el ignorado no casa y el hueco sigue siendo visible.
+    if (s.puerto) return s.puerto === puerto && !proc?.exe;
     if (!s.exe) return s.pid === pid && !proc?.exe;
     if (!proc?.exe || normalizarRuta(proc.exe) !== normalizarRuta(s.exe)) return false;
     return !s.cmdContiene || (proc.cmd ?? '').includes(s.cmdContiene);
@@ -946,7 +1065,11 @@ export async function clasificar(proyectos, registro, escucha, ignorados = []) {
     if (auxiliarDe(c.puerto, proc?.cmd, registro.entradas.values())) continue;
     // [por que] Terceros/sistema declarados (uTorrent, Intel, VPN, sccache,
     // kernel, servicios de Windows): no son del area ni son huecos.
-    if (esSistemaIgnorado(c.pid, proc, ignoradosSis, servicios.get(c.pid) ?? null)) continue;
+    if (esSistemaIgnorado(c.pid, proc, ignoradosSis, servicios.get(c.pid) ?? null, c.puerto)) continue;
+    // [por que 16AA-20] Tunel ssh de una ficha remota: ocupa su puerto local a
+    // proposito, no es un hueco. Antes salian ocho «(sin proyecto)» —los tres de
+    // la lab (13103/13104/14190) y los cinco de las fichas (3105, 3110, 5199).
+    if (tunelDeQuien(proc, registro.entradas.values())) continue;
     // [por que] El pool incluye los ignorados del area: opencode-propio (ignorado
     // en el tablero) se atribuye y cae en noAplica en vez de salir huerfano mudo.
     const clave = atribuirHuerfano(proc, [...proyectos, ...ignorados]);
@@ -993,20 +1116,53 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
     estado = 'deriva';
     motivo = texto;
   };
-  // [por que] Un health remoto no tiene oyente local: se sondea por el tunel, no aqui.
-  const saludLocal = healths.filter((h) => entrada.puertos.includes(h.puerto));
+  // [por que 16AA-20] Una ficha con `host` no tiene oyente local: lo que escucha
+  // en el portatil es su tunel ssh. Se clasifica por el tunel —el puerto local
+  // declarado en `puertosLocales`, o el mismo numero— y solo si el tunel esta
+  // abierto. Antes se filtraba por `entrada.puertos`, que en una ficha remota
+  // son los de la 89: el tunel salia «ocupado por desconocido» y los puertos sin
+  // tunel «libre (parado)», asi que cinco proyectos que sirven 200 en la 89
+  // salian en deriva o parados. Y el modo manda: en `build` los puertos son los
+  // del bloque, no los del dev.
+  const remota = esEntradaRemota(entrada);
+  const ef = remota ? entradaEfectiva(entrada) : entrada;
+  const mapaLocal = new Map();
+  if (remota) {
+    const locales = localesDeModo(ef);
+    puertosRemotosDe(ef).forEach((r, i) => mapaLocal.set(r, locales[i]));
+  }
+  const saludLocal = [];
+  const sinTunel = [];
+  for (const h of healths) {
+    const local = remota ? mapaLocal.get(h.puerto) : entrada.puertos.includes(h.puerto) ? h.puerto : undefined;
+    if (local === undefined) continue;
+    if (remota && (porPuerto.get(local) ?? []).length === 0) {
+      sinTunel.push(h.puerto);
+      continue;
+    }
+    saludLocal.push({ ...h, puertoLocal: local });
+  }
   for (const h of saludLocal) {
-    const oyentes = porPuerto.get(h.puerto) ?? [];
+    const oyentes = porPuerto.get(h.puertoLocal) ?? [];
     // [por que] Dos `tsx watch` del mismo servidor pelean el puerto
     // (caso real 2026-10-01: pids 23444+16484 en 8787, probe intermitente).
     // Quedarse con el primero ocultaria el duplicado: es deriva visible.
-    const propios = oyentes.filter((o) => esDelProyecto(procs.get(o.pid), p.ruta, marcadorPuerto(entrada, h.puerto)));
-    if (propios.length > 1) {
-      fijarDeriva(`puerto ${h.puerto} con ${propios.length} procesos del proyecto (duplicado: ${propios.map((o) => o.pid).join(',')})`);
-      detalle.push({ puerto: h.puerto, situacion: 'duplicado', pids: propios.map((o) => o.pid) });
+    const propios = oyentes.filter(
+      (o) => esDelProyecto(procs.get(o.pid), p.ruta, marcadorPuerto(entrada, h.puerto)) || tunelDeEntrada(procs.get(o.pid), entrada),
+    );
+    // [por que 16AA-20] Un mismo proceso puede tener dos sockets en escucha del
+    // mismo puerto (dual-stack: `::1` y `127.0.0.1`, medido en el tunel ssh de
+    // MN, pid 26076). El duplicado que importa son dos PROCESOS peleando el
+    // puerto; contar sockets daba «duplicado: 26076,26076» en un tunel sano.
+    const porPid = new Map();
+    for (const o of propios) if (!porPid.has(o.pid)) porPid.set(o.pid, o);
+    const duelos = [...porPid.values()];
+    if (duelos.length > 1) {
+      fijarDeriva(`puerto ${h.puerto} con ${duelos.length} procesos del proyecto (duplicado: ${duelos.map((o) => o.pid).join(',')})`);
+      detalle.push({ puerto: h.puerto, situacion: 'duplicado', pids: duelos.map((o) => o.pid) });
       continue;
     }
-    const propio = propios[0];
+    const propio = duelos[0];
     if (!propio) {
       if (oyentes.length) {
         fijarDeriva(`puerto ${h.puerto} ocupado por desconocido`);
@@ -1025,7 +1181,7 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
       continue;
     }
     consumidos.add(`${propio.ip}:${propio.puerto}:${propio.pid}`);
-    const s = await sondear(h.puerto, h.ruta, h.esperaJson, timeoutMs, entrada.dominio);
+    const s = await sondear(h.puertoLocal, h.ruta, h.esperaJson, timeoutMs, entrada.dominio);
     if (!s.ok) {
       fijarDeriva(`puerto ${h.puerto} sin probe (status ${s.status})`);
       detalle.push({ puerto: h.puerto, situacion: 'sin-probe', pids: [propio.pid] });
@@ -1038,11 +1194,22 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
   // fueran del proyecto (MN-Inmobiliaria: gateway 3102 tras 5199 caido). La
   // atribucion no cambia el estado; solo evita falsos huerfanos.
   for (const h of saludLocal) {
-    for (const o of porPuerto.get(h.puerto) ?? []) {
-      if (esDelProyecto(procs.get(o.pid), p.ruta, marcadorPuerto(entrada, h.puerto))) {
+    for (const o of porPuerto.get(h.puertoLocal) ?? []) {
+      if (esDelProyecto(procs.get(o.pid), p.ruta, marcadorPuerto(entrada, h.puerto)) || tunelDeEntrada(procs.get(o.pid), entrada)) {
         consumidos.add(`${o.ip}:${o.puerto}:${o.pid}`);
       }
     }
+  }
+  /* Túneles declarados que no están abiertos. [por que] Sin ninguno abierto la
+   * sesión no está en marcha: `parado`, no deriva. Con alguno abierto, uno
+   * cerrado es un hueco visible (`up` lo abre); pero si la ficha declara
+   * `tunelSsh: false` el portátil no abre túneles a propósito y esos puertos los
+   * verifica la 89: darlos por libres era el falso «libre (parado)» de MN. */
+  if (remota && sinTunel.length > 0) {
+    if (saludLocal.length === 0) {
+      return { estado: 'parado', motivo: `tunel cerrado (${sinTunel.join(', ')})`, detalle: [], consumidos };
+    }
+    if (entrada.tunelSsh !== false) fijarDeriva(`tunel cerrado (${sinTunel.join(', ')})`);
   }
   if (estado === 'deriva' && detalle.length > 0 && detalle.every((d) => d.situacion === 'libre')) {
     /* [05AA-4] Todo libre = detenido normal, no caida: 'parado' (exit 0,
