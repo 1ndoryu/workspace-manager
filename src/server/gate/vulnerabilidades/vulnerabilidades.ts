@@ -22,8 +22,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { compartirVuelo } from '../vuelo.js';
-import { modoAnalisis } from '../remoto.js';
-import { ejecutarAuditRemoto, prepararArbolRemoto } from '../auditoria-remota.js';
+import { ejecutarAuditRemoto } from '../auditoria-remota.js';
 import type { GestorAudit } from '../auditoria-remota.js';
 import {
   contar,
@@ -34,6 +33,7 @@ import {
   parsearExcepcionesAudit,
 } from './vulnerabilidades-parseo.js';
 import type { JsonAudit } from './vulnerabilidades-parseo.js';
+import { avisoLocal, enTaller, prepararRemoto } from './vulnerabilidades-remoto.js';
 import type {
   AnalisisVulnerabilidades,
   HallazgoVulnerabilidad,
@@ -207,37 +207,6 @@ async function cliDeAudit(g: GestorAudit, cwd: string, remoto: boolean): Promise
 /* Quien ejecuta los comandos del audit: en local, o en la 89 si el proyecto se
  * analiza alli. */
 type Corredor = (comando: string) => Promise<Ejecucion>;
-
-/* Deja en la 89 el arbol que necesita este gestor. Devuelve null si se pudo, o el
- * motivo por el que no: el audit cae a local en vez de fallar, que es lo que hace
- * el manager sin VPS. [por que] Antes devolvia false en silencio, y un audit que
- * corrio en el portatil se mostraba igual que uno de la 89: la degradacion tiene
- * que decirse, no callarse. */
-async function prepararRemoto(rutaProyecto: string, gestor: GestorAudit): Promise<string | null> {
-  try {
-    await prepararArbolRemoto(rutaProyecto, gestor);
-    return null;
-  } catch (err) {
-    return err instanceof Error ? err.message : String(err);
-  }
-}
-
-/* Aviso de degradacion, para que el panel distinga un audit de la 89 de uno que
- * se quedo en local. Misma forma que el de `analizador.ts` para Sentinel y
- * VarSense: `aviso`, no `error`, porque hay resultado. */
-function avisoLocal(fallo: string): string {
-  return `hecho en local, el taller no respondió (${fallo.slice(0, 120)})`;
-}
-
-/* Si el proyecto se analiza en la 89. `modoAnalisis` lee registro.json, que es
- * configuracion privada: sin el (o ilegible) se audita en local, nunca se falla. */
-function enTaller(clave: string): boolean {
-  try {
-    return modoAnalisis(clave) === 'taller';
-  } catch {
-    return false;
-  }
-}
 
 /* Un hallazgo de cargo solo cuenta si el crate alcanza el build. `memo` es de
  * UNA auditoria: varios advisories del mismo crate cuestan un solo cargo tree.
