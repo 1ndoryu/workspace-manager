@@ -20,7 +20,7 @@
       "enabled": true,
       "profile": "node",
       "config": {
-        "includePatterns": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.css"],
+        "includePatterns": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.mjs", "**/*.css"],
         "excludePatterns": ["**/node_modules/**", "**/dist/**", "**/dist-server/**", "**/build/**", "**/.git/**", "**/data/**"],
         "directoryExceptions": [],
         "portableBoundaries": {},
