@@ -69,11 +69,25 @@ su commit. El orden importa: **A y B van antes que C**, porque cambian lo que el
     `box-shadow`, que su propio `varsense.config.json:62-68` declara prohibida
     (`PlanoOcupacion.css:91`, `PlanoSala.css:119`). **Pasa a I como problema real**; no se toca
     la regla.
-  - **B4 · `tokenDetection.duplicate.excludeTokens`: la clave no existe.** Solo se lee
-    `unused.excludeTokens` (`config.ts:180,217` → `tokenRules.ts:250`); el bloque `duplicate`
-    (`tokenRules.ts:184-247`) no consulta exclusiones y el tipo (`config.ts:39`) no la declara.
-    Los 41 `token-duplicate` de RESTAURANTE son el puente shadcn/Tailwind repitiendo valor por
-    diseño. **Decisión de la usuaria:** implementar la clave o aceptar los duplicados.
+  - **B4 · `tokenDetection.duplicate.excludeTokens`. HECHO (`3375e18` en `varsense`).** Solo se
+    leía `unused.excludeTokens` (`config.ts:180,217` → `tokenRules.ts:250`); el bloque `duplicate`
+    (`tokenRules.ts:184-247`) no consultaba exclusiones y el tipo (`config.ts:39`) no la declaraba.
+    **Decisión de la usuaria:** implementar la clave y usarla. Por qué los 41 de RESTAURANTE eran
+    falsos positivos, y no un síntoma que hubiera que callar: un tema tipo shadcn reparte el
+    mismo valor entre varios roles (`--card` y `--popover` valen lo mismo que `--background`)
+    justamente para poder re-tematizar cada rol por separado, así que la repetición **es** la
+    estructura del design system; y los 6 del `:root` de contrato [J-4] (`--w`/`--h` = `auto`,
+    `--tr`/`--trs`/`--rot`/`--sombra`/`--desplazamiento` = `none`, `--anchoC`/`--altoC` = `100%`)
+    son marcadores de posición que cada elemento sobrescribe desde JSX: colapsar `--w` y `--h`
+    en un token sería incorrecto, son slots distintos de la propiedad compuesta. La regla no puede
+    deducir cuál de los dos casos tiene delante, así que lo declara el proyecto. El token excluido
+    no participa en la agrupación ni como canónico ni como duplicado (importa: si el orden del
+    grupo cambia, el canónico de hoy es el duplicado de mañana). Acepta el nombre con o sin `--`.
+    **Evidencia:** fixture con dos alias + un par testigo — sin la clave 3 `token-duplicate`, con la
+    clave 1 (solo el testigo); RESTAURANTE 41 → 0 con las demás reglas intactas (`token-unused` 16,
+    `cssInlineReact` 1, `propiedadProhibida` 7, `claseHuerfana` 6, `valorHardcoded` 1). 4 tests
+    nuevos en `varsense/src/test/suite/tokenRules.test.ts` (renombrado desde `tokenRulesTema`:
+    ya cubre las dos reglas de tokens), suite standalone 9/9, `eslint` 0 errores, `check:core` OK.
   - **B5 · `excepciones-varsense.json`: artefacto huérfano. HECHO (`13A-1`).** Existía en 7
     proyectos (7,5 KB cada uno, 2026-09-11) adjudicando ~49 `token-duplicate`, 39 `token-unused` y
     6 `claseHuerfana`; **ningún programa lo lee** (barrido de `excepciones-varsense` en
@@ -346,13 +360,20 @@ ficha declara, con `FAMILIA_DE_EXTENSION` y `prefijoDe`/`conPrefijo`; `buildCore
 en `config.ts:317` y `portableConfig.test.ts:24-38` lo cubre (incluido el caso de ámbito por
 subdirectorio). Lo que faltaba era el texto del plan y del roadmap, no el código.
 
-**Pendiente:** B4 (`tokenDetection.duplicate.excludeTokens`, falso positivo de herramienta),
-H (adoptar el cambio ajeno de navegación), I (RESTAURANTE 259 y KAMPLES 121, con los 7
-`propiedadProhibida` reales), el frente 3 (coherencia con el taller: `modoAnalisisEn` cae a
-local en silencio, `doctorSentinel` no consulta la decisión, binarios sin variable de entorno),
-el frente 8 (SOLID a fondo), el frente 9 (hardcodeo) y el frente 10 (accesibilidad).
-**Pendiente de la usuaria, no del plan:** la licencia del repo (es público y sin licencia los
-derechos quedan reservados por defecto).
+**Cerrado también:** B4 (`3375e18` en `varsense`, `duplicate.excludeTokens`; la config de
+RESTAURANTE que lo usa, `3a684f9`), la licencia (GPL-3.0, `aa44312`, decisión de la usuaria), el
+barrido de datos personales y del taller incrustados (`516bad6`: el alias SSH de `escritorio-89.sh`
+y el usuario de `root-taller-89.sh` salen de `config/taller.json`; la ruta personal y dos rutas de
+config viejas en `skills/dev-bootstrap`), L1–L2 (`AGENTS.md` §2 sin la nota de rutas desfasadas y
+la skill `workspace-manager` al día, las dos sincronizadas a la 89) y G (los planes abiertos,
+revisados y organizados).
+
+**Pendiente:** H (adoptar el cambio ajeno de navegación), I (el resto del tablero: RESTAURANTE 202
+tras B4 y KAMPLES 113, con los 7 `propiedadProhibida` reales), el frente 3 (coherencia con el
+taller: `modoAnalisisEn` cae a local en silencio, `doctorSentinel` no consulta la decisión,
+binarios sin variable de entorno), el frente 5 (con y sin VPS), el frente 8 (SOLID a fondo), el
+frente 9 (hardcodeo), el frente 10 (accesibilidad) y L3–L6 (las skills que citan el pin de
+Sentinel, las memorias y `Agente/documentacion/`).
 
 ### L · Documentación viva: skills, `AGENTS.md` y memorias (encargo de la usuaria, 2026-10-17)
 

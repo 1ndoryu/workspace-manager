@@ -12,8 +12,11 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 ## Siguiente bloque ejecutable
 
 0. `17AA-2` — **Poner workspace-manager en orden** (encargo de la usuaria, 2026-10-17). Plan:
-   `Agente/planes/plan-orden-workspace-manager-2026-10-17.md`. Estado: A (`.mjs`), B1 (CVSS), B2
-   (`cssInline*`) y C (14 problemas reales; tablero 16 → 2) cerrados. En curso: D/E/F/G.
+   `Agente/planes/plan-orden-workspace-manager-2026-10-17.md`. Cerrados A (`.mjs`), B1–B6 (los
+   falsos positivos, el último B4 en `varsense` `3375e18`), C (14 problemas reales; tablero 16 → 0),
+   D, E, F, G, K y L1–L2. Quedan el frente 3 (coherencia con el taller), el 5 (con y sin VPS), el 8
+   (SOLID a fondo), el 9 (hardcodeo), el 10 (accesibilidad), H (la nav ajena), I (el resto del
+   tablero) y L3–L6.
 1. `308A-5` — **Corregir hallazgos restantes de Sentinel y VarSense** (piso honesto + wins rápidos).
    Depende de 17AA-2 para no medir sobre reglas que cambian.
 2. `17AA-1` — **Nav responsive: los destinos que no caben se van a un menú.** Pedido de la usuaria
@@ -35,10 +38,6 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
   fusionarlos, así que 11 de 16 fichas congelaron una copia sin `**/*.mjs`. Un merge ciego no vale
   (4 proyectos Rust listan 3 patrones a propósito; 4 acotan a `frontend/**` y `scripts/**`).
   `analyzers.sentinel.profile` está en el tipo pero nadie lo lee: clave muerta, no preset.
-- **Falsos positivos de 17AA-2, al final por encargo:** B4
-  (`tokenDetection.duplicate.excludeTokens` no existe), B5 (`RESTAURANTE/excepciones-varsense.json`
-  huérfano, nadie lo lee) y B6 (`limite-lineas` sobre archivos de test: Rust tiene techo 1000 para
-  `/tests/` y `.test.ts`/`.test.mjs` se quedan con el 300 de producción).
 
 ## Tareas pendientes (orden de dependencia)
 
