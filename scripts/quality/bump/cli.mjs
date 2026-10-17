@@ -1,6 +1,6 @@
 /* Punto de entrada del propagador: lee las opciones, recorre los consumidores e
  * imprime el informe. Se ejecuta al importarlo (barril scripts/quality/bump.mjs). */
-import { conPasos, escribir, herramienta, salidaJson, soloShims, valorDe } from './ajustes.mjs';
+import { escribir, herramienta, salidaJson, soloShims, valorDe } from './ajustes.mjs';
 import { consumidoresDeclarados, familiaDe, revisarRouters } from './consumidores.mjs';
 import { imprimirTabla } from './informe.mjs';
 import { propagarConsumidor } from './propagacion.mjs';

@@ -10,9 +10,9 @@ import {
   problemasVulnerabilidadDe,
   type Entrada,
 } from './clasificacionConsola.js';
-import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from './types.js';
-import type { HuerfanoDev } from './dev.js';
-import type { InformeDev } from './dev.js';
+import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../types.js';
+import type { HuerfanoDev } from '../dev.js';
+import type { InformeDev } from '../dev.js';
 
 /* Proyecto minimo: solo los campos que lee la clasificacion. */
 const proyecto = { id: 'demo', clave: 'demo' } as unknown as Proyecto;

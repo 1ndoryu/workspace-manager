@@ -9,7 +9,7 @@ import {
   parsearAudit,
   parsearExcepcionesAudit,
 } from './vulnerabilidades-parseo.js';
-import type { AnalisisVulnerabilidades } from '../../shared/types.js';
+import type { AnalisisVulnerabilidades } from '../../../shared/types.js';
 
 const R = 'C:/proy';
 
