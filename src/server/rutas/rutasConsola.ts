@@ -10,7 +10,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
 import { analizarTodo, leerTodas } from '../gate/analizador.js';
-import { auditarTodo, leerTodasVulnerabilidades } from '../gate/vulnerabilidades.js';
+import { auditarTodo, leerTodasVulnerabilidades } from '../gate/vulnerabilidades/vulnerabilidades.js';
 import { obtenerVigilancia } from '../dev/vigilancia.js';
 import { saludArea, saludProyectos } from '../salud/runner.js';
 import {
@@ -24,7 +24,7 @@ import {
   problemasTallerDe,
   problemasVulnerabilidadDe,
   type Entrada,
-} from '../../shared/clasificacionConsola.js';
+} from '../../shared/consola/clasificacionConsola.js';
 import { CLAVE_AREA } from '../../shared/salud/salud.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades } from '../../shared/types.js';
 import { estadoTaller } from '../taller/estado.js';

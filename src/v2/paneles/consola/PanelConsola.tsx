@@ -6,14 +6,14 @@
 import { useState } from 'react';
 import { usePanelConsola } from './usePanelConsola.js';
 import { useEscanear } from '../../../hooks/useEscanear.js';
-import { contarProblemas } from '../../../shared/clasificacionConsola.js';
+import { contarProblemas } from '../../../shared/consola/clasificacionConsola.js';
 import { Button } from '../../ui/form/Button.js';
 import { Selector } from '../../ui/selector/Selector.js';
 import {
   type Categoria,
   type Problema,
   type SeveridadSentinel,
-} from '../../../shared/clasificacionConsola.js';
+} from '../../../shared/consola/clasificacionConsola.js';
 import type { AccionDevNombre } from '../../../hooks/workspace/tipos.js';
 import './consola.css';
 

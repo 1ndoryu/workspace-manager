@@ -3,10 +3,10 @@
  * (ruta /api/consola/problemas, 07AA-1 F1): una sola clasificacion en ambos
  * lados, sin tuberia paralela. Solo tipos de shared/types.js y shared/dev.js;
  * sin DOM ni Node, para importar desde cualquier entry. */
-import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from './types.js';
-import type { HuerfanoDev, InformeDev } from './dev.js';
-import { CLAVE_AREA, type ResultadoSalud } from './salud/salud.js';
-import type { Hallazgo } from './taller/conformidad.js';
+import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../types.js';
+import type { HuerfanoDev, InformeDev } from '../dev.js';
+import { CLAVE_AREA, type ResultadoSalud } from '../salud/salud.js';
+import type { Hallazgo } from '../taller/conformidad.js';
 
 export type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad' | 'dev' | 'salud' | 'taller';
 

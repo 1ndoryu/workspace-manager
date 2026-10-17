@@ -22,7 +22,7 @@ import {
   auditarTodo,
   leerTodasVulnerabilidades,
   leerVulnerabilidades,
-} from '../gate/vulnerabilidades.js';
+} from '../gate/vulnerabilidades/vulnerabilidades.js';
 import { logger } from '../../shared/logger.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades, HallazgoSentinel } from '../../shared/types.js';
 

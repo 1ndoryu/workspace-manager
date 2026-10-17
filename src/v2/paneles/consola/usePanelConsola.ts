@@ -16,7 +16,7 @@ import {
   problemasVulnerabilidadDe,
   type Categoria,
   type Problema,
-} from '../../../shared/clasificacionConsola.js';
+} from '../../../shared/consola/clasificacionConsola.js';
 import { CLAVE_AREA } from '../../../shared/salud/salud.js';
 import { hallazgosTallerDe, useEstadoTaller } from '../taller/useEstadoTaller.js';
 

@@ -19,8 +19,8 @@ import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { compartirVuelo } from './vuelo.js';
-import { ejecutarCargoRemoto, prepararArbolRemoto } from './cargo-remoto.js';
+import { compartirVuelo } from '../vuelo.js';
+import { ejecutarCargoRemoto, prepararArbolRemoto } from '../cargo-remoto.js';
 import {
   contar,
   esNoAlcanzable,
@@ -34,7 +34,7 @@ import type {
   AnalisisVulnerabilidades,
   HallazgoVulnerabilidad,
   Proyecto,
-} from '../../shared/types.js';
+} from '../../../shared/types.js';
 
 /* Cache en memoria: clave de frescura -> resultado. */
 interface EntradaCache {
