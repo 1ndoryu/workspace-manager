@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { promisify } from 'node:util';
+import { rutaConfigPrivada } from '../../shared/rutas.js';
 import { sesionMutagen } from '../../shared/taller/sesiones.js';
 import { checkoutVarsense, cliRuntime, parsearReporte, varsenseRuntime } from './ejecucion.js';
 import type { ResultadoSpawn } from './ejecucion.js';
@@ -26,8 +27,8 @@ const TIMEOUT_COPIA_MS = 120_000;
 const TIMEOUT_DEPS_MS = 180_000;
 
 const RAIZ_WM = join(import.meta.dirname, '..', '..', '..');
-const RUTA_TALLER = join(RAIZ_WM, 'scripts', 'remoto', 'taller.json');
-const RUTA_REGISTRO = join(RAIZ_WM, 'scripts', 'dev', 'registro.json');
+const RUTA_TALLER = join(RAIZ_WM, 'config', 'taller.json');
+const RUTA_REGISTRO = join(RAIZ_WM, 'config', 'registro.json');
 
 export type ModoAnalisis = 'local' | 'dev89';
 

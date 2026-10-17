@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "modoPorDefecto": "remoto",
+  "host": "<ALIAS_SSH>",
+  "dirRemotoBase": "<HOME_REMOTO>/taller",
+  "targetBase": "/var/tmp/glory-target",
+  "nodeRemoto": "<HOME_REMOTO>/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
+  "lockWrapper": "cm-heavy",
+  "sync": {
+    "motor": "mutagen",
+    "binario": "<HOME>/bin/mutagen/mutagen.exe",
+    "modo": "one-way-replica",
+    "ignorar": [
+      ".git",
+      "target",
+      "node_modules",
+      "dist",
+      ".quality-tools",
+      ".env",
+      ".env.*",
+      "config/settings.json",
+      "*.pem",
+      "*.key",
+      "uploads",
+      "gateway/sesiones",
+      "gateway/media",
+      "gateway/qr-wa_*.png"
+    ]
+  },
+  "bd": {
+    "usuario": "dev",
+    "socket": "/var/run/postgresql",
+    "subcomandos": [
+      "test",
+      "bench",
+      "nextest",
+      "run"
+    ],
+    "pgDumpLocal": "C:/Program Files/PostgreSQL/18/bin/pg_dump.exe"
+  },
+  "proyectos": {
+    "proyecto-1": {
+      "basedatos": "bd_inmobiliaria",
+      "bdRama": {
+        "semilla": "scripts/fixtures/seed-test-inmobiliaria.sql"
+      },
+      "bdDesdeLocal": {
+        "verificar": [
+          "inmuebles",
+          "fotos",
+          "_sqlx_migrations"
+        ]
+      }
+    },
+    "proyecto-2": {
+      "basedatos": "kamples"
+    },
+    "proyecto-3": {
+      "basedatos": "bd_<PROYECTO>",
+      "bdDesdeLocal": {
+        "verificar": [
+          "users",
+          "services",
+          "orders",
+          "_sqlx_migrations"
+        ]
+      }
+    }
+  }
+}

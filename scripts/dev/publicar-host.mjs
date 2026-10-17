@@ -12,12 +12,13 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rutaConfigPrivada } from '../shared/rutas.mjs';
 
 export const CUENTA = 'adb83ea98dfe13362aebca91c42ed9c5';
 export const TUNEL_NOMBRE = 'taller-89-dev';
 export const ZONA_NOMBRE = 'wandori.us';
 const API = 'https://api.cloudflare.com/client/v4';
-const REGISTRO = join(dirname(fileURLToPath(import.meta.url)), 'registro.json');
+const REGISTRO = rutaConfigPrivada('registro.json');
 const CATCH_ALL = { service: 'http_status:404' };
 
 export function validarHost(host) {

@@ -224,7 +224,7 @@ test('alta(): en seco devuelve 1 en un proyecto incompleto y 0 en uno completo',
   const raiz = nuevoDir();
   escribir(
     raiz,
-    'scripts/dev/registro.json',
+    'config/registro.json',
     JSON.stringify({ proyectos: [{ id: 'demo', ruta: 'proy', comandos: ENTRADA.comandos }] }),
   );
   const proy = join(raiz, 'proy');
@@ -238,7 +238,7 @@ test('alta(): en seco devuelve 1 en un proyecto incompleto y 0 en uno completo',
 
 test('alta(): id inexistente devuelve 1 sin lanzar', async () => {
   const raiz = nuevoDir();
-  escribir(raiz, 'scripts/dev/registro.json', JSON.stringify({ proyectos: [] }));
+  escribir(raiz, 'config/registro.json', JSON.stringify({ proyectos: [] }));
   assert.equal(await silencio(() => alta(['no-existe'], raiz)), 1);
 });
 
@@ -246,7 +246,7 @@ test('alta(--json): imprime solo JSON con estado por ítem y código 1 si faltan
   const raiz = nuevoDir();
   escribir(
     raiz,
-    'scripts/dev/registro.json',
+    'config/registro.json',
     JSON.stringify({ proyectos: [{ id: 'demo', ruta: 'proy', comandos: ENTRADA.comandos }] }),
   );
   const proy = join(raiz, 'proy');
@@ -271,6 +271,6 @@ test('alta(--json): imprime solo JSON con estado por ítem y código 1 si faltan
 
 test('alta(--json --aplicar): se niega sin tocar nada', async () => {
   const raiz = nuevoDir();
-  escribir(raiz, 'scripts/dev/registro.json', JSON.stringify({ proyectos: [] }));
+  escribir(raiz, 'config/registro.json', JSON.stringify({ proyectos: [] }));
   assert.equal(await silencio(() => alta(['demo', '--json', '--aplicar'], raiz)), 1);
 });

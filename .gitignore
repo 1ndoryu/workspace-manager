@@ -14,3 +14,9 @@ logs/auditoria-*.jsonl*
 *.tsbuildinfo
 .DS_Store
 .sentinel/
+
+# Config privada del area (rutas de esta maquina, lista de proyectos y bases de
+# datos). El repo se publica sin ella: las plantillas con la forma esperada
+# viven en config/ejemplos/ y se copian a config/ al clonar. Ver README.
+config/*.json
+config/*.local.json

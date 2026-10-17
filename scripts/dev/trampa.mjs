@@ -17,11 +17,12 @@ import net from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rutaConfigPrivada } from '../shared/rutas.mjs';
 import { cabeceraAutorizacion } from './token.mjs';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const DOCTOR = join(DIR, 'doctor.mjs');
-const REGISTRO = join(DIR, 'registro.json');
+const REGISTRO = rutaConfigPrivada('registro.json');
 const API = 'http://127.0.0.1:8787';
 
 function getJson(url, cabeceras) {

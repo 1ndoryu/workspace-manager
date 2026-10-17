@@ -11,6 +11,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rutaConfigPrivada } from '../shared/rutas.mjs';
 import { cabeceraAutorizacion } from './token.mjs';
 
 export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -124,7 +125,7 @@ export async function comandos(argv, raiz = RAIZ) {
     console.error(`comandos: falta <id> del proyecto\n${USO}`);
     return 1;
   }
-  const registro = JSON.parse(readFileSync(join(raiz, 'scripts', 'dev', 'registro.json'), 'utf8'));
+  const registro = JSON.parse(readFileSync(rutaConfigPrivada('registro.json', raiz), 'utf8'));
   const entrada = registro.proyectos.find((x) => x.id === id);
   if (!entrada) {
     console.error(`comandos: '${id}' no está en registro.json`);

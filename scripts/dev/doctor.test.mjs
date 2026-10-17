@@ -3,8 +3,16 @@
  * Puros: sin procesos reales ni red. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { rutaConfigPrivada } from '../shared/rutas.mjs';
+
+/* [por que] Tres tests de este fichero validan la config privada REAL (la que
+ * declara MN-Inmobiliaria, BDP-Net y las VPS). Esa config no se versiona, asi
+ * que en un clon ajeno no existe: se saltan en vez de fallar, y donde si esta
+ * siguen vigilando que el registro concuerde con el taller. */
+const HAY_CONFIG_PRIVADA = existsSync(rutaConfigPrivada('registro.json'));
+const CONFIG_PRIVADA = { skip: HAY_CONFIG_PRIVADA ? false : 'sin config privada (config/registro.json)' };
 import {
   accionParaPuerto,
   atribuirHuerfano,
@@ -204,7 +212,7 @@ test('leerRegistro: dos proyectos que reclaman el mismo puerto dejan aviso en el
   }
 });
 
-test('leerRegistro: el registro real carga y declara los auxiliares e ignorados de BDP-Net y MN-Inmobiliaria', () => {
+test('leerRegistro: el registro real carga y declara los auxiliares e ignorados de BDP-Net y MN-Inmobiliaria', CONFIG_PRIVADA, () => {
   const reg = leerRegistro();
   assert.equal(reg.entradas.get('MN-Inmobiliaria')._avisoRegistro, undefined);
   assert.equal(auxiliarDe(3122, 'node server/mejora.mjs', reg.entradas.values()), 'MN-Inmobiliaria');
@@ -212,7 +220,7 @@ test('leerRegistro: el registro real carga y declara los auxiliares e ignorados 
   assert.equal(esSistemaIgnorado(53401, { exe: null, cmd: null, imagen: 'SvrWCF.exe' }, reg.ignoradosSistema), true);
 });
 
-test('leerRegistro: vps — 89 completo con alias y 66 solo lectura sin alias; el registro real los declara', () => {
+test('leerRegistro: vps — 89 completo con alias y 66 solo lectura sin alias; el registro real los declara', CONFIG_PRIVADA, () => {
   const reg = leerRegistro();
   assert.deepEqual(
     reg.vps.map((v) => [v.id, v.modo, v.alias]),
@@ -567,7 +575,7 @@ test('leerRegistro: un auxiliar sobre un puerto que el mando solo sirve en dev e
   }
 });
 
-test('leerRegistro: el registro real declara el gateway y el puente de MN sin aviso', () => {
+test('leerRegistro: el registro real declara el gateway y el puente de MN sin aviso', CONFIG_PRIVADA, () => {
   const reg = leerRegistro();
   const mn = reg.entradas.get('MN-Inmobiliaria');
   assert.equal(mn._avisoRegistro, undefined);

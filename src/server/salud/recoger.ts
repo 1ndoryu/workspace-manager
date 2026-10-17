@@ -7,6 +7,7 @@ import { existsSync, readdirSync, statSync, statfsSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { rutaConfigPrivada } from '../../shared/rutas.js';
 import type { Proyecto } from '../../shared/types.js';
 import { leerArchivo } from '../http.js';
 import { leerSentinelLock } from '../scanner/gate.js';
@@ -278,7 +279,7 @@ export async function recogerArea(
     .filter((d) => d.isDirectory() && existsSync(join(raizArea, d.name, '.git')))
     .map((d) => d.name);
   /* registro.json: `proyectos` (array con id) y `noAplica` (objeto id → motivo). */
-  const registro = leerJson(join(raizArea, 'workspace-manager', 'scripts', 'dev', 'registro.json'));
+  const registro = leerJson(rutaConfigPrivada('registro.json', raizArea));
   const idsProyectos = Array.isArray(registro?.proyectos)
     ? (registro.proyectos as { id?: unknown }[]).map((p) => p.id).filter((id): id is string => typeof id === 'string')
     : [];

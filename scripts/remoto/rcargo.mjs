@@ -11,11 +11,12 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { exigirConfigPrivada } from '../shared/rutas.mjs';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const MODOS = new Set(['local', 'remoto']);
 
-export function cargarConfig(ruta = path.join(DIR, 'taller.json')) {
+export function cargarConfig(ruta = exigirConfigPrivada('taller.json')) {
   return JSON.parse(readFileSync(ruta, 'utf8'));
 }
 
