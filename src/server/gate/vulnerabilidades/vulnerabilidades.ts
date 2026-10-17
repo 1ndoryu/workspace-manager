@@ -8,7 +8,9 @@
  * Fuentes: el CLI de audit del gestor de cada lockfile:
  *   pnpm-lock.yaml  -> pnpm audit --json (o corepack pnpm si pnpm no esta en PATH)
  *   package-lock.json -> npm audit --json
- *   Cargo.lock      -> cargo audit --json (en la VPS 89: ver cargo-remoto.ts)
+ *   Cargo.lock      -> cargo audit --json
+ * Los tres corren en la VPS 89 si el proyecto se analiza alli (ver
+ * auditoria-remota.ts) y en el portatil si no: el manager funciona sin VPS.
  * Un proyecto puede tener varios lockfile (WANDORIUS: raiz, frontend/,
  * glory-rs/): se auditan todos y se agregan. Los crates de Cargo.lock que no
  * alcanzan el build (cargo tree -i) no cuentan como hallazgo. Proyectos sin
@@ -20,7 +22,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { compartirVuelo } from '../vuelo.js';
-import { ejecutarCargoRemoto, prepararArbolRemoto } from '../cargo-remoto.js';
+import { modoAnalisis } from '../remoto.js';
+import { ejecutarAuditRemoto, prepararArbolRemoto } from '../auditoria-remota.js';
+import type { GestorAudit } from '../auditoria-remota.js';
 import {
   contar,
   esNoAlcanzable,
@@ -124,7 +128,7 @@ interface LockDetectado {
   ruta: string;
   /* Subcarpeta donde se ejecuta el audit ('' para la raiz). */
   base: string;
-  gestor: 'npm' | 'pnpm' | 'cargo';
+  gestor: GestorAudit;
 }
 
 /* Localiza TODOS los lockfile del proyecto. Por carpeta: un lockfile JS (pnpm
@@ -190,15 +194,41 @@ function flagsIgnorarCargo(cwd: string): string {
   return vigentes.map((id) => ` --ignore ${id}`).join('');
 }
 
-/* Comando de audit del gestor. Para pnpm puede no haber CLI: devuelve null. */
-async function cliDeAudit(g: LockDetectado['gestor'], cwd: string): Promise<string | null> {
-  if (g === 'pnpm') return resolverCliPnpm(cwd);
+/* Comando de audit del gestor. Para pnpm puede no haber CLI: devuelve null.
+ * [por que] En la 89 no se sondea nada: el PATH lo fija `ejecutarAuditRemoto` con
+ * el node de `taller.json` y pnpm se resuelve por corepack, que si esta. Sondead
+ * costaria un ssh extra por audit para una respuesta que ya se conoce. */
+async function cliDeAudit(g: GestorAudit, cwd: string, remoto: boolean): Promise<string | null> {
+  if (g === 'pnpm') return remoto ? 'corepack pnpm audit --json' : resolverCliPnpm(cwd);
   if (g === 'cargo') return `cargo audit --json${flagsIgnorarCargo(cwd)}`;
   return 'npm audit --json';
 }
 
-/* Quien ejecuta los comandos del audit: en local, o en la 89 si es cargo. */
+/* Quien ejecuta los comandos del audit: en local, o en la 89 si el proyecto se
+ * analiza alli. */
 type Corredor = (comando: string) => Promise<Ejecucion>;
+
+/* Deja en la 89 el arbol que necesita este gestor. Devuelve false si no se pudo
+ * (sin taller, taller.json ilegible o envio fallido): el audit cae a local en vez
+ * de fallar, que es lo que hace el manager sin VPS. */
+async function prepararRemoto(rutaProyecto: string, gestor: GestorAudit): Promise<boolean> {
+  try {
+    await prepararArbolRemoto(rutaProyecto, gestor);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* Si el proyecto se analiza en la 89. `modoAnalisis` lee registro.json, que es
+ * configuracion privada: sin el (o ilegible) se audita en local, nunca se falla. */
+function enTaller(clave: string): boolean {
+  try {
+    return modoAnalisis(clave) === 'taller';
+  } catch {
+    return false;
+  }
+}
 
 /* Un hallazgo de cargo solo cuenta si el crate alcanza el build. `memo` es de
  * UNA auditoria: varios advisories del mismo crate cuestan un solo cargo tree.
@@ -239,30 +269,26 @@ function sinDatos(
 
 /* Corre audit de UN lockfile y devuelve su parte normalizada. La cache es por
  * proyecto (auditarProyecto), no por lockfile. */
-async function correrAudit(p: Proyecto, lock: LockDetectado): Promise<AnalisisVulnerabilidades> {
+async function correrAudit(p: Proyecto, lock: LockDetectado, enLa89: boolean): Promise<AnalisisVulnerabilidades> {
   const base = { clave: p.clave, gestor: lock.gestor, lockfile: lock.lockfile };
   /* [por que] El audit debe correr desde la carpeta que contiene el lockfile;
    * `base` es esa subcarpeta ('' para raiz). */
   const cwdAudit = join(p.ruta, lock.base);
-  const cli = await cliDeAudit(lock.gestor, cwdAudit);
+
+  /* [por que] El analisis del taller va a la 89 (AGENTS §7): el audit es analisis,
+   * asi que con `modoAnalisis === 'taller'` corre alli, igual que Sentinel y
+   * VarSense. Solo viaja lo que el gestor necesita para resolver su lockfile, y si
+   * el envio no se puede hacer se cae a local: el manager funciona sin VPS. */
+  const remoto = enLa89 && (await prepararRemoto(p.ruta, lock.gestor));
+
+  const cli = await cliDeAudit(lock.gestor, cwdAudit, remoto);
   if (!cli) {
     return sinDatos(base, 'noAuditable', 'pnpm no disponible (ni pnpm ni corepack en PATH)');
   }
 
-  /* [16AA-11] cargo no vive en el portatil desde el 2026-10-16: `cargo audit` y
-   * `cargo tree` los corre la 89 sobre un arbol enviado a /var/tmp. El resto de
-   * gestores (npm/pnpm) siguen en local. Si no se puede preparar el arbol, se
-   * deja el lockfile como noAuditable, que es como estaba: sin ruido nuevo. */
-  let correr: Corredor = (comando) => ejecutar(comando, cwdAudit);
-  if (lock.gestor === 'cargo') {
-    try {
-      await prepararArbolRemoto(p.ruta);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'fallo desconocido';
-      return sinDatos(base, 'noAuditable', `no se pudo preparar el arbol en la 89: ${msg.slice(0, 120)}`);
-    }
-    correr = (comando) => ejecutarCargoRemoto(comando, p.ruta, lock.base);
-  }
+  const correr: Corredor = remoto
+    ? (comando) => ejecutarAuditRemoto(comando, p.ruta, lock.base, lock.gestor)
+    : (comando) => ejecutar(comando, cwdAudit);
 
   /* [por que] npm/pnpm/cargo audit devuelven exit != 0 cuando HAY vulnerabilidades
    * (exit 1) o cargo-audit no esta. El JSON valido viaja en stdout, asi que la
@@ -296,7 +322,8 @@ async function correrAudit(p: Proyecto, lock: LockDetectado): Promise<AnalisisVu
     /* [por que] cargo-audit ausente produce stdout vacio o no-JSON. Se marca
      * 'noAuditable' (visible sin problema) como limitacion documentada. */
     if (lock.gestor === 'cargo') {
-      return sinDatos(base, 'noAuditable', 'cargo-audit no disponible en la 89 (no instalado o sin salida)');
+      const donde = remoto ? 'en la 89' : 'en local';
+      return sinDatos(base, 'noAuditable', `cargo-audit no disponible ${donde} (no instalado o sin salida)`);
     }
     const msg = stdout.trim() === '' ? 'sin salida del CLI' : err instanceof Error ? err.message : 'audit fallo';
     return sinDatos(base, 'error', `audit fallo: ${msg.slice(0, 120)}`);
@@ -364,7 +391,8 @@ export function auditarProyecto(p: Proyecto, forzar = false): Promise<AnalisisVu
   return compartirVuelo(enVuelo, p.clave, async (): Promise<AnalisisVulnerabilidades> => {
     /* En serie: un audit a la vez por proyecto, como el barrido del workspace. */
     const partes: AnalisisVulnerabilidades[] = [];
-    for (const lock of locks) partes.push(await correrAudit(p, lock));
+    const enLa89 = enTaller(p.clave);
+    for (const lock of locks) partes.push(await correrAudit(p, lock, enLa89));
     const dato = agregarAnalisis(p.clave, partes);
     cache.set(p.clave, { fresco, dato });
     return dato;
