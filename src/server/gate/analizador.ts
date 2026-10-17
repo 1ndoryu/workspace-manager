@@ -10,8 +10,9 @@
  *    para no congelar toda la API durante un analizar-todo (un barrido con
  *    execFileSync bloqueaba snapshot/config/doctor durante segundos);
  *  - ante fallo marca 'error' y NUNCA rompe el snapshot;
- *  - si el proyecto declara `analisisEn: "dev89"` (registro.json), el analisis corre
- *    en la 89 sobre su replica (remoto.ts, S3.7). Lo demas no cambia.
+ *  - si el proyecto es del taller (registro.json + taller.json), el analisis corre
+ *    en la VPS sobre su replica (remoto.ts, S3.7); si esa corrida no arranca, se
+ *    reintenta en el portatil y se anota el porque en `aviso`. Lo demas no cambia.
  * El cliente es 'tonto': pide y muestra; este modulo es el dueno de la ejecucion. */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, relative } from 'node:path';
@@ -282,19 +283,38 @@ async function analizarEnLocal(p: Proyecto): Promise<AnalisisSentinel> {
   return montarAnalisis(p, res, resVs);
 }
 
+/* Análisis del proyecto donde su modo diga, con el portátil como red. [por que] La
+ * VPS del taller no es un requisito duro: si el proyecto está dado de alta allí pero
+ * el análisis remoto no arranca (sin taller.json, sin sesión Mutagen, sin red, sin
+ * runtime), el análisis se hace en el portátil igualmente y lo dice en `aviso`. Antes
+ * quedaba en 'error' y el proyecto se quedaba sin análisis por un fallo de la 89. Solo
+ * se reintenta en local cuando el análisis remoto NO produjo nada (estado 'error'): si
+ * sentinel fue bien y solo falló varsense, ya hay resultado y repetirlo no aporta. */
+async function analizarConModo(p: Proyecto): Promise<AnalisisSentinel> {
+  if (modoAnalisis(p.clave) !== 'taller') return analizarEnLocal(p);
+  const remoto = await analizarEnDev89(p);
+  if (remoto.estado !== 'error') return remoto;
+  const local = await analizarEnLocal(p);
+  return { ...local, aviso: `hecho en local, el taller no respondió (${remoto.error ?? 'sin motivo'})` };
+}
+
 /* [por que] S3.7: la 89 analiza su réplica del proyecto. Antes se vacía la cola de
  * mutagen, así la réplica coincide con el árbol local. Un fallo remoto no lanza: queda
  * en 'error' con su motivo, y no se cachea (el siguiente análisis reintenta). */
 async function analizarEnDev89(p: Proyecto): Promise<AnalisisSentinel> {
   const clave = p.clave;
   let cfg: ConfigRemota;
-  let raiz: string;
   try {
     cfg = leerConfigRemota();
+  } catch (err) {
+    return datoError(clave, `análisis en el taller no arrancó: ${mensaje(err)}`);
+  }
+  let raiz: string;
+  try {
     raiz = rutaRemota(cfg, clave);
     await sincronizar(clave, cfg);
   } catch (err) {
-    return datoError(clave, `análisis en dev89 no arrancó: ${mensaje(err)}`);
+    return datoError(clave, `análisis en el taller (${cfg.host}) no arrancó: ${mensaje(err)}`);
   }
   const conVs = varsenseAplica(p.ruta);
   const [[res, errorRes], [resVs, errorVs]] = await Promise.all([
@@ -323,7 +343,7 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
     /* [por que] Cualquier fallo del despacho queda en 'error' (nunca rompe el snapshot). */
     let dato: AnalisisSentinel;
     try {
-      dato = modoAnalisis(clave) === 'dev89' ? await analizarEnDev89(p) : await analizarEnLocal(p);
+      dato = await analizarConModo(p);
     } catch (err) {
       dato = datoError(clave, mensaje(err));
     }

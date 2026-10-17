@@ -353,6 +353,10 @@ export interface CabeceraAnalisis {
   analizadoEn: string;
   /* Detalle del error si estado === 'error'. */
   error?: string;
+  /* El análisis salió, pero no donde tocaba (p. ej. la VPS del taller no responde
+   * y se hizo en el portátil). No es `error`: hay resultado; es el porqué de que
+   * venga de donde viene. */
+  aviso?: string;
 }
 
 /* Estado de VarSense fusionado al analisis (fase G): version del runtime

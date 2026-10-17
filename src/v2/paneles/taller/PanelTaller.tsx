@@ -49,7 +49,7 @@ export function PanelTaller() {
     >
       {error && <div className="tallerAviso">no se pudo consultar: {error}</div>}
       <div className="tallerRejilla">
-        <Seccion titulo="VPS 89 (dev89)" fallo={fallos.vps}>
+        <Seccion titulo={datos?.host ? `VPS del taller (${datos.host})` : 'VPS del taller'} fallo={fallos.vps}>
           <Filas filas={filasVps} />
         </Seccion>
         <Seccion titulo="HTTP público" fallo={fallos.publico}>

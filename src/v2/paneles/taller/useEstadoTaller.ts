@@ -17,6 +17,8 @@ import type {
 /* Forma de la respuesta de /api/taller/estado (ver server/taller/rutasTaller.ts). */
 export interface RespuestaTaller {
   tomadoEn: string;
+  /* Alias SSH del taller declarado en la config privada; null si no hay taller. */
+  host: string | null;
   hallazgos: Hallazgo[];
   taller89: EstadoTaller89 | null;
   motivoSinLectura: string | null;

@@ -18,11 +18,13 @@ import {
   type RegistroConformidad,
 } from '../../shared/taller/conformidad.js';
 import { rutaConfigPrivada } from '../../shared/rutas.js';
+import { hostTaller } from '../gate/remoto.js';
 import { sesionDev } from '../../shared/taller/sesiones.js';
 
 const RUTA_REGISTRO = rutaConfigPrivada('registro.json');
-/* Alias SSH del taller (AGENTS §9.4): el único acceso SSH directo autorizado. */
-const TALLER_HOST = 'dev89';
+/* Alias SSH del taller. [por que] Antes era la constante 'dev89' incrustada: el alias
+ * de la máquina de una persona, que en otro entorno no existe. Lo declara taller.json
+ * (`host`), que es privado; sin ese fichero no hay taller que leer y se dice. */
 const SONDA_TALLER = '$HOME/bin/taller-estado';
 const TTL_MS = 60_000;
 const TIMEOUT_SSH_MS = 15_000;
@@ -32,6 +34,8 @@ const HOST_OK = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)
 
 export interface EstadoTallerCompleto {
   tomadoEn: string;
+  /* Alias SSH del taller declarado en la config privada; null si no hay taller. */
+  host: string | null;
   hallazgos: Hallazgo[];
   entrada: EntradaConformidad;
   historial: MuestraHistorial[];
@@ -115,11 +119,13 @@ function errorFormaTaller89(x: unknown): string | null {
 }
 
 async function leerTaller89(): Promise<{ t89: EstadoTaller89 | null; motivo?: string }> {
+  const host = hostTaller();
+  if (!host) return { t89: null, motivo: 'sin taller configurado (falta `host` en la config privada)' };
   const r = await correr('ssh', [
     '-o', 'BatchMode=yes',
     '-o', 'ConnectTimeout=10',
     '-o', 'ServerAliveInterval=30',
-    TALLER_HOST,
+    host,
     SONDA_TALLER,
   ], TIMEOUT_SSH_MS);
   if (r.error) return { t89: null, motivo: r.error };
@@ -170,10 +176,12 @@ export function parsearHistorial(texto: string): MuestraHistorial[] {
 /* Lectura por SSH de solo lectura. `|| true`: si el fichero aún no existe (el cron no ha
  * escrito) no es un fallo; un fallo de SSH sí sale con código distinto de 0 y se reporta. */
 async function leerHistorial(): Promise<{ historial: MuestraHistorial[]; motivo?: string }> {
+  const host = hostTaller();
+  if (!host) return { historial: [], motivo: 'sin taller configurado' };
   const r = await correr('ssh', [
     '-o', 'BatchMode=yes',
     '-o', 'ConnectTimeout=10',
-    TALLER_HOST,
+    host,
     `tail -n ${HISTORIAL_LINEAS} ${RUTA_HISTORIAL_REMOTA} 2>/dev/null || true`,
   ], TIMEOUT_SSH_MS);
   if (r.error) return { historial: [], motivo: r.error };
@@ -309,9 +317,13 @@ async function calcular(): Promise<EstadoTallerCompleto> {
     publico,
     local,
     registro,
+    hostTaller: hostTaller(),
   };
   return {
     tomadoEn: new Date().toISOString(),
+    /* Alias SSH del taller, para que la interfaz rotule la máquina con su nombre real
+     * en vez de con uno incrustado. Null = no hay taller configurado. */
+    host: hostTaller(),
     hallazgos: evaluarConformidad(entrada),
     entrada,
     historial: hist.historial,

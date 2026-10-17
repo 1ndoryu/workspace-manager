@@ -1,9 +1,9 @@
-/* Análisis del gate en la VPS 89 (S3.7, plan taller fase 2). Solo ejecuta y cita:
+/* Análisis del gate en la VPS del taller (S3.7, plan taller fase 2). Solo ejecuta y cita:
  * la caché y la normalización son de analizador.ts.
- * [por que] Un proyecto con `analisisEn: "dev89"` en registro.json lo analiza la 89.
- * Su árbol remoto es una réplica (mutagen one-way, taller.json): antes de analizar se
- * vacía la cola de cambios (`sync flush`), así el análisis ve el árbol local actual.
- * Sin `analisisEn` (por defecto) nada de esto corre. */
+ * [por que] Un proyecto dado de alta en el taller (taller.json) lo analiza la VPS, y
+ * `analisisEn` del registro puede forzarlo. Su árbol remoto es una réplica (mutagen
+ * one-way, taller.json): antes de analizar se vacía la cola de cambios (`sync flush`),
+ * así el análisis ve el árbol local actual. Sin taller no hay modo remoto. */
 import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -29,7 +29,13 @@ const RAIZ_WM = join(import.meta.dirname, '..', '..', '..');
 const RUTA_TALLER = join(RAIZ_WM, 'config', 'taller.json');
 const RUTA_REGISTRO = join(RAIZ_WM, 'config', 'registro.json');
 
-export type ModoAnalisis = 'local' | 'dev89';
+/* Dónde corre el análisis. [por que] `taller` y no el alias de la máquina: el modo
+ * describe el papel, no el nombre de un host concreto. */
+export type ModoAnalisis = 'local' | 'taller';
+
+/* Valores de `analisisEn` del registro que piden el taller. `dev89` es el alias con el
+ * que se escribía antes: se sigue aceptando para no romper configuraciones ya hechas. */
+const ANALISIS_EN_TALLER = new Set(['taller', 'dev89']);
 
 export interface ConfigRemota {
   host: string;
@@ -62,17 +68,54 @@ export function leerConfigRemota(): ConfigRemota {
   return configRemotaDe(JSON.parse(readFileSync(RUTA_TALLER, 'utf8')));
 }
 
-/* Modo de análisis del proyecto según su entrada del registro. Por defecto, local. */
+/* Parte de taller.json que decide DÓNDE se analiza: qué proyectos están dados de alta
+ * y si el taller es el modo por defecto. Son dos fuentes distintas y no se mezclan: el
+ * registro dice de qué proyecto se trata, el taller dónde se ejecuta. */
+export interface TallerAnalisis {
+  host?: unknown;
+  modoPorDefecto?: unknown;
+  proyectos?: Record<string, unknown>;
+}
+
+/* Lee taller.json, o null si no existe o no es JSON. [por que] Sin taller el manager
+ * tiene que seguir entero en local: la ausencia de este fichero es una configuración
+ * válida (un clon recién hecho no lo trae), no un error. */
+export function leerTallerSiExiste(): TallerAnalisis | null {
+  try {
+    return JSON.parse(readFileSync(RUTA_TALLER, 'utf8')) as TallerAnalisis;
+  } catch {
+    return null;
+  }
+}
+
+/* Host SSH del taller, o null si no hay taller configurado. [por que] Antes era la
+ * constante 'dev89' repartida por el código: el alias de la máquina de una persona
+ * concreta. El nombre lo declara taller.json, que es privado y no se versiona. */
+export function hostTaller(t: TallerAnalisis | null = leerTallerSiExiste()): string | null {
+  const host = t?.host;
+  return typeof host === 'string' && host.trim() ? host.trim() : null;
+}
+
+/* Modo de análisis de un proyecto. [por que] Antes solo miraba `analisisEn` del
+ * registro, así que un proyecto del taller se analizaba en el portátil por omisión:
+ * el análisis es trabajo pesado y el reparto del área lo manda a la 89. Ahora, si hay
+ * taller y el proyecto está dado de alta en él, el análisis va a la 89. `analisisEn`
+ * del registro sigue mandando en los dos sentidos (`"dev89"` y `"local"`), para poder
+ * forzar uno concreto. Sin taller —o con el proyecto fuera de él— local: el manager
+ * funciona igual sin VPS. */
 export function modoAnalisisEn(
   registro: { proyectos?: Array<{ id?: unknown; analisisEn?: unknown }> },
   clave: string,
+  taller: TallerAnalisis | null = null,
 ): ModoAnalisis {
   const entrada = registro.proyectos?.find((x) => x.id === clave);
-  return entrada?.analisisEn === 'dev89' ? 'dev89' : 'local';
+  if (entrada?.analisisEn === 'local') return 'local';
+  if (typeof entrada?.analisisEn === 'string' && ANALISIS_EN_TALLER.has(entrada.analisisEn)) return 'taller';
+  return taller?.modoPorDefecto === 'remoto' && taller.proyectos && clave in taller.proyectos ? 'taller' : 'local';
 }
 
 export function modoAnalisis(clave: string): ModoAnalisis {
-  return modoAnalisisEn(JSON.parse(readFileSync(RUTA_REGISTRO, 'utf8')), clave);
+  return modoAnalisisEn(JSON.parse(readFileSync(RUTA_REGISTRO, 'utf8')), clave, leerTallerSiExiste());
 }
 
 /* Cita un valor para el shell remoto (POSIX): comillas simples, con ' escapada. */

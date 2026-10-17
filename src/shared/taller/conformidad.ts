@@ -80,6 +80,9 @@ export interface EntradaConformidad {
   publico: EstadoPublico | null;
   local: EstadoLocal;
   registro: RegistroConformidad;
+  /* Alias SSH del taller, para que el remedio diga a qué máquina conectarse. Null si
+   * no hay taller configurado: el texto entonces no nombra ninguna. */
+  hostTaller?: string | null;
 }
 
 /* Umbrales. Disco: el mismo de cm-heavy (CM_HEAVY_MIN_DISK_GB). */
@@ -292,7 +295,9 @@ export function evaluarConformidad(e: EntradaConformidad): Hallazgo[] {
     out.push({
       id: 'A0', ambito: '89', severidad: 'error',
       detalle: `sin lectura válida de la 89${e.motivoSinLectura ? `: ${e.motivoSinLectura}` : ''}`,
-      remedio: 'Comprobar `ssh dev89` (BatchMode) y la red. No se afirma estado sano sin lectura.',
+      remedio: e.hostTaller
+        ? `Comprobar \`ssh ${e.hostTaller}\` (BatchMode) y la red. No se afirma estado sano sin lectura.`
+        : 'No hay taller configurado: declarar `host` en la config privada. No se afirma estado sano sin lectura.',
     });
   } else {
     for (const r of REGLAS_89) {

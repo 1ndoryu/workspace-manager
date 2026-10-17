@@ -326,9 +326,10 @@ function validarEntrada(e) {
       return;
     }
   }
-  // [por que S3.7] analisisEn: dónde corre el análisis Sentinel/VarSense del gate. Ausente = local.
-  if ('analisisEn' in e && e.analisisEn !== 'local' && e.analisisEn !== 'dev89') {
-    mal(`registro: '${e.id}' analisisEn debe ser 'local' o 'dev89'`);
+  // [por que S3.7] analisisEn: dónde corre el análisis Sentinel/VarSense del gate. Ausente =
+  // lo que diga el taller. `dev89` se sigue aceptando: era el alias con el que se escribía.
+  if ('analisisEn' in e && !['local', 'taller', 'dev89'].includes(e.analisisEn)) {
+    mal(`registro: '${e.id}' analisisEn debe ser 'local' o 'taller'`);
     return;
   }
   if ('buildMode' in e && (typeof e.buildMode !== 'string' || e.buildMode === '')) {

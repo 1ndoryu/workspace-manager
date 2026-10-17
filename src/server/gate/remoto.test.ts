@@ -12,6 +12,7 @@ import {
   comandoSonda,
   comillas,
   configRemotaDe,
+  hostTaller,
   huellaLock,
   modoAnalisisEn,
   reposAnidados,
@@ -76,19 +77,56 @@ test('huellaLock: 16 hex del contenido, y "?" si no hay lock', () => {
   assert.equal(huellaLock('C:/no/existe/package-lock.json'), '?');
 });
 
-test('modoAnalisisEn: dev89 solo con analisisEn exacto; por defecto local', () => {
+test('modoAnalisisEn: el taller solo con analisisEn exacto; por defecto local', () => {
   const registro = {
     proyectos: [
-      { id: 'RESTAURANTE', analisisEn: 'dev89' },
+      { id: 'RESTAURANTE', analisisEn: 'taller' },
       { id: 'MN-Inmobiliaria' },
       { id: 'otro', analisisEn: 'DEV89' },
     ],
   };
-  assert.equal(modoAnalisisEn(registro, 'RESTAURANTE'), 'dev89');
+  assert.equal(modoAnalisisEn(registro, 'RESTAURANTE'), 'taller');
   assert.equal(modoAnalisisEn(registro, 'MN-Inmobiliaria'), 'local');
   assert.equal(modoAnalisisEn(registro, 'otro'), 'local');
   assert.equal(modoAnalisisEn(registro, 'no-existe'), 'local');
   assert.equal(modoAnalisisEn({}, 'RESTAURANTE'), 'local');
+});
+
+/* [por que] `dev89` fue el valor con el que se escribio `analisisEn` antes de que el
+ * modo se llamara por su papel y no por el alias de la maquina: las configuraciones ya
+ * hechas tienen que seguir valiendo. */
+test('modoAnalisisEn: `dev89` sigue valiendo como peticion del taller', () => {
+  const registro = { proyectos: [{ id: 'KAMPLES', analisisEn: 'dev89' }] };
+  assert.equal(modoAnalisisEn(registro, 'KAMPLES'), 'taller');
+});
+
+/* El alta en el taller es lo que manda: un proyecto dado de alta alli se analiza alli
+ * aunque el registro no diga nada. Y `analisisEn` del registro sigue pudiendo forzar
+ * cualquiera de los dos lados. */
+test('modoAnalisisEn: un proyecto del taller analiza en el taller', () => {
+  const registro = { proyectos: [{ id: 'NAKOMI' }, { id: 'RESTAURANTE', analisisEn: 'local' }] };
+  const taller = { modoPorDefecto: 'remoto', proyectos: { NAKOMI: {}, RESTAURANTE: {} } };
+  assert.equal(modoAnalisisEn(registro, 'NAKOMI', taller), 'taller');
+  assert.equal(modoAnalisisEn(registro, 'RESTAURANTE', taller), 'local', 'analisisEn local manda sobre el alta');
+});
+
+/* Sin taller el manager tiene que seguir entero en local: es el caso de un clon recien
+ * hecho, y no es un error. */
+test('modoAnalisisEn: sin taller, local', () => {
+  const registro = { proyectos: [{ id: 'NAKOMI' }] };
+  assert.equal(modoAnalisisEn(registro, 'NAKOMI', null), 'local');
+  assert.equal(modoAnalisisEn(registro, 'NAKOMI', { modoPorDefecto: 'local', proyectos: { NAKOMI: {} } }), 'local');
+  assert.equal(modoAnalisisEn(registro, 'NAKOMI', { modoPorDefecto: 'remoto', proyectos: { OTRO: {} } }), 'local');
+  assert.equal(modoAnalisisEn(registro, 'NAKOMI', { modoPorDefecto: 'remoto' }), 'local', 'taller sin proyectos declarados');
+});
+
+test('hostTaller: el alias lo declara la config, y sin ella no hay host', () => {
+  assert.equal(hostTaller({ host: 'mi-vps' }), 'mi-vps');
+  assert.equal(hostTaller({ host: '  mi-vps  ' }), 'mi-vps');
+  assert.equal(hostTaller({}), null);
+  assert.equal(hostTaller(null), null);
+  assert.equal(hostTaller({ host: '' }), null);
+  assert.equal(hostTaller({ host: 42 }), null);
 });
 
 test('comandoAnalisis: entorno citado, CLI, verbo y workspace', () => {
