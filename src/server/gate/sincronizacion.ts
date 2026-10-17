@@ -10,9 +10,6 @@ import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { logger } from '../../shared/logger.js';
-import { RAIZ_AREA } from '../../shared/rutas.js';
-
-/* Raiz del area (misma fuente del server). */
 
 /* Raiz del repo workspace-manager: el modulo vive en src/server/gate/, a
  * TRES niveles bajo la raiz (src -> server -> gate). */

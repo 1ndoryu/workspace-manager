@@ -7,7 +7,6 @@
  * la consola no multiplican sesiones SSH. */
 import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   evaluarConformidad,
   type EntradaConformidad,

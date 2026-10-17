@@ -12,7 +12,7 @@
  * taller, no del programa, y con ellos dentro el repo no se podía publicar. */
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exigirConfigPrivada, rutaConfigPrivada } from '../shared/rutas.mjs';
 
