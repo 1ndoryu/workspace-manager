@@ -99,8 +99,7 @@ export function MenuTarea(p: MenuTareaProps) {
   };
   return (
     <>
-      <button
-        type="button"
+      <Button
         className="tareasMenuFondo"
         aria-label="cerrar el menú"
         onClick={p.onCerrar}

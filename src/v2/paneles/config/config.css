@@ -202,13 +202,6 @@
  * titulo) y que quite el mini-form. Sin transparencia extra: la fila faltante
  * ya hereda la opacidad propia de .ejEstado--falte. Se distingue del valor
  * real por el borde punteado y la marca ＋ (al hacer clic se inserta). */
-.ejDefaultGhost {
-  font-family: inherit; font-size: var(--v2-textFantasma); color: var(--v2-texto);
-  background: transparent; border: 1px dashed var(--v2-borde); border-radius: var(--v2-radioChico);
-  padding: 3px 8px; cursor: pointer; width: 100%; max-width: 100%;
-  text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ejDefaultGhost .ejAgregarMini { margin-left: 8px; font-size: var(--v2-textFantasma); opacity: .7; }
 .ejEtiqueta { display: flex; align-items: flex-start; gap: 6px; font-size: var(--v2-font); color: var(--v2-texto); letter-spacing: .02em; min-width: 0; }
 /* Nombre legible + descripcion de una ruta (EditorEsquema). El nombre no se
  * trunca en exceso; la descripcion va debajo en italica opaca (monocromo). */
@@ -254,7 +247,6 @@
 .ejControl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .ejValorTexto { font-size: var(--v2-font); color: var(--v2-texto); opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .ejSugerencia { font-size: var(--v2-textSm); font-style: italic; opacity: .6; }
-.ejAgregar { font-family: inherit; font-size: var(--v2-textSm); letter-spacing: .05em; margin-top: 2px; padding: 3px 8px; width: max-content; border: 1px dashed var(--v2-borde); background: transparent; color: var(--v2-texto); cursor: pointer; border-radius: var(--v2-radioChico); }
 /* Mini-form del default de una opcion faltante (ver/editar antes de agregar).
  * Monocromo y alineado al diseno plano; cada sub-valor es una fila con su
  * etiqueta corta y el mismo Control de las opciones presentes. */
@@ -274,12 +266,6 @@
 .ejReglasMeta { font-size: var(--v2-textSm); font-style: italic; opacity: .55; }
 /* Tabs por categoria de regla (sin :hover, regla global del editor). */
 .ejTabs { display: flex; flex-wrap: wrap; gap: 3px; }
-.ejTab {
-  font-family: inherit; font-size: var(--v2-textSm); color: var(--v2-texto);
-  background: transparent; border: 1px solid var(--v2-borde); border-radius: var(--v2-radioChico);
-  padding: 3px 8px; cursor: default;
-}
-.ejTab--activo { background: var(--v2-texto); color: var(--v2-invertido); border-color: var(--v2-texto); }
 .ejReglasLista { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ejRegla {
   display: flex; align-items: center; gap: 8px; min-width: 0;

@@ -13,7 +13,10 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   cuadrado?: boolean;
   grande?: boolean;
   pequeno?: boolean;
-  children: ReactNode;
+  /* Opcional: un boton sin contenido es legitimo cuando es solo superficie
+   * pulsable (el fondo del menu contextual, que cubre la pantalla para cerrar).
+   * Exigirlo obligaba a esos sitios a quedarse en <button> nativo. */
+  children?: ReactNode;
 }
 
 export function Button({ activo = false, cuadrado = false, grande = false, pequeno = false, children, className, ...rest }: ButtonProps) {

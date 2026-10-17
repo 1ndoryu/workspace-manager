@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { VpsAgenteSnapshot } from '../../../shared/types.js';
 import { Caja } from '../../ui/caja/Caja.js';
+import { Button } from '../../ui/form/Button.js';
 import { guardarJson, guardarTexto, leerJson, leerTexto } from '../../../shared/vista/storage.js';
 import { fmtBytes } from '../../../shared/vista/format.js';
 import { bajarVentana, suscribirVentana } from '../../../shared/platform/plataforma.js';
@@ -240,15 +241,14 @@ export function PanelVpsRecursos({
       <div className="vpsLinea">
         <div className="vpsRangos" role="group" aria-label="Rango del historial">
           {RANGOS.map((x) => (
-            <button
+            <Button
               key={x.id}
-              type="button"
               className={`navegadorRutaChip${x.id === rangoId ? ' navegadorRutaChip--activo' : ''}`}
               onClick={() => elegirRango(x.id)}
               title={`Muestra ${x.etiqueta} de historial`}
             >
               {x.etiqueta}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

@@ -4,6 +4,7 @@
  * secciones plegables con su resumen en 1 linea para no abrir a ciegas.
  * Cálculo local sin fetch: el pie lo dice para no mentir. */
 import { useState, type ReactNode } from 'react';
+import { Button } from '../../ui/form/Button.js';
 import type { ArchivoLocal, CommitResumen, DetalleRepoSync, LadoSync } from '../../../shared/types.js';
 import { fechaCorta, hashCorto } from '../../../shared/vista/format.js';
 
@@ -99,8 +100,7 @@ function ListaArchivos({
         const elegido = archivoSeleccionado === a.ruta;
         return (
           <li key={a.ruta}>
-            <button
-              type="button"
+            <Button
               className={`reposDetalleArchivo${elegido ? ' reposDetalleArchivo--elegido' : ''}`}
               title={`${a.ruta} — clic para ver el diff`}
               onClick={() => alElegirArchivo(a.ruta)}
@@ -119,7 +119,7 @@ function ListaArchivos({
                   <span className="cambiosDiffMenos">−{stat.dels}</span>
                 </span>
               )}
-            </button>
+            </Button>
           </li>
         );
       })}

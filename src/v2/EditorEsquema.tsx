@@ -194,24 +194,22 @@ function FilaFaltante({
       </span>
       <span className="ejControl">
         {defaultReal !== undefined && !readOnly ? (
-          <button
-            type="button"
+          <Button
             className="ejDefaultGhost"
             onClick={() => setEn(fila.ruta, fila.default)}
             title="haz clic para usar este valor por defecto"
           >
             {formatDefault(defaultReal)}
             <span className="ejAgregarMini">＋</span>
-          </button>
+          </Button>
         ) : readOnly ? null : (
-          <button
-            type="button"
+          <Button
             className="ejAgregar"
             onClick={() => setEn(fila.ruta, fila.default)}
             title="agregar esta opción con su valor por defecto"
           >
             + agregar
-          </button>
+          </Button>
         )}
       </span>
     </div>

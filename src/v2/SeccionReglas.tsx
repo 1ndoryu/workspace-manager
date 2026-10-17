@@ -7,6 +7,7 @@ import type { NodoEsquema, Ruta, ValorJson } from '../shared/gate/modelo/esquema
 import type { ReglaCatalogo } from '../shared/gate/catalogo/reglas.js';
 import { EtiquetaDeRuta } from './EtiquetaDeRuta.js';
 import { Selector } from './ui/selector/Selector.js';
+import { Button } from './ui/form/Button.js';
 
 export function SeccionReglas({
   clave,
@@ -90,27 +91,25 @@ export function SeccionReglas({
       </header>
       <div className="ejTabs" role="tablist">
         {categorias.map((c) => (
-          <button
+          <Button
             key={c}
-            type="button"
             role="tab"
             aria-selected={activa === c}
             className={`ejTab${activa === c ? ' ejTab--activo' : ''}`}
             onClick={() => setActiva(c)}
           >
             {categoriaNombre(c)} · {idsDeCategoria(c).length}
-          </button>
+          </Button>
         ))}
         {desconocidas.length > 0 && (
-          <button
-            type="button"
+          <Button
             role="tab"
             aria-selected={activa === '__desconocidas'}
             className={`ejTab${activa === '__desconocidas' ? ' ejTab--activo' : ''}`}
             onClick={() => setActiva('__desconocidas')}
           >
             Desconocidas · {desconocidas.length}
-          </button>
+          </Button>
         )}
       </div>
       <div className="ejReglasLista">
@@ -172,15 +171,14 @@ export function SeccionReglas({
                 {readOnly ? (
                   <span className="ejValorTexto">{habilitada ? 'sí' : 'no'}</span>
                 ) : (
-                  <button
-                    type="button"
+                  <Button
                     className={`fjSwitch${habilitada ? ' fjSwitch--on' : ''}`}
                     onClick={toggle}
                     aria-pressed={habilitada}
                     title={habilitada ? 'desactivar regla' : 'activar regla'}
                   >
                     <span className="fjSwitchPalo" />
-                  </button>
+                  </Button>
                 )}
               </span>
               <span className="ejReglaInfo">
