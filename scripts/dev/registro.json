@@ -197,7 +197,7 @@
         "mn-dev.wandori.us"
       ],
       "puertosPublicos": [
-        5199
+        3110
       ],
       "buildMode": "builder",
       "botonRemoto": [
@@ -244,6 +244,50 @@
         "typecheck": "cargo check",
         "build": null,
         "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>"
+      },
+      "modo": "build",
+      "build": {
+        "puertos": [
+          3110,
+          20241
+        ],
+        "boton": [
+          [
+            "env",
+            "STATIC_DIR=frontend/dist",
+            "PUBLIC_BASE_URL=https://mn-dev.wandori.us",
+            "cargo",
+            "run",
+            "--bin",
+            "glory-backend"
+          ],
+          [
+            "sh",
+            "-c",
+            "set -a; . /home/dev/.config/cloudflared/mn-dev.env; set +a; exec /home/dev/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run"
+          ]
+        ],
+        "construirFront": [
+          [
+            "npm",
+            "--prefix",
+            "frontend",
+            "run",
+            "build"
+          ]
+        ],
+        "healths": [
+          {
+            "puerto": 3110,
+            "ruta": "/",
+            "marcador": "<title>MN Inmobiliaria"
+          },
+          {
+            "puerto": 20241,
+            "ruta": "/ready",
+            "esperaJson": true
+          }
+        ]
       }
     },
     {
@@ -348,6 +392,42 @@
         "typecheck": "cargo check",
         "build": null,
         "test-archivo": "node scripts/run-cargo.mjs test --test <archivo>"
+      },
+      "modo": "build",
+      "build": {
+        "puertos": [
+          3103
+        ],
+        "puertosLocales": [
+          13103
+        ],
+        "boton": [
+          [
+            "env",
+            "JWT_SECRET=taller-89-dev-nakomi",
+            "STATIC_DIR=frontend/dist",
+            "cargo",
+            "run",
+            "--bin",
+            "glory-backend"
+          ]
+        ],
+        "construirFront": [
+          [
+            "npm",
+            "--prefix",
+            "frontend",
+            "run",
+            "build"
+          ]
+        ],
+        "healths": [
+          {
+            "puerto": 3103,
+            "ruta": "/",
+            "marcador": "<title>Nakomi Studio"
+          }
+        ]
       }
     },
     {
@@ -463,6 +543,43 @@
         "typecheck": "cargo check",
         "build": null,
         "test-archivo": null
+      },
+      "modo": "build",
+      "build": {
+        "puertos": [
+          4190
+        ],
+        "puertosLocales": [
+          14190
+        ],
+        "boton": [
+          [
+            "env",
+            "FRONTEND_DIST=frontend/dist",
+            "cargo",
+            "run",
+            "--bin",
+            "glory-backend"
+          ]
+        ],
+        "construirFront": [
+          [
+            "env",
+            "VITE_API_URL=/",
+            "npm",
+            "--prefix",
+            "frontend",
+            "run",
+            "build"
+          ]
+        ],
+        "healths": [
+          {
+            "puerto": 4190,
+            "ruta": "/",
+            "marcador": "<title>Glory RS"
+          }
+        ]
       }
     },
     {
@@ -566,6 +683,39 @@
         "typecheck": "cargo check",
         "build": null,
         "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>"
+      },
+      "modo": "build",
+      "build": {
+        "puertos": [
+          3104
+        ],
+        "puertosLocales": [
+          13104
+        ],
+        "boton": [
+          [
+            "cargo",
+            "run",
+            "--bin",
+            "glory-backend"
+          ]
+        ],
+        "construirFront": [
+          [
+            "npm",
+            "--prefix",
+            "frontend",
+            "run",
+            "build"
+          ]
+        ],
+        "healths": [
+          {
+            "puerto": 3104,
+            "ruta": "/",
+            "marcador": "<title>wandorius"
+          }
+        ]
       }
     },
     {
@@ -801,7 +951,7 @@
         "rest-dev.wandori.us"
       ],
       "puertosPublicos": [
-        5182
+        3105
       ],
       "healths": [
         {
@@ -831,6 +981,39 @@
         "typecheck": "cargo check",
         "build": null,
         "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>"
+      },
+      "modo": "build",
+      "build": {
+        "puertos": [
+          3105
+        ],
+        "boton": [
+          [
+            "env",
+            "STATIC_DIR=frontend/dist",
+            "BDP_BOOTSTRAP_USER_EMAIL=",
+            "cargo",
+            "run",
+            "--bin",
+            "glory-backend"
+          ]
+        ],
+        "construirFront": [
+          [
+            "npm",
+            "--prefix",
+            "frontend",
+            "run",
+            "build"
+          ]
+        ],
+        "healths": [
+          {
+            "puerto": 3105,
+            "ruta": "/",
+            "marcador": "<title>Gestión Restaurante"
+          }
+        ]
       }
     },
     {
@@ -983,6 +1166,40 @@
         "typecheck": "npm --prefix frontend run type-check",
         "build": "npm --prefix frontend run build",
         "test-archivo": null
+      },
+      "modo": "build",
+      "build": {
+        "puertos": [
+          3001
+        ],
+        "boton": [
+          [
+            "env",
+            "STATIC_DIR=frontend/dist",
+            "cargo",
+            "run",
+            "--bin",
+            "glory-backend"
+          ]
+        ],
+        "construirFront": [
+          [
+            "env",
+            "VITE_API_URL=/",
+            "npm",
+            "--prefix",
+            "frontend",
+            "run",
+            "build"
+          ]
+        ],
+        "healths": [
+          {
+            "puerto": 3001,
+            "ruta": "/",
+            "marcador": "<title>Glory RS"
+          }
+        ]
       }
     }
   ],
