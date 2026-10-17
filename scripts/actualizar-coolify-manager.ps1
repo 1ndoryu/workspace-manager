@@ -7,16 +7,29 @@
   coolify-manager-rs\scripts\build-windows.mjs. Aqui solo se publica el
   resultado, que es lo que necesita el taller.
   C:\tmp se purga cada hora: el binario NO vive ahi. Destino duradero:
-  C:\Users\usuario\bin\coolify-manager.exe (+ .version con commit fuente).
+  <home>\bin\coolify-manager.exe (+ .version con commit fuente).
   Uso: powershell -ExecutionPolicy Bypass -File scripts\actualizar-coolify-manager.ps1
 #>
 [CmdletBinding()]
 param(
-  [string]$Repo = "C:\Users\usuario\OneDrive\Documentos\area-trabajo\coolify-manager-rs",
-  [string]$DestinoDir = "C:\Users\usuario\bin",
-  [string]$HostRemoto = "dev89"
+  [string]$Repo,
+  [string]$DestinoDir,
+  [string]$HostRemoto
 )
 $ErrorActionPreference = "Stop"
+
+# Ninguna ruta de esta maquina va incrustada: el area es la carpeta padre de este
+# repo, el binario duradero vive en <home>\bin y el host del taller sale de la
+# config privada. Los tres se pueden pisar por parametro.
+if (-not $Repo) { $Repo = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "coolify-manager-rs" }
+if (-not $DestinoDir) { $DestinoDir = Join-Path $env:USERPROFILE "bin" }
+if (-not $HostRemoto) {
+  $ficha = Join-Path $PSScriptRoot "..\config\taller.json"
+  if (-not (Test-Path -LiteralPath $ficha)) {
+    throw "Falta $ficha: define -HostRemoto o crea la config privada (config\ejemplos\taller.example.json)."
+  }
+  $HostRemoto = (Get-Content -Raw -LiteralPath $ficha | ConvertFrom-Json).host
+}
 
 if (-not (Test-Path -LiteralPath $Repo)) { throw "Repo no existe: $Repo" }
 $rama = (git -C $Repo rev-parse --abbrev-ref HEAD).Trim()

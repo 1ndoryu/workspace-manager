@@ -5,7 +5,8 @@ import { obtenerSnapshot } from './cache.js';
 import { escanearWorkspace } from './scanner/workspace.js';
 import { RAIZ_AREA } from './http.js';
 
-export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || 'C:/Users/usuario/.agents/skills';
+import { CARPETA_SKILLS } from '../shared/rutas.js';
+export { CARPETA_SKILLS };
 
 /* Escáner con caché; el flag `forzar` re-escanea. */
 export function snapshotArea(forzar: boolean) {

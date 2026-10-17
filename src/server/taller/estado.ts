@@ -236,7 +236,7 @@ if ($mutagenPresente) {
 `;
 
 /* [por que] `Get-Command mutagen` no basta: en este laptop el binario está en
- * C:\Users\usuario\bin\mutagen, que no entra en el PATH del PowerShell no interactivo
+ * <home>\bin\mutagen, que no entra en el PATH del PowerShell no interactivo
  * que arranca el manager (16AA-13). Sin esto, L3 sale en error siempre y el sync
  * L→89 no se comprueba nunca. Se prueba el PATH primero y luego las rutas conocidas. */
 const FUNCION_MUTAGEN = `

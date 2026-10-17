@@ -2,12 +2,25 @@
 # Compila o prueba un repo Rust en la VPS en vez de en local.
 # Solo compila código ya pusheado: árbol limpio y HEAD igual a origin/<rama>.
 # Uso: bash scripts/remoto/build-remoto.sh <ruta-repo-local> <subcomando-cargo> [args...]
-#   ej: bash scripts/remoto/build-remoto.sh "/c/Users/usuario/OneDrive/Documentos/area-trabajo/MN-Inmobiliaria" check --tests
-#       bash scripts/remoto/build-remoto.sh "/c/Users/usuario/OneDrive/Documentos/area-trabajo/MN-Inmobiliaria" test --no-fail-fast
+#   ej: bash scripts/remoto/build-remoto.sh "$HOME/area-trabajo/MiProyecto" check --tests
 # Sale con el código de cargo; 3 si el repo no está listo para compilar remoto.
 set -euo pipefail
 
-VPS="${BUILD_VPS:-root@192.0.2.10}"
+# El host del taller no va incrustado: sale de la config privada (config/taller.json),
+# que se puede mover con WS_CONFIG_ROOT. BUILD_VPS lo pisa para una prueba puntual.
+RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+FICHA="${WS_CONFIG_ROOT:-$RAIZ/config}/taller.json"
+if [ -n "${BUILD_VPS:-}" ]; then
+  VPS="$BUILD_VPS"
+elif [ -f "$FICHA" ]; then
+  # Git Bash da rutas /c/... que el node de Windows no resuelve: se traducen.
+  FICHA_NODE="$FICHA"
+  command -v cygpath >/dev/null 2>&1 && FICHA_NODE="$(cygpath -w "$FICHA")"
+  VPS="$(node -e 'process.stdout.write(require(process.argv[1]).host)' "$FICHA_NODE")"
+else
+  echo "build-remoto: falta $FICHA (copia config/ejemplos/taller.example.json) o define BUILD_VPS" >&2
+  exit 3
+fi
 REPO_LOCAL="${1:?falta la ruta del repo local}"; shift
 [ "$#" -gt 0 ] || { echo "build-remoto: falta el subcomando de cargo" >&2; exit 2; }
 

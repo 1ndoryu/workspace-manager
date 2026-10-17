@@ -28,8 +28,8 @@ import { obtenerToken } from './seguridad/token.js';
 import { registrarAuditoria, rutaAuditoriaPorDefecto } from './seguridad/auditoria.js';
 import { logger } from '../shared/logger.js';
 
-export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/usuario/OneDrive/Documentos/area-trabajo';
-export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || 'C:/Users/usuario/.agents/skills';
+import { RAIZ_AREA, CARPETA_SKILLS } from '../shared/rutas.js';
+export { RAIZ_AREA, CARPETA_SKILLS };
 export const PUERTO = Number(process.env.WS_PORT) || 8787;
 
 /* [por que] resolver DIST relativo al script y no al cwd: el servidor puede
@@ -49,8 +49,8 @@ const MIME: Record<string, string> = {
 /* Escaner con cache; el flag `forzar` re-escanea. */
 function snapshotArea(forzar: boolean) {
   return obtenerSnapshot(
-    RAÍZ_AREA,
-    () => escanearWorkspace({ raiz: RAÍZ_AREA, carpetaSkills: CARPETA_SKILLS }),
+    RAIZ_AREA,
+    () => escanearWorkspace({ raiz: RAIZ_AREA, carpetaSkills: CARPETA_SKILLS }),
     forzar,
   );
 }

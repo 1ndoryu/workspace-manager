@@ -23,7 +23,7 @@ const CFG_OK = {
   host: 'dev89',
   dirRemotoBase: '/home/usuario/taller',
   nodeRemoto: '/home/usuario/.local/share/fnm/node-versions/v24.21.0/installation/bin/node',
-  sync: { binario: 'C:/Users/usuario/bin/mutagen/mutagen.exe' },
+  sync: { binario: 'C:/herramientas/mutagen/mutagen.exe' },
 };
 
 test('comillas: cita para POSIX y escapa la comilla simple', () => {
@@ -36,7 +36,7 @@ test('configRemotaDe: acepta rutas absolutas simples', () => {
   const cfg = configRemotaDe(CFG_OK);
   assert.equal(cfg.host, 'dev89');
   assert.equal(cfg.dirRemotoBase, '/home/usuario/taller');
-  assert.equal(cfg.mutagen, 'C:/Users/usuario/bin/mutagen/mutagen.exe');
+  assert.equal(cfg.mutagen, 'C:/herramientas/mutagen/mutagen.exe');
 });
 
 test('configRemotaDe: rechaza rutas con metacaracteres, relativas o incompletas', () => {
@@ -70,7 +70,9 @@ test('comandoDeps: reinstala solo si el lock cambió, y falla en claro si npm ci
 });
 
 test('huellaLock: 16 hex del contenido, y "?" si no hay lock', () => {
-  assert.match(huellaLock('C:/Users/usuario/OneDrive/Documentos/area-trabajo/.quality-tools/sentinel/package-lock.json'), /^[0-9a-f]{16}$/);
+  /* El lock propio del repo: existe en cualquier clon, sin depender de rutas de
+   * esta máquina ni del checkout de las herramientas de calidad. */
+  assert.match(huellaLock(join(import.meta.dirname, '..', '..', '..', 'package-lock.json')), /^[0-9a-f]{16}$/);
   assert.equal(huellaLock('C:/no/existe/package-lock.json'), '?');
 });
 

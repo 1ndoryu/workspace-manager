@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { logger } from '../../shared/logger.js';
 
 /* Raiz del area (misma fuente del server). */
-const RAIZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/usuario/OneDrive/Documentos/area-trabajo';
+import { RAIZ_AREA } from '../../shared/rutas.js';
 
 /* Raiz del repo workspace-manager: el modulo vive en src/server/gate/, a
  * TRES niveles bajo la raiz (src -> server -> gate). */
