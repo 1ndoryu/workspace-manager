@@ -74,12 +74,14 @@ su commit. El orden importa: **A y B van antes que C**, porque cambian lo que el
     (`tokenRules.ts:184-247`) no consulta exclusiones y el tipo (`config.ts:39`) no la declara.
     Los 41 `token-duplicate` de RESTAURANTE son el puente shadcn/Tailwind repitiendo valor por
     diseño. **Decisión de la usuaria:** implementar la clave o aceptar los duplicados.
-  - **B5 · `RESTAURANTE/excepciones-varsense.json`: artefacto huérfano.** Existe (7,5 KB,
-    2026-09-11) y adjudica ~49 `token-duplicate`, 39 `token-unused` y 6 `claseHuerfana`; **ningún
-    programa lo lee** (barrido de `excepciones-varsense` en `*.ts,*.mjs,*.js,*.cjs,*.rs,*.json`
-    sobre toda el área: 0 coincidencias; solo aparece en `.md` y en dos `.gitignore`). El único
-    registro de excepciones que sí se consume es `config/quality-excepciones.json`.
-    **Decisión de la usuaria.**
+  - **B5 · `excepciones-varsense.json`: artefacto huérfano. HECHO (`13A-1`).** Existía en 7
+    proyectos (7,5 KB cada uno, 2026-09-11) adjudicando ~49 `token-duplicate`, 39 `token-unused` y
+    6 `claseHuerfana`; **ningún programa lo lee** (barrido de `excepciones-varsense` en
+    `*.ts,*.mjs,*.js,*.cjs,*.rs,*.json` sobre toda el área: 0 coincidencias; solo aparece en `.md`
+    y en dos `.gitignore`). El único registro de excepciones que sí se consume es
+    `config/quality-excepciones.json`. El de RESTAURANTE se borró con la decisión de la usuaria y
+    el de workspace-manager —que seguía *tracked*, y por tanto era lo que impedía publicar el
+    repo— se borró igual. Recuperable desde el historial.
   - **Añadido por A:** `todo-prosa-sin-marcador` casa «todo» en prosa española (`doctor.mjs:1630`,
     «todo verde = 0»); la regla busca el marcador inglés `TODO` y necesita contexto para no leer
     el artículo español.
@@ -249,8 +251,16 @@ su commit. El orden importa: **A y B van antes que C**, porque cambian lo que el
     inventa los nombres y escribe su propia lista de consumidores.
     **Verificado:** type-check limpio, 181/181 en `.mjs`, 427/427 en TS y la trampa del doctor en
     verde con `config/registro.json` intacto (`diff` contra la copia de seguridad).
-- **F — README.** No existe. Uno en condiciones: qué es, cómo se arranca, dónde vive el estado,
-  y el reparto portátil/89.
+- **F — README. HECHO (`13A-1`).** Reescrito contra el código, no contra el recuerdo: seis
+  desmentidos. (1) El front no es 5174 sino **5175** —5174 es opencode-propio, así que el README
+  mandaba a la usuaria al puerto de otra app—. (2) Faltaban dos plantillas por copiar (`area`,
+  `quality-consumidores`) y una tabla (`quality-excepciones`). (3) El estado no vive «en `data/`
+  dentro del repo» sino en `<área>/data/`, fuera: es lo que permite publicar el repo tal cual.
+  (4) `analisisEn: "dev89"` ya no hace falta (lo decide `modoPorDefecto` del taller) y el README lo
+  pedía. (5) Faltaban `WS_WEB_PORT`, `WS_PREVIEW_PORT`, `WS_OPENCODE_PORT`, `WS_NOMBRE` y `WM_TMP`;
+  sobraba «no hay `engines`» (se añadió). (6) El front v1 no es el que se sirve: `v2` sí.
+  **Verificado de verdad:** con un directorio limpio y **solo las cinco plantillas** el backend
+  arranca y sirve `/api/workspace` y `/api/consola/problemas` (401 sin token, 200 con él).
 - **G — Planes.** Revisar los 24 `PLAN-*.md` de la raíz y los 5 de `Agente/planes/`, uno a uno;
   crear `Agente/documentacion/`; archivar lo terminado y lo que ya no sume.
 - **H — Nav ajeno (17AA-1).** Terminar el recorte del nav, probarlo en el navegador y commitearlo
@@ -319,16 +329,19 @@ hardcodeo, con README; planes terminados y organizados.
 B2 (`623f56c` en varsense, `cssInline*`), **C (los 14 problemas reales de workspace-manager;
 el tablero pasa de 16 a 2, y los 2 que quedan son el falso positivo de B6)**.
 
-**Bloque en curso:** F (README) y G (planes). **Hecho además:** D, que
+**Bloque en curso:** G (planes). **Hecho además:** D, que
 resultó estar casi todo resuelto de antes y se cerró con el audit remoto (`8fdaa9b`), la parte
-de SOLID de E (`403ccdd`, E2 + la disposición del resto en E3), el agnóstico (`c76079e`, E4) y el
+de SOLID de E (`403ccdd`, E2 + la disposición del resto en E3), el agnóstico (`c76079e`, E4), el
 rendimiento entero (K1 `e4adf45`: la verificación de alineación, 20,7 s → 10,8 s
-forzado y 13 ms cacheada; K2: el escaneo raíz, 8.957 ms → ~2.400 ms).
-**Próximo paso:** el README (bloque F) y los planes (bloque G).
+forzado y 13 ms cacheada; K2 `c322e0c`: el escaneo raíz, 8.957 ms → ~2.400 ms), el README
+(`13A-1`, bloque F) y B5 (el artefacto huérfano, fuera del repo).
+**Próximo paso:** los planes (bloque G) y, después, el cierre de los falsos positivos.
 **Falsos positivos pendientes (van al final, por encargo):** B4
-(`tokenDetection.duplicate.excludeTokens`), B5 (el `excepciones-varsense.json` huérfano) y B6
+(`tokenDetection.duplicate.excludeTokens`) y B6
 (el `limite-lineas` de los archivos de test, que es lo único que le queda al tablero de
 workspace-manager). **Pendiente de decisión de la usuaria:** J (semántica de `includePatterns`).
+**Pendiente de la usuaria, no del plan:** la licencia del repo (es público y sin licencia los
+derechos quedan reservados por defecto).
 
 ### B6 · `limite-lineas` sobre archivos de test (falso positivo, al final)
 
