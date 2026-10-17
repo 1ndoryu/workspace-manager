@@ -47,19 +47,51 @@ su commit. El orden importa: **A y B van antes que C**, porque cambian lo que el
   **Delta medido:** workspace-manager pasa de **2 a 16 hallazgos**; los 14 nuevos son de `.mjs`
   y 13 son reales. La excepción es `todo-prosa-sin-marcador` sobre `doctor.mjs:1630`, que casa
   la palabra española «todo» → pasa a B.
-- **B — Falsos positivos de herramienta.** Los cinco con evidencia recogida: CVSS vector en
-  `vulnerabilidades-parseo.ts`; comentarios en `cssInlineReact`; `var(--token)` en
-  `propiedadProhibida`; `tokenDetection.duplicate.excludeTokens` en VarSense; y el destino de
-  `RESTAURANTE/excepciones-varsense.json`, que hoy es una adjudicación firmada que ningún
-  programa lee. **Añadido por A:** `todo-prosa-sin-marcador` casa «todo» en prosa española
-  (`doctor.mjs:1630`, «todo verde = 0»); la regla busca el marcador inglés `TODO` y necesita
-  contexto para no leer el artículo español.
+- **B — Falsos positivos de herramienta.** Evidencia recogida el 2026-10-17.
+  - **B1 · CVSS. HECHO (`fa3edc8`).** `cargo audit` no emite `severity`: el aviso RUSTSEC trae
+    `cvss` como **vector de texto** y el parser leía `cvss.severity`, así que caía en el `low`
+    por defecto de `sev()`. El tablero pasa de `{low:58, high:7}` a
+    `{critical:7, high:14, moderate:11, low:33}`: estaba ocultando 7 críticos y 14 altos, entre
+    ellos `zip` RUSTSEC-2026-0369 (9.1) y RUSTSEC-2026-0367 (7.3) en siete proyectos. `cvss.ts`
+    (nuevo) implementa la fórmula base 3.1; `HallazgoVulnerabilidad` conserva `id` y `titulo` (4
+    avisos distintos de `rustls` se pintaban como 4 líneas idénticas) y marca `sinSeveridad` en
+    vez de rellenar con `low`. El test de cargo usaba una forma **imaginada** (`severity:
+    'medium'` dentro del advisory, que RUSTSEC no emite) y por eso pasaba con el camino roto.
+  - **B2 · `cssInlineReact`/`cssInlineScript`. HECHO (`623f56c` en `varsense`).** Ambos
+    recorrían `document.getText()` crudo, así que un `style={}` **dentro de un comentario**
+    contaba como CSS inline. Los 2 de NAKOMI (`CarruselShowcase.tsx:73`,
+    `SeccionGaleriaServicio.tsx:29`) son la misma frase de un comentario que explica el propio
+    detector. `enmascararComentarios.ts` (nuevo) sustituye comentarios por espacios de igual
+    longitud —offsets y líneas siguen valiendo— y cubre `/* */` y `//` respetando cadenas,
+    templates y apóstrofos de texto JSX. **Witness:** 4 fallos antes, 10/10 después.
+  - **B3 · `propiedadProhibida`: NO es falso positivo.** La premisa «marca `var(--token)`» era
+    falsa: compara el **nombre** de la propiedad (`cssParser.ts:398`). Los 7 de RESTAURANTE son
+    `box-shadow`, que su propio `varsense.config.json:62-68` declara prohibida
+    (`PlanoOcupacion.css:91`, `PlanoSala.css:119`). **Pasa a I como problema real**; no se toca
+    la regla.
+  - **B4 · `tokenDetection.duplicate.excludeTokens`: la clave no existe.** Solo se lee
+    `unused.excludeTokens` (`config.ts:180,217` → `tokenRules.ts:250`); el bloque `duplicate`
+    (`tokenRules.ts:184-247`) no consulta exclusiones y el tipo (`config.ts:39`) no la declara.
+    Los 41 `token-duplicate` de RESTAURANTE son el puente shadcn/Tailwind repitiendo valor por
+    diseño. **Decisión de la usuaria:** implementar la clave o aceptar los duplicados.
+  - **B5 · `RESTAURANTE/excepciones-varsense.json`: artefacto huérfano.** Existe (7,5 KB,
+    2026-09-11) y adjudica ~49 `token-duplicate`, 39 `token-unused` y 6 `claseHuerfana`; **ningún
+    programa lo lee** (barrido de `excepciones-varsense` en `*.ts,*.mjs,*.js,*.cjs,*.rs,*.json`
+    sobre toda el área: 0 coincidencias; solo aparece en `.md` y en dos `.gitignore`). El único
+    registro de excepciones que sí se consume es `scripts/quality/excepciones.json`.
+    **Decisión de la usuaria.**
+  - **Añadido por A:** `todo-prosa-sin-marcador` casa «todo» en prosa española (`doctor.mjs:1630`,
+    «todo verde = 0»); la regla busca el marcador inglés `TODO` y necesita contexto para no leer
+    el artículo español.
 - **C — Problemas reales de workspace-manager.** 16 tras A. De `.mjs`: `directorio-abarrotado` en
   `scripts/dev/` (20 archivos) y `scripts/quality/` (11); `limite-lineas` en `doctor.mjs` (1716
   efectivas), `remoto.mjs` (814), `doctor.test.mjs` (513), `remoto.test.mjs` (398) y `bump.mjs`
   (460), con sus niveles 2–4 en `doctor.mjs`; `import-muerto` ×2 en `agregado-8787.mjs` y ×1 en
   `sync-gate-schema.mjs`. Heredado: `directorio-abarrotado` en `src/server/gate/` (12, de
-  `16AA-14`). **Añadido:** el backend escucha en `0.0.0.0:8787` (PID 9488), contra AGENTS §1.
+  `16AA-14`). ~~El backend escucha en `0.0.0.0:8787`~~: **descartado, era una lectura mía
+  errónea** — `0.0.0.0:0` es la columna de dirección remota de `netstat`, no el bind; el
+  backend escucha en `127.0.0.1:8787` (`index.ts:235`), correcto. `src/server/gate/` pasa de 12 a
+  **14 archivos** con B1, así que su `directorio-abarrotado` sigue en pie y lo resuelve E.
   Los `limite-lineas` de `doctor.mjs`/`remoto.mjs` son la misma deuda que ataca E: se resuelven
   ahí, no con dos arreglos.
 - **D — Coherencia con el taller.** `analisisEn: "dev89"` en las cinco fichas que faltan, con

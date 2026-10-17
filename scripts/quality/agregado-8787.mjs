@@ -25,7 +25,6 @@
  *   3. La verificacio'n por proyecto usa el mismo shape de entrada; `detalle`
  *      lista los ruleId de cada hallazgo para cruzar con los baselines del plan.
  */
-import { existsSync, readFileSync } from 'node:fs' ;
 import { dirname, join, resolve } from 'node:path' ;
 import { fileURLToPath } from 'node:url' ;
 
