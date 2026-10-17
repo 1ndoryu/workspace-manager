@@ -22,7 +22,7 @@
  *   1  desalineacion : FALTAN campos del runtime que la curacion no cubre,
  *      o CAMBIO de forma/ tipo en uno ya cubierto
  *   2  variacion de version del runtime respecto de la curacion */
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { RAIZ_VERSIONS, checkoutSentinel, versionRuntime, versionSentinel, VERSION_CURACION_SENTINEL } from '../src/server/gate/proveedor.js';
 import { ESQUEMA_SENTINEL } from '../src/shared/gate/sentinel.js';
