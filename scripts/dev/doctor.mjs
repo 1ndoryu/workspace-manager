@@ -197,7 +197,7 @@ function validarEntrada(e) {
     if (!e._avisoRegistro) e._avisoRegistro = motivo;
   };
   // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) {
       mal(`registro: clave desconocida '${k}' en '${e.id}'`);
@@ -385,12 +385,23 @@ function validarEntrada(e) {
       mal(`registro: '${e.id}' health esperaJson no booleano (puerto ${h.puerto})`);
       return;
     }
+    // [por que] En modo build el `/` lo sirve el backend Rust, así que un 200 puede ser la API y no
+    // la SPA: el marcador es lo que distingue una de otra. Corto = se cumpliría por casualidad.
+    if ('marcador' in h && (typeof h.marcador !== 'string' || h.marcador.length < 3 || h.marcador.length > 120)) {
+      mal(`registro: '${e.id}' health marcador debe ser texto de 3 a 120 (puerto ${h.puerto})`);
+      return;
+    }
     for (const k of Object.keys(h)) {
-      if (!['puerto', 'ruta', 'esperaJson'].includes(k)) {
+      if (!['puerto', 'ruta', 'esperaJson', 'marcador'].includes(k)) {
         mal(`registro: '${e.id}' health con clave desconocida '${k}'`);
         return;
       }
     }
+  }
+  const malBuild = validarBloqueBuild(e);
+  if (malBuild) {
+    mal(`registro: '${e.id}' ${malBuild}`);
+    return;
   }
   // [por que] Dominio .localhost = URL con nombre por proyecto sin tocar
   // hosts ni pedir administrador (el navegador lo resuelve a loopback).
@@ -624,7 +635,54 @@ export { normalizarRuta };
 // conector cloudflared (20241) vive en la 89 y no tiene oyente local.
 export function puertoDeSaludValido(puerto, entrada) {
   const remotos = Array.isArray(entrada.puertosRemotos) ? entrada.puertosRemotos : [];
-  return entrada.puertos.includes(puerto) || remotos.includes(puerto);
+  const build = Array.isArray(entrada.build?.puertos) ? entrada.build.puertos : [];
+  return entrada.puertos.includes(puerto) || remotos.includes(puerto) || build.includes(puerto);
+}
+
+/* Bloque `build` de una ficha remota (16AA-18): declara sus propios puertos, botones, locales,
+ * healths y el comando que construye el front. En build el backend sirve `frontend/dist`, así que
+ * `construirFront` es obligatorio: sin él el `dist` sería el de la vez anterior y el verde, fingido.
+ * Devuelve el motivo del rechazo, o null. */
+const CLAVES_BUILD = ['puertos', 'boton', 'puertosLocales', 'healths', 'construirFront'];
+export function validarBloqueBuild(e) {
+  if (e.modo !== undefined && e.modo !== 'dev' && e.modo !== 'build') return `modo '${e.modo}' no valido (dev|build)`;
+  if (e.build === undefined) return e.modo === 'build' ? 'modo build sin bloque build' : null;
+  const b = e.build;
+  if (typeof b !== 'object' || b === null || Array.isArray(b)) return 'build debe ser un objeto';
+  const puertos = b.puertos;
+  if (!Array.isArray(puertos) || puertos.length === 0 || puertos.some((p) => !Number.isInteger(p) || p < 1024 || p > 65535)) {
+    return 'build.puertos: lista de puertos (1024-65535), no vacía';
+  }
+  if (!Array.isArray(b.boton) || b.boton.length !== puertos.length) return 'build.boton debe tener un comando por puerto';
+  if (b.boton.some((x) => !Array.isArray(x) || x.length === 0 || x.some((s) => typeof s !== 'string'))) {
+    return 'build.boton debe ser una lista de comandos (cada uno, una lista de textos)';
+  }
+  if (b.puertosLocales !== undefined) {
+    const pl = b.puertosLocales;
+    if (!Array.isArray(pl) || pl.length !== puertos.length || pl.some((p) => !Number.isInteger(p) || p < 1024 || p > 65535)) {
+      return 'build.puertosLocales debe tener un puerto local (1024-65535) por cada puerto de build';
+    }
+    if (new Set(pl).size !== pl.length) return 'build.puertosLocales repetidos';
+  }
+  for (const h of b.healths ?? []) {
+    if (!Number.isInteger(h?.puerto) || !puertos.includes(h.puerto)) return 'build.healths: puerto fuera de build.puertos';
+    if (typeof h.ruta !== 'string' || !h.ruta.startsWith('/')) return `build.healths sin ruta absoluta (puerto ${h.puerto})`;
+    if ('esperaJson' in h && typeof h.esperaJson !== 'boolean') return `build.healths esperaJson no booleano (puerto ${h.puerto})`;
+    if ('marcador' in h && (typeof h.marcador !== 'string' || h.marcador.length < 3 || h.marcador.length > 120)) {
+      return `build.healths marcador debe ser texto de 3 a 120 (puerto ${h.puerto})`;
+    }
+    for (const k of Object.keys(h)) {
+      if (!['puerto', 'ruta', 'esperaJson', 'marcador'].includes(k)) return `build.healths con clave desconocida '${k}'`;
+    }
+  }
+  const pasos = b.construirFront;
+  if (!Array.isArray(pasos) || pasos.length === 0 || pasos.some((p) => !Array.isArray(p) || p.length === 0 || p.some((s) => typeof s !== 'string'))) {
+    return 'build.construirFront debe ser una lista de comandos (cada uno, una lista de textos)';
+  }
+  for (const k of Object.keys(b)) {
+    if (!CLAVES_BUILD.includes(k)) return `build con clave desconocida '${k}'`;
+  }
+  return null;
 }
 
 export function marcadorPuerto(entrada, puerto) {

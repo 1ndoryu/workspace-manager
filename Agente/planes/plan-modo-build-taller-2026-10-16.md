@@ -303,7 +303,9 @@ Por eso se separan, con dos campos y dos nombres explícitos:
 
 `construirFront` vive dentro de `build` y solo se usa en modo `build`. Se ejecuta **después** de
 `precompilar` y **antes** de arrancar. Si falla, `up` aborta: nunca se arranca con un `dist` viejo.
-Si la ficha ya declara `comandos.build` (KAMPLES lo hace), `construirFront` puede tomarlo de ahí.
+Es **obligatorio** en el bloque `build`: el doctor lo exige. Aunque la ficha ya declare
+`comandos.build` (KAMPLES lo hace), no se hereda — `comandos.*` es un texto de shell y partirlo para
+sacarle el argv es frágil (comillas, `&&`, `env VAR=`); el argv se declara explícito.
 
 ### 3.3 Dónde está el front y con qué URL, por proyecto
 
@@ -313,7 +315,7 @@ rutas son **relativas** (`frontend/dist`): el comando corre con `cwd` = la répl
 
 | Proyecto | Variable | URL horneada | Puertos en build | Cambios extra |
 |---|---|---|---|---|
-| KAMPLES | `STATIC_DIR` | **`/`** | 3001 | `comandos.build` ya existe |
+| KAMPLES | `STATIC_DIR` | **`/`** | 3001 | — |
 | NAKOMI | `STATIC_DIR` | relativo (`''`) | 3103 | no heredar `env.VITE_API_URL` |
 | PROYECTO TASKS | `FRONTEND_DIST` | **`/`** | 4190 | no heredar `VITE_API_PROXY_TARGET` |
 | WANDORIUS | `FRONTEND_DIST` | relativo (`''`) | 3104 | **router**: no sirve estático (F4) |
@@ -437,6 +439,23 @@ menos que el baseline de hoy con dos.
 `historial-agents-md.md`; `AGENTS.md` sincronizado a la 89; `Arranque gate --cierre`; `Arranque
 cierre --tarea 16AA-18`; entrada en `Agente/completados/tareas-2026-10-17.md`.
 *DoD:* un agente que lea solo AGENTS sabe que el defecto es build, cómo pedir dev y por qué.
+
+**F10 — Coherencia de las skills con el taller real (pedido por la usuaria el 2026-10-17).**
+Repaso de **todas** las skills del índice de AGENTS §11 (`supervisor`, `supervisor-thinking`,
+`supervisor-review`, `code-analysis`, `taller-remoto`, `coolify-deployment`, `coolify-manager`,
+`workspace-manager`, `build-artefactos`, `sentinel`, `sentinel-inspection`, `sentinel-repair`,
+`varsense`, `quality-gate-setup`, `lab-opencode`, `pc-control`, `glory-pulse-ops`,
+`google-auth-glory`, `pdf-academico`, `conducta-global`, `publicar-inmuebles`, `whatsapp-gateway`),
+no solo las que toca este plan: comprobar que lo que afirman sigue siendo cierto desde que se
+implantó el taller de la 89, porque una skill vieja es una trampa (se lee antes que el doc).
+Qué se contrasta, skill por skill: comandos que ya no existen o cambiaron de forma; el modo `build`
+por defecto y `--dev`; `cm-heavy`, `cm-sweep` y sus techos; el reparto laptop/89; las BD; el dev
+público por Cloudflare; y el gate. Método: por cada skill, listar sus afirmaciones operativas
+(comandos, rutas, puertos, umbrales) y **ejecutar o leer la fuente** que las respalda; nada se da
+por bueno «porque suena bien». Se corrigen las que estén mal, se anota lo dudoso y se sincronizan
+las copias laptop ↔ 89 (AGENTS §11).
+*DoD:* tabla de las 22 skills con veredicto (correcta / corregida / obsoleta y por qué); las
+correcciones aplicadas en las dos copias; y ninguna skill afirmando algo que el taller ya no hace.
 
 ## 6. Riesgos de `16AA-18`
 
