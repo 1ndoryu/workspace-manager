@@ -3,7 +3,7 @@
  * igual que el zoom/pan del mapa. Vive fuera del store para que el slice sea
  * testeable sin zustand: solo localStorage + logger. */
 import type { PanelCentral, VisibilidadPaneles } from './tipos.js';
-import { borrarClave, guardarJson, guardarTexto, leerJson, leerTexto } from '../../shared/storage.js';
+import { borrarClave, guardarJson, guardarTexto, leerJson, leerTexto } from '../../shared/vista/storage.js';
 
 /* Persistencia de la seleccion entre recargas, igual que zoom/pan del mapa.
  * [por que] El usuario pidio que el panel/caja seleccionada perdure al

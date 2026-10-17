@@ -10,7 +10,7 @@
 import { Button } from '../ui/form/Button.js';
 import { Casilla } from '../ui/form/Casilla.js';
 import { type AccionPc, type ResultadoLimpieza } from '../pc/apiPc.js';
-import { fechaHora, gb } from '../../shared/format.js';
+import { fechaHora, gb } from '../../shared/vista/format.js';
 import { usePanelPc } from '../../hooks/usePanelPc.js';
 import { rutaCorta, type Grupo } from '../../hooks/gruposPc.js';
 import './PanelPc.css';

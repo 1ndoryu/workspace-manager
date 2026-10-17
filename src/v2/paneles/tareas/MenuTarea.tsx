@@ -37,7 +37,7 @@ import {
   textoTarea,
   urgenciaTarea,
   type TareaTab,
-} from '../../../shared/tareasTab.js';
+} from '../../../shared/tareas/tareasTab.js';
 
 /* Acciones del menu agrupadas (07AA-15): cuatro callbacks en un objeto para
  * no rozar large-interface-isp; el menu solo cablea el proxy via el hook.

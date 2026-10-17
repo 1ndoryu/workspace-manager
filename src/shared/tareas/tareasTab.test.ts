@@ -1,5 +1,5 @@
 /* Puras de la tab tareas (07AA-5 F3): contrato sin React ni red.
- * Se corre con: node node_modules/tsx/dist/cli.mjs --test src/shared/tareasTab.test.ts */
+ * Se corre con: node node_modules/tsx/dist/cli.mjs --test src/shared/tareas/tareasTab.test.ts */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {

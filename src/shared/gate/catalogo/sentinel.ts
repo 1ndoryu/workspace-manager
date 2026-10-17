@@ -7,7 +7,7 @@
  * `necesidad` (requerida/recomendada/opcional) marca la severidad en la consola
  * cuando una opcion FALTA: requerida->error, recomendada->advertencia,
  * opcional->silencio. Vive en shared/gate para que server y editor coincidan. */
-import type { Alternativas, NodoEsquema, NodoObjeto, Necesidad, OpcionValor } from './esquema.js';
+import type { Alternativas, NodoEsquema, NodoObjeto, Necesidad, OpcionValor } from '../modelo/esquema.js';
 import { CATALOGO_REGLAS } from './reglas.js';
 
 const strArr = (d?: string, necesidad?: Necesidad): NodoEsquema => ({ tipo: 'stringArray', descripcion: d, necesidad });

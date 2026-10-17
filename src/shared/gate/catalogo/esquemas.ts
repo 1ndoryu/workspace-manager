@@ -11,8 +11,8 @@
  * el esquema del proveedor; esto es el respaldo y el mapa de nombres.
  *
  * No importa node: lo usa tambien el cliente. */
-import type { NodoEsquema } from './esquema.js';
-import type { TipoGate } from './proveedores.js';
+import type { NodoEsquema } from '../modelo/esquema.js';
+import type { TipoGate } from '../proveedores.js';
 import { ESQUEMA_SENTINEL } from './sentinel.js';
 import { ESQUEMA_VARSENSE } from './varsense.js';
 

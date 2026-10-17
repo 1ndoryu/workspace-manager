@@ -6,7 +6,7 @@
  * sigue el mismo patron que AppV2 (logger central, no console directo). */
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Proyecto } from '../../shared/types.js';
-import { guardarJson, leerJson } from '../../shared/storage.js';
+import { guardarJson, leerJson } from '../../shared/vista/storage.js';
 
 /* Estado del mapa persistido entre recargas (zoom y posicion de arrastre).
  * [por que] El usuario pidio que al recargar la pagina no se pierdan. Se

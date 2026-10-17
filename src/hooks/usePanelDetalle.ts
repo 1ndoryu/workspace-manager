@@ -6,7 +6,7 @@ import { useWorkspaceStore } from './useWorkspace.js';
 import { estadoProyecto } from '../v2/estado.js';
 import { useEscanear } from './useEscanear.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../shared/types.js';
-import { hashCorto } from '../shared/format.js';
+import { hashCorto } from '../shared/vista/format.js';
 
 function filasProyecto(p: Proyecto): { k: string; v: string }[] {
   const filas: { k: string; v: string }[] = [

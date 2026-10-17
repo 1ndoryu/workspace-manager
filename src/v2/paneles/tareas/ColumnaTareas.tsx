@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../../ui/form/Button.js';
 import { Caja } from '../../ui/caja/Caja.js';
-import type { ParcheTareaTab, TareaTab } from '../../../shared/tareasTab.js';
+import type { ParcheTareaTab, TareaTab } from '../../../shared/tareas/tareasTab.js';
 import { TarjetaTarea } from './TarjetaTarea.js';
 import { ModalAltaTarea, type DatosAltaTarea } from './ModalAltaTarea.js';
 

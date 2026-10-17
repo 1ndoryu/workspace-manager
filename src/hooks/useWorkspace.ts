@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 import type { Proyecto } from '../shared/types.js';
 import type { EstadoWorkspace } from './workspace/tipos.js';
-import { REGLAS as REGLAS_ESTATICAS } from '../shared/gate/reglas.js';
+import { REGLAS as REGLAS_ESTATICAS } from '../shared/gate/catalogo/reglas.js';
 import {
   guardarSeleccion,
   guardarUi,

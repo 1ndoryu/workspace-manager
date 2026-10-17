@@ -11,15 +11,15 @@
  * intactas las claves desconocidas no tocadas al guardar. Mantiene el diseno
  * plano aprobado (una fila por ruta, 11px, sin :hover). */
 import { AlertTriangle, Check, X } from 'lucide-react';
-import type { NodoEsquema, OpcionValor, ValorJson } from '../shared/gate/esquema.js';
+import type { NodoEsquema, OpcionValor, ValorJson } from '../shared/gate/modelo/esquema.js';
 import {
   borrarRuta,
   diagnosticar,
   setRuta,
   type Fila,
   type Ruta,
-} from '../shared/gate/esquema.js';
-import { REGLAS as REGLAS_ESTATICAS, type ReglaCatalogo } from '../shared/gate/reglas.js';
+} from '../shared/gate/modelo/esquema.js';
+import { REGLAS as REGLAS_ESTATICAS, type ReglaCatalogo } from '../shared/gate/catalogo/reglas.js';
 import { Button } from './ui/form/Button.js';
 import { SeccionReglas } from './SeccionReglas.js';
 import { Control, ValorCrudo } from './controlesEsquema.js';

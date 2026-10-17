@@ -13,7 +13,7 @@ import { Caja } from '../ui/caja/Caja.js';
 import { FilaCajas } from '../ui/caja/FilaCajas.js';
 import { usePanelRepos, remotoCorto } from '../../hooks/usePanelRepos.js';
 import { DetalleRepo } from './repos/DetalleRepo.js';
-import { fechaCorta, hashCorto } from '../../shared/format.js';
+import { fechaCorta, hashCorto } from '../../shared/vista/format.js';
 import { PanelCambiosRepo } from './repos/PanelCambiosRepo.js';
 import './paneles.css';
 import './repos/repos.css';

@@ -7,7 +7,7 @@ import {
   type HistorialSitios,
   type MuestraSitio,
 } from './historialSitios.js';
-import { guardarTexto, leerTexto } from '../../shared/storage.js';
+import { guardarTexto, leerTexto } from '../../shared/vista/storage.js';
 import { bajarVentana, suscribirVentana } from '../../shared/platform/plataforma.js';
 import { RANGOS } from '../paneles/vps/PanelVpsRecursos.js';
 import type { VpsAgenteSnapshot } from '../../shared/types.js';

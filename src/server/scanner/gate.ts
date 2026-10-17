@@ -6,8 +6,8 @@ import { existsSync, readdirSync, readFileSync, type Dirent } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import type { EstadoGate, ProblemaGate } from '../../shared/types.js';
-import { diagnosticar, rutaEtiqueta, severidadDe, type NodoEsquema } from '../../shared/gate/esquema.js';
-import { ESQUEMAS } from '../../shared/gate/esquemas.js';
+import { diagnosticar, rutaEtiqueta, severidadDe, type NodoEsquema } from '../../shared/gate/modelo/esquema.js';
+import { ESQUEMAS } from '../../shared/gate/catalogo/esquemas.js';
 import { cliRuntime } from '../gate/ejecucion.js';
 
 /* Hojas de estilo y configs de tailwind: lo que VarSense valida.

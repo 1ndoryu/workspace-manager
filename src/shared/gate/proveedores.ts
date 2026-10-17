@@ -11,8 +11,8 @@
  * concretos (que leen el runtime) se registran server-side en
  * `src/server/gate/proveedor.ts`; aqui solo vive el contrato y lo que no
  * depende del entorno. */
-import type { NodoEsquema } from './esquema.js';
-import type { ReglaCatalogo } from './reglas.js';
+import type { NodoEsquema } from './modelo/esquema.js';
+import type { ReglaCatalogo } from './catalogo/reglas.js';
 
 /* Herramientas de gate soportadas por el editor de config. */
 export type TipoGate = 'sentinel' | 'varsense';

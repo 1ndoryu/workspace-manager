@@ -3,7 +3,7 @@
  * [por que] Salio de PanelConfig.tsx para que el componente quede bajo el
  * limite-lineas (300): recibe el paquete `datos` del hook, sin logica propia. */
 import { Button } from '../../ui/form/Button.js';
-import { horaCorta } from '../../../shared/format.js';
+import { horaCorta } from '../../../shared/vista/format.js';
 import type { DatosPanelConfig } from './usePanelConfig.js';
 
 export function VistaScan({ datos }: { datos: DatosPanelConfig }) {

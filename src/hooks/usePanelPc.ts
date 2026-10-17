@@ -16,7 +16,7 @@ import {
   type ResultadoLimpieza,
   type SeleccionPc,
 } from '../v2/pc/apiPc.js';
-import { gb } from '../shared/format.js';
+import { gb } from '../shared/vista/format.js';
 import {
   aGrupos,
   esDelicada,

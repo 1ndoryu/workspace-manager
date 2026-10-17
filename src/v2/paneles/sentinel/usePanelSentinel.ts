@@ -9,7 +9,7 @@ import { useWorkspaceStore } from '../../../hooks/useWorkspace.js';
 import type { EstadoGate } from '../../../shared/types.js';
 import { mensajeDeError, toastError, toastInfo, toastOk } from '../../toast.js';
 import { logger } from '../../../shared/logger.js';
-import type { NodoEsquema } from '../../../shared/gate/esquema.js';
+import type { NodoEsquema } from '../../../shared/gate/modelo/esquema.js';
 import type { TipoGate } from '../../../shared/gate/proveedores.js';
 
 /* Archivos de gate editables (whitelist del server: same list). */

@@ -1,6 +1,6 @@
 /* Proveedor de reglas VIVAS del gate desde el runtime de sentinel en uso
  * (checkout compartido del área; instaladas en AppData como respaldo).
- * [por que] El catálogo de reglas vivía en src/shared/gate/reglas.ts como un
+ * [por que] El catálogo de reglas vivía en src/shared/gate/catalogo/reglas.ts como un
  * snapshot congelado de la versión fijada (0.7.4): al subir sentinel quedaba
  * viejo. El runtime expone el catálogo en tiempo de ejecución
  * (`out/config/ruleRegistry.js`: `obtenerTodasLasReglas()` + `REGISTRO`), así
@@ -12,14 +12,14 @@
 import { createRequire } from 'node:module';
 import { existsSync, readdirSync, statSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import type { ReglaCatalogo, SeveridadRegla } from '../../shared/gate/reglas.js';
-import { REGLAS as REGLAS_ESTATICAS } from '../../shared/gate/reglas.js';
-import type { NodoEsquema } from '../../shared/gate/esquema.js';
+import type { ReglaCatalogo, SeveridadRegla } from '../../shared/gate/catalogo/reglas.js';
+import { REGLAS as REGLAS_ESTATICAS } from '../../shared/gate/catalogo/reglas.js';
+import type { NodoEsquema } from '../../shared/gate/modelo/esquema.js';
 import type { MetadatosGate, TipoGate } from '../../shared/gate/proveedores.js';
 import { proveedorDe, registrarProveedor } from '../../shared/gate/proveedores.js';
-import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
-import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
-import { serializarEsquema } from '../../shared/gate/serial.js';
+import { ESQUEMA_SENTINEL } from '../../shared/gate/catalogo/sentinel.js';
+import { ESQUEMA_VARSENSE } from '../../shared/gate/catalogo/varsense.js';
+import { serializarEsquema } from '../../shared/gate/modelo/serial.js';
 import { RAIZ_AREA } from '../../shared/rutas.js';
 
 /* Raíz de las versiones instaladas de GlorySentinel (AppData local). */

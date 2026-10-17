@@ -1,6 +1,6 @@
 /* Vista de resumen: tarjetas con metricas del area + boton re-escaneo. */
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
-import { fechaHora } from '../../shared/format.js';
+import { fechaHora } from '../../shared/vista/format.js';
 import { Tarjeta } from '../ui/Tarjeta.js';
 import { Boton } from '../ui/Boton.js';
 import './resumen.css';
