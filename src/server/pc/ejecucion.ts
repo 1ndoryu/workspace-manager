@@ -77,6 +77,27 @@ export interface EntradaPc {
   ruta: string;
   bytes: number;
   detalle: string;
+  /* Fila que la limpieza no toca por defecto (07AA-2). La marca el servidor,
+   * que es quien conoce el registro; el cliente solo la pinta. */
+  delicada: boolean;
+}
+
+/* ¿La limpieza debe dejar esta entrada sin marcar por defecto?
+ * [por que] La caché de compilación (sccache) y los targets de las ramas
+ * aceleran las builds, y el node_modules de una app AJENA al área tarda en
+ * reinstalarse: limpiar sin miedo no debe tocarlos. Qué apps son ajenas lo dice
+ * el registro (`gestion-externa`); antes era un literal con el nombre de una
+ * dentro del hook del cliente, así que un clon heredaba una política que no era
+ * suya. */
+export function esDelicada(
+  e: { fase: FasePc; clave: string; ruta: string },
+  ajenos: readonly string[],
+): boolean {
+  if (e.fase === 'caches' && e.clave === 'sccache') return true;
+  if (e.fase === 'tmp' && e.clave === 'tmp-target') return true;
+  if (e.fase !== 'area' || e.clave !== 'node_modules') return false;
+  const bajo = e.ruta.toLowerCase();
+  return ajenos.some((a) => a !== '' && bajo.includes(a));
 }
 
 export interface ReportePc {

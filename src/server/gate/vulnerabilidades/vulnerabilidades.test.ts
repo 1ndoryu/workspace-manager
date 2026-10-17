@@ -19,22 +19,31 @@ test('detectarLockfiles: pnpm gana a npm en la misma carpeta y audita cada subca
     join(R, 'package-lock.json'),
     join(R, 'Cargo.lock'),
     join(R, 'frontend', 'package-lock.json'),
-    join(R, 'glory-rs', 'Cargo.lock'),
+    join(R, 'core-rs', 'Cargo.lock'),
   ]);
-  const locks = detectarLockfiles(R, (ruta) => existen.has(ruta));
+  /* Las subcarpetas se inyectan: en disco no hay nada, el fixture es el set. */
+  const locks = detectarLockfiles(R, (ruta) => existen.has(ruta), () => ['core-rs', 'frontend']);
   assert.deepEqual(
     locks.map((l) => [l.lockfile, l.gestor]),
     [
       ['pnpm-lock.yaml', 'pnpm'],
       ['Cargo.lock', 'cargo'],
+      ['core-rs/Cargo.lock', 'cargo'],
       ['frontend/package-lock.json', 'npm'],
-      ['glory-rs/Cargo.lock', 'cargo'],
     ],
   );
 });
 
+/* La lista de carpetas sale del disco, no de nombres conocidos: sin ella solo se
+ * mira la raiz, asi que un lockfile en una subcarpeta con cualquier nombre cuenta. */
+test('detectarLockfiles: las carpetas se leen del proyecto, no de una lista fija', () => {
+  const existen = new Set([join(R, 'web', 'pnpm-lock.yaml'), join(R, 'node_modules', 'x', 'package-lock.json')]);
+  const locks = detectarLockfiles(R, (ruta) => existen.has(ruta), () => ['node_modules', 'web']);
+  assert.deepEqual(locks.map((l) => l.lockfile), ['web/pnpm-lock.yaml'], 'node_modules no se audita');
+});
+
 test('detectarLockfiles: sin lockfile devuelve lista vacia', () => {
-  assert.deepEqual(detectarLockfiles(R, () => false), []);
+  assert.deepEqual(detectarLockfiles(R, () => false, () => []), []);
 });
 
 test('parsearAudit npm: mapa paquete -> severidad, resumen derivado de los hallazgos', () => {

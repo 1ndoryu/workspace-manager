@@ -11,6 +11,7 @@ import {
   dirPc,
   encolar,
   escribirAtomico,
+  esDelicada,
   esPorRuta,
   FASES_PC,
   ORDEN_FASES_PC,
@@ -20,29 +21,43 @@ import {
 } from './ejecucion.js';
 import type { AvanceScan, EntradaPc, EventoScan, FasePc, ReportePc } from './ejecucion.js';
 import { hayLimpiezaEnCurso } from './limpieza.js';
+import { appsAjenas, leerRegistroArea } from '../registro.js';
+
+/* Apps ajenas al área, o vacío si el registro no se puede leer: sin registro no
+ * hay exención, que es lo conservador (así no se deja sin limpiar una carpeta
+ * por un nombre que nadie declaró). */
+function ajenasDelArea(): string[] {
+  try {
+    return appsAjenas(leerRegistroArea());
+  } catch {
+    return [];
+  }
+}
 
 /* Normaliza el JSON crudo de una fase al shape comun del panel. */
-function normalizar(fase: FasePc, crudo: unknown): { entradas: EntradaPc[]; totalBytes: number } {
+function normalizar(fase: FasePc, crudo: unknown, ajenos: readonly string[]): { entradas: EntradaPc[]; totalBytes: number } {
   const obj = (crudo ?? {}) as { entradas?: unknown; total_bytes?: unknown };
   const lista = Array.isArray(obj.entradas) ? (obj.entradas as Record<string, unknown>[]) : [];
   const entradas: EntradaPc[] = lista.map((e) => {
     if (esPorRuta(fase)) {
-      return {
+      const fila = {
         fase,
         clave: String(e.tipo ?? '?'),
         ruta: String(e.ruta ?? ''),
         bytes: Number(e.bytes ?? 0),
         detalle: String(e.motivo ?? ''),
       };
+      return { ...fila, delicada: esDelicada(fila, ajenos) };
     }
     const extra = String(e.motivo ?? e.comando ?? '');
-    return {
+    const fila = {
       fase,
       clave: String(e.nombre ?? '?'),
       ruta: String(e.ruta ?? ''),
       bytes: Number(e.bytes ?? 0),
       detalle: extra,
     };
+    return { ...fila, delicada: esDelicada(fila, ajenos) };
   });
   const total =
     typeof obj.total_bytes === 'number'
@@ -192,7 +207,7 @@ export function escanearTodo(informa: (ev: EventoScan) => void): Promise<void> {
 /* Texto del evento preparando (la recompilación tras actualizar el
  * limpiador tarda decenas de segundos sin medir nada: antes era un hueco
  * mudo que se sentía como "va más lento"). */
-const DETALLE_PREPARANDO = 'reconstruyendo limpiador-pc (solo tras actualizar)…';
+const DETALLE_PREPARANDO = 'reconstruyendo el limpiador (solo tras actualizar)…';
 
 async function cuerpoScan(): Promise<void> {
   const t = trabajo;
@@ -207,6 +222,7 @@ async function cuerpoScan(): Promise<void> {
     const { bin, version } = await asegurarBinario();
     t.avance = { ...t.avance, preparando: false };
     const todas: EntradaPc[] = [];
+    const ajenos = ajenasDelArea();
     for (let i = 0; i < ORDEN_FASES_PC.length; i++) {
       const fase = ORDEN_FASES_PC[i];
       const meta = FASES_PC[fase];
@@ -225,7 +241,7 @@ async function cuerpoScan(): Promise<void> {
           throw new Error('el limpiador no devolvió JSON válido');
         }
         escribirAtomico(rutaCrudo(fase), JSON.stringify(crudo));
-        const { entradas, totalBytes } = normalizar(fase, crudo);
+        const { entradas, totalBytes } = normalizar(fase, crudo, ajenos);
         todas.push(...entradas);
         const ev: Extract<EventoScan, { tipo: 'fase' }> = { tipo: 'fase', fase, etiqueta: meta.etiqueta, entradas, totalBytes };
         t.completadas.push(ev);
@@ -260,15 +276,18 @@ async function cuerpoScan(): Promise<void> {
 }
 
 /* Último análisis guardado (rehidrata la tab al recargar sin re-escanear).
- * Null si aún no se analizó. */
+ * Null si aún no se analizó. [por que] `delicada` se recalcula al leer en vez de
+ * fiarse de lo guardado: el reporte puede ser de antes de cambiar el registro, y
+ * una caché no debe servir una política vieja (ni obligar a re-escanear). */
 export function leerReporte(): ReportePc | null {
   try {
     const f = rutaReporte();
     if (!existsSync(f)) return null;
     const r = JSON.parse(readFileSync(f, 'utf8')) as Partial<ReportePc>;
     if (!Array.isArray(r.entradas)) return null;
+    const ajenos = ajenasDelArea();
     return {
-      entradas: r.entradas as EntradaPc[],
+      entradas: (r.entradas as EntradaPc[]).map((e) => ({ ...e, delicada: esDelicada(e, ajenos) })),
       totalBytes: typeof r.totalBytes === 'number' ? r.totalBytes : 0,
       medidoEn: typeof r.medidoEn === 'string' ? r.medidoEn : '',
       versionBinario: typeof r.versionBinario === 'string' ? r.versionBinario : null,

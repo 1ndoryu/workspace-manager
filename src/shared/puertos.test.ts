@@ -5,7 +5,7 @@
  * comprobar de verdad el contrato sin arrancar un proceso aparte. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PUERTO_API, PUERTO_OPENCODE, PUERTO_PREVIEW, PUERTO_WEB, PUERTOS_PROTEGIDOS, PUERTOS_TABLERO } from './puertos.js';
+import { PUERTO_API, PUERTO_AJENO, PUERTO_PREVIEW, PUERTO_WEB, PUERTOS_PROTEGIDOS, PUERTOS_TABLERO } from './puertos.js';
 
 type Puertos = typeof import('./puertos.js');
 
@@ -29,14 +29,14 @@ test('los puertos por defecto son los del tablero', () => {
   assert.equal(PUERTO_API, 8787);
   assert.equal(PUERTO_WEB, 5175);
   assert.equal(PUERTO_PREVIEW, 4173);
-  assert.equal(PUERTO_OPENCODE, 5174);
+  assert.equal(PUERTO_AJENO, 5174);
 });
 
 test('el tablero protege sus tres puertos y el de opencode', () => {
   assert.deepEqual([...PUERTOS_TABLERO], [PUERTO_WEB, PUERTO_API, PUERTO_PREVIEW]);
   assert.deepEqual(
     [...PUERTOS_PROTEGIDOS].sort((a, b) => a - b),
-    [PUERTO_OPENCODE, PUERTO_WEB, PUERTO_API].sort((a, b) => a - b),
+    [PUERTO_AJENO, PUERTO_WEB, PUERTO_API].sort((a, b) => a - b),
   );
 });
 

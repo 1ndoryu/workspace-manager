@@ -45,7 +45,7 @@ export function generarIdLibre(ocupados: Set<number>, ahoraMs: number): number {
     const candidato = base + ((Math.floor(ahoraMs) + i) % 1000);
     if (candidato > 0 && !ocupados.has(candidato)) return candidato;
   }
-  throw {codigo: 'servidor', mensaje: 'sin-ids-libres para proyecto TASKS'} as const;
+  throw {codigo: 'servidor', mensaje: 'sin-ids-libres para el proyecto del tablero de tareas'} as const;
 }
 
 function entradaValida(e: unknown): e is EntradaWm {

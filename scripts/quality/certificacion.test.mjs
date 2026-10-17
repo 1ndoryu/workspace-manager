@@ -150,6 +150,10 @@ test('la caché vive fuera de todo repo y respeta el override', () => {
   assert.equal(directorioCertificaciones({ GLORY_CERT_CACHE: 'C:\\tmp\\cert-test' }), 'C:\\tmp\\cert-test');
   const windows = directorioCertificaciones({ LOCALAPPDATA: 'C:\\Users\\usuario\\AppData\\Local' });
   assert.match(windows, /GlorySentinel[\\/]certificaciones$/u);
-  const posix = directorioCertificaciones({ XDG_CACHE_HOME: '/home/usuario/.cache' });
-  assert.equal(posix, path.join('/home/usuario/.cache', 'glory-sentinel', 'certificaciones'));
+  /* El nombre de la carpeta es el papel `sentinel` del área, así que aquí se pasa
+   * explícito: sin él el test dependería de la config privada de cada máquina. */
+  const posix = directorioCertificaciones({ XDG_CACHE_HOME: '/home/usuario/.cache' }, 'mi-sentinel');
+  assert.equal(posix, path.join('/home/usuario/.cache', 'mi-sentinel', 'certificaciones'));
+  const sinPapel = directorioCertificaciones({ XDG_CACHE_HOME: '/home/usuario/.cache' }, null);
+  assert.equal(sinPapel, path.join('/home/usuario/.cache', 'sentinel', 'certificaciones'), 'sin papel declarado, nombre neutro');
 });

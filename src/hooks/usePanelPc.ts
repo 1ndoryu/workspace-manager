@@ -73,8 +73,8 @@ export function usePanelPc() {
         setMedidoEn(est.reporte.medidoEn);
         const grupos = aGrupos(est.reporte.entradas);
         setPlegados(plegadoInicial(grupos));
-        /* Las delicadas (sccache, node_modules de opencode-propio) salen
-         * desmarcadas por defecto (07AA-2): se marcan solo a mano. */
+        /* Las delicadas salen desmarcadas por defecto (07AA-2): se marcan a
+         * mano. Cuáles son lo dice el servidor en cada entrada. */
         const marcadas = grupos
           .flatMap((g) => g.filas)
           .filter((f) => !esDelicada(f))

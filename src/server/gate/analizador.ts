@@ -102,16 +102,16 @@ async function analizarEnLocal(p: Proyecto): Promise<AnalisisSentinel> {
  * sentinel fue bien y solo falló varsense, ya hay resultado y repetirlo no aporta. */
 async function analizarConModo(p: Proyecto): Promise<AnalisisSentinel> {
   if (modoAnalisis(p.clave) !== 'taller') return analizarEnLocal(p);
-  const remoto = await analizarEnDev89(p);
+  const remoto = await analizarEnTaller(p);
   if (remoto.estado !== 'error') return remoto;
   const local = await analizarEnLocal(p);
   return { ...local, aviso: `hecho en local, el taller no respondió (${remoto.error ?? 'sin motivo'})` };
 }
 
-/* [por que] S3.7: la 89 analiza su réplica del proyecto. Antes se vacía la cola de
+/* [por que] S3.7: el taller analiza su réplica del proyecto. Antes se vacía la cola de
  * mutagen, así la réplica coincide con el árbol local. Un fallo remoto no lanza: queda
  * en 'error' con su motivo, y no se cachea (el siguiente análisis reintenta). */
-async function analizarEnDev89(p: Proyecto): Promise<AnalisisSentinel> {
+async function analizarEnTaller(p: Proyecto): Promise<AnalisisSentinel> {
   const clave = p.clave;
   let cfg: ConfigRemota;
   try {

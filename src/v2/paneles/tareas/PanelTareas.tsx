@@ -28,7 +28,7 @@ export function PanelTareas() {
       <Caja titulo="tareas" etiqueta="Kanban de tareas">
         <div className="docsVacio">{t.error ?? 'cargando…'}</div>
         {t.error && (
-          <Button pequeno onClick={t.recargar} title="Reintentar la conexión con PROYECTO TASKS">
+          <Button pequeno onClick={t.recargar} title="Reintentar la conexión con el servidor de tareas">
             <RotateCw size={12} aria-hidden /> reintentar
           </Button>
         )}
@@ -47,7 +47,7 @@ export function PanelTareas() {
           y reinicia el backend (puerto 8787); las columnas las sincroniza el servidor (una por
           proyecto no-ignorado)
         </div>
-        <Button pequeno onClick={t.recargar} title="Reintentar la conexión con PROYECTO TASKS">
+        <Button pequeno onClick={t.recargar} title="Reintentar la conexión con el servidor de tareas">
           <RotateCw size={12} aria-hidden /> reintentar
         </Button>
       </Caja>

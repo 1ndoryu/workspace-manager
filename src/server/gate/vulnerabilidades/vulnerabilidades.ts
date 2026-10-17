@@ -18,7 +18,7 @@
  * (visibles pero SIN problema), nunca como error.
  */
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { compartirVuelo } from '../vuelo.js';
@@ -116,11 +116,28 @@ async function resolverCliPnpm(cwd: string): Promise<string | null> {
   return cliPnpmResuelto;
 }
 
-/* Carpetas donde buscar lockfile. Lista fija (no recorrido): excluye a proposito
- * las copias vendored (tools/, .quality-tools/, .sentinel/), que no son deps del
- * proyecto. [por que] WANDORIUS tiene lockfiles en la raiz, en frontend/ y en
- * glory-rs/; antes solo se auditaba el primero que aparecia. */
-const BASES_LOCKFILE = ['', 'frontend', 'gui', 'frontend-v2', 'glory-rs'] as const;
+/* Carpetas donde puede vivir un lockfile: la raiz y las de primer nivel que no
+ * sean vendored ni generadas (esas no son deps del proyecto: tools/,
+ * .quality-tools/, .sentinel/, node_modules/, target/, dist/, build/, vendor/).
+ * [por que] Antes era una lista fija con los nombres de las carpetas de nuestros
+ * proyectos (`frontend`, `gui`, `frontend-v2`, `glory-rs`): en cualquier otro
+ * proyecto el audit se dejaba lockfiles sin mirar, y con un nombre distinto el
+ * resultado cambiaba sin avisar. Se leen las carpetas reales, sin bajar mas de
+ * un nivel. */
+const NO_VENDORED = new Set([
+  'node_modules', 'tools', '.quality-tools', '.sentinel', 'target', 'dist', 'build', 'vendor', '.git',
+]);
+
+function carpetasDePrimerNivel(rutaProyecto: string): string[] {
+  try {
+    return readdirSync(rutaProyecto, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !NO_VENDORED.has(e.name))
+      .map((e) => e.name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
 
 interface LockDetectado {
   /* Ruta relativa al proyecto para mostrar, p. ej. `frontend/package-lock.json`. */
@@ -137,9 +154,10 @@ interface LockDetectado {
 export function detectarLockfiles(
   rutaProyecto: string,
   existe: (ruta: string) => boolean = existsSync,
+  subcarpetas: (ruta: string) => string[] = carpetasDePrimerNivel,
 ): LockDetectado[] {
   const hallados: LockDetectado[] = [];
-  for (const base of BASES_LOCKFILE) {
+  for (const base of ['', ...subcarpetas(rutaProyecto)]) {
     const hay = (file: string) => existe(join(rutaProyecto, base, file));
     const elegidos: { file: string; gestor: LockDetectado['gestor'] }[] = [];
     if (hay('pnpm-lock.yaml')) elegidos.push({ file: 'pnpm-lock.yaml', gestor: 'pnpm' });

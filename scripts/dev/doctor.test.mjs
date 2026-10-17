@@ -39,7 +39,7 @@ import {
   veredictoUpSinCobertura,
 } from './doctor.mjs';
 
-const AREA = 'C:\area';
+const AREA = 'C:\\area';
 
 test('parsearNetstat: lee listeners IPv4 e IPv6 (regresion: [::1]:5176 se perdia con -p TCP)', () => {
   const sal = [

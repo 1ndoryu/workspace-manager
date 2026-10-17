@@ -12,12 +12,17 @@ export const NOMBRE_CONFIG = 'workspace.config.json';
  * opt-in y apagado por defecto). Una config v1 (ignorados a secas) sigue
  * valid siendo leida, se normaliza al default de scan. v3 (308A-1): agrega
  * 'sinGate' (proyectos del gate exentos de llevar gate, solo glory-sentinel).
- * v4: agrega 'varsenseOpcional' (proyectos con sentinel exentos de varsense). */
+ * v4: agrega 'varsenseOpcional' (proyectos con sentinel exentos de varsense).
+ * v5: agrega 'carpetasIgnoradas' y 'carpetasRecursivas' (el escaner traia
+ * incrustados los nombres de carpeta de NUESTRA area). */
 export const CONFIG_DEFECTO: ConfigWorkspace = {
-  version: 4,
+  version: 5,
   ignorados: [],
   sinGate: [],
   varsenseOpcional: [],
+  carpetasIgnoradas: [],
+  carpetasRecursivas: [],
+  carpetasPesadas: [],
   scan: { automatico: false, intervaloMin: 30 },
 };
 
@@ -40,6 +45,16 @@ export function rutaConfig(raiz: string): string {
   return join(raiz, 'data', NOMBRE_CONFIG);
 }
 
+/* Normaliza una lista de la config: solo strings no vacios, sin duplicados.
+ * [por que] Las cuatro listas (ignorados, sinGate, varsenseOpcional y las dos de
+ * carpetas) se validaban repitiendo el mismo filter+Set; una lista nueva se
+ * olvidaba. Aqui esta la unica regla. */
+function listaTexto(v: unknown): string[] {
+  return Array.isArray(v)
+    ? [...new Set(v.filter((x): x is string => typeof x === 'string' && x.length > 0))]
+    : [];
+}
+
 /* Lee la config; ante cualquier problema devuelve el valor por defecto
  * (una config rota no debe tumbar el escaneo). */
 export function leerConfigArea(raiz: string): ConfigWorkspace {
@@ -51,18 +66,18 @@ export function leerConfigArea(raiz: string): ConfigWorkspace {
     return {
       version: typeof d.version === 'number' ? d.version : CONFIG_DEFECTO.version,
       /* Normaliza: solo strings no vacios, unicos, sin duplicados. */
-      ignorados: [...new Set(d.ignorados.filter((x) => typeof x === 'string' && x.length > 0))],
-      /* [por que] sinGate es opt-in por excepcion explicita (solo glory-sentinel);
-       * normaliza igual que ignorados para no aceptar basura. */
-      sinGate: Array.isArray(d.sinGate)
-        ? [...new Set(d.sinGate.filter((x) => typeof x === 'string' && x.length > 0))]
-        : [],
+      ignorados: listaTexto(d.ignorados),
+      /* [por que] sinGate es opt-in por excepcion explicita (solo glory-sentinel). */
+      sinGate: listaTexto(d.sinGate),
       /* [por que] varsenseOpcional (v4) es opt-in por excepcion explicita
        * (proyectos con sentinel donde varsense no aporta, p. ej. Tailwind
        * sin tokens); ausente => lista vacia, sin cambiar conducta. */
-      varsenseOpcional: Array.isArray(d.varsenseOpcional)
-        ? [...new Set(d.varsenseOpcional.filter((x) => typeof x === 'string' && x.length > 0))]
-        : [],
+      varsenseOpcional: listaTexto(d.varsenseOpcional),
+      /* [por que] v5: ausentes => listas vacias, y el escaner se queda con las
+       * carpetas estructurales, que son las unicas que tiene cualquier area. */
+      carpetasIgnoradas: listaTexto(d.carpetasIgnoradas),
+      carpetasRecursivas: listaTexto(d.carpetasRecursivas),
+      carpetasPesadas: listaTexto(d.carpetasPesadas),
       scan: normalizarScan(d),
     };
   } catch {
@@ -100,7 +115,7 @@ export function cambiarSinGate(raiz: string, clave: string, eximir: boolean): Co
   const config = leerConfigArea(raiz);
   const sinDuplicados = (config.sinGate ?? []).filter((c) => c !== clave);
   config.sinGate = eximir ? [...sinDuplicados, clave] : sinDuplicados;
-  config.version = 4;
+  config.version = CONFIG_DEFECTO.version;
   guardarConfigArea(raiz, config);
   return config;
 }
@@ -113,7 +128,7 @@ export function cambiarVarsenseOpcional(raiz: string, clave: string, eximir: boo
   const config = leerConfigArea(raiz);
   const sinDuplicados = (config.varsenseOpcional ?? []).filter((c) => c !== clave);
   config.varsenseOpcional = eximir ? [...sinDuplicados, clave] : sinDuplicados;
-  config.version = 4;
+  config.version = CONFIG_DEFECTO.version;
   guardarConfigArea(raiz, config);
   return config;
 }

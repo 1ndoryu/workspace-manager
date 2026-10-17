@@ -1,10 +1,31 @@
 /* Validacion de una entrada del registro (schema v1): falla cerrado. */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, normalize, resolve, sep } from 'node:path';
+
+import { rutaConfigPrivada } from '../../../shared/rutas.mjs';
 
 import { EXES_PERMITIDOS, MOTIVOS_ENUM, PUERTOS_PROTEGIDOS, RAIZ_REPO, RE_OTRO, SCRIPTS_NODO_VALIDOS } from '../base.mjs';
 import { entradaEfectiva, puertoDeSaludValido, validarBloqueBuild } from '../sistema/puertos.mjs';
+
+/* Alias SSH del taller, tal y como lo declara `config/taller.json`, o null.
+ * [por que] El alias de la máquina no puede vivir en el código: en otro entorno no
+ * existe y una ficha ya escrita con él dejaría de entenderse. Se lee una vez y se
+ * memoriza (esto valida una entrada por proyecto). Sin taller, la forma válida del
+ * modo es solo el papel. */
+let aliasTallerCache;
+function hostDelTaller() {
+  if (aliasTallerCache === undefined) {
+    aliasTallerCache = null;
+    try {
+      const t = JSON.parse(readFileSync(rutaConfigPrivada('taller.json'), 'utf8'));
+      if (typeof t?.host === 'string' && t.host.trim()) aliasTallerCache = t.host.trim();
+    } catch {
+      /* sin taller declarado no hay alias que aceptar */
+    }
+  }
+  return aliasTallerCache;
+}
 
 export function validarEntrada(e) {
   // [por que 06AA-1] Un desvio en UNA entrada jamas bloquea el mando global:
@@ -149,9 +170,12 @@ export function validarEntrada(e) {
     }
   }
   // [por que S3.7] analisisEn: dónde corre el análisis Sentinel/VarSense del gate. Ausente =
-  // lo que diga el taller. `dev89` se sigue aceptando: era el alias con el que se escribía.
-  if ('analisisEn' in e && !['local', 'taller', 'dev89'].includes(e.analisisEn)) {
-    mal(`registro: '${e.id}' analisisEn debe ser 'local' o 'taller'`);
+  // lo que diga el taller. El alias del host se sigue aceptando: era el valor con el que se
+  // escribía antes de que el modo se llamara por su papel.
+  const aliasTaller = hostDelTaller();
+  const modosValidos = aliasTaller ? ['local', 'taller', aliasTaller] : ['local', 'taller'];
+  if ('analisisEn' in e && !modosValidos.includes(e.analisisEn)) {
+    mal(`registro: '${e.id}' analisisEn debe ser 'local', 'taller' o el host del taller${aliasTaller ? ` ('${aliasTaller}')` : ' (ninguno declarado)'}`);
     return;
   }
   if ('buildMode' in e && (typeof e.buildMode !== 'string' || e.buildMode === '')) {

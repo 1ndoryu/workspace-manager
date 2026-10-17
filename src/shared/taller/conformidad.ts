@@ -72,6 +72,11 @@ export interface RegistroConformidad {
   hostsPublicos: string[];
   puertosLocalesPublicos: number[];
   sitiosRust: { id: string; buildMode: string | null }[];
+  /* Marcas (subcadenas, en minúsculas) de las apps ajenas al área: las que el
+   * registro declara `gestion-externa`. [por qué] L1 no denuncia lo que no es
+   * nuestro, pero *cuáles* son esas apps es configuración, no código: antes era
+   * un literal con el nombre de una. Vacío = no hay ninguna exenta. */
+  ajenos: string[];
 }
 
 export interface EntradaConformidad {
@@ -98,7 +103,32 @@ const MAX_HORAS_SWEEP = 2;
 const MAX_HORAS_BD = 24;
 
 const LOOPBACK = (d: string): boolean => d === '127.0.0.1' || d === '::1' || d.startsWith('127.');
-const PATRON_OPENCODE_PROPIO = /opencode-propio/i;
+
+/* Ejecutables que pueden estar corriendo un proyecto. [por qué] L1 buscaba
+ * «vite» o «cargo run» en el texto de la línea de comandos de CUALQUIER proceso,
+ * así que un `grep vite` o un `bash -c "...vite..."` contaban como «vite de
+ * proyecto»: el tablero denunciaba sus propias herramientas de búsqueda. Lo que
+ * distingue un proceso de un proyecto no es que su texto lo mencione, es que su
+ * ejecutable sea un runtime capaz de ejecutarlo. */
+const RUNTIMES = new Set([
+  'node', 'node.exe',
+  'bun', 'bun.exe',
+  'deno', 'deno.exe',
+  'cargo', 'cargo.exe',
+  'rustc', 'rustc.exe',
+]);
+
+function esRuntime(nombre: string): boolean {
+  return RUNTIMES.has(nombre.toLowerCase());
+}
+
+/* ¿El proceso es de una app ajena declarada en el registro? Comparación por
+ * subcadena sobre la línea de comandos, que es lo que ya hacía el patrón que
+ * esto sustituye. */
+function esAjeno(cmd: string, ajenos: readonly string[]): boolean {
+  const bajo = cmd.toLowerCase();
+  return ajenos.some((a) => a !== '' && bajo.includes(a));
+}
 /* ¿Este proceso es del propio tablero? Se reconoce por el nombre de su carpeta
  * (`entrada.nombreMando`), no por un literal: un clon con otro nombre de carpeta
  * —o la réplica de la 89— se tomaba por un vite de proyecto ajeno y salía como
@@ -226,16 +256,15 @@ const REGLAS_LOCAL: ReglaLocal[] = [
   },
   {
     id: 'L1', ambito: 'local', severidad: 'advertencia',
-    remedio: 'Parar el proceso con PID y línea de comando (AGENTS §5). Los de opencode-propio no se tocan.',
+    remedio: 'Parar el proceso con PID y línea de comando (AGENTS §5). Las apps ajenas que el registro declara `gestion-externa` no se tocan.',
     falla: (e) => {
       const malos: string[] = [];
       for (const p of e.local.procesos) {
-        if (PATRON_OPENCODE_PROPIO.test(p.cmd)) continue;
+        if (!esRuntime(p.nombre)) continue;
+        if (esAjeno(p.cmd, e.registro.ajenos)) continue;
         if (/\bcargo(\.exe)?\s+run\b|\brustc(\.exe)?\b/.test(p.cmd)) malos.push(`pid ${p.pid} build/run Rust`);
         else if (/\bvite\b/.test(p.cmd) && !esDelMando(p.cmd, e.nombreMando)) malos.push(`pid ${p.pid} vite de proyecto`);
       }
-      const dup = e.local.procesos.filter((p) => /opencode-delegate/i.test(p.cmd) && !PATRON_OPENCODE_PROPIO.test(p.cmd));
-      if (dup.length > 1) malos.push(`${dup.length} procesos opencode-delegate (pids ${dup.map((p) => p.pid).join(', ')})`);
       return malos.length ? malos.join('; ') : null;
     },
   },

@@ -92,12 +92,15 @@ test('modoAnalisisEn: el taller solo con analisisEn exacto; por defecto local', 
   assert.equal(modoAnalisisEn({}, 'sistema-legado'), 'local');
 });
 
-/* [por que] `dev89` fue el valor con el que se escribio `analisisEn` antes de que el
- * modo se llamara por su papel y no por el alias de la maquina: las configuraciones ya
- * hechas tienen que seguir valiendo. */
-test('modoAnalisisEn: `dev89` sigue valiendo como peticion del taller', () => {
+/* [por que] El alias del host fue el valor con el que se escribio `analisisEn` antes de
+ * que el modo se llamara por su papel: las configuraciones ya hechas tienen que seguir
+ * valiendo, pero el alias lo declara taller.json, no el codigo. Sin taller declarado no
+ * hay alias que valga (testigo: el mismo valor con otro host es local). */
+test('modoAnalisisEn: el alias del taller declarado pide el taller', () => {
   const registro = { proyectos: [{ id: 'juego-arcade', analisisEn: 'dev89' }] };
-  assert.equal(modoAnalisisEn(registro, 'juego-arcade'), 'taller');
+  assert.equal(modoAnalisisEn(registro, 'juego-arcade', { host: 'dev89' }), 'taller');
+  assert.equal(modoAnalisisEn(registro, 'juego-arcade', { host: 'otra-maquina' }), 'local');
+  assert.equal(modoAnalisisEn(registro, 'juego-arcade', null), 'local', 'sin taller no hay alias que interpretar');
 });
 
 /* Correr en el taller es lo que manda: un proyecto con `host` en el registro se analiza

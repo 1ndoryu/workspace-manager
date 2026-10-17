@@ -317,6 +317,18 @@ export interface ConfigWorkspace {
    * consola no genera "varsense ausente" y el analisis no exige varsense.
    * Opt-in por excepcion explicita en data/workspace.config.json (v4). */
   varsenseOpcional?: string[];
+  /* Nombres de carpeta de ESTA area que el escaner no trata como proyecto
+   * (v5). [por que] El escaner traia `TRABAJOS CLIENTES` y `3D` incrustados:
+   * son carpetas de una area concreta, no del producto. Las estructurales
+   * (node_modules, .git, dist, temp...) siguen en el codigo, porque no son
+   * nuestras: cualquier area las tiene. */
+  carpetasIgnoradas?: string[];
+  /* Nombres de carpeta bajo los que SI hay proyectos, un nivel mas abajo
+   * (v5). Ejemplo: una carpeta de clientes con un repo dentro. */
+  carpetasRecursivas?: string[];
+  /* Nombres de carpeta que no viajan al audit remoto por pesadas (v5).
+   * Se suman a las de siempre (node_modules, target, data, uploads...). */
+  carpetasPesadas?: string[];
   /* Analisis automatico de sentinel por proyecto (ausente => apagado). */
   scan?: ConfigScan;
 }

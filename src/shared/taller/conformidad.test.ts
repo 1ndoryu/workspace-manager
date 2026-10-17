@@ -50,6 +50,7 @@ const CONFORME: EntradaConformidad = {
     hostsPublicos: ['mn-dev.wandori.us'],
     puertosLocalesPublicos: [5199],
     sitiosRust: [{ id: 'rust-x', buildMode: 'builder' }],
+    ajenos: ['app-ajena'],
   },
 };
 
@@ -209,7 +210,7 @@ describe('conformidad del taller: local (L1, L2, L3, A10)', () => {
     assert.ok(r.some((h) => h.id === 'L1' && /pid 7/.test(h.detalle)));
   });
 
-  it('L1: vite de proyecto, pero no el del manager ni de opencode-propio', () => {
+  it('L1: vite de proyecto, pero no el del manager ni el de una app ajena', () => {
     const malo = evaluarConformidad({
       ...CONFORME,
       local: { ...CONFORME.local, procesos: [{ pid: 8, nombre: 'node.exe', cmd: 'node node_modules/vite/bin/vite.js' }] },
@@ -218,7 +219,7 @@ describe('conformidad del taller: local (L1, L2, L3, A10)', () => {
     const propio = evaluarConformidad({
       ...CONFORME,
       local: { ...CONFORME.local, procesos: [
-        { pid: 9, nombre: 'node.exe', cmd: 'node C:\\opencode-propio\\node_modules\\vite\\bin\\vite.js' },
+        { pid: 9, nombre: 'node.exe', cmd: 'node C:\\app-ajena\\node_modules\\vite\\bin\\vite.js' },
         { pid: 10, nombre: 'node.exe', cmd: 'node workspace-manager\\node_modules\\vite\\bin\\vite.js' },
       ] },
     });
@@ -238,15 +239,19 @@ describe('conformidad del taller: local (L1, L2, L3, A10)', () => {
     assert.ok(!clon.some((h) => h.id === 'L1'));
   });
 
-  it('L1: varios opencode-delegate duplicados', () => {
+  it('L1: una herramienta que MENCIONA vite no es un vite de proyecto', () => {
+    /* Regresión del falso positivo: L1 miraba el texto de la línea de comandos
+     * de cualquier proceso, así que `grep -rn vite` o un `bash -c "...vite..."`
+     * salían como «vite de proyecto». Solo un runtime ejecuta un proyecto. */
     const r = evaluarConformidad({
       ...CONFORME,
       local: { ...CONFORME.local, procesos: [
-        { pid: 11, nombre: 'node.exe', cmd: 'node opencode-delegate/server.js' },
-        { pid: 12, nombre: 'node.exe', cmd: 'node opencode-delegate/server.js' },
+        { pid: 11, nombre: 'grep.exe', cmd: 'grep.exe -rn "vite" src/' },
+        { pid: 12, nombre: 'bash.exe', cmd: 'bash.exe -c "echo vite | cargo run"' },
+        { pid: 13, nombre: 'powershell.exe', cmd: 'powershell.exe -Command "Get-Process vite"' },
       ] },
     });
-    assert.ok(r.some((h) => h.id === 'L1' && /opencode-delegate/.test(h.detalle)));
+    assert.ok(!r.some((h) => h.id === 'L1'), 'un shell que menciona la palabra no ejecuta el proyecto');
   });
 
   it('L2: Postgres escuchando fuera de loopback', () => {

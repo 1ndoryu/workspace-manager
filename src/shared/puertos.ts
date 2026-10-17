@@ -25,13 +25,15 @@ export const PUERTO_WEB = puerto(process.env.WS_WEB_PORT, 5175);
 /** Vista previa del front compilado (`vite preview`). */
 export const PUERTO_PREVIEW = puerto(process.env.WS_PREVIEW_PORT, 4173);
 
-/* Puerto de opencode-propio. Es AJENO a este repo —otra app que la usuaria
- * tiene abierta en la misma máquina— pero el tablero tiene que conocerlo para no
- * matarlo nunca (AGENTS §6). */
-export const PUERTO_OPENCODE = puerto(process.env.WS_OPENCODE_PORT, 5174);
+/* Puerto de una app AJENA a este repo que el tablero no debe matar nunca
+ * (AGENTS §6). Cuál es, es cosa de quien lo despliega: 5174 es el valor con el
+ * que se probó, y `WS_AJENO_PORT` lo mueve. [por qué] Antes llevaba el nombre
+ * de una app concreta incrustado en el código, y el nombre de una app de quien
+ * publica no es un dato del producto. */
+export const PUERTO_AJENO = puerto(process.env.WS_AJENO_PORT, 5174);
 
 /** Puertos que el tablero reconoce como suyos (guardián: Origin y Host). */
 export const PUERTOS_TABLERO: readonly number[] = [PUERTO_WEB, PUERTO_API, PUERTO_PREVIEW];
 
-/** Puertos que no se matan nunca: los del tablero más el de opencode-propio. */
-export const PUERTOS_PROTEGIDOS: readonly number[] = [PUERTO_OPENCODE, PUERTO_WEB, PUERTO_API];
+/** Puertos que no se matan nunca: los del tablero más el de la app ajena. */
+export const PUERTOS_PROTEGIDOS: readonly number[] = [PUERTO_AJENO, PUERTO_WEB, PUERTO_API];

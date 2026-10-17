@@ -12,6 +12,8 @@ export interface EntradaPc {
   ruta: string;
   bytes: number;
   detalle: string;
+  /* La limpieza no la toca por defecto (07AA-2). La decide el servidor. */
+  delicada: boolean;
 }
 
 export interface ReportePc {

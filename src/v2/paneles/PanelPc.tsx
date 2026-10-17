@@ -81,7 +81,7 @@ export function PanelPc() {
               </Button>
             </>
           )}
-          <Button onClick={reconstruir} disabled={ocupado} title="Reconstruye el binario desde limpiador-pc (flujo de actualización)">
+          <Button onClick={reconstruir} disabled={ocupado} title="Reconstruye el binario del limpiador (flujo de actualización)">
             {trabajo === 'reconstruyendo' ? '…' : '⟳ reconstruir'}
           </Button>
         </div>

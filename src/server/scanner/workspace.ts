@@ -1,7 +1,7 @@
 /* Escaner del workspace: detecta proyectos (git / no-git / worktrees / submodulos)
  * en la raiz del area de trabajo, con recursividad controlada.
- * [por que] RESTAURANTE es un worktree cuyo .git es un ARCHIVO (no carpeta);
- * TRABAJOS CLIENTES/ contiene ONG AGAPE que si es repo -> se baja un nivel. */
+ * [por que] Un worktree tiene el .git como ARCHIVO (no carpeta) y hay carpetas que
+ * solo agrupan: dentro puede haber un repo de verdad -> se baja un nivel. */
 import { readdirSync } from 'node:fs';
 import { join, normalize, relative, sep } from 'node:path';
 import { detectarGit, estadoGit } from './git.js';
@@ -12,24 +12,24 @@ import { leerConfigArea } from '../configArea.js';
 import { RAIZ_REPO } from '../../shared/rutas.js';
 import type { EstadoGate, Proyecto, SnapshotWorkspace } from '../../shared/types.js';
 
-/* Carpetas que nunca se tratan como proyecto */
+/* Carpetas que NUNCA se tratan como proyecto, en cualquier area: no son datos
+ * nuestros, son de la forma en que un repo se construye y se ejecuta.
+ * [por que] Las de una area concreta (carpetas de clientes, agrupaciones
+ * propias) NO van aqui: las declara `carpetasIgnoradas` en la config. Antes
+ * estaba incrustada una de ellas y el escaner solo servia para una maquina. */
 const IGNORADAS = new Set([
-  '.archivado',
-  '.freebuff',
-  'node_modules',
   '.git',
-  '.sentinel',
-  '.quality-tools',
+  'node_modules',
   'dist',
   'temp',
   'uploads',
+  '.sentinel',
+  '.quality-tools',
+  '.archivado',
   'Agente',
   'DOCS',
   'PLUGINS',
 ]);
-
-/* Carpetas donde se baja un nivel para encontrar proyectos reales */
-const RECURSIVAS = new Set(['TRABAJOS CLIENTES', '3D']);
 
 export interface OpcionesEscaneo {
   raiz: string;
@@ -65,20 +65,22 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
   const config = leerConfigArea(opts.raiz);
   const sinGate = new Set(config.sinGate ?? []);
   const varsenseOpcional = new Set(config.varsenseOpcional ?? []);
+  const ignoradas = new Set([...IGNORADAS, ...(config.carpetasIgnoradas ?? [])]);
+  const recursivas = new Set(config.carpetasRecursivas ?? []);
 
   for (const nombre of entradas) {
     const ruta = join(opts.raiz, nombre);
-    if (IGNORADAS.has(nombre)) continue;
+    if (ignoradas.has(nombre)) continue;
     const info = detectarGit(ruta);
 
     if (info.esRepo) {
       proyectos.push(proyectoCompleto(opts.raiz, ruta, nombre, info.esWorktree ? 'worktree' : 'repo', info.padre, sinGate, varsenseOpcional));
-    } else if (RECURSIVAS.has(nombre)) {
-      /* bajar un nivel: ONG AGAPE dentro de TRABAJOS CLIENTES */
+    } else if (recursivas.has(nombre)) {
+      /* bajar un nivel: dentro de una carpeta que solo agrupa puede haber repos */
       const internos = leerEntradas(ruta);
       for (const interno of internos) {
         const rutaInterna = join(ruta, interno);
-        if (IGNORADAS.has(interno)) continue;
+        if (ignoradas.has(interno)) continue;
         const infoInterno = detectarGit(rutaInterna);
         if (infoInterno.esRepo) {
           proyectos.push(proyectoCompleto(opts.raiz, rutaInterna, interno, infoInterno.esWorktree ? 'worktree' : 'repo', infoInterno.padre, sinGate, varsenseOpcional));

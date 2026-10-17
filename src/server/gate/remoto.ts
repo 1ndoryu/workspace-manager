@@ -33,9 +33,14 @@ const RUTA_REGISTRO = join(RAIZ_WM, 'config', 'registro.json');
  * describe el papel, no el nombre de un host concreto. */
 export type ModoAnalisis = 'local' | 'taller';
 
-/* Valores de `analisisEn` del registro que piden el taller. `dev89` es el alias con el
- * que se escribía antes: se sigue aceptando para no romper configuraciones ya hechas. */
-const ANALISIS_EN_TALLER = new Set(['taller', 'dev89']);
+/* ¿`analisisEn` del registro pide el taller? Vale el papel (`taller`) o el alias del
+ * host que declara taller.json. [por qué] Antes el conjunto llevaba el alias de una
+ * máquina concreta incrustado: en otro entorno ese alias no existe, y una
+ * configuración ya escrita con él dejaba de entenderse. El papel siempre vale; el
+ * alias, solo si es el del taller declarado. */
+function pideTaller(valor: string, taller: TallerAnalisis | null): boolean {
+  return valor === 'taller' || valor === hostTaller(taller);
+}
 
 export interface ConfigRemota {
   host: string;
@@ -114,7 +119,7 @@ export function modoAnalisisEn(
 ): ModoAnalisis {
   const entrada = registro.proyectos?.find((x) => x.id === clave);
   if (entrada?.analisisEn === 'local') return 'local';
-  if (typeof entrada?.analisisEn === 'string' && ANALISIS_EN_TALLER.has(entrada.analisisEn)) return 'taller';
+  if (typeof entrada?.analisisEn === 'string' && pideTaller(entrada.analisisEn, taller)) return 'taller';
   if (taller?.modoPorDefecto !== 'remoto') return 'local';
   return typeof entrada?.host === 'string' && entrada.host.trim() ? 'taller' : 'local';
 }

@@ -33,6 +33,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { papelDeArea } from '../shared/area.mjs';
+
 export const ESQUEMA = 1;
 
 /* Campos que forman la identidad de la certificación. Todos deben coincidir
@@ -72,13 +74,20 @@ export function nombreCertificacion(datos = {}) {
 
 /* Directorio de la caché. Override explícito (`GLORY_CERT_CACHE`) para pruebas
  * y para moverla de unidad; por defecto el hogar de caché del usuario, jamás
- * dentro de un repo ni en una ruta de purga automática. */
-export function directorioCertificaciones(env = process.env) {
+ * dentro de un repo ni en una ruta de purga automática.
+ *
+ * En POSIX el nombre de la carpeta lo pone el papel `sentinel` de
+ * `config/area.json` (o `sentinel` si el área no declara ninguno): antes estaba
+ * incrustado el nombre del proyecto que lo hace aquí, así que en otro clon la
+ * caché caía en una carpeta con un nombre ajeno. En Windows la ruta es la del
+ * runtime instalado de la herramienta (`%LOCALAPPDATA%\GlorySentinel`), que sí
+ * es un dato del producto y no del área. */
+export function directorioCertificaciones(env = process.env, papel = papelDeArea('sentinel')) {
   const override = texto(env.GLORY_CERT_CACHE).trim();
   if (override) return path.resolve(override);
   if (env.LOCALAPPDATA) return path.join(env.LOCALAPPDATA, 'GlorySentinel', 'certificaciones');
   const base = texto(env.XDG_CACHE_HOME).trim() || path.join(os.homedir(), '.cache');
-  return path.join(base, 'glory-sentinel', 'certificaciones');
+  return path.join(base, papel ?? 'sentinel', 'certificaciones');
 }
 
 export function rutaCertificacion(datos = {}, { dir } = {}) {

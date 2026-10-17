@@ -21,6 +21,7 @@ export interface Fila {
   ruta: string;
   bytes: number;
   detalle: string;
+  delicada: boolean;
 }
 
 export interface Grupo {
@@ -35,14 +36,14 @@ export function rutaCorta(ruta: string): string {
   return ruta.startsWith('\\\\?\\') ? ruta.slice(4) : ruta;
 }
 
-/* Filas delicadas: grupo propio y desmarcadas por defecto (07AA-2). La
- * caché sccache y los targets de compilación aceleran las builds, y el
- * node_modules de opencode-propio tarda en reinstalarse; limpiar sin
- * miedo no debe tocarlos. */
-export function esDelicada(f: { fase: EntradaPc['fase']; clave: string; ruta: string }): boolean {
-  if (f.fase === 'caches' && f.clave === 'sccache') return true;
-  if (f.fase === 'tmp' && f.clave === 'tmp-target') return true;
-  return f.fase === 'area' && f.clave === 'node_modules' && /opencode-propio/i.test(f.ruta);
+/* Filas delicadas: grupo propio y desmarcadas por defecto (07AA-2).
+ * [por qué] La marca la pone el servidor, que es quien conoce el registro
+ * (caché de compilación, targets de las ramas y el node_modules de las apps
+ * ajenas al área). Aquí antes se re-derivaba la política con el nombre de una
+ * app incrustado, así que un clon del repo heredaba una política que no era la
+ * suya. El cliente solo pinta lo que le llega. */
+export function esDelicada(f: { delicada: boolean }): boolean {
+  return f.delicada;
 }
 
 /* Grupos ordenados: área y tmp por tipo (de mayor a menor peso), el resto
@@ -61,7 +62,7 @@ export function aGrupos(entradas: EntradaPc[]): Grupo[] {
       g = { fase: e.fase, tipo: e.clave, filas: [] };
       porTipo.set(k, g);
     }
-    g.filas.push({ id: `${e.fase}::${e.ruta}`, fase: e.fase, clave: e.clave, ruta: e.ruta, bytes: e.bytes, detalle: e.detalle });
+    g.filas.push({ id: `${e.fase}::${e.ruta}`, fase: e.fase, clave: e.clave, ruta: e.ruta, bytes: e.bytes, detalle: e.detalle, delicada: e.delicada });
   }
   const tipos = [...porTipo.values()].sort(
     (a, b) => b.filas.reduce((x, f) => x + f.bytes, 0) - a.filas.reduce((x, f) => x + f.bytes, 0),
@@ -82,14 +83,14 @@ export function aGrupos(entradas: EntradaPc[]): Grupo[] {
         ruta: e.ruta,
         bytes: e.bytes,
         detalle: e.detalle,
+        delicada: e.delicada,
       }));
     if (filas.length > 0) {
       grupos.push({ id: fase, titulo: TITULO_FASE[fase], filas, bytes: filas.reduce((x, f) => x + f.bytes, 0) });
     }
   }
-  /* Lo delicado va junto en un solo grupo primero (07AA-2): sccache y el
-   * node_modules de opencode-propio aceleran las builds y salen
-   * desmarcados por defecto; limpiar sin miedo no los toca. */
+  /* Lo delicado va junto en un solo grupo primero (07AA-2): sale desmarcado por
+   * defecto para que limpiar sin miedo no toque lo que tarda en rehacerse. */
   const protegidas: Fila[] = [];
   for (const e of entradas.filter(esDelicada)) {
     const deCache = e.fase === 'caches';
@@ -100,6 +101,7 @@ export function aGrupos(entradas: EntradaPc[]): Grupo[] {
       ruta: e.ruta,
       bytes: e.bytes,
       detalle: e.detalle,
+      delicada: e.delicada,
     });
   }
   if (protegidas.length > 0) {

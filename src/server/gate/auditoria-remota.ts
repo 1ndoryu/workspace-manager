@@ -30,6 +30,8 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, delimiter, dirname, join, posix, relative, resolve, sep } from 'node:path';
+import { leerConfigArea } from '../configArea.js';
+import { RAIZ_AREA } from '../../shared/rutas.js';
 import { comillas, leerConfigRemota } from './remoto.js';
 
 /* Los tres gestores que el audit sabe leer (ver detectarLockfiles). */
@@ -50,14 +52,16 @@ export interface SalidaRemota {
 }
 
 /* Carpetas que no viajan: no las necesita ningun gestor y son las que pesan
- * (WANDORIUS/uploads 245 MB, glory-harness/data 633 MB). */
+ * (uploads, data, target, node_modules). Son las de cualquier repo: el
+ * equivalente a `node_modules` no depende de quien use el programa.
+ * [por que] Una carpeta pesada de un area concreta no va aqui: la declara
+ * `carpetasPesadas` en la config (ver pesadasDe). */
 const PESADAS = new Set([
   'node_modules',
   'target',
   '.git',
   '.quality-tools',
   '.sentinel',
-  '.freebuff',
   'data',
   'uploads',
   'logs',
@@ -68,6 +72,11 @@ const PESADAS = new Set([
   'backups',
   'clients',
 ]);
+
+/* PESADAS mas las que declare la config del area. */
+function pesadasDe(extra: readonly string[]): Set<string> {
+  return extra.length ? new Set([...PESADAS, ...extra]) : PESADAS;
+}
 
 /* Lo que cada gestor lee para resolver su lockfile. npm y pnpm solo necesitan los
  * manifiestos (el workspace se declara en el `package.json` de la raiz); cargo
@@ -95,7 +104,7 @@ export function raizRemota(nombre: string, gestor: GestorAudit): string {
 }
 
 /* Recorre el subarbol y acumula los archivos que `es` acepte (rutas absolutas). */
-function listar(dir: string, salida: string[], es: (nombre: string) => boolean): void {
+function listar(dir: string, salida: string[], es: (nombre: string) => boolean, pesadas: ReadonlySet<string>): void {
   let entradas;
   try {
     entradas = readdirSync(dir, { withFileTypes: true });
@@ -105,7 +114,7 @@ function listar(dir: string, salida: string[], es: (nombre: string) => boolean):
   for (const e of entradas) {
     const ruta = join(dir, e.name);
     if (e.isDirectory()) {
-      if (!PESADAS.has(e.name)) listar(ruta, salida, es);
+      if (!pesadas.has(e.name)) listar(ruta, salida, es, pesadas);
     } else if (e.isFile() && es(e.name)) {
       salida.push(ruta);
     }
@@ -152,17 +161,17 @@ function depsQueSalen(manifiesto: string): string[] {
  * recorren tambien los hermanos añadidos, porque un crate de alli puede
  * depender de otro que quede fuera. Solo aplica a cargo: npm y pnpm resuelven
  * sus dependencias de workspace desde el lockfile. */
-function hermanosDe(raiz: string, proyecto: string): string[] {
+function hermanosDe(raiz: string, proyecto: string, pesadas: ReadonlySet<string>): string[] {
   const fuera = new Set<string>();
   const pendientes = [join(raiz, proyecto)];
   while (pendientes.length) {
     const dir = pendientes.pop() as string;
     const archivos: string[] = [];
-    listar(dir, archivos, ESENCIALES.cargo);
+    listar(dir, archivos, ESENCIALES.cargo, pesadas);
     for (const m of archivos.filter((a) => a.endsWith('Cargo.toml'))) {
       for (const rel of depsQueSalen(m)) {
         const comp = relative(raiz, resolve(dirname(m), rel)).split(sep)[0];
-        if (comp && comp !== '..' && !fuera.has(comp) && !PESADAS.has(comp)) {
+        if (comp && comp !== '..' && !fuera.has(comp) && !pesadas.has(comp)) {
           fuera.add(comp);
           pendientes.push(join(raiz, comp));
         }
@@ -281,8 +290,11 @@ export async function prepararArbolRemoto(rutaProyecto: string, gestor: GestorAu
   const nombre = basename(rutaProyecto);
   const es = ESENCIALES[gestor];
   const archivos: string[] = [];
-  const dirs = gestor === 'cargo' ? [nombre, ...hermanosDe(raiz, nombre)] : [nombre];
-  for (const d of dirs) listar(join(raiz, d), archivos, es);
+  /* La config del area se lee de su raiz, no de `raiz` (que para un proyecto
+   * anidado seria su carpeta madre y no tendria el fichero). */
+  const pesadas = pesadasDe(leerConfigArea(RAIZ_AREA).carpetasPesadas ?? []);
+  const dirs = gestor === 'cargo' ? [nombre, ...hermanosDe(raiz, nombre, pesadas)] : [nombre];
+  for (const d of dirs) listar(join(raiz, d), archivos, es, pesadas);
   const firma = huella(archivos, raiz, MANIFIESTOS[gestor]);
   const destino = raizRemota(nombre, gestor);
   const cfg = leerConfigRemota();

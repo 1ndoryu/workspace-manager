@@ -20,6 +20,7 @@ import {
 import { NOMBRE_MANAGER, rutaConfigPrivada } from '../../shared/rutas.js';
 import { hostTaller } from '../gate/remoto.js';
 import { sesionDev } from '../../shared/taller/sesiones.js';
+import { appsAjenas } from '../registro.js';
 
 const RUTA_REGISTRO = rutaConfigPrivada('registro.json');
 /* Alias SSH del taller. [por que] Antes era la constante 'dev89' incrustada: el alias
@@ -74,7 +75,10 @@ const numeros = (v: unknown): number[] => (Array.isArray(v) ? v.filter((x): x is
 /* Lo que el registro declara y debe cumplirse. Sitios Rust: solo los que declaran buildMode;
  * un Rust sin declarar no se evalúa (cobertura limitada, dicho en el resumen). */
 export function leerRegistroConformidad(): RegistroConformidad {
-  const crudo = JSON.parse(readFileSync(RUTA_REGISTRO, 'utf8')) as { proyectos?: ProyectoRegistro[] };
+  const crudo = JSON.parse(readFileSync(RUTA_REGISTRO, 'utf8')) as {
+    proyectos?: ProyectoRegistro[];
+    noAplica?: Record<string, unknown>;
+  };
   const sesionesDev: string[] = [];
   const hostsPublicos = new Set<string>();
   const puertosLocalesPublicos = new Set<number>();
@@ -91,11 +95,14 @@ export function leerRegistroConformidad(): RegistroConformidad {
     numeros(p.puertosPublicos).forEach((n) => puertosLocalesPublicos.add(n));
     if ('buildMode' in p) sitiosRust.push({ id, buildMode: typeof p.buildMode === 'string' ? p.buildMode : null });
   }
+  /* Apps ajenas al área: las que el registro marca `gestion-externa`. No son
+   * nuestros proyectos, así que L1 no las denuncia ni las manda parar. */
   return {
     sesionesDev,
     hostsPublicos: [...hostsPublicos],
     puertosLocalesPublicos: [...puertosLocalesPublicos],
     sitiosRust,
+    ajenos: appsAjenas(crudo),
   };
 }
 
