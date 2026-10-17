@@ -86,6 +86,24 @@ describe('conformidad del taller: sonda de la 89', () => {
     ] })).includes('A1'));
   });
 
+  it('A1: los sockets UDP salientes de cloudflared no cuentan', () => {
+    assert.ok(!ids(con({ escuchas: [
+      { direccion: '0.0.0.0', puerto: 48849, proto: 'udp', proceso: 'cloudflared' },
+    ] })).includes('A1'));
+  });
+
+  it('A1: un UDP fuera de loopback de otro proceso sí cuenta (testigo del anterior)', () => {
+    assert.ok(ids(con({ escuchas: [
+      { direccion: '0.0.0.0', puerto: 5353, proto: 'udp', proceso: 'avahi-daemon' },
+    ] })).includes('A1'));
+  });
+
+  it('A1: un UDP de cloudflared en TCP no se exime por el nombre', () => {
+    assert.ok(ids(con({ escuchas: [
+      { direccion: '0.0.0.0', puerto: 20241, proto: 'tcp', proceso: 'cloudflared' },
+    ] })).includes('A1'));
+  });
+
   it('A2: disco por debajo del mínimo de cm-heavy', () => {
     assert.ok(ids(con({ disco: { libreGb: 10 } })).includes('A2'));
   });
