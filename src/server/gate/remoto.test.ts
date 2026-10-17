@@ -100,24 +100,33 @@ test('modoAnalisisEn: `dev89` sigue valiendo como peticion del taller', () => {
   assert.equal(modoAnalisisEn(registro, 'KAMPLES'), 'taller');
 });
 
-/* El alta en el taller es lo que manda: un proyecto dado de alta alli se analiza alli
- * aunque el registro no diga nada. Y `analisisEn` del registro sigue pudiendo forzar
- * cualquiera de los dos lados. */
-test('modoAnalisisEn: un proyecto del taller analiza en el taller', () => {
-  const registro = { proyectos: [{ id: 'NAKOMI' }, { id: 'RESTAURANTE', analisisEn: 'local' }] };
-  const taller = { modoPorDefecto: 'remoto', proyectos: { NAKOMI: {}, RESTAURANTE: {} } };
+/* Correr en el taller es lo que manda: un proyecto con `host` en el registro se analiza
+ * alli aunque `analisisEn` no diga nada. Y `analisisEn` sigue pudiendo forzar los dos
+ * lados. */
+test('modoAnalisisEn: un proyecto que corre en el taller analiza en el taller', () => {
+  const registro = { proyectos: [{ id: 'NAKOMI', host: 'dev89' }, { id: 'RESTAURANTE', host: 'dev89', analisisEn: 'local' }] };
+  const taller = { modoPorDefecto: 'remoto' };
   assert.equal(modoAnalisisEn(registro, 'NAKOMI', taller), 'taller');
-  assert.equal(modoAnalisisEn(registro, 'RESTAURANTE', taller), 'local', 'analisisEn local manda sobre el alta');
+  assert.equal(modoAnalisisEn(registro, 'RESTAURANTE', taller), 'local', 'analisisEn local manda sobre el host');
+});
+
+/* [por que] La senal es `host`, no el bloque `proyectos` de taller.json: ese bloque
+ * declara la BD del taller y RESTAURANTE corria alli sin base de datos, asi que su
+ * analisis (259 hallazgos) se quedaba en el portatil. */
+test('modoAnalisisEn: el bloque de BD del taller no decide donde se analiza', () => {
+  const registro = { proyectos: [{ id: 'RESTAURANTE', host: 'dev89' }, { id: 'SIN-HOST' }] };
+  const taller = { modoPorDefecto: 'remoto', proyectos: { 'SIN-HOST': { basedatos: 'x' } } };
+  assert.equal(modoAnalisisEn(registro, 'RESTAURANTE', taller), 'taller', 'corre en la 89 aunque no tenga BD alli');
+  assert.equal(modoAnalisisEn(registro, 'SIN-HOST', taller), 'local', 'una BD declarada no basta si no corre alli');
 });
 
 /* Sin taller el manager tiene que seguir entero en local: es el caso de un clon recien
  * hecho, y no es un error. */
 test('modoAnalisisEn: sin taller, local', () => {
-  const registro = { proyectos: [{ id: 'NAKOMI' }] };
+  const registro = { proyectos: [{ id: 'NAKOMI', host: 'dev89' }] };
   assert.equal(modoAnalisisEn(registro, 'NAKOMI', null), 'local');
-  assert.equal(modoAnalisisEn(registro, 'NAKOMI', { modoPorDefecto: 'local', proyectos: { NAKOMI: {} } }), 'local');
-  assert.equal(modoAnalisisEn(registro, 'NAKOMI', { modoPorDefecto: 'remoto', proyectos: { OTRO: {} } }), 'local');
-  assert.equal(modoAnalisisEn(registro, 'NAKOMI', { modoPorDefecto: 'remoto' }), 'local', 'taller sin proyectos declarados');
+  assert.equal(modoAnalisisEn(registro, 'NAKOMI', { modoPorDefecto: 'local' }), 'local');
+  assert.equal(modoAnalisisEn(registro, 'NAKOMI', {}), 'local', 'taller sin modo por defecto declarado');
 });
 
 test('hostTaller: el alias lo declara la config, y sin ella no hay host', () => {
