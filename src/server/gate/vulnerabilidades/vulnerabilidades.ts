@@ -34,22 +34,17 @@ import {
 import type { JsonAudit } from './vulnerabilidades-parseo.js';
 import { avisoLocal, enTaller, prepararRemoto } from './vulnerabilidades-remoto.js';
 import { detectarLockfiles, frescoDe } from './lockfiles.js';
+import {
+  guardarVulnerabilidades,
+  podarVulnerabilidades,
+  vulnerabilidadesFrescas,
+} from './almacen.js';
 import type { LockDetectado } from './lockfiles.js';
 import type {
   AnalisisVulnerabilidades,
   HallazgoVulnerabilidad,
   Proyecto,
 } from '../../../shared/types.js';
-
-/* Cache en memoria: clave de frescura -> resultado. */
-interface EntradaCache {
-  /* Lockfiles del proyecto con su hash: si cambia alguno, la cache no sirve y
-   * se re-audita (el audit puede tardar 5-15 s). */
-  fresco: string;
-  dato: AnalisisVulnerabilidades;
-}
-
-const cache = new Map<string, EntradaCache>();
 
 /* Single-flight: si el MISMO proyecto ya se esta auditando, quien lo pide
  * comparte ese vuelo (nunca dos audits del mismo repo a la vez). */
@@ -312,15 +307,17 @@ export function auditarProyecto(p: Proyecto, forzar = false): Promise<AnalisisVu
     );
   }
   const fresco = frescoDe(p, locks);
-  const mem = cache.get(p.clave);
-  if (!forzar && mem && mem.fresco === fresco) return Promise.resolve(mem.dato);
+  if (!forzar) {
+    const guardado = vulnerabilidadesFrescas(p.clave, fresco);
+    if (guardado) return Promise.resolve(guardado);
+  }
   return compartirVuelo(enVuelo, p.clave, async (): Promise<AnalisisVulnerabilidades> => {
     /* En serie: un audit a la vez por proyecto, como el barrido del workspace. */
     const partes: AnalisisVulnerabilidades[] = [];
     const enLa89 = enTaller(p.clave);
     for (const lock of locks) partes.push(await correrAudit(p, lock, enLa89));
     const dato = agregarAnalisis(p.clave, partes);
-    cache.set(p.clave, { fresco, dato });
+    guardarVulnerabilidades(p.clave, fresco, dato);
     return dato;
   });
 }
@@ -338,16 +335,6 @@ export async function auditarTodo(
   }
   /* Eviccion de la cache: claves de proyectos que ya no existen en el
    * snapshot se podan (misma convencion que el analizador). */
-  const vivas = new Set(proyectos.map((p) => p.clave));
-  for (const clave of [...cache.keys()]) if (!vivas.has(clave)) cache.delete(clave);
+  podarVulnerabilidades(new Set(proyectos.map((p) => p.clave)));
   return detalles;
-}
-
-export function leerVulnerabilidades(clave: string): AnalisisVulnerabilidades | null {
-  return cache.get(clave)?.dato ?? null;
-}
-
-/* Sirve TODA la cache (rehidratar el store al recargar sin re-auditar). */
-export function leerTodasVulnerabilidades(): AnalisisVulnerabilidades[] {
-  return [...cache.values()].map((e) => e.dato);
 }

@@ -17,12 +17,8 @@ import { diagnosticar, rutaEtiqueta, severidadDe } from '../../shared/gate/model
 import { correrSincronizacion } from '../gate/sincronizacion.js';
 import { analizarParaGate, analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from '../gate/analizador.js';
 import { compararHallazgos } from '../gate/hallazgos/comparacion.js';
-import {
-  auditarProyecto,
-  auditarTodo,
-  leerTodasVulnerabilidades,
-  leerVulnerabilidades,
-} from '../gate/vulnerabilidades/vulnerabilidades.js';
+import { auditarProyecto, auditarTodo } from '../gate/vulnerabilidades/vulnerabilidades.js';
+import { leerTodasVulnerabilidades, leerVulnerabilidades } from '../gate/vulnerabilidades/almacen.js';
 import { logger } from '../../shared/logger.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades, HallazgoSentinel } from '../../shared/types.js';
 

@@ -10,7 +10,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
 import { analizarTodo, leerTodas } from '../gate/analizador.js';
-import { auditarTodo, leerTodasVulnerabilidades } from '../gate/vulnerabilidades/vulnerabilidades.js';
+import { auditarTodo } from '../gate/vulnerabilidades/vulnerabilidades.js';
+import { leerTodasVulnerabilidades } from '../gate/vulnerabilidades/almacen.js';
 import { obtenerVigilancia } from '../dev/vigilancia.js';
 import { saludArea, saludProyectos } from '../salud/runner.js';
 import {

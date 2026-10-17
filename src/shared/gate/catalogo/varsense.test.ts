@@ -21,8 +21,21 @@ describe('gate: esquema de varsense.config.json', () => {
     assert.deepEqual(desconocidas(json), []);
   });
 
+  /* [por que] El mismo hueco que hubo en `unused` lo tenia `duplicate`, que
+   * comparte forma: RESTAURANTE declara ahi los 24 alias del tema de shadcn y
+   * el tablero lo marcaba como typo. */
+  it('acepta tokenDetection.duplicate.excludeTokens', () => {
+    const json = { tokenDetection: { duplicate: { excludeTokens: ['--card', '--popover'] } } };
+    assert.deepEqual(desconocidas(json), []);
+  });
+
   it('sigue marcando como desconocida una clave que varsense no admite', () => {
     const json = { tokenDetection: { unused: { typo: true } } };
     assert.deepEqual(desconocidas(json), ['tokenDetection.unused.typo']);
+  });
+
+  it('el mismo barrido detecta una desconocida tambien en duplicate', () => {
+    const json = { tokenDetection: { duplicate: { typo: true } } };
+    assert.deepEqual(desconocidas(json), ['tokenDetection.duplicate.typo']);
   });
 });

@@ -35,6 +35,20 @@ const severidadObj = (necesidad: Necesidad): NodoEsquema => ({
   necesidad,
 });
 
+/* [por que] Las dos reglas de tokens aceptan `excludeTokens` (varsense,
+ * `core/config.ts`): la lista de alias deliberados del design system. Se
+ * declara una sola vez porque si el catálogo se queda corto, el tablero marca
+ * la clave como desconocida y convierte en error una config válida —que es
+ * justo lo que pasó con `duplicate` en RESTAURANTE. */
+const reglaTokens = (necesidad: Necesidad): NodoEsquema => ({
+  objeto: {
+    enabled: bool(true, necesidad),
+    severity: enumX('warning', necesidad),
+    excludeTokens: strArr(necesidad),
+  },
+  necesidad,
+});
+
 let _esquema: NodoEsquema | null = null;
 
 export function ESQUEMA_VARSENSE(): NodoEsquema {
@@ -60,17 +74,12 @@ export function ESQUEMA_VARSENSE(): NodoEsquema {
     inlineDetection: severidadObj('recomendada'),
     tokenDetection: {
       objeto: {
-        duplicate: severidadObj('opcional'),
-        /* [por que] excludeTokens lo acepta varsense (config.ts); sin él el
-         * tablero marcaba error "clave desconocida" en MN-Inmobiliaria. */
-        unused: {
-          objeto: {
-            enabled: bool(true, 'opcional'),
-            severity: enumX('warning', 'opcional'),
-            excludeTokens: strArr('opcional'),
-          },
-          necesidad: 'opcional',
-        },
+        /* [por que] `excludeTokens` lo acepta varsense (`core/config.ts`) en las
+         * dos reglas; sin declararlo el tablero marcaba error "clave
+         * desconocida" en MN-Inmobiliaria (unused) y en RESTAURANTE
+         * (duplicate). */
+        duplicate: reglaTokens('opcional'),
+        unused: reglaTokens('opcional'),
         crossFile: severidadObj('opcional'),
       },
       necesidad: 'recomendada',
