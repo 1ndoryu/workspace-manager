@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { rutaConfigPrivada } from '../../shared/rutas.mjs';
 import { cabeceraAutorizacion } from '../token.mjs';
 
-export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const API = process.env.WM_API ?? 'http://127.0.0.1:8787';
 export const CLAVES_COMANDOS = ['gate', 'test-archivo', 'typecheck', 'build'];
 const USO = `uso:

@@ -1,6 +1,7 @@
 /* Tests del mando gate/comandos (10AA-2 F9.4-F9.5): parsers puros, sin backend. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parsearArgsGate, rutaSnapshot, leerComandos, formatearNuevos, RAIZ } from './gate.mjs';
 
@@ -17,6 +18,17 @@ test('parsearArgsGate exige id y exactamente un modo', () => {
 
 test('rutaSnapshot usa data/gate-inicio y admite espacios en la clave', () => {
   assert.equal(rutaSnapshot('PROYECTO TASKS', RAIZ), join(RAIZ, 'data', 'gate-inicio', 'PROYECTO TASKS.json'));
+});
+
+/* [por que] RAIZ se calcula contando carpetas desde este modulo, asi que moverlo
+ * de sitio la desvia sin que nada falle: el snapshot acaba en scripts/data/ y el
+ * `--cierre` compara contra una base vacia. El test anterior comparaba contra el
+ * propio RAIZ, de modo que un RAIZ equivocado pasaba igual. Se ancla a un hecho
+ * del disco (la raiz del repo es la que tiene el package.json del manager). */
+test('RAIZ apunta a la raiz del repo, no a una carpeta intermedia', () => {
+  const pkg = join(RAIZ, 'package.json');
+  assert.ok(existsSync(pkg), `no hay package.json en RAIZ (${RAIZ})`);
+  assert.equal(JSON.parse(readFileSync(pkg, 'utf8')).name, 'workspace-manager');
 });
 
 test('leerComandos acepta el contrato completo y null donde no aplica', () => {
