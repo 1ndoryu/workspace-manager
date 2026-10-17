@@ -68,13 +68,12 @@ export function leerConfigRemota(): ConfigRemota {
   return configRemotaDe(JSON.parse(readFileSync(RUTA_TALLER, 'utf8')));
 }
 
-/* Parte de taller.json que decide DÓNDE se analiza: qué proyectos están dados de alta
- * y si el taller es el modo por defecto. Son dos fuentes distintas y no se mezclan: el
- * registro dice de qué proyecto se trata, el taller dónde se ejecuta. */
+/* Parte de taller.json que decide DÓNDE se analiza: el host del taller y si es el modo
+ * por defecto. Son dos fuentes distintas y no se mezclan: el registro dice de qué
+ * proyecto se trata y en qué máquina corre, el taller si esa máquina se usa por defecto. */
 export interface TallerAnalisis {
   host?: unknown;
   modoPorDefecto?: unknown;
-  proyectos?: Record<string, unknown>;
 }
 
 /* Lee taller.json, o null si no existe o no es JSON. [por que] Sin taller el manager
@@ -99,19 +98,25 @@ export function hostTaller(t: TallerAnalisis | null = leerTallerSiExiste()): str
 /* Modo de análisis de un proyecto. [por que] Antes solo miraba `analisisEn` del
  * registro, así que un proyecto del taller se analizaba en el portátil por omisión:
  * el análisis es trabajo pesado y el reparto del área lo manda a la 89. Ahora, si hay
- * taller y el proyecto está dado de alta en él, el análisis va a la 89. `analisisEn`
- * del registro sigue mandando en los dos sentidos (`"dev89"` y `"local"`), para poder
- * forzar uno concreto. Sin taller —o con el proyecto fuera de él— local: el manager
- * funciona igual sin VPS. */
+ * taller y el proyecto corre en él, el análisis va a la 89. `analisisEn` del registro
+ * sigue mandando en los dos sentidos (`"dev89"` y `"local"`), para poder forzar uno
+ * concreto. Sin taller —o con el proyecto fuera de él— local: el manager funciona
+ * igual sin VPS.
+ * [por que `host` y no el bloque `proyectos` de taller.json] Ese bloque declara la BD
+ * del taller, no el alta: un proyecto puede correr allí sin base de datos. RESTAURANTE
+ * era justo eso — `host: "dev89"` en el registro y sin entrada en `proyectos`— y se
+ * analizaba en el portátil. La señal de «vive en el taller» es la misma que usa la
+ * conformidad (`leerRegistroConformidad`): el `host` del registro. */
 export function modoAnalisisEn(
-  registro: { proyectos?: Array<{ id?: unknown; analisisEn?: unknown }> },
+  registro: { proyectos?: Array<{ id?: unknown; analisisEn?: unknown; host?: unknown }> },
   clave: string,
   taller: TallerAnalisis | null = null,
 ): ModoAnalisis {
   const entrada = registro.proyectos?.find((x) => x.id === clave);
   if (entrada?.analisisEn === 'local') return 'local';
   if (typeof entrada?.analisisEn === 'string' && ANALISIS_EN_TALLER.has(entrada.analisisEn)) return 'taller';
-  return taller?.modoPorDefecto === 'remoto' && taller.proyectos && clave in taller.proyectos ? 'taller' : 'local';
+  if (taller?.modoPorDefecto !== 'remoto') return 'local';
+  return typeof entrada?.host === 'string' && entrada.host.trim() ? 'taller' : 'local';
 }
 
 export function modoAnalisis(clave: string): ModoAnalisis {
