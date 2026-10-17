@@ -114,13 +114,13 @@ describe('columnasDeRespuesta (08AA-6, columnas fijas del proxy)', () => {
   it('normaliza proyectos a columnas en orden', () => {
     const got = columnasDeRespuesta({
       proyectos: [
-        { clave: 'gloryapi', nombre: 'gloryapi', legacyId: 11 },
-        { clave: 'NAKOMI', nombre: 'NAKOMI', legacyId: 12 },
+        { clave: 'servicio-api', nombre: 'servicio-api', legacyId: 11 },
+        { clave: 'catalogo-web', nombre: 'catalogo-web', legacyId: 12 },
       ],
     });
     assert.deepEqual(got, [
-      { clave: 'gloryapi', nombre: 'gloryapi', legacyId: 11 },
-      { clave: 'NAKOMI', nombre: 'NAKOMI', legacyId: 12 },
+      { clave: 'servicio-api', nombre: 'servicio-api', legacyId: 11 },
+      { clave: 'catalogo-web', nombre: 'catalogo-web', legacyId: 12 },
     ]);
   });
   it('descarta rotas y deduplica por clave', () => {
@@ -201,7 +201,7 @@ describe('niveles (07AA-15, espejo TASKS)', () => {
 
 describe('cacheTareas (08AA-8)', () => {
   const ESTADO = { configurado: true, disponible: true, motivo: null };
-  const COLS = [{ clave: 'gloryapi', nombre: 'gloryapi', legacyId: 9001 }];
+  const COLS = [{ clave: 'servicio-api', nombre: 'servicio-api', legacyId: 9001 }];
   const TAREAS = { 9001: [TAREA] };
 
   it('clonar+restaurar hace roundtrip (via JSON, como localStorage)', () => {

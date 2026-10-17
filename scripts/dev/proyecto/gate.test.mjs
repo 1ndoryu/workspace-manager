@@ -6,9 +6,9 @@ import { join } from 'node:path';
 import { parsearArgsGate, rutaSnapshot, leerComandos, formatearNuevos, RAIZ } from './gate.mjs';
 
 test('parsearArgsGate exige id y exactamente un modo', () => {
-  assert.deepEqual(parsearArgsGate(['glory-pulse', '--inicio']), { id: 'glory-pulse', modo: 'inicio', forzar: false });
-  assert.deepEqual(parsearArgsGate(['glory-pulse', '--cierre']), { id: 'glory-pulse', modo: 'cierre', forzar: false });
-  assert.equal(parsearArgsGate(['glory-pulse', '--cierre', '--forzar']).forzar, true);
+  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--inicio']), { id: 'agente-tiempo-real', modo: 'inicio', forzar: false });
+  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--cierre']), { id: 'agente-tiempo-real', modo: 'cierre', forzar: false });
+  assert.equal(parsearArgsGate(['agente-tiempo-real', '--cierre', '--forzar']).forzar, true);
   assert.ok(parsearArgsGate([]).error);
   assert.ok(parsearArgsGate(['--inicio']).error);
   assert.ok(parsearArgsGate(['x']).error);
@@ -17,7 +17,7 @@ test('parsearArgsGate exige id y exactamente un modo', () => {
 });
 
 test('rutaSnapshot usa data/gate-inicio y admite espacios en la clave', () => {
-  assert.equal(rutaSnapshot('PROYECTO TASKS', RAIZ), join(RAIZ, 'data', 'gate-inicio', 'PROYECTO TASKS.json'));
+  assert.equal(rutaSnapshot('app-tareas', RAIZ), join(RAIZ, 'data', 'gate-inicio', 'app-tareas.json'));
 });
 
 /* [por que] RAIZ se calcula contando carpetas desde este modulo, asi que moverlo

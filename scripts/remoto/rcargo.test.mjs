@@ -26,8 +26,8 @@ const config = existsSync(rutaConfigPrivada('taller.json')) ? cargarConfig() : F
 
 // [14AA-1] El default lo fija taller.json. Desde 2026-10-15 es remoto (la 89 compila; local solo con --local).
 test('modo por defecto lo fija taller.json; con remoto configurado, remoto', () => {
-  assert.equal(modoEfectivo([], config, 'RESTAURANTE', {}), config.modoPorDefecto);
-  assert.equal(modoEfectivo([], { ...config, modoPorDefecto: 'remoto' }, 'RESTAURANTE', {}), 'remoto');
+  assert.equal(modoEfectivo([], config, 'sistema-legado', {}), config.modoPorDefecto);
+  assert.equal(modoEfectivo([], { ...config, modoPorDefecto: 'remoto' }, 'sistema-legado', {}), 'remoto');
 });
 
 test('flags pesan más que variable de entorno y configuración de proyecto', () => {
@@ -53,7 +53,7 @@ test('valores de modo no válidos se ignoran', () => {
 
 test('quitarFlagsTaller deja solo los argumentos de cargo', () => {
   assert.deepEqual(
-    quitarFlagsTaller(['--local', 'test', '--proyecto=RESTAURANTE', '--', '--nocapture', '--remoto', '--dry-run']),
+    quitarFlagsTaller(['--local', 'test', '--proyecto=sistema-legado', '--', '--nocapture', '--remoto', '--dry-run']),
     ['test', '--', '--nocapture'],
   );
 });
@@ -69,19 +69,19 @@ test('slug normaliza ramas', () => {
 });
 
 test('rutas remotas: directorio del proyecto y target por rama', () => {
-  const r = rutasRemotas(config, 'RESTAURANTE', 'feature/x');
-  assert.equal(r.dirRemoto, '/home/usuario/taller/RESTAURANTE');
-  assert.equal(r.dirLogs, '/home/usuario/taller/_logs/RESTAURANTE');
+  const r = rutasRemotas(config, 'sistema-legado', 'feature/x');
+  assert.equal(r.dirRemoto, '/home/usuario/taller/sistema-legado');
+  assert.equal(r.dirLogs, '/home/usuario/taller/_logs/sistema-legado');
   assert.equal(r.dirLogs.startsWith(r.dirRemoto), false);
-  assert.equal(r.target, '/var/tmp/glory-target/RESTAURANTE_feature-x');
+  assert.equal(r.target, '/var/tmp/glory-target/sistema-legado_feature-x');
 });
 
 test('sesión Mutagen: réplica unidireccional con exclusiones', () => {
-  const args = argsCrearSesion(config, 'RESTAURANTE', 'C:\\proyectos\\RESTAURANTE');
+  const args = argsCrearSesion(config, 'sistema-legado', 'C:\\proyectos\\sistema-legado');
   assert.ok(args.includes('one-way-replica'));
   assert.ok(args.includes('.git'));
   assert.ok(args.includes('config/settings.json'));
-  assert.equal(args.at(-1), 'dev89:/home/usuario/taller/RESTAURANTE');
+  assert.equal(args.at(-1), 'dev89:/home/usuario/taller/sistema-legado');
 });
 
 // [por que] Orden de la sincronización: el directorio existe antes de crear la sesión, y el envío se fuerza al final.
@@ -114,12 +114,12 @@ test('comando remoto: cargo detrás de cm-heavy y con target propio', () => {
   assert.ok(cadena.includes('CARGO_TARGET_DIR='));
 });
 
-const cargoToml = '[package]\nname = "glory-pulse"\nversion = "0.1.0"\n\n[[bin]]\nname = "otro"\n';
+const cargoToml = '[package]\nname = "agente-tiempo-real"\nversion = "0.1.0"\n\n[[bin]]\nname = "otro"\n';
 
 test('base por rama: paquete con guiones bajos; main/master sin sufijo', () => {
-  assert.equal(nombreBaseDatos(cargoToml, 'main'), 'glory_pulse');
-  assert.equal(nombreBaseDatos(cargoToml, 'master'), 'glory_pulse');
-  assert.equal(nombreBaseDatos(cargoToml, 'feature/Login-2'), 'glory_pulse_feature_login_2');
+  assert.equal(nombreBaseDatos(cargoToml, 'main'), 'agente_tiempo_real');
+  assert.equal(nombreBaseDatos(cargoToml, 'master'), 'agente_tiempo_real');
+  assert.equal(nombreBaseDatos(cargoToml, 'feature/Login-2'), 'agente_tiempo_real_feature_login_2');
 });
 
 test('base por rama: solo cuenta [package].name, no [[bin]]', () => {
@@ -129,7 +129,7 @@ test('base por rama: solo cuenta [package].name, no [[bin]]', () => {
 
 test('base por rama: rechaza nombres fuera de [a-z0-9_] o de más de 63 caracteres', () => {
   assert.throws(() => nombreBaseDatos(cargoToml, 'x'.repeat(60)), /demasiado largo|no válido/);
-  assert.equal(nombreBaseDatos(cargoToml, 'a'.repeat(40)).length, 'glory_pulse_'.length + 40);
+  assert.equal(nombreBaseDatos(cargoToml, 'a'.repeat(40)).length, 'agente_tiempo_real_'.length + 40);
 });
 
 test('base por proyecto: `basedatos` pisa al paquete y conserva el sufijo de rama', () => {
@@ -141,16 +141,16 @@ test('base por proyecto: `basedatos` pisa al paquete y conserva el sufijo de ram
 });
 
 test('URL de la base: usuario por socket, sin contraseña', () => {
-  assert.equal(urlBaseRemota(config.bd, 'glory_pulse'), 'postgres://dev@%2Fvar%2Frun%2Fpostgresql/glory_pulse');
+  assert.equal(urlBaseRemota(config.bd, 'agente_tiempo_real'), 'postgres://dev@%2Fvar%2Frun%2Fpostgresql/agente_tiempo_real');
 });
 
 test('comando de base: crea solo si falta y con paréntesis', () => {
-  const cmd = comandoBaseRemota(config.bd, 'glory_pulse_x');
+  const cmd = comandoBaseRemota(config.bd, 'agente_tiempo_real_x');
   assert.ok(cmd.startsWith('( psql '));
   // El SQL va entrecomillado para el shell (shQuote): se comprueban las partes, no el texto literal.
   assert.ok(cmd.includes('pg_database WHERE datname='));
-  assert.ok(cmd.includes('glory_pulse_x'));
-  assert.ok(cmd.includes('CREATE DATABASE "glory_pulse_x"'));
+  assert.ok(cmd.includes('agente_tiempo_real_x'));
+  assert.ok(cmd.includes('CREATE DATABASE "agente_tiempo_real_x"'));
   assert.ok(cmd.includes('ON_ERROR_STOP=1'));
   assert.ok(cmd.endsWith(' )'));
 });
@@ -171,20 +171,20 @@ test('comando remoto con base: DATABASE_URL solo cuando se pasa nombre', () => {
 // tests de base viva fallan con «no existe la relación …» (el portátil lo
 // cubría con run-with-db.mjs, que compila en el portátil y está prohibido).
 test('base de rama: clona el esquema de la base de trabajo solo si está vacía', () => {
-  const cmd = comandoPrepararRama(config.bd, 'glory_pulse_x', 'glory_pulse', 'scripts/fixtures/seed.sql');
+  const cmd = comandoPrepararRama(config.bd, 'agente_tiempo_real_x', 'agente_tiempo_real', 'scripts/fixtures/seed.sql');
   assert.ok(cmd.startsWith('if [ "$(psql '));
   // El SQL va entrecomillado para el shell (shQuote): se comprueban las partes, no el texto literal.
   assert.ok(cmd.includes('information_schema.tables WHERE table_schema='));
   assert.ok(cmd.includes('pg_dump -h'));
   assert.ok(cmd.includes('--schema-only'));
-  assert.ok(cmd.includes("glory_pulse'"), 'la base de trabajo va como origen del clon');
+  assert.ok(cmd.includes("agente_tiempo_real'"), 'la base de trabajo va como origen del clon');
   assert.ok(cmd.includes('-f -'), 'el clon entra por stdin');
   assert.ok(cmd.includes("'scripts/fixtures/seed.sql'"));
   assert.ok(cmd.endsWith('; fi'));
 });
 
 test('base de rama: sin semilla declarada solo clona el esquema', () => {
-  const cmd = comandoPrepararRama(config.bd, 'glory_pulse_x', 'glory_pulse');
+  const cmd = comandoPrepararRama(config.bd, 'agente_tiempo_real_x', 'agente_tiempo_real');
   assert.ok(cmd.includes('pg_dump'));
   assert.ok(!cmd.includes('seed.sql'));
   assert.equal(cmd.match(/-f /g).length, 1);

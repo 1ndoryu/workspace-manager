@@ -44,15 +44,15 @@ test('npm y pnpm no tienen archivos de sobra: todo lo que viaja cuenta', () => {
   }
 });
 
-/* [por que] WANDORIUS tiene npm en frontend/ y cargo en glory-rs/. Con un arbol por
+/* [por que] portal-central tiene npm en frontend/ y cargo en glory-rs/. Con un arbol por
  * proyecto, el segundo `rm -rf` borraria el del primero y el audit siguiente
  * correria sobre un directorio vacio. */
 test('cada gestor tiene su propio arbol en la 89', () => {
-  const npm = raizRemota('WANDORIUS', 'npm');
-  const cargo = raizRemota('WANDORIUS', 'cargo');
+  const npm = raizRemota('portal-central', 'npm');
+  const cargo = raizRemota('portal-central', 'cargo');
   assert.notEqual(npm, cargo);
-  assert.ok(npm.endsWith('/WANDORIUS/npm'));
-  assert.ok(cargo.endsWith('/WANDORIUS/cargo'));
+  assert.ok(npm.endsWith('/portal-central/npm'));
+  assert.ok(cargo.endsWith('/portal-central/cargo'));
 });
 
 /* [por que] El PATH del ssh no interactivo no trae ni el node de `taller.json` ni

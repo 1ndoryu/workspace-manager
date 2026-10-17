@@ -10,12 +10,12 @@ void describe('sincronizar-proyectos', () => {
     let creados = 0;
     const columnas = await sincronizarColumnas({
       wm: [
-        {clave: 'gloryapi', nombre: 'gloryapi'},
-        {clave: 'PROYECTO TASKS', nombre: 'PROYECTO TASKS'},
+        {clave: 'servicio-api', nombre: 'servicio-api'},
+        {clave: 'app-tareas', nombre: 'app-tareas'},
       ],
       task: [
-        {legacyId: 11, wmClave: 'gloryapi'},
-        {legacyId: 12, wmClave: 'PROYECTO TASKS'},
+        {legacyId: 11, wmClave: 'servicio-api'},
+        {legacyId: 12, wmClave: 'app-tareas'},
         {legacyId: 9001, wmClave: null},
       ],
       crear: async () => {
@@ -24,8 +24,8 @@ void describe('sincronizar-proyectos', () => {
       ahora: () => 1_700_000_000_000,
     });
     assert.deepEqual(columnas, [
-      {clave: 'gloryapi', nombre: 'gloryapi', legacyId: 11},
-      {clave: 'PROYECTO TASKS', nombre: 'PROYECTO TASKS', legacyId: 12},
+      {clave: 'servicio-api', nombre: 'servicio-api', legacyId: 11},
+      {clave: 'app-tareas', nombre: 'app-tareas', legacyId: 12},
     ]);
     assert.equal(creados, 0);
   });

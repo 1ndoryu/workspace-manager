@@ -4,7 +4,7 @@
  * de modo que buscaba `<área>/config/registro.json` —que no existe— en vez de
  * `<repo>/config/registro.json`. Con `registro` a null, `noAplica` salía vacío
  * y el tablero reportaba como «sin registrar» todo repo declarado ahí
- * (freebuff, entre otros). El par de casos de abajo fija las dos mitades:
+ * (borrador, entre otros). El par de casos de abajo fija las dos mitades:
  * la raíz del área NO es fuente de config, y `WS_CONFIG_ROOT` SÍ lo es. */
 import { describe, it, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';

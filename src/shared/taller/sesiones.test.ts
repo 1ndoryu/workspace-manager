@@ -6,9 +6,9 @@ import { sesionDev, sesionMutagen, slugSesion } from './sesiones.js';
 
 describe('slugSesion', () => {
   it('no cambia los ids normales', () => {
-    assert.equal(slugSesion('MN-Inmobiliaria'), 'MN-Inmobiliaria');
-    assert.equal(slugSesion('KAMPLES'), 'KAMPLES');
-    assert.equal(slugSesion('RESTAURANTE'), 'RESTAURANTE');
+    assert.equal(slugSesion('sitio-api'), 'sitio-api');
+    assert.equal(slugSesion('juego-arcade'), 'juego-arcade');
+    assert.equal(slugSesion('sistema-legado'), 'sistema-legado');
   });
 
   it('sustituye el espacio (Mutagen lo rechaza en el nombre de sesión)', () => {
@@ -24,11 +24,11 @@ describe('slugSesion', () => {
 describe('nombres de sesión', () => {
   it('Mutagen: taller-<id saneado>', () => {
     assert.equal(sesionMutagen('PROYECTO TASKS'), 'taller-PROYECTO-TASKS');
-    assert.equal(sesionMutagen('KAMPLES'), 'taller-KAMPLES');
+    assert.equal(sesionMutagen('juego-arcade'), 'taller-juego-arcade');
   });
 
   it('tmux: dev-<id saneado>-<puerto> (mismo saneado que Mutagen)', () => {
     assert.equal(sesionDev('PROYECTO TASKS', 4190), 'dev-PROYECTO-TASKS-4190');
-    assert.equal(sesionDev('MN-Inmobiliaria', 3103), 'dev-MN-Inmobiliaria-3103');
+    assert.equal(sesionDev('sitio-api', 3103), 'dev-sitio-api-3103');
   });
 });

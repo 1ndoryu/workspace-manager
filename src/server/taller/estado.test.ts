@@ -42,7 +42,7 @@ test('Historial: sin líneas válidas devuelve lista vacía', () => {
   assert.deepEqual(parsearHistorial('no json\n{"version":1}\n'), []);
 });
 
-const BLOQUE_SANO = `Name: taller-RESTAURANTE
+const BLOQUE_SANO = `Name: taller-sistema-legado
 Identifier: sync_abc
 Status: Watching for changes
 `;
@@ -53,7 +53,7 @@ test('Mutagen: sesión en Watching no es mala', () => {
 
 test('Mutagen: sesión pausada o con conflictos se marca con su estado', () => {
   const salida = `${BLOQUE_SANO}
-Name: taller-MN-Inmobiliaria
+Name: taller-sitio-api
 Identifier: sync_def
 Status: Paused
 Name: taller-otra
@@ -62,7 +62,7 @@ Conflicts:
   a.txt
 `;
   assert.deepEqual(sesionesMutagenMalas(salida), [
-    'taller-MN-Inmobiliaria (Paused)',
+    'taller-sitio-api (Paused)',
     'taller-otra (Watching for changes)',
   ]);
 });

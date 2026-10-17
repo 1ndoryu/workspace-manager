@@ -49,24 +49,24 @@ test('configRemotaDe: rechaza rutas con metacaracteres, relativas o incompletas'
 
 test('rutaRemota: une base y clave; rechaza claves no seguras', () => {
   const cfg = configRemotaDe(CFG_OK);
-  assert.equal(rutaRemota(cfg, 'RESTAURANTE'), '/home/usuario/taller/RESTAURANTE');
-  assert.equal(rutaRemota({ ...cfg, dirRemotoBase: '/home/usuario/taller/' }, 'RESTAURANTE'), '/home/usuario/taller/RESTAURANTE');
+  assert.equal(rutaRemota(cfg, 'sistema-legado'), '/home/usuario/taller/sistema-legado');
+  assert.equal(rutaRemota({ ...cfg, dirRemotoBase: '/home/usuario/taller/' }, 'sistema-legado'), '/home/usuario/taller/sistema-legado');
   assert.throws(() => rutaRemota(cfg, 'a b'), /no válida/);
   assert.throws(() => rutaRemota(cfg, '../x'), /no válida/);
 });
 
 test('rutaRuntimeRemota: el runtime vive fuera de la réplica, que se vacía al sincronizar', () => {
   const cfg = configRemotaDe(CFG_OK);
-  const r = rutaRuntimeRemota(cfg, 'KAMPLES', 'sentinel');
-  assert.equal(r, '/home/usuario/taller/_quality-tools/KAMPLES/sentinel');
-  assert.ok(!r.startsWith(`${rutaRemota(cfg, 'KAMPLES')}/`), 'no puede colgar de la réplica');
+  const r = rutaRuntimeRemota(cfg, 'juego-arcade', 'sentinel');
+  assert.equal(r, '/home/usuario/taller/_quality-tools/juego-arcade/sentinel');
+  assert.ok(!r.startsWith(`${rutaRemota(cfg, 'juego-arcade')}/`), 'no puede colgar de la réplica');
   assert.throws(() => rutaRuntimeRemota(cfg, 'a b', 'sentinel'), /no válida/);
 });
 
 test('comandoDeps: reinstala solo si el lock cambió, y falla en claro si npm ci falla', () => {
-  const cmd = comandoDeps('/n/bin/npm', '/home/usuario/taller/_quality-tools/KAMPLES/sentinel', 'abc123');
+  const cmd = comandoDeps('/n/bin/npm', '/home/usuario/taller/_quality-tools/juego-arcade/sentinel', 'abc123');
   assert.ok(cmd.includes(`!= 'abc123'`), 'compara contra la huella');
-  assert.ok(cmd.includes(`'/n/bin/npm' ci --omit=dev --silent --prefix '/home/usuario/taller/_quality-tools/KAMPLES/sentinel'`));
+  assert.ok(cmd.includes(`'/n/bin/npm' ci --omit=dev --silent --prefix '/home/usuario/taller/_quality-tools/juego-arcade/sentinel'`));
   assert.ok(cmd.endsWith('|| exit 3; fi; echo ok'), 'un npm ci fallido sale con 3');
 });
 
@@ -80,53 +80,53 @@ test('huellaLock: 16 hex del contenido, y "?" si no hay lock', () => {
 test('modoAnalisisEn: el taller solo con analisisEn exacto; por defecto local', () => {
   const registro = {
     proyectos: [
-      { id: 'RESTAURANTE', analisisEn: 'taller' },
-      { id: 'MN-Inmobiliaria' },
+      { id: 'sistema-legado', analisisEn: 'taller' },
+      { id: 'sitio-api' },
       { id: 'otro', analisisEn: 'DEV89' },
     ],
   };
-  assert.equal(modoAnalisisEn(registro, 'RESTAURANTE'), 'taller');
-  assert.equal(modoAnalisisEn(registro, 'MN-Inmobiliaria'), 'local');
+  assert.equal(modoAnalisisEn(registro, 'sistema-legado'), 'taller');
+  assert.equal(modoAnalisisEn(registro, 'sitio-api'), 'local');
   assert.equal(modoAnalisisEn(registro, 'otro'), 'local');
   assert.equal(modoAnalisisEn(registro, 'no-existe'), 'local');
-  assert.equal(modoAnalisisEn({}, 'RESTAURANTE'), 'local');
+  assert.equal(modoAnalisisEn({}, 'sistema-legado'), 'local');
 });
 
 /* [por que] `dev89` fue el valor con el que se escribio `analisisEn` antes de que el
  * modo se llamara por su papel y no por el alias de la maquina: las configuraciones ya
  * hechas tienen que seguir valiendo. */
 test('modoAnalisisEn: `dev89` sigue valiendo como peticion del taller', () => {
-  const registro = { proyectos: [{ id: 'KAMPLES', analisisEn: 'dev89' }] };
-  assert.equal(modoAnalisisEn(registro, 'KAMPLES'), 'taller');
+  const registro = { proyectos: [{ id: 'juego-arcade', analisisEn: 'dev89' }] };
+  assert.equal(modoAnalisisEn(registro, 'juego-arcade'), 'taller');
 });
 
 /* Correr en el taller es lo que manda: un proyecto con `host` en el registro se analiza
  * alli aunque `analisisEn` no diga nada. Y `analisisEn` sigue pudiendo forzar los dos
  * lados. */
 test('modoAnalisisEn: un proyecto que corre en el taller analiza en el taller', () => {
-  const registro = { proyectos: [{ id: 'NAKOMI', host: 'dev89' }, { id: 'RESTAURANTE', host: 'dev89', analisisEn: 'local' }] };
+  const registro = { proyectos: [{ id: 'catalogo-web', host: 'dev89' }, { id: 'sistema-legado', host: 'dev89', analisisEn: 'local' }] };
   const taller = { modoPorDefecto: 'remoto' };
-  assert.equal(modoAnalisisEn(registro, 'NAKOMI', taller), 'taller');
-  assert.equal(modoAnalisisEn(registro, 'RESTAURANTE', taller), 'local', 'analisisEn local manda sobre el host');
+  assert.equal(modoAnalisisEn(registro, 'catalogo-web', taller), 'taller');
+  assert.equal(modoAnalisisEn(registro, 'sistema-legado', taller), 'local', 'analisisEn local manda sobre el host');
 });
 
 /* [por que] La senal es `host`, no el bloque `proyectos` de taller.json: ese bloque
- * declara la BD del taller y RESTAURANTE corria alli sin base de datos, asi que su
+ * declara la BD del taller y sistema-legado corria alli sin base de datos, asi que su
  * analisis (259 hallazgos) se quedaba en el portatil. */
 test('modoAnalisisEn: el bloque de BD del taller no decide donde se analiza', () => {
-  const registro = { proyectos: [{ id: 'RESTAURANTE', host: 'dev89' }, { id: 'SIN-HOST' }] };
+  const registro = { proyectos: [{ id: 'sistema-legado', host: 'dev89' }, { id: 'SIN-HOST' }] };
   const taller = { modoPorDefecto: 'remoto', proyectos: { 'SIN-HOST': { basedatos: 'x' } } };
-  assert.equal(modoAnalisisEn(registro, 'RESTAURANTE', taller), 'taller', 'corre en la 89 aunque no tenga BD alli');
+  assert.equal(modoAnalisisEn(registro, 'sistema-legado', taller), 'taller', 'corre en la 89 aunque no tenga BD alli');
   assert.equal(modoAnalisisEn(registro, 'SIN-HOST', taller), 'local', 'una BD declarada no basta si no corre alli');
 });
 
 /* Sin taller el manager tiene que seguir entero en local: es el caso de un clon recien
  * hecho, y no es un error. */
 test('modoAnalisisEn: sin taller, local', () => {
-  const registro = { proyectos: [{ id: 'NAKOMI', host: 'dev89' }] };
-  assert.equal(modoAnalisisEn(registro, 'NAKOMI', null), 'local');
-  assert.equal(modoAnalisisEn(registro, 'NAKOMI', { modoPorDefecto: 'local' }), 'local');
-  assert.equal(modoAnalisisEn(registro, 'NAKOMI', {}), 'local', 'taller sin modo por defecto declarado');
+  const registro = { proyectos: [{ id: 'catalogo-web', host: 'dev89' }] };
+  assert.equal(modoAnalisisEn(registro, 'catalogo-web', null), 'local');
+  assert.equal(modoAnalisisEn(registro, 'catalogo-web', { modoPorDefecto: 'local' }), 'local');
+  assert.equal(modoAnalisisEn(registro, 'catalogo-web', {}), 'local', 'taller sin modo por defecto declarado');
 });
 
 test('hostTaller: el alias lo declara la config, y sin ella no hay host', () => {
@@ -177,14 +177,14 @@ test('reposAnidados: marca de fichero, de directorio y no desciende dentro', () 
 });
 
 test('comandoMarcasRepos: escribe la marca del fichero y crea la del directorio', () => {
-  const cmd = comandoMarcasRepos('/home/usuario/taller/KAMPLES', [
+  const cmd = comandoMarcasRepos('/home/usuario/taller/juego-arcade', [
     { ruta: 'glory-rs', marca: 'gitdir: ../.git/modules/glory-rs' },
     { ruta: 'vendors/completo', marca: null },
   ]);
   assert.equal(
     cmd,
-    "mkdir -p '/home/usuario/taller/KAMPLES/glory-rs' && printf '%s' 'gitdir: ../.git/modules/glory-rs' > '/home/usuario/taller/KAMPLES/glory-rs/.git' && " +
-      "mkdir -p '/home/usuario/taller/KAMPLES/vendors/completo/.git' && echo ok",
+    "mkdir -p '/home/usuario/taller/juego-arcade/glory-rs' && printf '%s' 'gitdir: ../.git/modules/glory-rs' > '/home/usuario/taller/juego-arcade/glory-rs/.git' && " +
+      "mkdir -p '/home/usuario/taller/juego-arcade/vendors/completo/.git' && echo ok",
   );
   assert.equal(comandoMarcasRepos('/x', []), 'echo ok');
 });

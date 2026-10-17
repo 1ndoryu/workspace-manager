@@ -1,4 +1,4 @@
-/* Breaker-test del agente glory-pulse (299A-12 F2): se corre con
+/* Breaker-test del agente agente-tiempo-real (299A-12 F2): se corre con
  * `node node_modules/tsx/dist/cli.mjs --test src/server/vps/agente.test.ts`
  * (el repo no tiene runner TS; node --test solo entiende JS). Reloj y fetch
  * inyectados: ningún test toca red ni espera tiempo real. */
@@ -43,7 +43,7 @@ function respuestaSnap(cuerpo: unknown, ok = true, estado = 200): typeof fetch {
   })) as unknown as typeof fetch;
 }
 
-void describe('agente glory-pulse', () => {
+void describe('agente agente-tiempo-real', () => {
   void it('adapta el snapshot y calcula frescura con reloj del backend', async () => {
     let ahora = 2000;
     const agente = crearAgente({

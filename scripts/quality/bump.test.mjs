@@ -84,7 +84,7 @@ test('los archivos canónicos siguen siendo el adapter, no un router', () => {
 test('un bump de pin en dry-run no toca ningún archivo', () => {
   const rutas = [];
   for (const archivo of CANONICOS) rutas.push(path.join(AQUI, archivo));
-  for (const proyecto of ['GLORYPORT', 'PROYECTO TASKS']) {
+  for (const proyecto of ['puerto-app', 'app-tareas']) {
     for (const archivo of CANONICOS) {
       const ruta = path.resolve(HOST, '..', proyecto, 'scripts', 'quality', archivo);
       if (fs.existsSync(ruta)) rutas.push(ruta);

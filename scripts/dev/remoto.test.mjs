@@ -80,7 +80,7 @@ test('comandoRemotoUp: cargo sin cm-heavy (el candado es solo del build), target
   assert.ok(cmd.includes('tmux has-session'));
   assert.ok(cmd.includes('dev-P-3001'));
   assert.ok(cmd.includes('SQLX_OFFLINE=true'));
-  // [por que] Un `.cargo/config.toml` con `rustc-wrapper` de Windows rompe el build en la 89 (WANDORIUS).
+  // [por que] Un `.cargo/config.toml` con `rustc-wrapper` de Windows rompe el build en la 89 (portal-central).
   assert.ok(cmd.includes('RUSTC_WRAPPER='));
   assert.ok(cmd.indexOf('RUSTC_WRAPPER=') < cmd.indexOf('CARGO_TARGET_DIR='));
 });
@@ -387,7 +387,7 @@ test('puertosTodos: une los del dev y los del build para parar las sesiones de l
 test('localesTodos: los puertos locales de los dos modos, con la regla de puertosLocalesDe', () => {
   // MN: en dev el vite vive en 5199 y el backend en 3110; en build solo quedan 3110 y el conector.
   assert.deepEqual(localesTodos({ puertosRemotos: [3110, 5199, 20241], build: { puertos: [3110, 20241] } }), [3110, 5199, 20241]);
-  // NAKOMI: los locales difieren de los remotos y el build trae los suyos.
+  // catalogo-web: los locales difieren de los remotos y el build trae los suyos.
   assert.deepEqual(localesTodos({ puertos: [3103, 5176], puertosLocales: [13103, 15176], build: { puertos: [3103], puertosLocales: [13103] } }), [13103, 15176]);
   assert.deepEqual(localesTodos({ puertos: [3001] }), [3001]);
 });

@@ -89,37 +89,37 @@ test('actualizarRegistro añade host y puerto solo al proyecto indicado y es ide
   const texto = [
     '{', '  "proyectos": [',
     '    { "id": "otro", "hostsPublicos": [], "puertosPublicos": [] },',
-    '    { "id": "MN-Inmobiliaria",',
+    '    { "id": "sitio-api",',
     '      "hostsPublicos": ["mn-dev.wandori.us"],',
     '      "puertosPublicos": [5199] }',
     '  ]', '}',
   ].join('\n');
-  const nuevo = actualizarRegistro(texto, 'MN-Inmobiliaria', 'a-dev.wandori.us', 5300);
+  const nuevo = actualizarRegistro(texto, 'sitio-api', 'a-dev.wandori.us', 5300);
   assert.match(nuevo, /"hostsPublicos": \["mn-dev.wandori.us", "a-dev.wandori.us"\]/);
   assert.match(nuevo, /"puertosPublicos": \[5199, 5300\]/);
   assert.match(nuevo, /"id": "otro", "hostsPublicos": \[\], "puertosPublicos": \[\]/);
-  assert.equal(actualizarRegistro(nuevo, 'MN-Inmobiliaria', 'a-dev.wandori.us', 5300), nuevo);
+  assert.equal(actualizarRegistro(nuevo, 'sitio-api', 'a-dev.wandori.us', 5300), nuevo);
 });
 
 test('actualizarRegistro cambia el puerto del host ya declarado, sin duplicarlo', () => {
   const texto = [
     '{', '  "proyectos": [',
-    '    { "id": "MN-Inmobiliaria",',
+    '    { "id": "sitio-api",',
     '      "hostsPublicos": ["mn-dev.wandori.us", "otro-dev.wandori.us"],',
     '      "puertosPublicos": [5199, 5300] }',
     '  ]', '}',
   ].join('\n');
   // Pasar la ficha a modo build: el mismo host sirve en otro puerto local.
-  const nuevo = actualizarRegistro(texto, 'MN-Inmobiliaria', 'mn-dev.wandori.us', 3110);
+  const nuevo = actualizarRegistro(texto, 'sitio-api', 'mn-dev.wandori.us', 3110);
   assert.match(nuevo, /"hostsPublicos": \["mn-dev\.wandori\.us", "otro-dev\.wandori\.us"\]/);
   assert.match(nuevo, /"puertosPublicos": \[3110, 5300\]/);
-  assert.equal(actualizarRegistro(nuevo, 'MN-Inmobiliaria', 'mn-dev.wandori.us', 3110), nuevo);
+  assert.equal(actualizarRegistro(nuevo, 'sitio-api', 'mn-dev.wandori.us', 3110), nuevo);
 });
 
 test('actualizarRegistro conserva el formato multilínea al cambiar el puerto', () => {
   const texto = [
     '{', '  "proyectos": [',
-    '    { "id": "MN-Inmobiliaria",',
+    '    { "id": "sitio-api",',
     '      "hostsPublicos": [',
     '        "mn-dev.wandori.us"',
     '      ],',
@@ -128,7 +128,7 @@ test('actualizarRegistro conserva el formato multilínea al cambiar el puerto', 
     '      ] }',
     '  ]', '}',
   ].join('\n');
-  const nuevo = actualizarRegistro(texto, 'MN-Inmobiliaria', 'mn-dev.wandori.us', 3110);
+  const nuevo = actualizarRegistro(texto, 'sitio-api', 'mn-dev.wandori.us', 3110);
   assert.match(nuevo, /"puertosPublicos": \[\n        3110\n      \]/);
   assert.match(nuevo, /"hostsPublicos": \[\n        "mn-dev\.wandori\.us"\n      \]/);
 });

@@ -47,7 +47,7 @@ describe('verificarPeticionEscritura: Origin', () => {
       'https://localhost:5175', // esquema https no es el del tablero
       'http://evil.com:5175',
       'http://localhost:3000', // puerto no declarado
-      'http://localhost:5174', // puerto de opencode-propio: nunca
+      'http://localhost:5174', // puerto de editor-propio: nunca
       'http://localhost', // sin puerto
       'http://localhost:5175/x', // con ruta
       'null', // origen opaco

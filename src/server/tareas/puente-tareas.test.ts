@@ -209,11 +209,11 @@ void describe('puente-tareas', () => {
 
   void it('crearProyecto hace PUT a /api/projects con payload.wmClave (08AA-6)', async () => {
     const {llamadas, puente} = fakes([LOGIN_OK, resp(200, {ok: true})]);
-    const id = await puente.crearProyecto(1700000000000000, 'gloryapi', 'gloryapi');
+    const id = await puente.crearProyecto(1700000000000000, 'servicio-api', 'servicio-api');
     assert.equal(id, 1700000000000000);
     assert.ok(llamadas[1].url.endsWith('/api/projects/1700000000000000'));
     assert.equal(llamadas[1].init.method, 'PUT');
-    assert.deepEqual(JSON.parse(String(llamadas[1].init.body)), {nombre: 'gloryapi', payload: {wmClave: 'gloryapi'}});
+    assert.deepEqual(JSON.parse(String(llamadas[1].init.body)), {nombre: 'servicio-api', payload: {wmClave: 'servicio-api'}});
   });
 
   void it('crearProyecto rechaza id invalido sin tocar red (08AA-6)', async () => {

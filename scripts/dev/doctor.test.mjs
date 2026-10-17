@@ -39,7 +39,7 @@ import {
   veredictoUpSinCobertura,
 } from './doctor.mjs';
 
-const AREA = 'C:\\Users\\usuario\\OneDrive\\Documentos\\area-trabajo';
+const AREA = 'C:\area';
 
 test('parsearNetstat: lee listeners IPv4 e IPv6 (regresion: [::1]:5176 se perdia con -p TCP)', () => {
   const sal = [
@@ -57,16 +57,16 @@ test('parsearNetstat: lee listeners IPv4 e IPv6 (regresion: [::1]:5176 se perdia
 });
 
 test('esDelProyecto: exe bajo la ruta del proyecto', () => {
-  const proc = { exe: `${AREA}\\MN-Inmobiliaria\\backend\\glory-backend.exe`, cmd: '' };
-  assert.equal(esDelProyecto(proc, `${AREA}\\MN-Inmobiliaria`, 'nada'), true);
+  const proc = { exe: `${AREA}\\sitio-api\\backend\\glory-backend.exe`, cmd: '' };
+  assert.equal(esDelProyecto(proc, `${AREA}\\sitio-api`, 'nada'), true);
 });
 
-test('esDelProyecto: cmd con la ruta del proyecto aunque el exe sea otro (regresion PROYECTO TASKS 4191)', () => {
+test('esDelProyecto: cmd con la ruta del proyecto aunque el exe sea otro (regresion app-tareas 4191)', () => {
   const proc = {
     exe: 'C:\\Program Files\\nodejs\\node.exe',
-    cmd: `node "${AREA}\\PROYECTO TASKS\\frontend\\node_modules\\vite\\bin\\vite.js" --port 4191`,
+    cmd: `node "${AREA}\\app-tareas\\frontend\\node_modules\\vite\\bin\\vite.js" --port 4191`,
   };
-  assert.equal(esDelProyecto(proc, `${AREA}\\PROYECTO TASKS`, 'glory-backend'), true);
+  assert.equal(esDelProyecto(proc, `${AREA}\\app-tareas`, 'glory-backend'), true);
 });
 
 test('esDelProyecto: frontera de ruta, "glory" no casa con "glory-pulse"', () => {
@@ -76,7 +76,7 @@ test('esDelProyecto: frontera de ruta, "glory" no casa con "glory-pulse"', () =>
 
 test('esDelProyecto: proceso ajeno sin ruta ni marcador', () => {
   const proc = { exe: 'C:\\Windows\\System32\\svchost.exe', cmd: '' };
-  assert.equal(esDelProyecto(proc, `${AREA}\\NAKOMI`, 'glory-backend'), false);
+  assert.equal(esDelProyecto(proc, `${AREA}\\catalogo-web`, 'glory-backend'), false);
 });
 
 test('enRuta: exige frontera de ruta', () => {
@@ -97,21 +97,21 @@ test('puertoDeSaludValido: acepta un puerto solo remoto (readiness del conector 
 test('atribuirHuerfano: gana la ruta mas larga que contiene el proceso', () => {
   const pool = [
     { clave: 'area', ruta: AREA },
-    { clave: 'PROYECTO TASKS', ruta: `${AREA}\\PROYECTO TASKS` },
+    { clave: 'app-tareas', ruta: `${AREA}\\app-tareas` },
   ];
-  const proc = { exe: `${AREA}\\PROYECTO TASKS\\backend\\glory-backend.exe`, cmd: '' };
-  assert.equal(atribuirHuerfano(proc, pool), 'PROYECTO TASKS');
+  const proc = { exe: `${AREA}\\app-tareas\\backend\\glory-backend.exe`, cmd: '' };
+  assert.equal(atribuirHuerfano(proc, pool), 'app-tareas');
 });
 
-test('atribuirHuerfano: ignorado del area (opencode-propio) se atribuye, no queda mudo', () => {
-  const pool = [{ clave: 'opencode-propio', ruta: `${AREA}\\opencode-propio` }];
-  const proc = { exe: `${AREA}\\opencode-propio\\app\\electron.exe`, cmd: '' };
-  assert.equal(atribuirHuerfano(proc, pool), 'opencode-propio');
+test('atribuirHuerfano: ignorado del area (editor-propio) se atribuye, no queda mudo', () => {
+  const pool = [{ clave: 'editor-propio', ruta: `${AREA}\\editor-propio` }];
+  const proc = { exe: `${AREA}\\editor-propio\\app\\electron.exe`, cmd: '' };
+  assert.equal(atribuirHuerfano(proc, pool), 'editor-propio');
 });
 
 test('atribuirHuerfano: sin dueño conocido devuelve null', () => {
   const proc = { exe: 'C:\\Users\\usuario\\AppData\\Roaming\\uTorrent Web\\helper\\helper.exe', cmd: '' };
-  assert.equal(atribuirHuerfano(proc, [{ clave: 'NAKOMI', ruta: `${AREA}\\NAKOMI` }]), null);
+  assert.equal(atribuirHuerfano(proc, [{ clave: 'catalogo-web', ruta: `${AREA}\\catalogo-web` }]), null);
   assert.equal(atribuirHuerfano(undefined, []), null);
 });
 
@@ -150,10 +150,10 @@ test('validarIgnoradoSistema: imagen exige nombre .exe sin ruta y excluyente con
 
 test('auxiliarDe: script declarado (puerto + marcador en el cmd) es del proyecto', () => {
   const entradas = [
-    { id: 'MN-Inmobiliaria', puertos: [3110], auxiliares: [{ puerto: 3122, marcador: 'mejora.mjs', motivo: 'manual' }] },
+    { id: 'sitio-api', puertos: [3110], auxiliares: [{ puerto: 3122, marcador: 'mejora.mjs', motivo: 'manual' }] },
   ];
   const cmd = '"C:\\Program Files\\nodejs\\node.exe" server/mejora.mjs';
-  assert.equal(auxiliarDe(3122, cmd, entradas), 'MN-Inmobiliaria');
+  assert.equal(auxiliarDe(3122, cmd, entradas), 'sitio-api');
   assert.equal(auxiliarDe(3123, cmd, entradas), null, 'otro puerto no casa');
   assert.equal(auxiliarDe(3122, 'node otro.mjs', entradas), null, 'sin marcador no casa');
   assert.equal(auxiliarDe(3122, null, entradas), null, 'cmd no verificable no casa');
@@ -263,7 +263,7 @@ test('esSistemaIgnorado: pid 4 solo sin exe (System)', () => {
 });
 
 test('esSistemaIgnorado: cmdContiene acota un exe generico (bun del app, no otro bun)', () => {
-  const lista = [{ exe: 'C:\\Users\\usuario\\.bun\\bin\\bun.exe', cmdContiene: 'serve --port 4096', motivo: 'opencode-propio' }];
+  const lista = [{ exe: 'C:\\Users\\usuario\\.bun\\bin\\bun.exe', cmdContiene: 'serve --port 4096', motivo: 'editor-propio' }];
   const exe = 'C:\\Users\\usuario\\.bun\\bin\\bun.exe';
   assert.equal(esSistemaIgnorado(8084, { exe, cmd: `"${exe}"  run ./src/index.ts serve --port 4096` }, lista), true);
   assert.equal(esSistemaIgnorado(9001, { exe, cmd: `"${exe}" run ./otro.ts --port 5000` }, lista), false);
@@ -306,29 +306,29 @@ test('detectarRust: por debajo del umbral no hay aviso de tamano', () => {
   }
 });
 
-test('atribuirHuerfano: opencode-propio-dev no se atribuye a opencode-propio (frontera de ruta)', () => {
+test('atribuirHuerfano: editor-propio-dev no se atribuye a editor-propio (frontera de ruta)', () => {
   const pool = [
-    { clave: 'opencode-propio', ruta: `${AREA}\\opencode-propio` },
-    { clave: 'opencode-propio-dev', ruta: `${AREA}\\opencode-propio-dev` },
+    { clave: 'editor-propio', ruta: `${AREA}\\editor-propio` },
+    { clave: 'editor-propio-dev', ruta: `${AREA}\\editor-propio-dev` },
   ];
-  const proc = { exe: `${AREA}\\opencode-propio-dev\\src\\node_modules\\electron.exe`, cmd: '' };
-  assert.equal(atribuirHuerfano(proc, pool), 'opencode-propio-dev');
+  const proc = { exe: `${AREA}\\editor-propio-dev\\src\\node_modules\\electron.exe`, cmd: '' };
+  assert.equal(atribuirHuerfano(proc, pool), 'editor-propio-dev');
 });
 
 test('duenoDePuerto: un auxiliar declarado nombra a su dueno (no es proceso ajeno)', () => {
-  const entradas = [{ id: 'KAMPLES', puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }];
+  const entradas = [{ id: 'juego-arcade', puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }];
   const procs = new Map([[77, { pid: 77, exe: 'C:/x/glory-backend.exe', cmd: 'C:/x/glory-backend.exe' }]]);
-  assert.deepEqual(duenoDePuerto(3001, [77], procs, entradas), { id: 'KAMPLES', pid: 77, via: 'auxiliar' });
+  assert.deepEqual(duenoDePuerto(3001, [77], procs, entradas), { id: 'juego-arcade', pid: 77, via: 'auxiliar' });
   assert.equal(duenoDePuerto(3001, [88], procs, entradas), null);
 });
 
 test('accionParaPuerto: nunca mata, y nombra el siguiente paso por caso', () => {
-  const ajeno = accionParaPuerto('KAMPLES', 3000, [9], null);
+  const ajeno = accionParaPuerto('juego-arcade', 3000, [9], null);
   assert.match(ajeno, /lo ocupa un proceso ajeno \(pid 9\); no se mata/);
-  const dueno = accionParaPuerto('KAMPLES', 3000, [9], { id: 'glory-pulse', pid: 9, via: 'proceso' });
-  assert.match(dueno, /lo ocupa glory-pulse \(pid 9, proceso\); no se mata/);
-  assert.match(dueno, /mueve el puerto de KAMPLES/);
-  const compartido = accionParaPuerto('KAMPLES', 5183, [], null, ['otro']);
+  const dueno = accionParaPuerto('juego-arcade', 3000, [9], { id: 'agente-tiempo-real', pid: 9, via: 'proceso' });
+  assert.match(dueno, /lo ocupa agente-tiempo-real \(pid 9, proceso\); no se mata/);
+  assert.match(dueno, /mueve el puerto de juego-arcade/);
+  const compartido = accionParaPuerto('juego-arcade', 5183, [], null, ['otro']);
   assert.match(compartido, /deja un solo dueño/);
 });
 
@@ -343,13 +343,13 @@ test('detectarDerivaEnv: PORT no declarado avisa; PORT declarado como auxiliar n
     writeFileSync(join(kamples, '.env.example'), 'PORT=3001\n');
     writeFileSync(join(pulse, '.env'), 'PORT=3001\n');
     const entradas = new Map([
-      ['KAMPLES', { id: 'KAMPLES', ruta: kamples, puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }],
-      ['glory-pulse', { id: 'glory-pulse', ruta: pulse, puertos: [3000] }],
+      ['juego-arcade', { id: 'juego-arcade', ruta: kamples, puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }],
+      ['agente-tiempo-real', { id: 'agente-tiempo-real', ruta: pulse, puertos: [3000] }],
     ]);
     const avisos = detectarDerivaEnv({ entradas }, { raiz });
     assert.deepEqual(avisos, [
-      { id: 'KAMPLES', archivo: '.env', puerto: 3002, motivo: 'PORT=3002 no esta en puertos/auxiliares de KAMPLES' },
-      { id: 'glory-pulse', archivo: '.env', puerto: 3001, motivo: 'PORT=3001 lo declara KAMPLES' },
+      { id: 'juego-arcade', archivo: '.env', puerto: 3002, motivo: 'PORT=3002 no esta en puertos/auxiliares de juego-arcade' },
+      { id: 'agente-tiempo-real', archivo: '.env', puerto: 3001, motivo: 'PORT=3001 lo declara juego-arcade' },
     ]);
   } finally {
     rmSync(raiz, { recursive: true, force: true });
@@ -357,7 +357,7 @@ test('detectarDerivaEnv: PORT no declarado avisa; PORT declarado como auxiliar n
 });
 
 test('veredictoUpSinCobertura: probe verde = ya-arriba degradado, no arranca', () => {
-  const r = veredictoUpSinCobertura('MN-Inmobiliaria', { estado: 'bajo-mando', motivo: 'probe verde' }, 'snapshot del servidor: timeout');
+  const r = veredictoUpSinCobertura('sitio-api', { estado: 'bajo-mando', motivo: 'probe verde' }, 'snapshot del servidor: timeout');
   assert.equal(r.codigo, 2);
   assert.match(r.resumen, /ya-arriba \(probe verde\)/);
   assert.match(r.resumen, /cobertura no verificada \(snapshot del servidor: timeout\)/);
@@ -366,7 +366,7 @@ test('veredictoUpSinCobertura: probe verde = ya-arriba degradado, no arranca', (
 
 test('veredictoUpSinCobertura: sin probe verde rehusa (parado o deriva), nunca arranca', () => {
   for (const estado of ['parado', 'deriva']) {
-    const r = veredictoUpSinCobertura('MN-Inmobiliaria', { estado, motivo: 'puerto 3110 libre (parado)' }, 'snapshot del servidor: timeout');
+    const r = veredictoUpSinCobertura('sitio-api', { estado, motivo: 'puerto 3110 libre (parado)' }, 'snapshot del servidor: timeout');
     assert.equal(r.codigo, 1);
     assert.match(r.resumen, new RegExp(`rehusado \\(${estado}: `));
     assert.match(r.resumen, /sin cobertura \(snapshot del servidor: timeout\) no se arranca/);
@@ -421,7 +421,7 @@ test('validarBloqueBuild: healths atados a build.puertos y marcador acotado', ()
  * El doctor clasificaba una ficha con `host` contra puertos locales que no
  * existen (los de la 89), asi que cinco proyectos que sirven 200 en el taller
  * salian en deriva o parados, y sus tuneles ssh sumaban ocho huerfanos
- * «(sin proyecto)». La ficha de abajo copia la de MN-Inmobiliaria del registro. */
+ * «(sin proyecto)». La ficha de abajo copia la de sitio-api del registro. */
 
 const FICHA = {
   id: 'X',
@@ -597,7 +597,7 @@ test('esSistemaIgnorado: identidad por puerto solo para un proceso ilegible', ()
   assert.equal(esSistemaIgnorado(8204, ilegible, lista), false);
   /* Testigo de que no tapa un hueco real: si el puerto pasa a ser de un
    * proyecto, su proceso tiene exe legible y el ignorado deja de casar. */
-  assert.equal(esSistemaIgnorado(9001, { exe: 'C:\area\glory-lab\node.exe', cmd: 'node server' }, lista, null, 8790), false);
+  assert.equal(esSistemaIgnorado(9001, { exe: 'C:\area\laboratorio\node.exe', cmd: 'node server' }, lista, null, 8790), false);
 });
 
 test('validarIgnoradoSistema: puerto exige rango y es excluyente con exe/pid/imagen/servicio', () => {
