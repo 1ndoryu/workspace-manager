@@ -291,8 +291,12 @@ export async function recogerArea(
   const carpetasGit = readdirSync(raizArea, { withFileTypes: true })
     .filter((d) => d.isDirectory() && existsSync(join(raizArea, d.name, '.git')))
     .map((d) => d.name);
-  /* registro.json: `proyectos` (array con id) y `noAplica` (objeto id → motivo). */
-  const registro = leerJson(rutaConfigPrivada('registro.json', raizArea));
+  /* registro.json: `proyectos` (array con id) y `noAplica` (objeto id → motivo).
+   * [por que] La config privada vive en el repo (`RAIZ_REPO/config`), no en la
+   * raíz del área: pasar `raizArea` resolvía a `<área>/config/registro.json`,
+   * que no existe, así que `noAplica` salía siempre vacío y todo repo declarado
+   * ahí (p. ej. freebuff) se reportaba como «sin registrar». */
+  const registro = leerJson(rutaConfigPrivada('registro.json'));
   const idsProyectos = Array.isArray(registro?.proyectos)
     ? (registro.proyectos as { id?: unknown }[]).map((p) => p.id).filter((id): id is string => typeof id === 'string')
     : [];
