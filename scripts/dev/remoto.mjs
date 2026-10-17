@@ -45,14 +45,19 @@ export function esEntradaRemota(entrada) {
 // --- Modo del proyecto (16AA-18) ---
 // `dev` = vite + backend, con HMR. `build` = front construido a `dist/` y servido por el backend
 // Rust, como producción: se cae el vite, que son 150-650 MB de RAM por proyecto.
-// [por que] El defecto sigue siendo `dev` hasta F8: invertirlo antes rompería las seis fichas del
-// taller, porque en build hay un puerto menos y `validarHostRemoto` exige un botón por puerto.
-export const MODO_POR_DEFECTO = 'dev';
+// [16AA-18 F8] El defecto es `build` (decidido por la usuaria el 2026-10-17): el taller es para
+// probar lo que se despliega, y el vite se come la RAM que necesita `cm-heavy`.
+export const MODO_POR_DEFECTO = 'build';
 const MODOS = new Set(['dev', 'build']);
 
 // `override` = lo que pidan `up --dev` / `up --build` para esa sesión, sin tocar la ficha.
+// [por que] El defecto solo alcanza a las fichas que tienen bloque `build`: una sin él no tiene
+// nada a lo que cambiar (`entradaEfectiva` devolvería puertos vacíos), así que se queda en `dev`.
+// Poner `modo: "build"` a mano sin bloque lo rechaza `validarHostRemoto` en claro.
 export function modoDe(entrada, override) {
-  return override ?? entrada.modo ?? MODO_POR_DEFECTO;
+  if (override) return override;
+  if (entrada.modo) return entrada.modo;
+  return entrada.build ? MODO_POR_DEFECTO : 'dev';
 }
 
 // El bloque `build` declara sus propios puertos, botones, healths y locales porque no siempre es
@@ -228,6 +233,23 @@ export function tunelEsNuestro(proc, config, entrada) {
   // [por que] Un túnel de una versión anterior con reenvíos de más (p. ej. 3202→3102) contiene todos los marcadores:
   // se rechaza por exceso; si no, queda huérfano y ocupa el puerto local que `up` necesita.
   return (proc.cmd.match(/(^|\s)-L\s/g) ?? []).length === puertosRemotosDe(entrada).length;
+}
+
+// Túnel nuestro que ocupa un puerto local del proyecto aunque su forma no sea la del modo efectivo:
+// al cambiar de modo (dev → build) el túnel viejo tiene un reenvío de más y `tunelEsNuestro` lo
+// rechaza, pero rechazarlo no lo mata: se queda huérfano ocupando justo el puerto local que `up`
+// necesita, y el `ExitOnForwardFailure` del túnel nuevo hace fallar el arranque. Esto lo identifica
+// para poder cerrarlo. Solo mira reenvíos a loopback del propio host, así que no toca túneles ajenos.
+// [por que] El bind explícito es opcional (`-L 3110:127.0.0.1:3110` es lo mismo que
+// `-L 127.0.0.1:3110:127.0.0.1:3110`): exigirlo dejaba huérfano justo el túnel que había que cerrar,
+// que es el caso real del cambio de modo de MN.
+export function tunelDePuertosNuestros(proc, config, locales, remotos = locales) {
+  if (!proc?.creado || !proc.cmd) return false;
+  if (!/^ssh(\.exe)?$/i.test(proc.imagen ?? '')) return false;
+  if (!proc.cmd.includes(config.host)) return false;
+  const reenvios = [...proc.cmd.matchAll(/-L\s+(?:127\.0\.0\.1:)?(\d+):(?:127\.0\.0\.1|localhost):(\d+)/g)];
+  if (!reenvios.length) return false;
+  return reenvios.every((m) => locales.includes(Number(m[1])) && remotos.includes(Number(m[2])));
 }
 
 // cm-heavy (lock de carga pesada de la VPS, §5 del taller) solo al compilar: decidido 2026-10-14.
@@ -415,9 +437,26 @@ function comandoSesiones(sesiones) {
   return sesiones.map((s) => `if tmux has-session -t ${shQuote(s)} 2>/dev/null; then echo ${shQuote(s)}; fi`).join('; ');
 }
 
+// Puertos remotos de TODOS los modos de la ficha (dev ∪ build). [por que] Las sesiones tmux se
+// nombran por puerto, asi que al cambiar de modo la sesion del otro modo quedaba viva y sin dueno:
+// un `up` en build con el vite de dev arriba dejaba 150-650 MB huerfanos, justo lo que build ahorra.
+export function puertosTodos(ficha) {
+  const dev = ficha.puertosRemotos ?? ficha.puertos ?? [];
+  return [...new Set([...dev, ...(ficha.build?.puertos ?? [])])];
+}
+
+// Puertos locales de los dos modos, con la misma regla que `puertosLocalesDe` (sin `puertosLocales`,
+// el local es el remoto). Sirve para encontrar el tunel huerfano del modo que se deja.
+const localesDeModo = (e) => (e.puertosRemotos ?? e.puertos ?? []).map((p, i) => e.puertosLocales?.[i] ?? p);
+export function localesTodos(ficha) {
+  const b = ficha.build;
+  return [...new Set([...localesDeModo(ficha), ...(b ? localesDeModo({ puertos: b.puertos, puertosLocales: b.puertosLocales }) : [])])];
+}
+
 // Pide Ctrl-C y luego mata la sesion. Si ssh falla, lo devuelve: el tunel se cierra igual.
-function pararSesiones(config, id, entrada) {
-  return pararSesionesPuertos(config, id, puertosRemotosDe(entrada));
+// Recibe la ficha (no la entrada efectiva) porque para parar valen las sesiones de los dos modos.
+function pararSesiones(config, id, ficha) {
+  return pararSesionesPuertos(config, id, puertosTodos(ficha));
 }
 
 function pararSesionesPuertos(config, id, puertos) {
@@ -473,15 +512,18 @@ async function matarTunel(pid) {
   });
 }
 
-// Túneles ssh nuestros que escuchan en los puertos locales, aunque el registro no los conozca (p. ej. tras perder el estado o un `up` desfasado).
-async function tunelesNuestrosEnPuertos(config, entrada) {
+// Túneles ssh nuestros que escuchan en esos puertos locales, aunque el registro no los conozca (p. ej.
+// tras perder el estado, un `up` desfasado o un cambio de modo, que cambia el número de reenvíos).
+// `remotos` acota el otro extremo del reenvío: sin él, un túnel ajeno a un puerto del mismo número
+// pasaría por nuestro.
+async function tunelesNuestrosEnPuertos(config, locales, remotos = locales) {
   const netstat = await new Promise((resolveP) => {
     execFile('netstat.exe', ['-ano', '-p', 'TCP'], { timeout: 10_000, windowsHide: true }, (err, salida) => resolveP(err ? '' : salida));
   });
-  const pids = pidsEscuchandoLocal(netstat, puertosLocalesDe(entrada));
+  const pids = pidsEscuchandoLocal(netstat, locales);
   if (!pids.length) return [];
   const procs = await procesosDe(pids);
-  return pids.filter((pid) => tunelEsNuestro(procs.get(pid), config, entrada));
+  return pids.filter((pid) => tunelDePuertosNuestros(procs.get(pid), config, locales, remotos));
 }
 
 function rutaAbsDe(entrada) {
@@ -588,7 +630,7 @@ export async function construirFrontRemoto(config, id, entrada, rutas) {
   return { ok: true };
 }
 
-async function prepararRemoto(config, id, entrada, rama, rutas, modo = MODO_POR_DEFECTO) {
+async function prepararRemoto(config, id, entrada, rama, rutas, modo = modoDe(entrada)) {
   const ruta = rutaAbsDe(entrada);
   let base;
   try {
@@ -831,12 +873,27 @@ async function upRemoto(config, id, entrada, args = []) {
   const error = validarHostRemoto(entrada, config, modo);
   if (error) return { codigo: 1, resumen: `up ${id}: rehusado (${error})` };
   // A partir de aquí todo el arranque trabaja sobre el bloque del modo efectivo.
+  // `ficha` guarda la entrada cruda: los puertos de los dos modos solo están ahí.
+  const ficha = entrada;
   entrada = entradaEfectiva(entrada, modo);
   const rama = detectarRama(rutaAbsDe(entrada));
   const rutas = rutasRemotas(config, id, rama);
   // [por que] Antes del estado: si la sesión de sync se perdió, `up` la restaura aunque los procesos sigan vivos.
   const sync = asegurarSesion({ config, proyecto: id, rutaLocal: rutaAbsDe(entrada), rutas });
   if (sync !== 0) return { codigo: 1, resumen: `up ${id}: sincronizacion con ${config.host} no lista (mutagen, codigo ${sync}): NO verde` };
+  // Las sesiones del otro modo no las ve `estadoRemoto` (mira los puertos del modo efectivo), así que
+  // un proyecto que cambia de modo se quedaría con las dos arriba. Se paran aquí, antes de mirar el estado.
+  const ajenos = puertosTodos(ficha).filter((p) => !puertosRemotosDe(entrada).includes(p));
+  if (ajenos.length) {
+    const r = await pararSesionesPuertos(config, id, ajenos);
+    if (!r.ok) return { codigo: 1, resumen: `up ${id}: no paro las sesiones del otro modo (${ajenos.join(', ')}) en ${config.host}: ${r.error}: NO verde` };
+  }
+  // Y el túnel del modo que se deja: con reenvíos de más no pasa `tunelEsNuestro`, así que nadie lo
+  // cierra y se queda ocupando un puerto local que el túnel nuevo necesita (`ExitOnForwardFailure`
+  // haría fallar el `up`). Va antes del estado para no arrastrar el pid muerto en `previo`.
+  if (usaTunel(entrada) && localesTodos(ficha).some((p) => !puertosLocalesDe(entrada).includes(p))) {
+    for (const pid of await tunelesNuestrosEnPuertos(config, localesTodos(ficha), puertosTodos(ficha))) await matarTunel(pid);
+  }
   const previo = await estadoRemoto(config, id, entrada);
   // [por que] Sin --sin-bd, un proyecto con base declarada (bdDesdeLocal) refresca su base al arrancar; si ya está arriba, solo con --bd.
   const forzarBd = args.includes('--bd');
@@ -862,7 +919,7 @@ async function upRemoto(config, id, entrada, args = []) {
   if (sincronizar) {
     // [por que] La base solo se restaura con el backend parado: se paran todas las sesiones de este proyecto antes de tocarla.
     if (previo.estado !== 'parado') {
-      const parado = await pararSesiones(config, id, entrada);
+      const parado = await pararSesiones(config, id, ficha);
       if (!parado.ok) return { codigo: 1, resumen: `up ${id}: no paro sesiones antes de sincronizar la BD en ${config.host}: ${parado.error}: NO verde` };
       const libre = await esperarLibre(config, puertosRemotosDe(entrada), 15_000);
       if (!libre.ok) return { codigo: 1, resumen: `up ${id}: ${libre.motivo}: NO verde` };
@@ -888,7 +945,7 @@ async function upRemoto(config, id, entrada, args = []) {
   const limiteMs = entrada.arranqueMs ?? 60_000;
   const escucha = await esperarEscucha(config, entrada, limiteMs);
   if (!escucha.ok) {
-    if (escucha.publico) await pararSesiones(config, id, entrada);
+    if (escucha.publico) await pararSesiones(config, id, ficha);
     return { codigo: 1, resumen: `up ${id}: ${escucha.motivo}: NO verde` };
   }
   let pid = null;
@@ -929,13 +986,17 @@ async function statusRemoto(config, id, entrada) {
   return { codigo: r.estado === 'bajo-mando' || r.estado === 'parado' ? 0 : 2, estado: r.estado, motivo: r.motivo };
 }
 
-async function stopRemoto(config, id, entrada) {
+async function stopRemoto(config, id, entrada, ficha = entrada) {
   const estado = leerEstado(id);
   // [por que] Cerrar solo el PID registrado dejaba vivo el túnel real (ocupaba 3210/5299 y `up` fallaba después).
   const registrado = await tunelVivo(config, entrada, estado);
-  const enPuertos = usaTunel(entrada) ? await tunelesNuestrosEnPuertos(config, entrada) : [];
+  // [por que] Sin la puerta de `usaTunel`: un proyecto que dejó de usar túnel (`tunelSsh: false`, como
+  // MN al pasar a servirse por Cloudflare) conserva los ssh de cuando sí lo usaba, y nadie más los
+  // cierra —el estado solo guarda el pid del modo efectivo—. Se quedaban ocupando puertos locales del
+  // proyecto y habrían hecho fallar el `up --dev` siguiente (`ExitOnForwardFailure`).
+  const enPuertos = await tunelesNuestrosEnPuertos(config, localesTodos(ficha), puertosTodos(ficha));
   const pids = [...new Set([registrado, ...enPuertos].filter(Boolean))];
-  const remoto = await pararSesiones(config, id, entrada);
+  const remoto = await pararSesiones(config, id, ficha);
   const cierres = await Promise.all(pids.map(async (pid) => ({ pid, cerrado: await matarTunel(pid) })));
   const tras = await estadoRemoto(config, id, entrada);
   const tunel = cierres.length ? cierres.map(({ pid, cerrado }) => `pid ${pid} ${cerrado ? 'cerrado' : 'no cerrado'}`).join(', ') : 'no era nuestro o ya caido';
@@ -989,7 +1050,7 @@ export async function despachar(cmd, args, entrada) {
   // puertos, así que `status` no debe sondear el 5199 del vite que ya no existe.
   const ef = entradaEfectiva(entrada);
   if (cmd === 'status') return sale(await statusRemoto(config, id, ef));
-  if (cmd === 'stop') return sale(await stopRemoto(config, id, ef));
+  if (cmd === 'stop') return sale(await stopRemoto(config, id, ef, entrada));
   if (cmd === 'logs') {
     const iLin = args.indexOf('--lineas');
     const n = iLin >= 0 ? Number.parseInt(args[iLin + 1], 10) : 50;

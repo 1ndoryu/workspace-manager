@@ -15,6 +15,7 @@ import {
   desviosDeConteos,
   entradaEfectiva,
   esEntradaRemota,
+  localesTodos,
   filtrarSqlParaPg16,
   MODO_POR_DEFECTO,
   modoDe,
@@ -23,7 +24,9 @@ import {
   marcadorTunel,
   pidDeEscucha,
   pidsEscuchandoLocal,
+  puertosTodos,
   rutaLogNpmCi,
+  tunelDePuertosNuestros,
   tunelEsNuestro,
   validarHostRemoto,
   variablesDistintas,
@@ -344,10 +347,15 @@ const fichaBuild = {
   },
 };
 
-test('modoDe: sin `modo` el defecto es dev; --dev/--build mandan sobre la ficha', () => {
-  assert.equal(MODO_POR_DEFECTO, 'dev');
-  assert.equal(modoDe(entrada), 'dev');
+test('modoDe: sin `modo` el defecto es build; --dev/--build mandan sobre la ficha', () => {
+  assert.equal(MODO_POR_DEFECTO, 'build');
+  // Ficha con bloque `build` y sin `modo`: build (16AA-18 F8, decidido por la usuaria).
   assert.equal(modoDe(fichaBuild), 'build');
+  assert.deepEqual(entradaEfectiva(fichaBuild).puertosRemotos, [3105]);
+  // Ficha sin bloque `build`: no hay a qué cambiar, se queda en dev aunque el defecto sea build.
+  assert.equal(modoDe(entrada), 'dev');
+  assert.equal(entradaEfectiva(entrada), entrada);
+  // Las banderas de sesión siguen mandando sobre las dos.
   assert.equal(modoDe(fichaBuild, 'dev'), 'dev');
   assert.equal(modoDe(entrada, 'build'), 'build');
 });
@@ -364,6 +372,45 @@ test('entradaEfectiva: en dev la entrada vuelve intacta; en build cambia los arr
   // Sin `build.puertosLocales` no se inventa túnel; y la ficha original no se toca.
   assert.equal(ef.puertosLocales, undefined);
   assert.deepEqual(fichaBuild.puertos, [3105, 5182]);
+});
+
+test('puertosTodos: une los del dev y los del build para parar las sesiones de los dos modos', () => {
+  // [por que] Las sesiones tmux se nombran por puerto: si `stop`/`up` solo miraran el modo efectivo,
+  // el vite del modo viejo quedaría vivo (150-650 MB) al cambiar de modo.
+  assert.deepEqual(puertosTodos(fichaBuild), [3105, 5182]);
+  assert.deepEqual(puertosTodos({ puertos: [3001] }), [3001]);
+  assert.deepEqual(puertosTodos({ puertosRemotos: [3001, 5183], build: { puertos: [3001] } }), [3001, 5183]);
+  // Sin duplicados y sin inventar cuando el bloque no está.
+  assert.deepEqual(puertosTodos({ puertos: [3001], build: {} }), [3001]);
+});
+
+test('localesTodos: los puertos locales de los dos modos, con la regla de puertosLocalesDe', () => {
+  // MN: en dev el vite vive en 5199 y el backend en 3110; en build solo quedan 3110 y el conector.
+  assert.deepEqual(localesTodos({ puertosRemotos: [3110, 5199, 20241], build: { puertos: [3110, 20241] } }), [3110, 5199, 20241]);
+  // NAKOMI: los locales difieren de los remotos y el build trae los suyos.
+  assert.deepEqual(localesTodos({ puertos: [3103, 5176], puertosLocales: [13103, 15176], build: { puertos: [3103], puertosLocales: [13103] } }), [13103, 15176]);
+  assert.deepEqual(localesTodos({ puertos: [3001] }), [3001]);
+});
+
+test('tunelDePuertosNuestros: reconoce el túnel huérfano del otro modo, no los ajenos', () => {
+  const proc = (cmd, imagen = 'ssh.exe') => ({ creado: 'x', cmd, imagen });
+  const locales = [3110, 5199, 20241];
+  const viejo = `ssh -N -L 127.0.0.1:3110:127.0.0.1:3110 -L 127.0.0.1:5199:127.0.0.1:5199 -L 127.0.0.1:20241:127.0.0.1:20241 dev89`;
+  // Un reenvío de más: `tunelEsNuestro` lo rechaza (solo mira el modo efectivo), este lo acepta.
+  assert.equal(tunelEsNuestro(proc(viejo), config, { puertos: [3110, 20241] }), false);
+  assert.equal(tunelDePuertosNuestros(proc(viejo), config, locales), true);
+  // Ajeno: otro host, otro binario, un puerto local fuera de la lista o sin reenvíos.
+  assert.equal(tunelDePuertosNuestros(proc(viejo.replace('dev89', 'otro')), config, locales), false);
+  assert.equal(tunelDePuertosNuestros(proc(viejo, 'sshfs.exe'), config, locales), false);
+  assert.equal(tunelDePuertosNuestros(proc(viejo.replace('127.0.0.1:5199', '127.0.0.1:9999')), config, locales), false);
+  assert.equal(tunelDePuertosNuestros(proc('ssh -N dev89'), config, locales), false);
+  assert.equal(tunelDePuertosNuestros(null, config, locales), false);
+  // Sin bind explícito (`-L 3110:127.0.0.1:3110`), que es como lo escribe `ssh -f`: el caso real
+  // del túnel huérfano de MN, que se quedaba ocupando el 3110 local.
+  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:127.0.0.1:3110 dev89'), config, [3110, 20241]), true);
+  // Y `remotos` acota el otro extremo: un reenvío a un puerto ajeno al proyecto no es nuestro.
+  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:127.0.0.1:3110 dev89'), config, [3110], [20241]), false);
+  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:10.0.0.9:3110 dev89'), config, [3110]), false);
 });
 
 test('validarHostRemoto: en build valida el bloque build, no el del dev', () => {
