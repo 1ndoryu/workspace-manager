@@ -94,6 +94,9 @@ function resumenAnalisis(a: AnalisisSentinel | undefined): string | null {
     if (r.hint) sev.push(`${r.hint} hint${r.hint === 1 ? '' : 's'}`);
     partes.push(`varsense v${a.varsense.version}: ${sev.join(' · ') || 'sin hallazgos'}`);
   }
+  /* El analisis salio, pero no donde tocaba (el taller no respondio y se hizo en el
+   * portatil): se dice al final, para que el conteo no se lea como si viniera de la VPS. */
+  if (a.aviso) partes.push(a.aviso);
   return partes.join(' · ') || null;
 }
 

@@ -20,9 +20,10 @@ export async function manejarRutasTaller(
   }
   const forzar = url.searchParams.get('forzar') === '1';
   try {
-    const { tomadoEn, hallazgos, entrada, historial, motivoHistorial } = await estadoTaller(forzar);
+    const { tomadoEn, host, hallazgos, entrada, historial, motivoHistorial } = await estadoTaller(forzar);
     json(res, 200, {
       tomadoEn,
+      host,
       hallazgos,
       taller89: entrada.t89,
       motivoSinLectura: entrada.motivoSinLectura ?? null,
