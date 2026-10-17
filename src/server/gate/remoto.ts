@@ -9,7 +9,6 @@ import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { promisify } from 'node:util';
-import { rutaConfigPrivada } from '../../shared/rutas.js';
 import { sesionMutagen } from '../../shared/taller/sesiones.js';
 import { checkoutVarsense, cliRuntime, parsearReporte, varsenseRuntime } from './ejecucion.js';
 import type { ResultadoSpawn } from './ejecucion.js';
