@@ -4,11 +4,9 @@
  * sentinel + varsense. El manager trata el gate por proyecto, no asume uniformidad. */
 import { existsSync, readdirSync, readFileSync, type Dirent } from 'node:fs';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
 import type { EstadoGate, ProblemaGate } from '../../shared/types.js';
 import { diagnosticar, rutaEtiqueta, severidadDe, type NodoEsquema } from '../../shared/gate/modelo/esquema.js';
 import { ESQUEMAS } from '../../shared/gate/catalogo/esquemas.js';
-import { cliRuntime } from '../gate/ejecucion.js';
 
 /* Hojas de estilo y configs de tailwind: lo que VarSense valida.
  * [por que] Sin ninguna, varsense no tiene nada que comprobar y no debe marcarse "ausente". */
@@ -77,31 +75,9 @@ export function estadoGate(ruta: string): EstadoGate {
   };
 }
 
-/** Ejecuta `sentinel doctor` resumido (bajo demanda, no en el escaneo inicial). */
-export function doctorSentinel(ruta: string): string | null {
-  /* [por que] Nunca el `sentinel` del PATH (AGENTS §9.3): el CLI sale del checkout
-   * que declara el proyecto (`cliRuntime`), con `node <cli>` y args en array,
-   * sin shell ni shim .cmd. */
-  const res = cliRuntime(ruta);
-  if (!res) return null;
-  try {
-    const out = execFileSync(process.execPath, [res.cli, 'doctor', '--json', '--workspace', ruta], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 15000,
-      windowsHide: true,
-    });
-    return out.trim().slice(0, 2000);
-  } catch (err) {
-    /* [por que] doctor sale con 1 cuando hay issues (p. ej. evidencia de release
-     * ausente) y su JSON sigue siendo el diagnóstico: se aprovecha stdout. Si lo
-     * mató el timeout, el stdout es parcial y no es JSON válido. */
-    const e = err as { stdout?: string; signal?: string | null };
-    if (e.signal) return null;
-    const stdout = e.stdout?.trim();
-    return stdout ? stdout.slice(0, 2000) : null;
-  }
-}
+/* El doctor (`sentinel doctor`) ya no vive aquí: resuelve dónde corre igual que el
+ * análisis, así que está en `gate/doctor.ts` (`doctorConModo`). Este módulo se queda
+ * con lo que es del escaneo: qué declara el proyecto y qué le falta. */
 
 /* Nombres de archivos de gate editables por proyecto, en orden de
  * preferencia para mostrarse. [por que] El panel de configuracion por

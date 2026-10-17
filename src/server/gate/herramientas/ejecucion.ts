@@ -13,7 +13,7 @@ import { RAIZ_VERSIONS, checkoutSentinel, cliSentinelParaProyecto, versionRuntim
 import type { ResolucionCli } from './proveedor.js';
 /* Raíz del área (misma fuente del server): la caché de análisis vive bajo
  * <area>/data/cache/analisis.json, como la config del workspace. */
-import { RAIZ_AREA } from '../../shared/rutas.js';
+import { RAIZ_AREA } from '../../../shared/rutas.js';
 
 /* Tipos del JSON real que devuelve `sentinel analyze --format json` (varsense
  * `all` comparte la forma: severityCounts + entries con findings). No se
@@ -208,6 +208,31 @@ export async function correrSentinel(ruta: string): Promise<ResultadoSpawn | nul
     const dato = parsearReporte(e.stdout);
     if (!dato) return null;
     return { version: res.version, commit: res.commit, dato };
+  }
+}
+
+/* Ejecuta `sentinel doctor` en el portátil (bajo demanda, no en el escaneo inicial).
+ * [por que] Nunca el `sentinel` del PATH: el CLI sale del checkout que declara el
+ * proyecto (`cliRuntime`), con `node <cli>` y args en array, sin shell ni shim .cmd.
+ * Asíncrono como el análisis: `execFileSync` aquí bloqueaba toda la API durante el
+ * doctor. Devuelve null si no hay runtime o si no hay nada que mostrar. */
+export async function correrDoctorLocal(ruta: string): Promise<string | null> {
+  const res = cliRuntime(ruta);
+  if (!res) return null;
+  try {
+    const { stdout } = await execFileAsync(
+      process.execPath,
+      [res.cli, 'doctor', '--json', '--workspace', ruta],
+      { encoding: 'utf8', timeout: 15000, windowsHide: true, maxBuffer: 1024 * 1024 },
+    );
+    return stdout.trim().slice(0, 2000) || null;
+  } catch (err) {
+    /* [por que] doctor sale con 1 cuando hay issues (p. ej. evidencia de release
+     * ausente) y su JSON sigue siendo el diagnóstico: se aprovecha stdout. Si lo
+     * mató el timeout, el stdout es parcial y no es JSON válido. */
+    const e = err as { stdout?: string; signal?: string | null };
+    if (e.signal) return null;
+    return e.stdout?.trim().slice(0, 2000) || null;
   }
 }
 

@@ -32,7 +32,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, delimiter, dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { leerConfigArea } from '../configArea.js';
 import { RAIZ_AREA } from '../../shared/rutas.js';
-import { comillas, leerConfigRemota } from './remoto.js';
+import { leerConfigRemota } from './herramientas/config.js';
+import { comillas } from './herramientas/ssh.js';
 
 /* Los tres gestores que el audit sabe leer (ver detectarLockfiles). */
 export type GestorAudit = 'npm' | 'pnpm' | 'cargo';

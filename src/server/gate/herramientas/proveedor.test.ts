@@ -10,8 +10,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { esquemaGate } from './proveedor.js';
-import { tiposDeGate } from '../../shared/gate/proveedores.js';
-import { ESQUEMAS, esquemaPorArchivo, esquemaPorTipo } from '../../shared/gate/catalogo/esquemas.js';
+import { tiposDeGate } from '../../../shared/gate/proveedores.js';
+import { ESQUEMAS, esquemaPorArchivo, esquemaPorTipo } from '../../../shared/gate/catalogo/esquemas.js';
 
 /* Positivo: los dos proveedores del gate estan registrados. Sin esto, un bucle
  * sobre cero proveedores pasaria el test sin probar nada. */

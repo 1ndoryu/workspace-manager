@@ -9,8 +9,9 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { campoStr, json, leerArchivo, leerBody } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
-import { ARCHIVOS_GATE, doctorSentinel } from '../scanner/gate.js';
-import { esquemaGate, reglasGate } from '../gate/proveedor.js';
+import { ARCHIVOS_GATE } from '../scanner/gate.js';
+import { doctorConModo } from '../gate/herramientas/doctor.js';
+import { esquemaGate, reglasGate } from '../gate/herramientas/proveedor.js';
 import { esquemaPorArchivo } from '../../shared/gate/catalogo/esquemas.js';
 import { diagnosticar, rutaEtiqueta, severidadDe } from '../../shared/gate/modelo/esquema.js';
 import { correrSincronizacion } from '../gate/sincronizacion.js';
@@ -127,8 +128,10 @@ export async function manejarRutasGate(
       json(res, 404, { error: 'Proyecto no encontrado', id });
       return true;
     }
-    const doctor = doctorSentinel(proyecto.ruta);
-    json(res, 200, { id, doctor });
+    /* `modo` es dónde corrió de verdad y `aviso` por qué se cayó al portátil: sin ellos
+     * un `doctor: null` no distingue «no se pudo» de «no se pidió» (frente 5). */
+    const { salida, modo, aviso } = await doctorConModo(proyecto.clave, proyecto.ruta);
+    json(res, 200, { id, doctor: salida, modo, aviso });
     return true;
   }
   /* Catálogo de reglas VIVO del gate desde el runtime sentinel.

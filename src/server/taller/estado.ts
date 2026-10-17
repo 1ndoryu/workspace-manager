@@ -18,7 +18,7 @@ import {
   type RegistroConformidad,
 } from '../../shared/taller/conformidad.js';
 import { NOMBRE_MANAGER, rutaConfigPrivada } from '../../shared/rutas.js';
-import { hostTaller } from '../gate/remoto.js';
+import { hostTaller } from '../gate/herramientas/config.js';
 import { sesionDev } from '../../shared/taller/sesiones.js';
 import { appsAjenas } from '../registro.js';
 

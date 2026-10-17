@@ -74,6 +74,12 @@
     margin-top: var(--spaceSm);
 }
 
+.detalleDoctorModo {
+    margin-left: var(--spaceSm);
+    font-size: var(--textXs);
+    color: var(--muted);
+}
+
 .detalleDoctorSalida {
     margin-top: var(--spaceSm);
     padding: var(--spaceMd);

@@ -3,8 +3,8 @@
  * fusión de sentinel con varsense) con la ejecución (auditoría SOLID, E3).
  * Aquí no se lanza nada: solo se lee lo que devolvieron las corridas. */
 import { posix, relative } from 'node:path';
-import { varsenseAplica } from '../ejecucion.js';
-import type { EntryJson, FindingJson, ReporteJson, ResultadoSpawn } from '../ejecucion.js';
+import { varsenseAplica } from '../herramientas/ejecucion.js';
+import type { EntryJson, FindingJson, ReporteJson, ResultadoSpawn } from '../herramientas/ejecucion.js';
 import type { AnalisisSentinel, HallazgoSentinel, NombreSeveridad, Proyecto, SeveridadSentinel } from '../../../shared/types.js';
 
 /* Normaliza una severidad arbitraria del JSON a las 4 conocidas. */

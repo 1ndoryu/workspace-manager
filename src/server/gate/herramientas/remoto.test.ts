@@ -8,17 +8,14 @@ import { join } from 'node:path';
 import {
   comandoAnalisis,
   comandoDeps,
+  comandoDoctor,
   comandoMarcasRepos,
   comandoSonda,
-  comillas,
-  configRemotaDe,
-  hostTaller,
   huellaLock,
-  modoAnalisisEn,
   reposAnidados,
-  rutaRemota,
-  rutaRuntimeRemota,
 } from './remoto.js';
+import { configRemotaDe, hostTaller, modoAnalisisEn, rutaRemota, rutaRuntimeRemota } from './config.js';
+import { comillas } from './ssh.js';
 
 const CFG_OK = {
   host: 'dev89',
@@ -73,7 +70,7 @@ test('comandoDeps: reinstala solo si el lock cambió, y falla en claro si npm ci
 test('huellaLock: 16 hex del contenido, y "?" si no hay lock', () => {
   /* El lock propio del repo: existe en cualquier clon, sin depender de rutas de
    * esta máquina ni del checkout de las herramientas de calidad. */
-  assert.match(huellaLock(join(import.meta.dirname, '..', '..', '..', 'package-lock.json')), /^[0-9a-f]{16}$/);
+  assert.match(huellaLock(join(import.meta.dirname, '..', '..', '..', '..', 'package-lock.json')), /^[0-9a-f]{16}$/);
   assert.equal(huellaLock('C:/no/existe/package-lock.json'), '?');
 });
 
@@ -152,6 +149,19 @@ test('comandoAnalisis: entorno citado, CLI, verbo y workspace', () => {
   assert.equal(
     cmd,
     "env GLORY_SENTINEL_SOURCE_PATH='/home/usuario/taller/R/.quality-tools/sentinel' '/usr/bin/node' '/home/usuario/taller/R/out/cli/index.js' analyze --workspace '/home/usuario/taller/R' --format json",
+  );
+});
+
+test('comandoDoctor: el doctor no lleva --format, su JSON ya es fijo', () => {
+  const cmd = comandoDoctor({
+    env: { GLORY_SENTINEL_SOURCE_PATH: '/home/usuario/taller/R/.quality-tools/sentinel' },
+    node: '/usr/bin/node',
+    cli: '/home/usuario/taller/R/out/cli/index.js',
+    workspace: '/home/usuario/taller/R',
+  });
+  assert.equal(
+    cmd,
+    "env GLORY_SENTINEL_SOURCE_PATH='/home/usuario/taller/R/.quality-tools/sentinel' '/usr/bin/node' '/home/usuario/taller/R/out/cli/index.js' doctor --json --workspace '/home/usuario/taller/R'",
   );
 });
 

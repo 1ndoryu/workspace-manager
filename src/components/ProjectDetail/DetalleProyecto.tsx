@@ -26,24 +26,37 @@ function BadgeEstado({ p }: { p: Proyecto }) {
 export function DetalleProyecto({ proyecto }: { proyecto: Proyecto }) {
   const [pestana, setPestana] = useState<Pestana>('git');
   const [doctor, setDoctor] = useState<string | null>(null);
+  const [doctorModo, setDoctorModo] = useState<'local' | 'taller' | null>(null);
+  const [doctorAviso, setDoctorAviso] = useState<string | null>(null);
   const [cargandoDoctor, setCargandoDoctor] = useState(false);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
 
   const pedirDoctor = async () => {
     setCargandoDoctor(true);
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 15000);
+    /* [por que] 90 s y no 15: si el proyecto vive en el taller, el doctor viaja a la 89
+     * (flush de Mutagen + copia del runtime + npm ci si cambió el lock) antes de
+     * contestar. Con 15 s se abortaba una consulta que estaba funcionando. */
+    const t = setTimeout(() => ctrl.abort(), 90000);
     try {
       const res = await fetch(`/api/proyectos/doctor?id=${encodeURIComponent(proyecto.id)}`, { signal: ctrl.signal });
       const data = await res.json();
       setDoctor(data.doctor ?? 'sin salida');
+      setDoctorModo(data.modo ?? null);
+      setDoctorAviso(data.aviso ?? null);
     } catch {
       setDoctor('no disponible');
+      setDoctorModo(null);
+      setDoctorAviso(null);
     } finally {
       clearTimeout(t);
       setCargandoDoctor(false);
     }
   };
+
+  const textoModo = doctorModo === 'taller'
+    ? 'ejecutado en el taller'
+    : doctorAviso ?? 'ejecutado en el portátil';
 
   const git = proyecto.git;
   const gate = proyecto.gate;
@@ -112,6 +125,9 @@ export function DetalleProyecto({ proyecto }: { proyecto: Proyecto }) {
               <Boton onClick={pedirDoctor} disabled={cargandoDoctor}>
                 {cargandoDoctor ? 'Consultando…' : 'Consultar doctor'}
               </Boton>
+              {/* Dónde corrió de verdad y por qué no corrió donde tocaba: sin esto, un
+                  doctor vacío se lee como «no hay nada que decir» (frente 5). */}
+              {doctorModo && <span className="detalleDoctorModo">{textoModo}</span>}
               {doctor && <pre className="detalleDoctorSalida">{doctor}</pre>}
             </div>
           </div>

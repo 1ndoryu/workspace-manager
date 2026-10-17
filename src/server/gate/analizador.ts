@@ -41,10 +41,12 @@ import {
   varsenseAplica,
   varsenseConfigHash,
   varsenseRuntime,
-} from './ejecucion.js';
-import type { ResultadoSpawn } from './ejecucion.js';
-import { correrSentinelRemoto, correrVarsenseRemoto, leerConfigRemota, mensaje, modoAnalisis, rutaRemota, sincronizar } from './remoto.js';
-import type { ConfigRemota } from './remoto.js';
+} from './herramientas/ejecucion.js';
+import type { ResultadoSpawn } from './herramientas/ejecucion.js';
+import { correrSentinelRemoto, correrVarsenseRemoto, prepararReplica } from './herramientas/remoto.js';
+import { leerConfigRemota, modoAnalisis } from './herramientas/config.js';
+import { mensaje } from './herramientas/ssh.js';
+import type { ConfigRemota } from './herramientas/config.js';
 
 /* La lectura de lo guardado se reexporta aqui a proposito: este fichero es la
  * puerta del analisis para las rutas, y quien pide resultados no deberia tener
@@ -121,8 +123,7 @@ async function analizarEnTaller(p: Proyecto): Promise<AnalisisSentinel> {
   }
   let raiz: string;
   try {
-    raiz = rutaRemota(cfg, clave);
-    await sincronizar(clave, cfg);
+    raiz = await prepararReplica(clave, cfg);
   } catch (err) {
     return datoError(clave, `análisis en el taller (${cfg.host}) no arrancó: ${mensaje(err)}`);
   }
