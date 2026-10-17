@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { escribirCertificacion } from './certificacion.mjs';
@@ -20,6 +20,15 @@ const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SETUP = path.join(AQUI, 'quality-setup.mjs');
 /* Los temporales del área van a C:\tmp (laptop) o /var/tmp (89), nunca a %TEMP%. */
 const BASE_TMP = process.env.QUALITY_TEST_TMP ?? (process.platform === 'win32' ? 'C:\\tmp' : '/var/tmp');
+
+/* [17AA-7] Cada caso monta un consumidor de mentira bajo `BASE_TMP`. Sin
+ * borrarlo se quedaba ahí: 228 carpetas `quality-setup-*` medidas el
+ * 2026-10-17, la misma fuga que las `quality-sync-*` y parte de por qué medir
+ * `C:\tmp` tardaba 18,6 s. Se limpian al terminar la suite. */
+const raicesDePrueba = [];
+after(() => {
+  while (raicesDePrueba.length > 0) fs.rmSync(raicesDePrueba.pop(), { recursive: true, force: true });
+});
 
 const VERSION_FIJADA = '0.0.1';
 const VERSION_VIEJA = '9.9.9';
@@ -35,6 +44,7 @@ function git(cwd, ...args) {
  * marcador) y `prov/cli.js` la provisión cuyo `--version` queremos controlar. */
 function montarConsumidor({ versionCli }) {
   const raiz = fs.mkdtempSync(path.join(BASE_TMP, 'quality-setup-'));
+  raicesDePrueba.push(raiz);
   const source = path.join(raiz, 'src');
   fs.mkdirSync(source, { recursive: true });
   fs.writeFileSync(

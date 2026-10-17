@@ -13,13 +13,22 @@ import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { raizTemporales } from './shared/rutas.mjs';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SYNC = path.join(AQUI, 'quality-sync.mjs');
 const BASE_TMP = process.env.QUALITY_TEST_TMP ?? raizTemporales();
+
+/* [17AA-7] Cada caso monta un área de mentira bajo `raizTemporales()`. Sin
+ * borrarla se quedaba ahí: 348 carpetas `quality-sync-*` con 49.465
+ * subcarpetas medidas el 2026-10-17, el 89 % de los directorios de `C:\tmp` y
+ * la causa de que medir su tamaño tardara 18,6 s. Se limpian al terminar. */
+const areasDePrueba = [];
+after(() => {
+  while (areasDePrueba.length > 0) fs.rmSync(areasDePrueba.pop(), { recursive: true, force: true });
+});
 
 /* Fixture: nombres inventados con la FORMA del reparto real (checkout
  * compartido, checkout del arnés, familia A, familia B, sin varsense, sin
@@ -81,6 +90,7 @@ function manifiesto(area, nombre, { commit, commitVarsense }) {
  * del arnés, familia A, familia B, consumidores sin varsense y sin directorio. */
 function montarArea({ pinRancio = null, pinArnesRancio = null } = {}) {
   const area = fs.mkdtempSync(path.join(BASE_TMP, 'quality-sync-'));
+  areasDePrueba.push(area);
   /* Config del área del fixture: la lista de consumidores es lo que declara qué
    * proyectos se validan, así que la escribe el propio fixture (si no, la prueba
    * leería la config privada de quien la ejecute). */
