@@ -168,6 +168,15 @@ html {
      * superior. */
 }
 
+/* [por que] El divisor se maneja con flechas desde Resizer.tsx, asi que es
+ * enfocable; sin senal de foco, tabular hasta el no se ve. Se pinta el propio
+ * hueco y no se usa un anillo: el divisor mide var(--v2-gapPanel) y un outline
+ * ahi se solaparia con los dos paneles vecinos. */
+.v2Resizer:focus-visible {
+    background: var(--v2-texto);
+    outline: none;
+}
+
 /* Scrollbars finos, negros y sin fondo: coherentes con el diseño monocromo.
  * [por que] El usuario pidio scrolls mas finos y en negro puro. Webkit
  * (Chromium) usa ::-webkit-scrollbar; Firefox usa scrollbar-width/color. */

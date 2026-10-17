@@ -348,7 +348,7 @@ workspace-manager)**, D, E1–E4, F y K1–K2.
 (`doctor.test.mjs` 516 y `remoto.test.mjs` 398) eran el falso positivo, ya corregido en la
 regla. No se ocultó ninguno.
 
-**Bloque en curso:** G (planes) y L (documentación viva). **Hecho además:** D, que
+**Bloque en curso:** I (el resto del tablero) y L (documentación viva). **Hecho además:** D, que
 resultó estar casi todo resuelto de antes y se cerró con el audit remoto (`8fdaa9b`), la parte
 de SOLID de E (`403ccdd`, E2 + la disposición del resto en E3), el agnóstico (`c76079e`, E4), el
 rendimiento entero (K1 `e4adf45`: la verificación de alineación, 20,7 s → 10,8 s
@@ -418,9 +418,33 @@ hallazgo para el frente 10: el desplegable declara `role="menu"`/`menuitem` pero
 mueve el foco** (medido); `Tab` sí llega a las opciones, así que es usable, pero el rol promete de
 más. Se arregla en el frente 10, que es el patrón de todos los desplegables.
 
+**Cerrado también, el frente 8 (SOLID a fondo, `0302cf3`).** Tres duplicaciones reales, cada una
+con su dueño nuevo: `shared/guardas.ts` (`esObjeto` copiado en cinco módulos y `esNumero` en dos,
+cuerpos idénticos byte a byte), `opcionesGit(cwd)` en `scanner/git.ts` (el objeto copiado en
+`git.ts` y `gitDiffs.ts`) y `pedirPublico` con `fetch` inyectable (la comprobación que decide si
+un dev queda expuesto no se podía probar sin salir a la red; se le añadieron tres pruebas).
+**Dos candidatos se rechazaron con el porqué escrito**: partir `EstadoGate` (agrupa por
+consumidor, no por cohesión, y un DTO no paga ISP en TypeScript) y extraer el pie JSX de
+`PreviaGuardian` (eso es DRY, no SOLID: cableado de props sin lógica, y AGENTS §5 pide lo
+contrario de una capa de más). El investigador de SRP no encontró violación tras probar seis
+candidatos.
+
+**Cerrado también, el frente 10 (accesibilidad).** Cinco zonas sin ninguna señal de foco por
+teclado, cada una con el sustituto que le corresponde (el trazo de la caja del mapa, no un
+`outline` sobre la caja envolvente de un `<g>`; `outline-offset` negativo donde la caja rellena
+su contenedor; el propio hueco pintado en el divisor, donde un anillo se solaparía con los
+paneles vecinos). El divisor pasa a tener teclado y valores ARIA, con **solo las flechas del eje
+que se ajusta**. El desplegable del nav gana el modelo de interacción que su `role="menu"` ya
+prometía —el hallazgo del bloque H era más estrecho de lo anotado: el árbol de roles ya estaba
+bien—, lo que exigió `forwardRef` en `Button`. `aria-current` en lugar de `aria-selected` (la
+tabla es `role="table"`, no `grid`), nombre accesible en las cajas del mapa, `Escape` en el
+diálogo en vez de en la entrada, botón de cerrar canónico en el modal, `menuitemradio` con
+`aria-checked` y devolución del foco al disparador. **Medido en el navegador**, no supuesto.
+Un hallazgo anotado sin tocar: `mapaV2Tile--${estado}` es una clase muerta que ningún CSS pinta
+(inventarle color rompería la regla monocroma del v2).
+
 **Pendiente:** I (el resto del tablero: RESTAURANTE 202 tras B4 y KAMPLES 113, con los 7
-`propiedadProhibida` reales), el frente 8 (SOLID a fondo), el frente 10 (accesibilidad, con el
-`role="menu"` del nav) y L3–L6 (las skills que citan el pin de Sentinel, las memorias y
+`propiedadProhibida` reales) y L3–L6 (las skills que citan el pin de Sentinel, las memorias y
 `Agente/documentacion/`).
 
 ### L · Documentación viva: skills, `AGENTS.md` y memorias (encargo de la usuaria, 2026-10-17)

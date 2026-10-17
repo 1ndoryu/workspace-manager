@@ -212,6 +212,16 @@
     overflow-y: auto;
 }
 
+/* [por que] El `outline: none` de arriba vale para las dos cajas, pero solo
+ * .panelDocsTexto se puede enfocar: sin sustituto, la unica zona editable del
+ * tablero se quedaba sin ninguna senal de foco por teclado. Mismo anillo propio
+ * que Button.css y Casilla.css. El offset es negativo porque la caja rellena su
+ * contenedor: por fuera se recortaria. */
+.panelDocsTexto:focus-visible {
+    outline: 1px solid var(--v2-texto);
+    outline-offset: -1px;
+}
+
 .docsVacio {
     padding: var(--v2-spaceMd);
     font-size: var(--v2-textSm);

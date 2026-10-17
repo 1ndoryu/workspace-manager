@@ -108,6 +108,9 @@ export function AppV2() {
                 <Resizer
                   orientacion="vertical"
                   ariaLabel="Ajustar ancho del panel de detalle"
+                  valor={anchoDetalle}
+                  min={MIN_ANCHO}
+                  max={MAX_ANCHO}
                   onArrastrar={(dx) =>
                     setAnchoDetalle((a) => Math.min(MAX_ANCHO, Math.max(MIN_ANCHO, a + dx)))
                   }
@@ -118,6 +121,9 @@ export function AppV2() {
                 <Resizer
                   orientacion="vertical"
                   ariaLabel="Ajustar ancho del panel de lista"
+                  valor={anchoLista}
+                  min={MIN_ANCHO}
+                  max={MAX_ANCHO}
                   onArrastrar={(dx) =>
                     setAnchoLista((a) => Math.min(MAX_ANCHO, Math.max(MIN_ANCHO, a - dx)))
                   }
@@ -129,6 +135,9 @@ export function AppV2() {
               <Resizer
                 orientacion="horizontal"
                 ariaLabel="Ajustar alto de la consola"
+                valor={altoConsola}
+                min={MIN_ALTO}
+                max={MAX_ALTO}
                 onArrastrar={(_dx, dy) =>
                   setAltoConsola((a) => Math.min(MAX_ALTO, Math.max(MIN_ALTO, a - dy)))
                 }

@@ -5,7 +5,7 @@
 import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import type { Proyecto } from '../../shared/types.js';
-import { estadoProyecto, PESO_ESTADO } from '../estado.js';
+import { ETIQUETA_ESTADO, estadoProyecto, PESO_ESTADO } from '../estado.js';
 import {
   TILE,
   pathCuadricula,
@@ -181,6 +181,7 @@ export function MapaV2() {
               }}
               role="button"
               tabIndex={0}
+              aria-label={`${p.id}, ${ETIQUETA_ESTADO[estado]}`}
               onKeyDown={(e) => {
                 if (!modoArrastre && (e.key === 'Enter' || e.key === ' ')) seleccionar(p.id);
               }}

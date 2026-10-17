@@ -9,6 +9,7 @@
  * [por que] Los toggles de paneles no se pliegan nunca (pedido del usuario,
  * 2026-10-17): son control de lo que se ve y tienen que estar siempre a mano.
  * El recorte es solo de destinos. */
+import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type Ref } from 'react';
 import { BookOpen, Boxes, Ellipsis, FolderOpen, GitBranch, HardDrive, Kanban, Network, PanelLeft, PanelRight, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, type LucideIcon } from 'lucide-react';
 import { useWorkspaceStore, type PanelCentral, type VisibilidadPaneles } from '../../../hooks/useWorkspace.js';
 import { Button } from '../form/Button.js';
@@ -73,9 +74,10 @@ function BotonToggle({ toggle, activo, onClick }: { toggle: Toggle; activo: bool
   );
 }
 
-function BotonSobra({ onClick, abierto, activo, titulo }: { onClick?: () => void; abierto?: boolean; activo?: boolean; titulo?: string }) {
+function BotonSobra({ onClick, abierto, activo, titulo, refBoton }: { onClick?: () => void; abierto?: boolean; activo?: boolean; titulo?: string; refBoton?: Ref<HTMLButtonElement> }) {
   return (
     <Button
+      ref={refBoton}
       className="v2NavSobraTrigger"
       onClick={onClick}
       tabIndex={onClick ? undefined : -1}
@@ -84,7 +86,9 @@ function BotonSobra({ onClick, abierto, activo, titulo }: { onClick?: () => void
       aria-expanded={onClick ? abierto : undefined}
       title={titulo}
     >
-      <Ellipsis size={14} />
+      {/* Decorativo: el nombre del boton lo da su `title` (y el aria-label del
+       * contenedor); sin aria-hidden, el lector no tiene nada que anunciar. */}
+      <Ellipsis size={14} aria-hidden />
     </Button>
   );
 }
@@ -109,6 +113,43 @@ export function NavBar() {
   const destinosFuera = CENTRALES.slice(cuantos);
   const fuera = destinosFuera.length;
 
+  /* Teclado del desplegable. [por que] Llevaba `role="menu"` con
+   * `role="menuitem"` y ninguna tecla: el rol promete el modelo de un menu y el
+   * modelo no estaba. Aqui se cumple: el foco entra en la primera opcion al
+   * abrir, las flechas recorren en ciclo, Home/End van a los extremos, Tab
+   * cierra y Escape cierra devolviendo el foco al disparador. */
+  const refTrigger = useRef<HTMLButtonElement>(null);
+  const refsItems = useRef<Array<HTMLButtonElement | null>>([]);
+
+  useEffect(() => {
+    if (menu.abierto) refsItems.current[0]?.focus();
+  }, [menu.abierto]);
+
+  function teclasMenu(ev: ReactKeyboardEvent<HTMLSpanElement>) {
+    const items = refsItems.current.filter((n): n is HTMLButtonElement => n !== null);
+    if (items.length === 0) return;
+    if (ev.key === 'Tab') {
+      menu.cerrar();
+      return;
+    }
+    if (ev.key === 'Escape') {
+      ev.preventDefault();
+      menu.cerrar();
+      refTrigger.current?.focus();
+      return;
+    }
+    const desde = items.indexOf(document.activeElement as HTMLButtonElement);
+    const salto =
+      ev.key === 'ArrowDown' ? desde + 1
+      : ev.key === 'ArrowUp' ? desde - 1
+      : ev.key === 'Home' ? 0
+      : ev.key === 'End' ? items.length - 1
+      : null;
+    if (salto === null) return;
+    ev.preventDefault();
+    items[(salto + items.length) % items.length]?.focus();
+  }
+
   /* [por que] El recorte es un prefijo, asi que la pagina activa puede caer
    * dentro del desplegable: sin marcarlo, el usuario no veria en cual esta.
    * El boton de sobra se invierte y dice la pagina activa. */
@@ -131,25 +172,41 @@ export function NavBar() {
         {fuera > 0 && (
           <span className="v2NavSobra" ref={menu.raiz}>
             <BotonSobra
+              refBoton={refTrigger}
               onClick={menu.alternar}
               abierto={menu.abierto}
               activo={activaOculta}
               titulo={tituloSobra}
             />
             {menu.abierto && (
-              <span className="v2NavSobraLista v2Superficie" role="menu" aria-label="Más botones">
-                {destinosFuera.map((c) => (
+              <span
+                className="v2NavSobraLista v2Superficie"
+                role="menu"
+                aria-label="Más botones"
+                onKeyDown={teclasMenu}
+              >
+                {destinosFuera.map((c, i) => (
                   <Button
                     key={c.clave}
+                    ref={(el) => {
+                      refsItems.current[i] = el;
+                    }}
                     role="menuitem"
+                    /* Roving tabindex: un solo parada de tabulador para todo el
+                     * menu; dentro se navega con flechas, como manda el rol. */
+                    tabIndex={i === 0 ? 0 : -1}
                     className="v2SelectorOpcion"
                     activo={panelCentral === c.clave}
                     onClick={() => {
                       setPanelCentral(c.clave);
                       menu.cerrar();
+                      /* Elegir con Enter quema el elemento enfocado: sin
+                       * devolver el foco al disparador, el tabulador
+                       * siguiente arrancaria desde el <body>. */
+                      refTrigger.current?.focus();
                     }}
                   >
-                    <c.icono size={14} />
+                    <c.icono size={14} aria-hidden />
                     <span>{c.etiqueta}</span>
                   </Button>
                 ))}

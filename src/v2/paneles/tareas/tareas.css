@@ -263,6 +263,14 @@
     font-size: var(--v2-textSm);
 }
 
+/* [por que] El input no tiene borde propio (`border: none`) y el `outline: none`
+ * de arriba no tenia sustituto: quien escribe la tarea nueva con teclado no
+ * veia donde estaba. Anillo propio, como Button.css y Casilla.css. */
+.tareasModalEntrada:focus-visible {
+    outline: 1px solid var(--v2-texto);
+    outline-offset: 1px;
+}
+
 .tareasModalEntrada::placeholder {
     opacity: 0.7;
     font-style: italic;

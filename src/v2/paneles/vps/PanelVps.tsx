@@ -111,6 +111,11 @@ export function PanelVps() {
                     }
                     onClick={() => elegir(f.clave)}
                     tabIndex={0}
+                    /* [por que] La fila elegida se distingue por color, que no
+                     * llega a quien usa lector. `aria-selected` no vale aqui:
+                     * la tabla es `role="table"` y solo lo admite en grid.
+                     * `aria-current` si es global, y anuncia «actual». */
+                    aria-current={f.clave === selFila?.clave ? 'true' : undefined}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();

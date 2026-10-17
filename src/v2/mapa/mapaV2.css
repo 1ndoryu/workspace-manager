@@ -68,9 +68,21 @@
 /* [por que] Sin anillo de foco naranja del navegador al hacer click: la
  * seleccion se representa con bordes mas gruesos en la caja, no con un
  * cuadro externo. */
-.mapaV2Tile:focus,
-.mapaV2Tile:focus-visible {
+.mapaV2Tile:focus {
     outline: none;
+}
+
+/* [por que] Quitar el anillo a secas dejaba la caja SIN ninguna senal de foco
+ * por teclado: `tabIndex={0}` la hace alcanzable y no habia sustituto. El foco
+ * se dibuja con el trazo de la propia caja y no con un outline porque la caja
+ * es un <g> de SVG: ahi el anillo se traza sobre la caja envolvente, que
+ * incluye las paredes colgantes y tapa la fila de abajo. Mismo lenguaje que el
+ * resto del v2 (Button.css, Casilla.css): el foco engorda el borde. */
+.mapaV2Tile:focus-visible .mapaV2Piso,
+.mapaV2Tile:focus-visible .mapaV2ParedIzq,
+.mapaV2Tile:focus-visible .mapaV2ParedDer {
+    stroke: var(--v2-texto);
+    stroke-width: 2;
 }
 
 /* Cuadricula iso de separacion entre celdas: trazo mas fino y mas tenue que

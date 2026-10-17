@@ -13,6 +13,17 @@ export const PESO_ESTADO: Record<EstadoTile, number> = {
   carpeta: 3,
 };
 
+/* Como se lee cada estado en voz alta. [por que] El mapa pinta las cajas con
+ * `role="button"` y sin nombre accesible solo se anuncia «boton»: quien navega
+ * con teclado o con lector oye el foco pasar sin saber por que proyecto va. El
+ * vocabulario del estado es de este modulo, no de la vista que lo pinta. */
+export const ETIQUETA_ESTADO: Record<EstadoTile, string> = {
+  repo: 'repositorio limpio',
+  dirty: 'con cambios sin commitear',
+  gate: 'con gate declarado',
+  carpeta: 'carpeta sin repositorio',
+};
+
 export function estadoProyecto(p: Proyecto): EstadoTile {
   if (!p.esGit) return 'carpeta';
   if (p.git?.dirty) return 'dirty';

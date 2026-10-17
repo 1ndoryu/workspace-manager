@@ -44,6 +44,11 @@ export function ModalAltaTarea(p: ModalAltaTareaProps) {
         role="dialog"
         aria-label={`Crear tarea en ${p.nombreColumna}`}
         onClick={(ev) => ev.stopPropagation()}
+        /* [por que] Escape vive en el dialogo, no en el input: con el manejador
+         * solo en la entrada, tabular hasta el boton de enviar o hasta las
+         * opciones dejaba el modal sin salida por teclado (el fondo solo
+         * responde al raton). Desde aqui cubre todo el dialogo. */
+        onKeyDown={m.teclaEntrada}
       >
         <form
           onSubmit={(ev) => {
@@ -58,7 +63,6 @@ export function ModalAltaTarea(p: ModalAltaTareaProps) {
               type="text"
               value={m.texto}
               onChange={(ev) => m.setTexto(ev.target.value)}
-              onKeyDown={m.teclaEntrada}
               placeholder={`Nueva tarea en ${p.nombreColumna}…`}
               maxLength={1000}
               aria-label={`Texto de la tarea en ${p.nombreColumna}`}
@@ -72,16 +76,26 @@ export function ModalAltaTarea(p: ModalAltaTareaProps) {
             >
               <ArrowRight size={20} aria-hidden />
             </Button>
+            {/* [por que] Cierre canonico del v2 (PanelDetalle.tsx): el fondo
+             * cierra con el raton, pero un modal sin boton de cerrar deja sin
+             * salida a quien no usa raton y no adivina el Escape. */}
+            <Button
+              cuadrado
+              pequeno
+              onClick={p.onCerrar}
+              title="Cerrar"
+              aria-label="Cerrar"
+            >
+              ×
+            </Button>
           </div>
           <div className="tareasModalOpciones">
             <Button
+              ref={m.refPrioridad}
               type="button"
               className="tareasModalFantasma"
               activo={m.prioridad !== null}
               onClick={() => m.setMenu(m.menu === 'prioridad' ? null : 'prioridad')}
-              onKeyDown={(ev) => {
-                if (ev.key === 'Escape') m.setMenu(null);
-              }}
               title={m.tituloPrioridad}
               aria-label={m.tituloPrioridad}
               aria-expanded={m.menu === 'prioridad'}
@@ -89,13 +103,11 @@ export function ModalAltaTarea(p: ModalAltaTareaProps) {
               <Flag size={14} aria-hidden />
             </Button>
             <Button
+              ref={m.refUrgencia}
               type="button"
               className="tareasModalFantasma"
               activo={m.urgencia !== 'normal'}
               onClick={() => m.setMenu(m.menu === 'urgencia' ? null : 'urgencia')}
-              onKeyDown={(ev) => {
-                if (ev.key === 'Escape') m.setMenu(null);
-              }}
               title={m.tituloUrgencia}
               aria-label={m.tituloUrgencia}
               aria-expanded={m.menu === 'urgencia'}
@@ -108,6 +120,8 @@ export function ModalAltaTarea(p: ModalAltaTareaProps) {
           <div className="tareasModalMenu v2Superficie" role="menu" aria-label="Prioridad">
             <Button
               type="button"
+              role="menuitemradio"
+              aria-checked={m.prioridad === null}
               className="tareasMenuOpcion"
               onClick={() => m.elegir({ texto: m.texto, prioridad: null, urgencia: m.urgencia })}
             >
@@ -118,6 +132,8 @@ export function ModalAltaTarea(p: ModalAltaTareaProps) {
               <Button
                 key={nivel}
                 type="button"
+                role="menuitemradio"
+                aria-checked={m.prioridad === nivel}
                 className="tareasMenuOpcion"
                 onClick={() => m.elegir({ texto: m.texto, prioridad: nivel, urgencia: m.urgencia })}
               >
@@ -133,6 +149,8 @@ export function ModalAltaTarea(p: ModalAltaTareaProps) {
               <Button
                 key={nivel}
                 type="button"
+                role="menuitemradio"
+                aria-checked={m.urgencia === nivel}
                 className="tareasMenuOpcion"
                 onClick={() => m.elegir({ texto: m.texto, prioridad: m.prioridad, urgencia: nivel })}
               >

@@ -19,8 +19,9 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
    del área y el gestor de despliegues salen de la config; de paso, el `settings.json` de
    despliegues tenía dos dueños y el panel vps acusaba al taller de un problema suyo) y `17AA-1`
    (la nav ajena: ya venía escrita e integrada como `1988e02`; se verificó en el navegador a 1280,
-   1040, 900 y 700 px y el defecto reportado —«taller» cortado a ~1040— no existe). Quedan el 8
-   (SOLID a fondo), el 10 (accesibilidad), I (el resto del tablero) y L3–L6.
+   1040, 900 y 700 px y el defecto reportado —«taller» cortado a ~1040— no existe), el 8 (SOLID a
+   fondo, `0302cf3`) y el 10 (accesibilidad: foco visible y teclado donde el rol lo prometía,
+   medido en el navegador). Quedan I (el resto del tablero) y L3–L6.
 1. `308A-5` — **Corregir hallazgos restantes de Sentinel y VarSense** (piso honesto + wins rápidos).
    Depende de 17AA-2 para no medir sobre reglas que cambian.
 

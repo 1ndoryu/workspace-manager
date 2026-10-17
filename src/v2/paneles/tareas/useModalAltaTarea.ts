@@ -32,6 +32,11 @@ export function useModalAltaTarea(g: AltaGestos) {
   const [urgencia, setUrgencia] = useState<string>('normal');
   const [menu, setMenu] = useState<MenuAlta>(null);
   const entradaRef = useRef<HTMLInputElement>(null);
+  /* Disparadores de los dos menus, para devolverles el foco al cerrarlos con
+   * Escape: la opcion enfocada se desmonta y el foco caeria al <body>, con lo
+   * que el tabulador siguiente arrancaria desde arriba del documento. */
+  const refPrioridad = useRef<HTMLButtonElement>(null);
+  const refUrgencia = useRef<HTMLButtonElement>(null);
 
   /* Autofocus al abrir (como useModalCreacionRapida: foco al montar). */
   useEffect(() => {
@@ -52,11 +57,16 @@ export function useModalAltaTarea(g: AltaGestos) {
   };
 
   /* Escape cierra el menu si hay uno abierto, si no el modal (como TASKS:
-   * los menus se cierran antes que el modal). */
+   * los menus se cierran antes que el modal). Se engancha al dialogo entero y
+   * no solo a la entrada: desde el input funcionaba, pero tabular hasta el
+   * boton de enviar o hasta las opciones dejaba el modal sin salida. */
   const teclaEntrada = (ev: React.KeyboardEvent) => {
     if (ev.key !== 'Escape') return;
-    if (menu !== null) setMenu(null);
-    else g.onCerrar();
+    if (menu !== null) {
+      const disparador = menu === 'prioridad' ? refPrioridad : refUrgencia;
+      setMenu(null);
+      disparador.current?.focus();
+    } else g.onCerrar();
   };
 
   const elegir = (siguiente: DatosAltaTarea) => {
@@ -74,6 +84,8 @@ export function useModalAltaTarea(g: AltaGestos) {
     menu,
     setMenu,
     entradaRef,
+    refPrioridad,
+    refUrgencia,
     puedeGuardar,
     guardar,
     teclaEntrada,

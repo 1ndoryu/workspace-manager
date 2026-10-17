@@ -5,7 +5,7 @@
  * (zoom/mover); `pequeno` es compacto de 20px de alto para filas densas
  * (solo o con cuadrado); `activo` invierte el relleno. El archivo se llama Button
  * para que html-nativo-en-vez-de-componente no marque su <button> interno. */
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import './Button.css';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -19,7 +19,13 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children?: ReactNode;
 }
 
-export function Button({ activo = false, cuadrado = false, grande = false, pequeno = false, children, className, ...rest }: ButtonProps) {
+/* [por que] `forwardRef`: los menus con teclado necesitan mover el foco entre
+ * sus opciones, y sin ref no habia forma de alcanzar el <button> de dentro
+ * (React 18 no pasa `ref` por las props). No cambia nada para quien no la use. */
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { activo = false, cuadrado = false, grande = false, pequeno = false, children, className, ...rest },
+  ref,
+) {
   const clases = [
     'botonV2',
     activo ? 'botonV2--activo' : '',
@@ -32,8 +38,8 @@ export function Button({ activo = false, cuadrado = false, grande = false, peque
     .join(' ');
 
   return (
-    <button type="button" className={clases} {...rest}>
+    <button ref={ref} type="button" className={clases} {...rest}>
       {children}
     </button>
   );
-}
+});
