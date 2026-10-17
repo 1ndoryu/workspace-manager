@@ -160,9 +160,14 @@ export function problemasVulnerabilidadDe(
   if (!v || v.estado !== 'conHallazgos' || v.hallazgos.length === 0) return null;
   const entradas: Entrada[] = v.hallazgos.map((h) => {
     const sinParche = VULN_SIN_PARCHE_UPSTREAM[h.paquete];
+    /* El aviso se identifica por su id y su titulo, no solo por el paquete:
+     * cuatro avisos distintos de `rustls` se parchean en la misma version y sin
+     * esto salian como cuatro lineas identicas. El rango se mantiene detras. */
+    const aviso = h.id ? ` — ${h.id}${h.titulo ? `: ${h.titulo}` : ''}` : '';
+    const nota = h.sinSeveridad ? ' — severidad no declarada en el aviso' : '';
     return {
       categoria: 'vulnerabilidad',
-      motivo: `${h.paquete} (${h.origen ?? v.gestor})${h.rango ? ` — ${h.rango}` : ''}${sinParche ? ` — ${sinParche}` : ''}`,
+      motivo: `${h.paquete} (${h.origen ?? v.gestor})${aviso}${h.rango ? ` — ${h.rango}` : ''}${sinParche ? ` — ${sinParche}` : ''}${nota}`,
       seriedad: sinParche ? null : h.severidad === 'critical' || h.severidad === 'high' ? 'error' : 'advertencia',
       vulnSeveridad: h.severidad,
     };

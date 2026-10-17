@@ -391,6 +391,16 @@ export interface HallazgoVulnerabilidad {
   severidad: 'critical' | 'high' | 'moderate' | 'low';
   /* Rango de versiones afectadas (del advisory). */
   rango: string;
+  /* Identidad del aviso (`RUSTSEC-2026-0369`, `GHSA-...`). [por que] Sin esto,
+   * cuatro avisos distintos de `rustls` parcheados en la misma version se pintan
+   * como cuatro lineas identicas y no se sabe que hay que arreglar. */
+  id?: string;
+  /* Titulo del aviso, si el audit lo trae. */
+  titulo?: string;
+  /* El audit no declara severidad para este aviso (RUSTSEC sin `cvss`). [por que]
+   * Antes caia en el `low` por defecto y se confundia con una severidad baja de
+   * verdad; marcado, el motivo lo dice en vez de mentir. */
+  sinSeveridad?: true;
   url?: string;
   /* Lockfile de origen (p. ej. `frontend/package-lock.json`); un proyecto puede tener varios. */
   origen?: string;

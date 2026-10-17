@@ -62,24 +62,74 @@ test('parsearAudit pnpm: lista sin metadata cuenta sus hallazgos (no sale ok)', 
   assert.equal(r.hallazgos.length, 1);
 });
 
-test('parsearAudit cargo: forma {list} lee advisory.package y no trata found/count como paquetes', () => {
-  const r = parsearAudit('cargo', {
+/* Entradas reales de `cargo audit --json` (cargo-audit 0.22.2, KAMPLES,
+ * 2026-10-17), recortadas a los campos que se leen. [por que] La prueba anterior
+ * usaba una forma imaginada con `severity: 'medium'` dentro del advisory, que no
+ * existe: pasaba mientras el camino real estaba roto, porque RUSTSEC no emite
+ * `severity` sino `cvss` **como vector de texto**. Estas entradas son las que
+ * salieron de verdad, con sus vectores y con el `zip` que no trae `cvss`. */
+const CARGO_REAL = {
+  vulnerabilities: {
+    found: true,
+    count: 4,
+    list: [
+      { advisory: { id: 'RUSTSEC-2026-0346', package: 'rustls', title: '`Debug` impls for client session values expose TLS secrets', cvss: 'CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:H/I:N/A:N' }, versions: { patched: ['>=0.23.46'] } },
+      { advisory: { id: 'RUSTSEC-2026-0349', package: 'rustls', title: 'Unauthenticated ServerHello can downgrade later connections', cvss: 'CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N' }, versions: { patched: ['>=0.23.46'] } },
+      { advisory: { id: 'RUSTSEC-2026-0369', package: 'zip', title: 'ZipStreamReader::extract() and ZipArchive::extract() apply Unix permissions', cvss: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H' }, versions: { patched: ['>=9.0.0'] } },
+      { advisory: { id: 'RUSTSEC-2026-0368', package: 'zip', title: 'zip: `ZipArchive::extract` creates symbolic links whose attributes it does not control', cvss: null }, versions: { patched: ['>=9.0.0'] } },
+    ],
+  },
+};
+
+test('parsearAudit cargo: la severidad sale del vector CVSS, no de un `severity` inexistente', () => {
+  const r = parsearAudit('cargo', CARGO_REAL);
+  /* Antes: las cuatro salian 'low' (2 criticas y 2 altas ocultas). */
+  assert.deepEqual(
+    r.hallazgos.map((h) => [h.id, h.severidad]),
+    [
+      ['RUSTSEC-2026-0346', 'moderate'],
+      ['RUSTSEC-2026-0349', 'low'],
+      ['RUSTSEC-2026-0369', 'critical'],
+      ['RUSTSEC-2026-0368', 'low'],
+    ],
+  );
+  assert.deepEqual(r.resumen, { critical: 1, high: 0, moderate: 1, low: 2 });
+});
+
+test('parsearAudit cargo: sin vector CVSS el aviso se marca, no se rellena con low', () => {
+  const r = parsearAudit('cargo', CARGO_REAL);
+  const sin = r.hallazgos.find((h) => h.id === 'RUSTSEC-2026-0368');
+  assert.equal(sin?.sinSeveridad, true, 'un aviso sin cvss tiene que declararse sin severidad');
+  const con = r.hallazgos.find((h) => h.id === 'RUSTSEC-2026-0369');
+  assert.ok(!con?.sinSeveridad, 'un aviso con vector no lleva la marca');
+});
+
+test('parsearAudit cargo: no trata found/count como paquetes y conserva id y titulo', () => {
+  const r = parsearAudit('cargo', CARGO_REAL);
+  assert.deepEqual(r.hallazgos.map((h) => h.paquete), ['rustls', 'rustls', 'zip', 'zip']);
+  assert.equal(r.hallazgos[0]?.titulo, '`Debug` impls for client session values expose TLS secrets');
+  assert.deepEqual(r.hallazgos.map((h) => h.rango), ['>=0.23.46', '>=0.23.46', '>=9.0.0', '>=9.0.0']);
+});
+
+test('parsearAudit npm: el titulo y el vector salen de `via`', () => {
+  const r = parsearAudit('npm', {
     vulnerabilities: {
-      found: true,
-      count: 1,
-      list: [
-        {
-          advisory: { package: 'rsa', severity: 'medium', id: 'RUSTSEC-2023-0071' },
-          versions: { patched: [] },
-        },
-      ],
+      lodash: {
+        severity: 'high',
+        range: '<4.17.21',
+        via: [{ title: 'Prototype Pollution', url: 'https://github.com/advisories/GHSA-xxxx', cvss: { score: 7.5, vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H' } }],
+      },
     },
   });
-  assert.deepEqual(
-    r.hallazgos.map((h) => h.paquete),
-    ['rsa'],
-  );
-  assert.equal(r.resumen.moderate, 1);
+  assert.equal(r.hallazgos[0]?.severidad, 'high');
+  assert.equal(r.hallazgos[0]?.titulo, 'Prototype Pollution');
+});
+
+test('parsearAudit npm: un `via` de solo cadena no aporta titulo y no rompe la severidad', () => {
+  const r = parsearAudit('npm', {
+    vulnerabilities: { tar: { severity: 'moderate', range: '<6.2.1', via: ['node-gyp'] } },
+  });
+  assert.deepEqual(r.hallazgos.map((h) => [h.paquete, h.severidad, h.titulo]), [['tar', 'moderate', undefined]]);
 });
 
 test('nombrePaqueteValido solo acepta nombres de crate; ningun caracter de shell', () => {
