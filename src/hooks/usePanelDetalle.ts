@@ -115,7 +115,7 @@ function resumenAuditoria(a: AnalisisVulnerabilidades | undefined): string | nul
   return `auditoría: ${partes.join(' · ') || 'sin detalle'}`;
 }
 
-/* Resultado de `GET /api/proyecto/alta` (lo calcula scripts/dev/alta.mjs). Tipo
+/* Resultado de `GET /api/proyecto/alta` (lo calcula scripts/dev/proyecto/alta.mjs). Tipo
  * propio del cliente: el servidor no se importa en el bundle. */
 export interface AltaProyecto {
   clave: string;

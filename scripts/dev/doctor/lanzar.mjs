@@ -8,11 +8,11 @@ import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'no
 
 import { RAIZ_REPO } from './base.mjs';
 import { escuchaRobusta } from './clasificar.mjs';
-import { envPara } from './entorno.mjs';
-import { escanearEscucha, normalizarRuta, procesosDe } from './procesos.mjs';
-import { esDelProyecto, marcadorPuerto, sondear } from './puertos.mjs';
-import { leerRegistro } from './registro.mjs';
-import { resolverDirecto, resolverExe } from './resolver.mjs';
+import { envPara } from './ficha/entorno.mjs';
+import { escanearEscucha, normalizarRuta, procesosDe } from './sistema/procesos.mjs';
+import { esDelProyecto, marcadorPuerto, sondear } from './sistema/puertos.mjs';
+import { leerRegistro } from './ficha/registro.mjs';
+import { resolverDirecto, resolverExe } from './sistema/resolver.mjs';
 
 /* Lanza detached con logs a <ruta>/logs/dev-up-<id>.log (*.log gitignored).
  * Devuelve pid. Nunca mata nada: el dueño del puerto decide. */

@@ -1,17 +1,17 @@
 /* Subcomandos del doctor: `up` y el arranque en cadena de un proyecto y sus deps. */
 
-import { avisoTaller } from '../taller-aviso.mjs';
+import { avisoTaller } from '../taller/taller-aviso.mjs';
 import { readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 
 import { RAIZ_REPO, TTL_MS } from './base.mjs';
 import { clasificar, clasificarEntrada, codigoSalida, detectarCompartidos, escuchaRobusta, tabla } from './clasificar.mjs';
-import { envPara } from './entorno.mjs';
+import { envPara } from './ficha/entorno.mjs';
 import { contextoEntrada, esperarProbe, lanzar, leerSnapshotServidor, oyenteDelProyecto, veredictoUpSinCobertura } from './lanzar.mjs';
-import { detectarDerivaEnv, duenoDePuerto } from './puertos.mjs';
-import { leerRegistro } from './registro.mjs';
-import { asegurarExe, detectarRust } from './rust.mjs';
-import { validarMotivo } from './validacion.mjs';
+import { detectarDerivaEnv, duenoDePuerto } from './sistema/puertos.mjs';
+import { leerRegistro } from './ficha/registro.mjs';
+import { asegurarExe, detectarRust } from './sistema/rust.mjs';
+import { validarMotivo } from './ficha/validacion.mjs';
 
 /* F1 `up <id>`: ya-arriba (verifica, no reinicia) | arranca puertos libres
  * (spawn + probe hasta arranqueMs) | rehusa (ocupado/duplicado/sin-probe/

@@ -1,6 +1,6 @@
 /* Publica un dev server en `<proyecto>-dev.<zona>` por el túnel declarado.
  * Por defecto solo lee y muestra el plan. `--aplicar` escribe en Cloudflare y en registro.json.
- *   node scripts/dev/publicar-host.mjs <host> --puerto <n> [--proyecto <id>] [--copiar-acceso <host>] [--aplicar]
+ *   node scripts/dev/taller/publicar-host.mjs <host> --puerto <n> [--proyecto <id>] [--copiar-acceso <host>] [--aplicar]
  *   … --repuntar: cambia el destino de un host YA publicado (p. ej. al pasar la ficha a modo build, que
  *   sirve en otro puerto). Sin la bandera, un host existente con otro destino es un error: publicar dos
  *   veces el mismo nombre por descuido pisaría lo que ya funciona. No toca DNS ni Access: solo la regla
@@ -14,7 +14,7 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { exigirConfigPrivada, rutaConfigPrivada } from '../shared/rutas.mjs';
+import { exigirConfigPrivada, rutaConfigPrivada } from '../../shared/rutas.mjs';
 
 const API = 'https://api.cloudflare.com/client/v4';
 

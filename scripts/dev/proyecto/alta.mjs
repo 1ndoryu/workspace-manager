@@ -10,7 +10,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, write
 import { basename, dirname, join, resolve } from 'node:path';
 import { RAIZ } from './gate.mjs';
 import { baseDe } from './cierre.mjs';
-import { rutaConfigPrivada } from '../shared/rutas.mjs';
+import { rutaConfigPrivada } from '../../shared/rutas.mjs';
 
 const ok = (nombre, detalle) => ({ nombre, ok: true, detalle });
 const fallo = (nombre, detalle, accion, plan = {}) => ({ nombre, ok: false, detalle, accion, ...plan });

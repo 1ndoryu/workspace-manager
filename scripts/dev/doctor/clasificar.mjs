@@ -3,8 +3,8 @@
 import { isAbsolute, resolve } from 'node:path';
 
 import { RAIZ_REPO } from './base.mjs';
-import { datosCimDe, escanearEscucha, normalizarRuta } from './procesos.mjs';
-import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeQuien } from './puertos.mjs';
+import { datosCimDe, escanearEscucha, normalizarRuta } from './sistema/procesos.mjs';
+import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeQuien } from './sistema/puertos.mjs';
 
 /* Clasifica snapshot x registro x escucha. Por proyecto: exactamente un
  * estado. Huerfanos: listeners sin entrada del registro; se atribuyen por

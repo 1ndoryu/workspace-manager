@@ -1,11 +1,11 @@
 /* Puertos, modos (dev/build), tuneles, atribucion de dueño y deriva de entorno. */
 
-import { cabeceraAutorizacion } from '../token.mjs';
+import { cabeceraAutorizacion } from '../../token.mjs';
 import { readFileSync } from 'node:fs';
 import http from 'node:http';
 import { isAbsolute, join, normalize, resolve } from 'node:path';
 
-import { RAIZ_REPO } from './base.mjs';
+import { RAIZ_REPO } from '../base.mjs';
 import { normalizarRuta } from './procesos.mjs';
 
 /* --- Modo del proyecto (16AA-18) y entrada remota ---------------------------

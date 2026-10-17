@@ -3,7 +3,7 @@
  * [por que 14AA-5] Lo evalúa el manager (local, 8787), que es quien ve la 89 y el HTTP
  * público. Es solo aviso: no cambia el exit del comando que lo imprime. Si el manager no
  * responde, se dice en una línea en vez de fallar en silencio. */
-import { cabeceraAutorizacion } from './token.mjs';
+import { cabeceraAutorizacion } from '../token.mjs';
 
 export const URL_ESTADO_TALLER = 'http://127.0.0.1:8787/api/taller/estado';
 

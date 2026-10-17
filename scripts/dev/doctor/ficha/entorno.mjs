@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { RAIZ_REPO } from './base.mjs';
+import { RAIZ_REPO } from '../base.mjs';
 
 /* Token local ESTABLE para pulse: se genera una vez y se guarda en
  * <repo>/logs/.pulse-token (gitignored); el backend lo lee para hablar con

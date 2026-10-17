@@ -1,6 +1,6 @@
 /* Lista de alta de un proyecto (10AA-2 F10): GET /api/proyecto/alta?clave=.
  * [por que] El tablero muestra «Alta: N/11» sin reimplementar las comprobaciones:
- * la lista la decide `scripts/dev/alta.mjs` y aquí solo se lanza y se sirve.
+ * la lista la decide `scripts/dev/proyecto/alta.mjs` y aquí solo se lanza y se sirve.
  * Devuelve true si atendió la ruta, false si no es suya. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json } from '../http.js';

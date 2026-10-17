@@ -4,7 +4,7 @@
  * (rehusa a ciegas, igual que el mando). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cabeceraAutorizacion } from './token.mjs';
+import { cabeceraAutorizacion } from '../token.mjs';
 
 const API = process.env.WM_API ?? 'http://127.0.0.1:8787';
 // [por que] Fuera de leer() (que va dentro del try de abajo): un token ausente debe romper el test, no omitirlo.
