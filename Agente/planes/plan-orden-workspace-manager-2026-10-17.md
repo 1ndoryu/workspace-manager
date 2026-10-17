@@ -376,11 +376,43 @@ segundo dejaba a `tar` bloqueado hasta el vigilante de 120 s, así que un host i
 **123 s** en dar el motivo (más que los 90 s que el panel espera) en vez de 4,9 s. La entrada está
 en `Agente/completados/tareas-2026-10-17.md`.
 
+**Cerrado también, `17AA-4`:** el **frente 9 (hardcodeo → agnóstico)** y la parte de hardcodeo
+que quedaba del frente 3. El criterio, aplicado caso a caso y anotado en cada comentario: **se
+arregla lo que el código *depende*, se conserva lo que *documenta evidencia*** (una medida con
+testigo no se genericiza: dejaría de ser verificable). Cuatro cosas:
+
+1. **Los binarios que lanza el manager.** `ssh`, `tar`, `git` y `npm` estaban escritos a mano en
+   **29 sitios de 14 archivos**, cada uno con su propia idea de dónde vive el ejecutable.
+   `src/shared/binarios.ts` (nuevo, con su gemelo `scripts/shared/binarios.mjs`) es ahora el
+   dueño: `BIN_SSH`/`BIN_TAR`/`BIN_GIT`/`BIN_NPM`, con `WS_SSH`/`WS_TAR`/`WS_GIT`/`WS_NPM` para
+   sobrescribir. Se quedan fuera `powershell.exe` y `where.exe`, que no son binarios del producto
+   sino el adaptador de plataforma (la sonda es Windows por diseño).
+2. **El nombre del área.** El breadcrumb y la lista de docs llevaban `'area-trabajo'`
+   incrustado: en un área con otro nombre los dos mentían. `nombreDeRuta()` (en
+   `shared/vista/format.ts`, que es *browser-safe*: no puede importar `node:path`) lo deriva de la
+   raíz que ya manda el snapshot.
+3. **El gestor de despliegues.** Su carpeta y su ejecutable no tienen por qué llamarse igual (el
+   nuestro es `coolify-manager-rs` en disco y produce `coolify-manager`), así que el papel
+   `despliegue` acepta un `despliegueBin`; sin declararlo vale el de la carpeta, que es el caso
+   común. Y su `settings.json` pasa a tener **un solo dueño** (`rutaConfigDespliegue()` en
+   `puente.ts`).
+4. **Los comentarios que enuncian una regla** con nuestro nombre (el motor de calidad, el
+   limpiador, el área) pasan a decir el papel. Los que citan una medida o un espejo de código
+   ajeno conservan el nombre: son el testigo.
+
+**La incoherencia real que el frente 9 destapó** (y no era cosmética): el `settings.json` del
+gestor de despliegues se resolvía de dos formas distintas. `sembrarMapaSettings` miraba el
+fichero del proyecto; `configArg()` —que es quien se lo pasa al binario con `-c`— solo miraba
+`COOLIFY_MANAGER_CONFIG`. Sin la variable el binario no encontraba su configuración, y el panel
+vps respondía «no se pudo leer el listado (¿VPS inalcanzable?)» con la VPS viva y el binario
+funcionando. Un síntoma que acusaba al taller de un problema del manager. Ahora las dos leen la
+misma función. **Evidencia:** `/api/vps/sitios` devuelve los sitios reales (antes `sitios: []`
+con ese aviso).
+
 **Pendiente:** H (adoptar el cambio ajeno de navegación), I (el resto del tablero: RESTAURANTE 202
-tras B4 y KAMPLES 113, con los 7 `propiedadProhibida` reales), el frente 3 en su parte de
-hardcodeo (los binarios `ssh`/`tar` sin variable de entorno, que es del frente 9), el frente 8
-(SOLID a fondo), el frente 9 (hardcodeo), el frente 10 (accesibilidad) y L3–L6 (las skills que
-citan el pin de Sentinel, las memorias y `Agente/documentacion/`).
+tras B4 y KAMPLES 113, con los 7 `propiedadProhibida` reales), el frente 8 (SOLID a fondo), el
+frente 10 (accesibilidad) y L3–L6 (las skills que citan el pin de Sentinel, las memorias y
+`Agente/documentacion/`).
 
 ### L · Documentación viva: skills, `AGENTS.md` y memorias (encargo de la usuaria, 2026-10-17)
 

@@ -14,10 +14,11 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 0. `17AA-2` — **Poner workspace-manager en orden** (encargo de la usuaria, 2026-10-17). Plan:
    `Agente/planes/plan-orden-workspace-manager-2026-10-17.md`. Cerrados A (`.mjs`), B1–B6 (los
    falsos positivos, el último B4 en `varsense` `3375e18`), C (14 problemas reales; tablero 16 → 0),
-   D, E, F, G, K, L1–L2 y `17AA-3` (frentes 3 y 5: el doctor corre donde toca y lo dice, y el
-   transporte se separa de `remoto.ts`). Quedan el resto del frente 3 (los binarios sin variable de
-   entorno, que es del 9), el 8 (SOLID a fondo), el 9 (hardcodeo), el 10 (accesibilidad), H (la nav
-   ajena), I (el resto del tablero) y L3–L6.
+   D, E, F, G, K, L1–L2, `17AA-3` (frentes 3 y 5: el doctor corre donde toca y lo dice, y el
+   transporte se separa de `remoto.ts`) y `17AA-4` (frente 9: los binarios del manager, el nombre
+   del área y el gestor de despliegues salen de la config; de paso, el `settings.json` de
+   despliegues tenía dos dueños y el panel vps acusaba al taller de un problema suyo). Quedan el 8
+   (SOLID a fondo), el 10 (accesibilidad), H (la nav ajena), I (el resto del tablero) y L3–L6.
 1. `308A-5` — **Corregir hallazgos restantes de Sentinel y VarSense** (piso honesto + wins rápidos).
    Depende de 17AA-2 para no medir sobre reglas que cambian.
 2. `17AA-1` — **Nav responsive: los destinos que no caben se van a un menú.** Pedido de la usuaria
@@ -42,6 +43,12 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 
 ## Tareas pendientes (orden de dependencia)
 
+- `17AA-5` — **Los gemelos `.ts`/`.mjs` no tienen guarda.** `src/shared/{area,binarios,puertos}.ts`
+  y `src/server/plataforma/temporales.ts` se duplican a mano en `scripts/shared/*.mjs` porque un
+  `.mjs` suelto no puede importar TypeScript, y nada comprueba que digan lo mismo: añadir
+  `despliegueBin` fueron dos ediciones manuales. Un test que importe los dos y compare el resultado
+  es barato, pero hoy no lo ejecuta nadie (las suites se invocan una a una), así que lo útil es que
+  lo mire el doctor.
 - `14AA-1` — **TRASLADADO (2026-10-14).** Plan cerrado, archivado en el área:
   `Agente/planes/completados/plan-taller-remoto-vps89-2026-10-14.md`.
 - `14AA-4` — **PARCIAL (2026-10-15): dev público de MN** por Cloudflare Tunnel + Access
