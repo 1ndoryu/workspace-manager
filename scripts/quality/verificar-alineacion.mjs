@@ -8,7 +8,7 @@
  *   pin       = commit DECLARADO en quality-tools.json del consumidor
  *   runtime   = commit del checkout PROVISIONADO que realmente ejecuta
  *               (sourcePath del quality-tools.json; gitlink tools/<tool>
- *               cuando el consumidor usa submódulos, p. ej. WANDORIUS)
+ *               cuando el consumidor usa submódulos)
  *   publicado = commit ALCANZABLE desde los releaseRefs declarados del
  *               checkout (refs/remotes/origin/main + refs/tags/v*)
  *
@@ -21,8 +21,8 @@
  *                     commit vive solo en el checkout local; un clon fresco no
  *                     podría reproducirlo)
  *   PIN-INVALIDO      el pin no existe como objeto git en el checkout
- *   SIN-PROVISION     el consumidor no declara la herramienta (p. ej. gloryapi
- *                     solo usa sentinel) → no es un problema
+ *   SIN-PROVISION     el consumidor no declara la herramienta (p. ej. uno que solo usa
+ *                     sentinel) → no es un problema
  *
  * Uso:
  *   node scripts/quality/verificar-alineacion.mjs [proyecto] [--json]
@@ -34,24 +34,18 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, resolve } from 'node:path';
+import { RAIZ_REPO, rutaConfigPrivada } from '../shared/rutas.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const AREA = resolve(__dirname, '../../..');
-
-// Mismo mapa que analyze-blocks.mjs — proyectos con análisis activo.
-const PROYECTOS = {
-  'workspace-manager': 'workspace-manager',
-  RESTAURANTE: 'RESTAURANTE',
-  'ONG AGAPE': 'TRABAJOS CLIENTES/ONG AGAPE',
-  WANDORIUS: 'WANDORIUS',
-  'coolify-manager-rs': 'coolify-manager-rs',
-  gloryapi: 'gloryapi',
-  'Glory-Laminal': 'Glory-Laminal',
-  GLORYPORT: 'GLORYPORT',
-  'PROYECTO TASKS': 'PROYECTO TASKS',
-};
+/* Mapa id → ruta absoluta del repo, derivado del registro privado.
+ * [por que] Antes era una lista de proyectos incrustada en el código: ataba el
+ * script al área de una máquina concreta. El registro ya declara `id` y `ruta`
+ * de cada proyecto (`ruta` es relativa a RAIZ_REPO), así que aquí solo se
+ * resuelve. */
+function reposDelRegistro() {
+  const reg = JSON.parse(readFileSync(rutaConfigPrivada('registro.json'), 'utf8'));
+  return new Map(reg.proyectos.map((p) => [p.id, resolve(RAIZ_REPO, p.ruta)]));
+}
 
 function git(cwd, ...args) {
   try {
@@ -103,7 +97,7 @@ function resolverRuntime(repoDir, tool, cfg) {
     const head = git(chk, 'rev-parse', 'HEAD');
     return { modo: 'sourcePath', commit: head, dir: chk };
   }
-  // Sin sourcePath → gitlink/submódulo (patrón WANDORIUS tools/*).
+  // Sin sourcePath → gitlink/submódulo (patrón de submódulos tools/*).
   const ls = git(repoDir, 'ls-files', '-s', `tools/${tool}`);
   const m = ls && /^160000\s+([0-9a-f]{40})/.exec(ls);
   if (m) return { modo: 'gitlink', commit: m[1], dir: join(repoDir, `tools/${tool}`) };
@@ -188,15 +182,15 @@ function main() {
   const arg = process.argv[2];
   const json = process.argv.includes('--json');
   const filtro = arg && !arg.startsWith('--') ? arg : null;
-  if (filtro && !PROYECTOS[filtro]) {
-    console.error(`Proyecto desconocido: ${filtro}. Disponibles: ${Object.keys(PROYECTOS).join(', ')}`);
+  const repos = reposDelRegistro();
+  if (filtro && !repos.has(filtro)) {
+    console.error(`Proyecto desconocido: ${filtro}. Disponibles: ${[...repos.keys()].join(', ')}`);
     process.exit(2);
   }
 
   const filas = [];
-  for (const [nombre, rel] of Object.entries(PROYECTOS)) {
+  for (const [nombre, repoDir] of repos) {
     if (filtro && nombre !== filtro) continue;
-    const repoDir = join(AREA, rel);
     const qPath = join(repoDir, 'quality-tools.json');
     if (!existsSync(qPath)) {
       filas.push({ proyecto: nombre, herramienta: '(sin quality-tools.json)', estado: 'SIN-CONFIG', problemas: [], pin: null, runtime: null, publicado: null });
