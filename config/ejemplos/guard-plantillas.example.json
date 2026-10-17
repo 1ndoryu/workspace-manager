@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "descripcion": "Plantilla del área por stack: la pestaña Guardián la aplica a cada proyecto según stackDeProyecto.",
+  "quitarDeTools": ["git", "python", "pip"],
+  "plantillas": {
+    "rust": {
+      "cargoSubcommands": ["check", "clippy", "test", "bench", "fmt", "nextest"]
+    },
+    "ts": {
+      "tools": ["tsc", "vitest", "eslint"]
+    }
+  },
+  "stackDeProyecto": {
+    "app-uno": ["rust", "ts"],
+    "app-dos": ["ts"],
+    "app-tres": [],
+    "trabajos cliente/uno dos": ["ts"]
+  }
+}

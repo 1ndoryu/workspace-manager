@@ -3,10 +3,7 @@
  * config y de documentos lo consumen sin importar el entry (sin ciclos). */
 import { obtenerSnapshot } from './cache.js';
 import { escanearWorkspace } from './scanner/workspace.js';
-import { RAIZ_AREA } from './http.js';
-
-import { CARPETA_SKILLS } from '../shared/rutas.js';
-export { CARPETA_SKILLS };
+import { CARPETA_SKILLS, RAIZ_AREA } from '../shared/rutas.js';
 
 /* Escáner con caché; el flag `forzar` re-escanea. */
 export function snapshotArea(forzar: boolean) {

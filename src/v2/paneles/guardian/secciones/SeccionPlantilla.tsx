@@ -1,4 +1,4 @@
-/* Sección Plantilla: .quality-tools/guard-plantillas.json, global del área.
+/* Sección Plantilla: guard-plantillas.json de la config privada, global del área.
  * [por que] Solo se edita si el archivo existe y es válido: sin hash no hay
  * hashPrevio que mandar, y crear el archivo queda fuera de esta pestaña. El
  * formulario se monta con key = hash, igual que la política. */
@@ -45,7 +45,7 @@ export function SeccionPlantilla({ datos }: { datos: GuardianDatos }) {
       {lectura && lectura.estado !== 'ok' && (
         <div className="docsMensaje">
           {lectura.estado === 'ausente'
-            ? 'falta .quality-tools/guard-plantillas.json en workspace-manager: crearla queda fuera de esta pestaña'
+            ? 'falta guard-plantillas.json en la config privada: crearla queda fuera de esta pestaña'
             : lectura.motivo}
         </div>
       )}

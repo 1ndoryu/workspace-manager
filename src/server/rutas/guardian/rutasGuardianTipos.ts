@@ -10,8 +10,8 @@ import type { ejecutarMantenimiento } from '../../guardian/operacion/mantenimien
 /* Lo que el router necesita del entorno. Inyectable: los tests usan un snapshot
  * falso y comandos falsos, nunca el área real. */
 export interface DependenciasGuardian {
-  /* Raíz del área: aquí vive .quality-tools/guard-plantillas.json (D7 a). */
-  raizArea: string;
+  /* Carpeta de la config privada: aquí vive guard-plantillas.json (D7 a). */
+  dirConfig: string;
   proyectos: () => Proyecto[];
   proyectoPorClave: (clave: string) => Proyecto | null;
   leerActividad: typeof leerActividad;

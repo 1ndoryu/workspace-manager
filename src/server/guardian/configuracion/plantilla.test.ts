@@ -1,7 +1,9 @@
 /* Test de la plantilla por stack (F11.4). Se corre con
  * `node node_modules/tsx/dist/cli.mjs --test src/server/guardian/plantilla.test.ts`.
- * Fixtures en C:/tmp (protocolo de temporales). El round-trip usa la plantilla
- * real del repo: si su formato cambia, este test lo detecta antes que la vista previa. */
+ * Fixtures en C:/tmp (protocolo de temporales).
+ * [por que] El texto de referencia es el ejemplo versionado, no la plantilla real:
+ * la real es config privada y no existe en un clon limpio. Así el test corre en
+ * cualquier clon y, de paso, comprueba que el ejemplo que se publica es válido. */
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -11,15 +13,14 @@ import {
   calcularEdicionPlantilla,
   guardarEdicionPlantilla,
   leerPlantilla,
-  RUTA_PLANTILLA,
+  NOMBRE_PLANTILLA,
   serializarPlantilla,
   validarPlantilla,
 } from './plantilla.js';
 
-/* La plantilla vive en la raíz del área (.quality-tools/), no en workspace-manager:
- * sube 5 niveles desde configuracion/ hasta area-trabajo, igual que RAIZ_AREA en http.ts. */
-const RAIZ_REAL = join(import.meta.dirname, '..', '..', '..', '..', '..');
-const TEXTO_REAL = readFileSync(join(RAIZ_REAL, RUTA_PLANTILLA), 'utf8');
+/* El ejemplo vive en el repo: sube 4 niveles desde configuracion/ hasta su raíz. */
+const EJEMPLO = join(import.meta.dirname, '..', '..', '..', '..', 'config', 'ejemplos', 'guard-plantillas.example.json');
+const TEXTO_REAL = readFileSync(EJEMPLO, 'utf8');
 
 const BASE_TMP = 'C:/tmp/guardian-test';
 const temporales: string[] = [];
@@ -31,8 +32,7 @@ function raizTmp(contenido: string | null = TEXTO_REAL): string {
   mkdirSync(BASE_TMP, { recursive: true });
   const d = mkdtempSync(join(BASE_TMP, 'plantilla-'));
   temporales.push(d);
-  mkdirSync(join(d, '.quality-tools'));
-  if (contenido !== null) writeFileSync(join(d, RUTA_PLANTILLA), contenido, 'utf8');
+  if (contenido !== null) writeFileSync(join(d, NOMBRE_PLANTILLA), contenido, 'utf8');
   return d;
 }
 
@@ -70,7 +70,7 @@ describe('serializarPlantilla', () => {
 
 describe('validarPlantilla', () => {
   it('acepta nombres de proyecto con espacios y barras, y stack vacío', () => {
-    const v = validarPlantilla(entradaConRepo('TRABAJOS CLIENTES/ONG AGAPE', []));
+    const v = validarPlantilla(entradaConRepo('trabajos cliente/uno dos', []));
     assert.equal(v.ok, true);
   });
   it('rechaza schemaVersion distinta de 1', () => {
@@ -109,8 +109,8 @@ describe('leerPlantilla', () => {
     assert.equal(l.estado, 'invalida');
     if (l.estado === 'invalida') assert.equal(l.motivo, 'JSON no válido');
   });
-  it('ok con la plantilla real y hash de su texto', () => {
-    const l = leerPlantilla(RAIZ_REAL);
+  it('ok con el ejemplo y hash de su texto', () => {
+    const l = leerPlantilla(raizTmp());
     assert.equal(l.estado, 'ok');
     if (l.estado !== 'ok') return;
     assert.equal(l.hash, hashDe(TEXTO_REAL));
@@ -120,7 +120,7 @@ describe('leerPlantilla', () => {
     const destino = raizTmp();
     const raiz = raizTmp(null);
     try {
-      symlinkSync(join(destino, RUTA_PLANTILLA), join(raiz, RUTA_PLANTILLA), 'file');
+      symlinkSync(join(destino, NOMBRE_PLANTILLA), join(raiz, NOMBRE_PLANTILLA), 'file');
     } catch {
       t.skip('sin permiso para crear symlinks en Windows');
       return;
@@ -137,14 +137,14 @@ describe('calcularEdicionPlantilla y guardarEdicionPlantilla', () => {
   });
   it('sin cambios → ok, cambia false y el fichero intacto', () => {
     const r = raizTmp();
-    const antes = readFileSync(join(r, RUTA_PLANTILLA), 'utf8');
+    const antes = readFileSync(join(r, NOMBRE_PLANTILLA), 'utf8');
     const res = guardarEdicionPlantilla(r, hashActual(r), JSON.parse(TEXTO_REAL));
     assert.equal(res.estado, 'ok');
     if (res.estado === 'ok') {
       assert.equal(res.cambia, false);
       assert.equal(res.diff, null);
     }
-    assert.equal(readFileSync(join(r, RUTA_PLANTILLA), 'utf8'), antes);
+    assert.equal(readFileSync(join(r, NOMBRE_PLANTILLA), 'utf8'), antes);
   });
   it('vista previa: el diff empieza en la línea de la última entrada de stackDeProyecto', () => {
     const r = raizTmp();
@@ -152,34 +152,35 @@ describe('calcularEdicionPlantilla y guardarEdicionPlantilla', () => {
     assert.equal(res.estado, 'ok');
     if (res.estado !== 'ok') return;
     assert.equal(res.cambia, true);
-    /* ONG AGAPE es la última clave (línea 31): la nueva entrada gana la coma y una línea. */
-    assert.equal(res.diff?.desde, 31);
+    /* «trabajos cliente/uno dos» es la última clave (línea 17): la nueva entrada
+     * gana la coma y una línea. */
+    assert.equal(res.diff?.desde, 17);
     assert.equal(res.diff?.poner.length, 2);
-    assert.equal(readFileSync(join(r, RUTA_PLANTILLA), 'utf8'), TEXTO_REAL, 'la vista previa no escribe');
+    assert.equal(readFileSync(join(r, NOMBRE_PLANTILLA), 'utf8'), TEXTO_REAL, 'la vista previa no escribe');
   });
   it('escribe el cambio y el hash devuelto coincide con el fichero', () => {
     const r = raizTmp();
     const res = guardarEdicionPlantilla(r, hashActual(r), entradaConRepo('nuevo-repo', ['rust']));
     assert.equal(res.estado, 'ok');
     if (res.estado !== 'ok') return;
-    const leido = readFileSync(join(r, RUTA_PLANTILLA), 'utf8');
+    const leido = readFileSync(join(r, NOMBRE_PLANTILLA), 'utf8');
     assert.ok(leido.includes('"nuevo-repo": ["rust"]'));
     assert.equal(res.hash, hashDe(leido));
     assert.equal(hashActual(r), res.hash);
   });
   it('entrada inválida → error y el fichero intacto', () => {
     const r = raizTmp();
-    const antes = readFileSync(join(r, RUTA_PLANTILLA), 'utf8');
+    const antes = readFileSync(join(r, NOMBRE_PLANTILLA), 'utf8');
     const res = guardarEdicionPlantilla(r, hashActual(r), entradaConRepo('mi-app', ['go']));
     assert.equal(res.estado, 'error');
-    assert.equal(readFileSync(join(r, RUTA_PLANTILLA), 'utf8'), antes);
+    assert.equal(readFileSync(join(r, NOMBRE_PLANTILLA), 'utf8'), antes);
   });
   it('fichero cambiado después de leer → conflicto, sin pisar', () => {
     const r = raizTmp();
     const previo = hashActual(r);
-    writeFileSync(join(r, RUTA_PLANTILLA), TEXTO_REAL.replace('"freebuff-bridge": ["ts"]', '"freebuff-bridge": []'), 'utf8');
+    writeFileSync(join(r, NOMBRE_PLANTILLA), TEXTO_REAL.replace('"app-dos": ["ts"]', '"app-dos": []'), 'utf8');
     const res = guardarEdicionPlantilla(r, previo, entradaConRepo('nuevo-repo', ['rust']));
     assert.equal(res.estado, 'conflicto');
-    assert.ok(readFileSync(join(r, RUTA_PLANTILLA), 'utf8').includes('"freebuff-bridge": []'));
+    assert.ok(readFileSync(join(r, NOMBRE_PLANTILLA), 'utf8').includes('"app-dos": []'));
   });
 });

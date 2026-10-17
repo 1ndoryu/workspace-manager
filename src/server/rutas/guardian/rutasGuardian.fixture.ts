@@ -12,21 +12,21 @@ import { join } from 'node:path';
 import { manejarRutasGuardian } from './rutasGuardian.js';
 import type { DependenciasGuardian } from './rutasGuardianTipos.js';
 import { leerActividad } from '../../guardian/operacion/actividad.js';
-import { RUTA_PLANTILLA } from '../../guardian/configuracion/plantilla.js';
+import { NOMBRE_PLANTILLA } from '../../guardian/configuracion/plantilla.js';
 import type { Proyecto } from '../../../shared/types.js';
 
 const BASE_TMP = 'C:/tmp/guardian-test';
 const temporales: string[] = [];
 
-/* [por que] Área falsa con una copia de la plantilla real: las escrituras de plantilla
- * nunca tocan el área real. Cinco niveles desde guardian/ llegan a la raíz del área. */
-const RAIZ_AREA_FALSA = (() => {
+/* [por que] Config privada falsa con una copia del ejemplo versionado: las escrituras
+ * de plantilla nunca tocan la config real. Cuatro niveles desde guardian/ llegan a la
+ * raíz del repo, donde vive config/ejemplos/. */
+const DIR_CONFIG_FALSO = (() => {
   mkdirSync(BASE_TMP, { recursive: true });
-  const d = mkdtempSync(join(BASE_TMP, 'area-'));
+  const d = mkdtempSync(join(BASE_TMP, 'config-'));
   temporales.push(d);
-  mkdirSync(join(d, '.quality-tools'));
-  const real = readFileSync(join(import.meta.dirname, '..', '..', '..', '..', '..', RUTA_PLANTILLA), 'utf8');
-  writeFileSync(join(d, RUTA_PLANTILLA), real, 'utf8');
+  const ejemplo = join(import.meta.dirname, '..', '..', '..', '..', 'config', 'ejemplos', 'guard-plantillas.example.json');
+  writeFileSync(join(d, NOMBRE_PLANTILLA), readFileSync(ejemplo, 'utf8'), 'utf8');
   return d;
 })();
 
@@ -72,7 +72,7 @@ export function registrar(clave: string, puerta: string, config: string | null):
 }
 
 const deps: DependenciasGuardian = {
-  raizArea: RAIZ_AREA_FALSA,
+  dirConfig: DIR_CONFIG_FALSO,
   proyectos: () => proyectos,
   proyectoPorClave: (clave) => proyectos.find((p) => p.clave === clave) ?? null,
   leerActividad,

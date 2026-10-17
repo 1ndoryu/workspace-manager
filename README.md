@@ -40,6 +40,7 @@ npm ci
 mkdir -p config
 cp config/ejemplos/registro.example.json config/registro.json
 cp config/ejemplos/taller.example.json  config/taller.json
+cp config/ejemplos/guard-plantillas.example.json config/guard-plantillas.json
 
 npm run server   # backend, por defecto en 127.0.0.1:8787
 npm run dev      # front, por defecto en 127.0.0.1:5174
@@ -73,6 +74,7 @@ lista de tus proyectos. Las plantillas con la forma esperada están en
 |---|---|
 | `config/registro.json` | Un registro por proyecto: `id`, `ruta`, puertos, botón, comandos, healthchecks, y si el análisis corre en remoto (`analisisEn`). |
 | `config/taller.json` | El taller remoto: host SSH, directorio base, intérprete de Node, binario de Mutagen, bases de datos y el bloque `devPublico` (zona, cuenta y túnel de Cloudflare) si publicas devs. |
+| `config/guard-plantillas.json` | La plantilla del Guardián: qué listas de comandos añadir a cada proyecto según su stack. La pestaña Guardián la edita. |
 
 Si falta alguna, el proceso que la necesita falla temprano diciéndote de qué
 plantilla copiarla.
