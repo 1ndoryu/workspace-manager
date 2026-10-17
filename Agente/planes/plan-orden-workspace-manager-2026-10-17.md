@@ -326,22 +326,65 @@ hardcodeo, con README; planes terminados y organizados.
 ## Estado
 
 **Cerrado:** A (glory-sentinel `d99f4c5` + pin en 16 manifiestos), B1 (`fa3edc8`, CVSS),
-B2 (`623f56c` en varsense, `cssInline*`), **C (los 14 problemas reales de workspace-manager;
-el tablero pasa de 16 a 2, y los 2 que quedan son el falso positivo de B6)**.
+B2 (`623f56c` en varsense, `cssInline*`), B5, B6 (`70afa7f`), **C (los 14 problemas reales de
+workspace-manager)**, D, E1–E4, F y K1–K2.
 
-**Bloque en curso:** G (planes). **Hecho además:** D, que
+**El tablero de workspace-manager queda a cero** con B6: los dos que quedaban
+(`doctor.test.mjs` 516 y `remoto.test.mjs` 398) eran el falso positivo, ya corregido en la
+regla. No se ocultó ninguno.
+
+**Bloque en curso:** G (planes) y L (documentación viva). **Hecho además:** D, que
 resultó estar casi todo resuelto de antes y se cerró con el audit remoto (`8fdaa9b`), la parte
 de SOLID de E (`403ccdd`, E2 + la disposición del resto en E3), el agnóstico (`c76079e`, E4), el
 rendimiento entero (K1 `e4adf45`: la verificación de alineación, 20,7 s → 10,8 s
 forzado y 13 ms cacheada; K2 `c322e0c`: el escaneo raíz, 8.957 ms → ~2.400 ms), el README
 (`13A-1`, bloque F) y B5 (el artefacto huérfano, fuera del repo).
-**Próximo paso:** los planes (bloque G) y, después, el cierre de los falsos positivos.
-**Falsos positivos pendientes (van al final, por encargo):** B4
-(`tokenDetection.duplicate.excludeTokens`) y B6
-(el `limite-lineas` de los archivos de test, que es lo único que le queda al tablero de
-workspace-manager). **Pendiente de decisión de la usuaria:** J (semántica de `includePatterns`).
+
+**J no era una decisión pendiente: ya estaba implementado.** `patronesDeInclusion`
+(`glory-sentinel/src/core/config.ts:280`) fusiona los defaults dentro de los ámbitos que cada
+ficha declara, con `FAMILIA_DE_EXTENSION` y `prefijoDe`/`conPrefijo`; `buildCoreConfig` lo usa
+en `config.ts:317` y `portableConfig.test.ts:24-38` lo cubre (incluido el caso de ámbito por
+subdirectorio). Lo que faltaba era el texto del plan y del roadmap, no el código.
+
+**Pendiente:** B4 (`tokenDetection.duplicate.excludeTokens`, falso positivo de herramienta),
+H (adoptar el cambio ajeno de navegación), I (RESTAURANTE 259 y KAMPLES 121, con los 7
+`propiedadProhibida` reales), el frente 3 (coherencia con el taller: `modoAnalisisEn` cae a
+local en silencio, `doctorSentinel` no consulta la decisión, binarios sin variable de entorno),
+el frente 8 (SOLID a fondo), el frente 9 (hardcodeo) y el frente 10 (accesibilidad).
 **Pendiente de la usuaria, no del plan:** la licencia del repo (es público y sin licencia los
 derechos quedan reservados por defecto).
+
+### L · Documentación viva: skills, `AGENTS.md` y memorias (encargo de la usuaria, 2026-10-17)
+
+Un cambio que no llega a las skills ni a las memorias se pierde: la próxima sesión vuelve a
+partir de lo viejo y repite el trabajo. Este bloque cierra el plan por abajo, con lo que
+realmente haya quedado desfasado por los bloques A–K, y no por suposición.
+
+**Inventario comprobado (2026-10-17):**
+
+1. **`AGENTS.md` §2, la nota de rutas.** Dice «⚠️ Rutas desfasadas (pendiente de corregir): el
+   refactor en curso las movió a `workspace-manager/config/…`». Ya está hecho:
+   `workspace-manager/config/` contiene `registro.json` y `taller.json`, y `scripts/dev/` no
+   tiene ninguno de los dos. La nota se retira y la ruta canónica se escribe en el cuerpo de §2,
+   que es lo que se lee.
+2. **`~/.agents/skills/workspace-manager/SKILL.md`** cita `scripts/dev/registro.json` y
+   `scripts/dev/taller.json` (verificado por grep). Es la única skill con la ruta vieja; el
+   resto de coincidencias están en `Agente/completados/`, que es historia y no se reescribe.
+3. **Skills del área que citan el pin o la versión de Sentinel** (`sentinel`,
+   `quality-gate-setup`, `taller-remoto`): el pin pasó por `d99f4c5` y `70afa7f`, y la versión
+   por 0.7.25 y 0.7.26. Hay que ver cuáles fijan un commit a mano.
+4. **Las tres copias de skills** (laptop, `dev89:~/taller` y `~/.config/opencode/skills`) van
+   sincronizadas; el tablero avisa si una se queda atrás.
+5. **Memorias** (`~/.claude/projects/…/memory/`): revisar una a una las que hablan de este
+   trabajo y corregir las que ya no sean ciertas, empezando por las del tablero y la caché de
+   análisis.
+6. **`Agente/documentacion/`**: `alta-proyectos-2026-10-11.md` y las que citen el ciclo
+   `gate`/`doctor` o las rutas de config.
+
+**Criterio de cierre:** ninguna fuente viva (skill, `AGENTS.md`, memoria, doc de
+`Agente/documentacion/`) afirma algo que el código desmienta; lo que sea historia se queda como
+está. Se revisa el diff de cada archivo: una memoria no se reescribe por gusto, solo si el dato
+que da ya es falso.
 
 ### B6 · `limite-lineas` sobre archivos de test (falso positivo, al final)
 
