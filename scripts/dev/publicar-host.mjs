@@ -1,6 +1,10 @@
 /* Publica un dev server en `<proyecto>-dev.wandori.us` por el túnel `taller-89-dev`.
  * Por defecto solo lee y muestra el plan. `--aplicar` escribe en Cloudflare y en registro.json.
  *   node scripts/dev/publicar-host.mjs <host> --puerto <n> [--proyecto <id>] [--copiar-acceso <host>] [--aplicar]
+ *   … --repuntar: cambia el destino de un host YA publicado (p. ej. al pasar la ficha a modo build, que
+ *   sirve en otro puerto). Sin la bandera, un host existente con otro destino es un error: publicar dos
+ *   veces el mismo nombre por descuido pisaría lo que ya funciona. No toca DNS ni Access: solo la regla
+ *   de ingress del túnel, y el CNAME ya apunta a él.
  * [por que] Orden al aplicar: Access, ingress, DNS. Así ningún host resuelve antes de tener app de Access
  * (la app nueva sin política deniega todo). Un nivel por host: Universal SSL no cubre `x.dev.wandori.us`.
  * Token fuera del repo: CLOUDFLARE_API_TOKEN o ~/.cloudflare/dev-publico.token. */
@@ -29,8 +33,9 @@ export function validarPuerto(valor) {
   return n;
 }
 
-// Regla nueva antes del catch-all. Misma regla ya presente = nada que hacer; otro destino = conflicto.
-export function planificarIngress(ingress, host, puerto) {
+// Regla nueva antes del catch-all. Misma regla ya presente = nada que hacer; otro destino = conflicto
+// (o repunte, si se pidió con `--repuntar`).
+export function planificarIngress(ingress, host, puerto, { repuntar = false } = {}) {
   const servicio = `http://127.0.0.1:${puerto}`;
   const ajenas = ingress.filter((r) => !r.hostname && r.service !== CATCH_ALL.service);
   if (ajenas.length) throw new Error('el túnel tiene reglas sin hostname distintas del catch-all; no las reescribo');
@@ -38,7 +43,12 @@ export function planificarIngress(ingress, host, puerto) {
   const existente = reglas.find((r) => r.hostname === host);
   if (existente) {
     if (existente.service === servicio) return { accion: 'ya', ingress };
-    throw new Error(`${host} ya apunta a ${existente.service} en el túnel; cámbialo a mano o usa otro host`);
+    if (!repuntar) throw new Error(`${host} ya apunta a ${existente.service} en el túnel; cámbialo a mano o usa otro host (o --repuntar)`);
+    return {
+      accion: 'repuntar',
+      de: existente.service,
+      ingress: reglas.map((r) => (r.hostname === host ? { ...r, service: servicio } : r)).concat(CATCH_ALL),
+    };
   }
   return { accion: 'crear', ingress: [...reglas, { hostname: host, service: servicio }, CATCH_ALL] };
 }
@@ -57,15 +67,34 @@ export function planificarAccess(apps, host) {
   throw new Error(`${host} tiene una app de Access tipo ${app.type}; revísala a mano`);
 }
 
-// Añade un valor a una lista de un proyecto del registro sin reformatear el resto del fichero.
-function anadirALista(bloque, clave, literal) {
-  const re = new RegExp(`"${clave}": \\[([^\\]]*)\\]`);
-  const m = re.exec(bloque);
-  if (!m) throw new Error(`falta "${clave}" en el proyecto del registro; añádelo a mano`);
-  const items = m[1].split(',').map((s) => s.trim()).filter(Boolean);
-  if (items.includes(literal)) return bloque;
-  items.push(literal);
-  return bloque.replace(re, `"${clave}": [${items.join(', ')}]`);
+// Sustituye el ítem i de una lista ya serializada sin tocar su formato (sangrías, saltos de línea):
+// el registro se lee a mano, y colapsar una lista multilínea ensucia el diff de todo el fichero.
+function reemplazarItem(inner, i, valor) {
+  const piezas = inner.split(',');
+  const crudo = piezas[i];
+  piezas[i] = `${/^\s*/.exec(crudo)[0]}${valor}${/\s*$/.exec(crudo)[0]}`;
+  return piezas.join(',');
+}
+
+// `hostsPublicos` y `puertosPublicos` se leen en paralelo (el host i es el del puerto i), así que un
+// host ya declarado **conserva su índice** y lo que cambia es el puerto: al pasar la ficha a modo
+// build el mismo nombre sirve en otro puerto local. Añadirlo al final dejaría el host sin puerto.
+function fijarPuerto(bloque, host, puerto) {
+  const mHosts = /"hostsPublicos": \[([^\]]*)\]/.exec(bloque);
+  if (!mHosts) throw new Error('falta "hostsPublicos" en el proyecto del registro; añádelo a mano');
+  const mPuertos = /"puertosPublicos": \[([^\]]*)\]/.exec(bloque);
+  if (!mPuertos) throw new Error('falta "puertosPublicos" en el proyecto del registro; añádelo a mano');
+  const items = (txt) => txt.split(',').map((s) => s.trim()).filter(Boolean);
+  const hosts = items(mHosts[1]);
+  const i = hosts.indexOf(`"${host}"`);
+  const hostsTxt = i < 0 ? [...hosts, `"${host}"`].join(', ') : mHosts[1];
+  let puertosTxt;
+  if (i < 0) puertosTxt = [...items(mPuertos[1]), String(puerto)].join(', ');
+  else if (i < items(mPuertos[1]).length) puertosTxt = reemplazarItem(mPuertos[1], i, String(puerto));
+  else puertosTxt = `${mPuertos[1].replace(/\s+$/, '')}, ${puerto}`;
+  return bloque
+    .replace(/"hostsPublicos": \[[^\]]*\]/, `"hostsPublicos": [${hostsTxt}]`)
+    .replace(/"puertosPublicos": \[[^\]]*\]/, `"puertosPublicos": [${puertosTxt}]`);
 }
 
 export function actualizarRegistro(texto, proyecto, host, puerto) {
@@ -73,8 +102,7 @@ export function actualizarRegistro(texto, proyecto, host, puerto) {
   if (inicio < 0) throw new Error(`proyecto "${proyecto}" no está en registro.json`);
   const siguiente = texto.indexOf('"id": "', inicio + 1);
   const fin = siguiente < 0 ? texto.length : siguiente;
-  const bloque = anadirALista(anadirALista(texto.slice(inicio, fin), 'hostsPublicos', `"${host}"`), 'puertosPublicos', String(puerto));
-  const nuevo = texto.slice(0, inicio) + bloque + texto.slice(fin);
+  const nuevo = texto.slice(0, inicio) + fijarPuerto(texto.slice(inicio, fin), host, puerto) + texto.slice(fin);
   JSON.parse(nuevo);
   return nuevo;
 }
@@ -101,7 +129,7 @@ async function cf(token, metodo, ruta, cuerpo) {
   return json.result;
 }
 
-const ETIQUETA = { ya: 'ya existe', crear: 'crear' };
+const ETIQUETA = { ya: 'ya existe', crear: 'crear', repuntar: 'repuntar' };
 
 export async function main(argv = process.argv.slice(2), { log = console.log } = {}) {
   const host = validarHost(argv[0]);
@@ -110,6 +138,7 @@ export async function main(argv = process.argv.slice(2), { log = console.log } =
   const proyecto = valorDe('--proyecto', null);
   const referencia = valorDe('--copiar-acceso', 'mn-dev.wandori.us');
   const aplicar = argv.includes('--aplicar');
+  const repuntar = argv.includes('--repuntar');
   const token = leerToken();
 
   const [tunel] = await cf(token, 'GET', `/accounts/${CUENTA}/cfd_tunnel?name=${TUNEL_NOMBRE}&is_deleted=false`);
@@ -119,7 +148,7 @@ export async function main(argv = process.argv.slice(2), { log = console.log } =
   const config = (await cf(token, 'GET', `/accounts/${CUENTA}/cfd_tunnel/${tunel.id}/configurations`)).config;
   const registros = await cf(token, 'GET', `/zones/${zona.id}/dns_records?name=${host}`);
 
-  const ing = planificarIngress(config.ingress ?? [], host, puerto);
+  const ing = planificarIngress(config.ingress ?? [], host, puerto, { repuntar });
   const acc = planificarAccess(apps, host);
   const destino = `${tunel.id}.cfargotunnel.com`;
   const dns = planificarDns(registros, host, destino);
@@ -129,16 +158,16 @@ export async function main(argv = process.argv.slice(2), { log = console.log } =
   if (proyecto) {
     const actual = readFileSync(REGISTRO, 'utf8');
     registroTexto = actualizarRegistro(actual, proyecto, host, puerto);
-    reg = { accion: registroTexto === actual ? 'ya' : 'crear' };
+    reg = { accion: registroTexto === actual ? 'ya' : actual.includes(`"${host}"`) ? 'repuntar' : 'crear' };
   }
 
   log(`Host ${host} → http://127.0.0.1:${puerto} (túnel ${TUNEL_NOMBRE})`);
   log(`  1. Access app      : ${ETIQUETA[acc.accion]} (política copiada de ${referencia})`);
-  log(`  2. Ingress         : ${ETIQUETA[ing.accion]}`);
+  log(`  2. Ingress         : ${ETIQUETA[ing.accion]}${ing.accion === 'repuntar' ? ` (${ing.de} → http://127.0.0.1:${puerto})` : ''}`);
   log(`  3. DNS CNAME       : ${ETIQUETA[dns.accion]} → ${destino} (proxied)`);
   log(`  4. registro.json   : ${reg.accion === 'omitido' ? 'omitido (sin --proyecto)' : ETIQUETA[reg.accion]}`);
 
-  const pendiente = [acc, ing, dns, reg].some((p) => p.accion === 'crear');
+  const pendiente = [acc, ing, dns, reg].some((p) => p.accion === 'crear' || p.accion === 'repuntar');
   if (!aplicar) {
     log(pendiente
       ? `Simulación: no se ha cambiado nada. Para aplicar: añade --aplicar (cambia DNS; avisar a la usuaria antes).`
@@ -162,21 +191,21 @@ export async function main(argv = process.argv.slice(2), { log = console.log } =
     });
     log(`✓ Access app ${host} creada con política allow`);
   }
-  if (ing.accion === 'crear') {
+  if (ing.accion === 'crear' || ing.accion === 'repuntar') {
     await cf(token, 'PUT', `/accounts/${CUENTA}/cfd_tunnel/${tunel.id}/configurations`, {
       config: { ...config, ingress: ing.ingress },
     });
-    log(`✓ Ingress: regla ${host} añadida`);
+    log(ing.accion === 'crear' ? `✓ Ingress: regla ${host} añadida` : `✓ Ingress: ${host} ${ing.de} → http://127.0.0.1:${puerto}`);
   }
   if (dns.accion === 'crear') {
     await cf(token, 'POST', `/zones/${zona.id}/dns_records`, { type: 'CNAME', name: host, content: destino, proxied: true, ttl: 1 });
     log(`✓ DNS: CNAME ${host} creado`);
   }
-  if (registroTexto && reg.accion === 'crear') {
+  if (registroTexto && reg.accion !== 'ya') {
     const tmp = `${REGISTRO}.tmp`;
     writeFileSync(tmp, registroTexto);
     renameSync(tmp, REGISTRO);
-    log(`✓ registro.json: ${host} en ${proyecto}`);
+    log(`✓ registro.json: ${host} → puerto ${puerto} en ${proyecto}`);
   }
 }
 
