@@ -11,8 +11,7 @@ import { campoStr, json, leerArchivo, leerBody } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
 import { ARCHIVOS_GATE, doctorSentinel } from '../scanner/gate.js';
 import { esquemaGate, reglasGate } from '../gate/proveedor.js';
-import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
-import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
+import { esquemaPorArchivo } from '../../shared/gate/esquemas.js';
 import { diagnosticar, rutaEtiqueta, severidadDe } from '../../shared/gate/esquema.js';
 import { correrSincronizacion } from '../gate/sincronizacion.js';
 import { analizarParaGate, analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from '../gate/analizador.js';
@@ -89,11 +88,7 @@ export async function manejarRutasGate(
         json(res, 422, { error: 'JSON invalido', detalle: 'el contenido no es JSON valido' });
         return true;
       }
-      const esquema = nombre === 'sentinel.config.json'
-        ? ESQUEMA_SENTINEL()
-        : nombre === 'varsense.config.json'
-          ? ESQUEMA_VARSENSE()
-          : null;
+      const esquema = esquemaPorArchivo(nombre) ?? null;
       const avisos = esquema
         ? diagnosticar(esquema, valor)
           .map((f) => ({ ruta: rutaEtiqueta(f.ruta), severidad: severidadDe(f) }))
@@ -174,7 +169,7 @@ export async function manejarRutasGate(
       tool,
       metadatos: r.metadatos,
       esquema: JSON.parse(r.esquemaText) as unknown,
-      reglas: r.metadatos.tipo === 'sentinel' ? reglasGate().reglas : [],
+      reglas: r.reglas,
       totalReglas: r.totalReglas,
     });
     return true;

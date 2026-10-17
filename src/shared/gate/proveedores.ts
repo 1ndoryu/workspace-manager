@@ -21,12 +21,16 @@ export interface ProveedorGate {
   tipo: TipoGate;
   /* Esquema canonico de la config de la herramienta (dirigido por datos). */
   esquema(): NodoEsquema;
-  /* Reglas vivas o estaticas segun el proveedor. [por que] sentinel tiene
-   * runtime instalado (reglas reales); varsense todavia no (catalogo vacio o
-   * curado). El editor no distingue: consume lo que devuelve el proveedor. */
-  reglas(): ReglaCatalogo[];
-  /* Version del runtime CONTRA EL QUE se curo el esquema. */
-  versionReferencia(): string;
+  /* Reglas vivas o estaticas segun el proveedor. [por que] OPCIONAL: varsense no
+   * tiene catalogo de reglas propio. Mientras fue obligatorio lo implementaba con
+   * un degenerado (`[]`) y el cliente se lo saltaba ramificando por tipo
+   * (`tipo === 'sentinel' ? reglasGate().reglas : []`): el contrato no era
+   * sustituible. Un proveedor sin reglas simplemente no las declara, y quien
+   * consume no distingue uno de otro. */
+  reglas?(): ReglaCatalogo[];
+  /* Version del runtime CONTRA EL QUE se curo el esquema. Opcional por lo mismo:
+   * varsense la cumplia con `'—'`, que es un valor que no significa nada. */
+  versionReferencia?(): string;
   /* Version REAL detectada en el sistema, o null si no hay runtime. */
   runtimeInstalado(): string | null;
   /* Fuente de la resolucion (para mostrarla en la UI y en la consola). */
@@ -51,10 +55,12 @@ export function tiposDeGate(): TipoGate[] {
 }
 
 /* Metadata de resolucion de un proveedor (lo que sirve la API y muestra la UI):
- * version de referencia (curación), version real del runtime y fuente. */
+ * version de referencia (curación), version real del runtime y fuente.
+ * `versionReferencia` es null cuando el proveedor no la declara (varsense): null
+ * es "no aplica", que es distinto de una cadena inventada como `'—'`. */
 export interface MetadatosGate {
   tipo: TipoGate;
-  versionReferencia: string;
+  versionReferencia: string | null;
   runtimeInstalado: string | null;
   fuente: 'runtime' | 'estatica';
 }

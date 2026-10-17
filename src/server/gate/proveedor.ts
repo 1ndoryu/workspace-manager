@@ -317,8 +317,11 @@ export function versionVarsense(): string | null {
 registrarProveedor({
   tipo: 'varsense',
   esquema: (): NodoEsquema => ESQUEMA_VARSENSE(),
-  reglas: (): ReglaCatalogo[] => [],
-  versionReferencia: (): string => '—',
+  /* [por que] varsense no declara `reglas` ni `versionReferencia`: no tiene
+   * catalogo de reglas propio ni version de curación del esquema. Antes los
+   * cumplia con degenerados (`[]` y `'—'`), y eso obligaba al cliente a
+   * ramificar por tipo para no pintar un catalogo vacio. Un proveedor que no
+   * las tiene, no las declara (ver ProveedorGate). */
   runtimeInstalado: (): string | null => versionVarsense(),
   fuente: (): 'runtime' | 'estatica' => (versionVarsense() ? 'runtime' : 'estatica'),
 });
@@ -328,18 +331,22 @@ registrarProveedor({
  * refs) y nunca toca el JSON real de ningun proyecto. */
 export function esquemaGate(
   tool: TipoGate,
-): { metadatos: MetadatosGate; esquemaText: string; totalReglas: number } | null {
+): { metadatos: MetadatosGate; esquemaText: string; totalReglas: number; reglas: ReglaCatalogo[] } | null {
   const prov = proveedorDe(tool);
   if (!prov) return null;
-  const reglas = prov.reglas();
+  /* [por que] El proveedor es la unica autoridad sobre sus reglas: si no las
+   * declara, son cero. Devolverlas aqui es lo que permite al cliente pintarlas
+   * sin preguntar de que herramienta se trata (antes ramificaba por tipo). */
+  const reglas = prov.reglas?.() ?? [];
   return {
     metadatos: {
       tipo: prov.tipo,
-      versionReferencia: prov.versionReferencia(),
+      versionReferencia: prov.versionReferencia?.() ?? null,
       runtimeInstalado: prov.runtimeInstalado(),
       fuente: prov.fuente(),
     },
     esquemaText: serializarEsquema(prov.esquema()),
     totalReglas: reglas.length,
+    reglas,
   };
 }

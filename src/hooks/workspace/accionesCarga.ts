@@ -10,8 +10,7 @@ import type { TipoGate } from '../../shared/gate/proveedores.js';
 import type { AccionesCarga, EstadoWorkspace } from './tipos.js';
 import { logger } from '../../shared/logger.js';
 import { deserializarEsquema } from '../../shared/gate/serial.js';
-import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
-import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
+import { esquemaPorTipo } from '../../shared/gate/esquemas.js';
 
 type Set = StoreApi<EstadoWorkspace>['setState'];
 type Get = StoreApi<EstadoWorkspace>['getState'];
@@ -67,8 +66,7 @@ export function crearAccionesCarga(set: Set, get: Get): AccionesCarga {
     cargarEsquema: async (tool) => {
       const ya = get().esquemas[tool];
       if (ya) return ya;
-      const estatico = (t: TipoGate): NodoEsquema | undefined =>
-        t === 'sentinel' ? ESQUEMA_SENTINEL() : t === 'varsense' ? ESQUEMA_VARSENSE() : undefined;
+      const estatico = (t: TipoGate): NodoEsquema | undefined => esquemaPorTipo(t);
       try {
         const { data } = await axios.get<{ esquema: unknown }>(
           `/api/gate/dinamico?tool=${encodeURIComponent(tool)}`,
