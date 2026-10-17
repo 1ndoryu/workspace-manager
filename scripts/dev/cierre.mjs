@@ -156,7 +156,7 @@ export async function comprobarGate(id) {
     );
   } catch (e) {
     if (/no usa sentinel/.test(e?.message ?? '')) return omitida('gate-cierre', 'proyecto sin sentinel');
-    return fallo('gate-cierre', e?.message ?? String(e), 'arranca el tablero: Arranque up "workspace-manager"');
+    return fallo('gate-cierre', e?.message ?? String(e), 'arranca el tablero: Arranque up "<id del manager>"');
   }
 }
 
