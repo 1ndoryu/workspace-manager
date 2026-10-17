@@ -317,7 +317,7 @@ rutas son **relativas** (`frontend/dist`): el comando corre con `cwd` = la répl
 |---|---|---|---|---|
 | KAMPLES | `STATIC_DIR` | **`/`** | 3001 | — |
 | NAKOMI | `STATIC_DIR` | relativo (`''`) | 3103 | no heredar `env.VITE_API_URL` |
-| PROYECTO TASKS | `FRONTEND_DIST` | **`/`** | 4190 | no heredar `VITE_API_PROXY_TARGET` |
+| PROYECTO TASKS | `FRONTEND_DIST` | **`/`** | 4190 | no heredar `VITE_API_PROXY_TARGET`; **`base: '/'` en el vite** (con `'./'` las rutas de cliente anidadas resolvían los assets contra su directorio y la página salía en blanco) |
 | WANDORIUS | `FRONTEND_DIST` | relativo (`''`) | 3104 | **router**: no sirve estático (F4) |
 | RESTAURANTE | `STATIC_DIR` | relativo (`''`) | 3105 | ingress `rest-dev` 5182 → 3105 |
 | MN-Inmobiliaria | `STATIC_DIR` | relativo (`''`) | 3110 + **20241** (conector) | **front**: fallback a `localhost` (F5); ingress `mn-dev` 5199 → 3110 |
@@ -393,54 +393,54 @@ mejora por esto**: la ganancia es toda de RAM. `npm ci`, la BD, el túnel SSH, `
 
 ## 5. Fases de `16AA-18`
 
-**F0 — Base.** Registrar `16AA-18` en `roadmap.md`; `Arranque gate "workspace-manager" --inicio`.
+**F0 — Base.** ✅ 2026-10-17 Registrar `16AA-18` en `roadmap.md`; `Arranque gate "workspace-manager" --inicio`.
 
-**F1 — Contrato del modo, sin cambiar comportamiento.** `modo` (defecto `dev`) y bloque `build` en
+**F1 — Contrato del modo, sin cambiar comportamiento.** ✅ 2026-10-17 `modo` (defecto `dev`) y bloque `build` en
 la ficha; validación del bloque del modo efectivo en `validarHostRemoto`; `marcador` en `healths`;
 las tres claves nuevas en `conocidas`; tests en `scripts/dev/remoto.test.mjs`.
 *DoD:* `node --test "scripts/**/*.test.mjs"` en verde; **ninguna ficha existente cambia de
 comportamiento**.
 
-**F2 — `remoto.mjs`.** `up` en build: borra `frontend/.env.local`, ejecuta `construirFront` tras
+**F2 — `remoto.mjs`.** ✅ 2026-10-17 `up` en build: borra `frontend/.env.local`, ejecuta `construirFront` tras
 `precompilar` y antes de arrancar; aborta si falla o si falta `dist`; no inyecta `entrada.env` ni
 `VITE_DEV_*`/`VITE_DEMO_*`; la rama `ya-arriba` también reconstruye.
 *DoD:* tests de los cinco casos (build ok, build falla, falta `dist`, `ya-arriba` reconstruye, dev
 no cambia) en verde.
 
-**F3 — `Arranque`.** `up --dev` / `up --build` como override de sesión; `status`/`logs`/`open`
+**F3 — `Arranque`.** ✅ 2026-10-17 `up --dev` / `up --build` como override de sesión; `status`/`logs`/`open`
 coherentes con menos puertos.
 *DoD:* la ayuda de `dev.mjs` documenta las banderas; `--dev` sobre una ficha en build levanta los
 dos puertos de hoy.
 
-**F4 — WANDORIUS sirve estático.** Enganchar `frontend_dist` al router; tests del proyecto; gate
+**F4 — WANDORIUS sirve estático.** ✅ 2026-10-17 Enganchar `frontend_dist` al router; tests del proyecto; gate
 `--inicio`/`--cierre`; commit en WANDORIUS.
 *DoD:* `GET /` devuelve el `index.html` de la SPA y una ruta anidada también; gate sin hallazgos
 nuevos.
 
-**F5 — MN sirve su API en build.** Fallback del front a relativo; gate `--inicio`/`--cierre`;
+**F5 — MN sirve su API en build.** ✅ 2026-10-17 Fallback del front a relativo; gate `--inicio`/`--cierre`;
 commit en MN-Inmobiliaria.
 *DoD:* con `VITE_API_URL` vacío el front llama a `/api/...` del mismo origen; gate sin hallazgos
 nuevos.
 
-**F6 — Alta de las seis en modo build.** Fichas (bloque `build` + `modo`), `Arranque up` de cada
+**F6 — Alta de las seis en modo build.** ✅ 2026-10-17 Fichas (bloque `build` + `modo`), `Arranque up` de cada
 una, verificación real de `/` **y de una ruta anidada** (200 y el marcador), y medida de RAM con
 las seis arriba.
 *DoD:* las seis arrancan y sirven su SPA; `cm-heavy true` sale 0 con las seis arriba; consumen
 menos que el baseline de hoy con dos.
 
-**F7 — Camino público.** `mn-dev.wandori.us` → `:3110` y `rest-dev.wandori.us` → `:3105` con
+**F7 — Camino público.** ✅ 2026-10-17 `mn-dev.wandori.us` → `:3110` y `rest-dev.wandori.us` → `:3105` con
 `publicar-host.mjs … --aplicar` (dry-run primero); `PUBLIC_BASE_URL` de MN sin `/rust`.
 *DoD:* las dos URLs cargan la SPA tras el login de Access y su API responde por el mismo origen.
 
-**F8 — Invertir el defecto.** `modo` ausente pasa a `build`; test que fija la semántica.
+**F8 — Invertir el defecto.** ✅ 2026-10-17 `modo` ausente pasa a `build`; test que fija la semántica.
 *DoD:* `up` de una ficha sin `modo` levanta en build.
 
-**F9 — Reglas, docs y cierre.** AGENTS §2 y §12; `taller-remoto-vps89-2026-10-14.md`;
+**F9 — Reglas, docs y cierre.** ✅ 2026-10-17 AGENTS §2 y §12; `taller-remoto-vps89-2026-10-14.md`;
 `historial-agents-md.md`; `AGENTS.md` sincronizado a la 89; `Arranque gate --cierre`; `Arranque
 cierre --tarea 16AA-18`; entrada en `Agente/completados/tareas-2026-10-17.md`.
 *DoD:* un agente que lea solo AGENTS sabe que el defecto es build, cómo pedir dev y por qué.
 
-**F10 — Coherencia de las skills con el taller real (pedido por la usuaria el 2026-10-17).**
+**F10 — Coherencia de las skills con el taller real (pedido por la usuaria el 2026-10-17).** ✅ 2026-10-17
 Repaso de **todas** las skills del índice de AGENTS §11 (`supervisor`, `supervisor-thinking`,
 `supervisor-review`, `code-analysis`, `taller-remoto`, `coolify-deployment`, `coolify-manager`,
 `workspace-manager`, `build-artefactos`, `sentinel`, `sentinel-inspection`, `sentinel-repair`,
@@ -456,6 +456,46 @@ por bueno «porque suena bien». Se corrigen las que estén mal, se anota lo dud
 las copias laptop ↔ 89 (AGENTS §11).
 *DoD:* tabla de las 22 skills con veredicto (correcta / corregida / obsoleta y por qué); las
 correcciones aplicadas en las dos copias; y ninguna skill afirmando algo que el taller ya no hace.
+
+#### F10 — Veredicto de las 22 skills (2026-10-17)
+
+Cómo se comprobó: por cada skill se listaron sus afirmaciones operativas (comandos, rutas, puertos,
+umbrales) y se contrastaron con la fuente real —`dev.mjs`, `remoto.mjs`, `registro.json`,
+`taller.json`, el wrapper del binario y los docs del taller—. Después se barrió el índice entero con
+`grep` por las clases de afirmación que este plan invalida (modo `dev`/`build` por defecto, ruta del
+binario de `coolify-manager`, sesiones de Mutagen, puertos de MN, toolchain de Rust del laptop): los
+resultados vacíos son el testigo de que no queda ninguna otra. Las ocho corregidas se aplicaron en
+las dos copias y se verificaron por `md5sum` (22/22 idénticas).
+
+| Skill | Veredicto | Por qué |
+|---|---|---|
+| `supervisor` | correcta | Sin afirmaciones del taller; lo operativo es conducta del agente. |
+| `supervisor-thinking` | correcta | Igual: método, no taller. |
+| `supervisor-review` | correcta | Igual. |
+| `code-analysis` | correcta | Sin referencias operativas al taller. |
+| `taller-remoto` | **corregida** | Tres cosas: las sesiones de Mutagen eran dos (hoy una por proyecto, seis, más `taller-opencode-4096`); **no mencionaba el modo `build` por defecto ni `--dev`**, siendo la skill del taller; y el `exit 75` solo citaba el disco (hoy también el suelo de RAM, `MIN_MB=4608`). Se añadió `--repuntar` al pasar una ficha a `build`. |
+| `coolify-deployment` | **corregida** | Afirmaba un binario en `C:\tmp\glory-target\coolify-manager\release\` (inexistente) y una «excepción a Rust en la 89» con `cargo build --release` en el laptop: el laptop no tiene toolchain desde el 2026-10-16. Ahora: binario `C:\Users\usuario\bin\coolify-manager.exe`, reconstrucción por `workspace-manager\scripts\actualizar-coolify-manager.ps1` (compila en la 89 con `cargo-xwin`). |
+| `coolify-manager` | **corregida** | Cinco puntos con la ruta vieja: el diagrama, el «path absoluto universal», la sección de workspace y compilación, el atajo `cm` y las referencias. Mismo error de fondo que `coolify-deployment`: la herramienta **se ejecuta** en el laptop pero **compila** en la 89. |
+| `workspace-manager` | **corregida** | Describía `Arranque up` sin decir que el modo por defecto es `build` ni que existe `--dev`: es la skill del mando, así que la omisión es la trampa. Se añadió, con `Arranque status`/`comandos` para leer el modo efectivo. |
+| `build-artefactos` | correcta | Sin referencias operativas al taller. |
+| `sentinel` | correcta | El gate y sus comandos siguen siendo los mismos; no afirma nada del modo. |
+| `sentinel-inspection` | correcta | Igual. |
+| `sentinel-repair` | correcta | Igual. |
+| `varsense` | correcta | Igual. |
+| `quality-gate-setup` | correcta | Documenta el tooling de calidad **del proyecto** (`npm run quality:*`), no el taller: no contradice nada. No dice dónde corre `cargo`; eso lo manda AGENTS §2. |
+| `lab-opencode` | correcta | Habla de la lab y de `opencode-propio`, que no cambian. |
+| `pc-control` | correcta | Sin referencias operativas al taller. |
+| `glory-pulse-ops` | **corregida** | Mandaba usar `C:\tmp\glory-target\coolify-manager\debug\coolify-manager.exe` «porque el de `C:\Users\usuario\bin\` no tiene el molde rust-image»: ese directorio ya no existe y el molde (`config/templates/rust-image-stack.yaml`) se resuelve desde la ruta de `-c`, no vive en el binario. Se pasó al canónico, comprobado con `health -n pulse` (http_ok/app_ok). Queda anotado comprobar que el molde se comporta igual que con el build viejo. |
+| `google-auth-glory` | correcta | Sin relación con el taller. |
+| `pdf-academico` | correcta | Sin relación con el taller. |
+| `conducta-global` | **corregida** | Terminaba en un encabezado colgando —«COPIAR Y PEGAR REGLAS Y USO DE SKILLS EN LOS AGENTS.MD GENERADOS»— sin cuerpo: choca con que hay un único `AGENTS.md` del área y está prohibido crear uno por proyecto. Se sustituyó por la regla vigente. |
+| `publicar-inmuebles` | **corregida** | El panel de mejora llega a `/api/mejora` por el proxy de Vite: eso es modo `dev`. En `build` —el defecto— el front lo sirve el backend Rust en `:3110`, que no tiene esa ruta, así que el túnel inverso al 3122 tampoco sirve. Se documentó la limitación y la salida (`up --dev`, o darle al Rust un proxy al 3122: pendiente en el roadmap de MN). |
+| `whatsapp-gateway` | **corregida** | La lista de puertos daba `:5199` como «front dev» sin más; ahora dice que solo existe con `--dev` y que `:3110` sirve también el front compilado. |
+
+**Fuera de estas 22:** la afirmación de `publicar-inmuebles` sobre el panel de mejora destapó un
+hueco de producto, no de skill: en modo `build` el panel no tiene backend. Va al roadmap de
+MN-Inmobiliaria (proxy `/api/mejora` → `127.0.0.1:3122` en el Rust, o levantar MN con `--dev` para
+usarlo), no a este plan.
 
 ## 6. Riesgos de `16AA-18`
 
@@ -606,12 +646,30 @@ de 05AA-1 (`[profile.dev]` adelgazado) sigue siendo el sitio donde decidirlo si 
 - [ ] Entrada en `Agente/completados/tareas-2026-10-17.md`; roadmap y doc del taller al día.
 
 ### F1–F9 — modo build
-- [ ] **F1** contrato del modo (`modo`, `build`, `marcador`, `conocidas`) + tests.
-- [ ] **F2** `remoto.mjs` (borra `.env.local`, `construirFront`, `ya-arriba`, sin heredar `env`) + tests.
-- [ ] **F3** banderas `--dev` / `--build` en `Arranque up`.
-- [ ] **F4** WANDORIUS sirve estático + gate + commit.
-- [ ] **F5** MN fallback relativo + gate + commit.
-- [ ] **F6** las seis fichas en build; `up` y verificación de `/` y ruta anidada; medida de RAM.
-- [ ] **F7** ingress `mn-dev` → 3110 y `rest-dev` → 3105 (dry-run, luego `--aplicar`); `PUBLIC_BASE_URL` sin `/rust`.
-- [ ] **F8** invertir el defecto a `build`.
-- [ ] **F9** docs, AGENTS, `Arranque cierre --tarea 16AA-18`.
+- [x] **F1** contrato del modo (`modo`, `build`, `marcador`, `conocidas`) + tests.
+- [x] **F2** `remoto.mjs` (borra `.env.local`, `construirFront`, `ya-arriba`, sin heredar `env`) + tests.
+- [x] **F3** banderas `--dev` / `--build` en `Arranque up`.
+- [x] **F4** WANDORIUS sirve estático + gate + commit.
+- [x] **F5** MN fallback relativo + gate + commit.
+- [x] **F6** las seis fichas en build; `up` y verificación de `/` y ruta anidada; medida de RAM.
+- [x] **F7** ingress `mn-dev` → 3110 y `rest-dev` → 3105 (dry-run, luego `--aplicar`); `PUBLIC_BASE_URL` sin `/rust`.
+- [x] **F8** invertir el defecto a `build`.
+- [x] **F9** docs, AGENTS, `Arranque cierre --tarea 16AA-18`.
+- [x] **F10** repaso de las 22 skills del índice (AGENTS §11): 8 corregidas, 14 correctas; tabla de
+  veredicto abajo y las dos copias (laptop y 89) idénticas por `md5sum`.
+
+**Lo que apareció al ejecutar y no estaba en el plan** (commits `543e6bb`, `0cedf8f`, `8ace145`
+en `workspace-manager` y `0fb5dc3` en PROYECTO TASKS):
+
+- **`publicar-host.mjs` no sabía mover un host ya publicado** y el cambio de modo lo necesita (el
+  mismo `mn-dev` pasa de 5199 a 3110). Se añadió `--repuntar`, explícito, porque sin bandera un
+  host con otro destino debe seguir siendo un error.
+- **El cambio de modo dejaba huérfanos**: la sesión tmux del modo que se deja seguía viva (se
+  nombran por puerto) y el túnel ssh viejo tiene un reenvío de más, así que `tunelEsNuestro` lo
+  rechazaba — y rechazarlo no lo mata, con lo que ocupaba el puerto local que el `up` nuevo
+  necesitaba. Y `stop` solo barría si el modo efectivo usaba túnel: al publicar MN por Cloudflare
+  (`tunelSsh: false`) sus dos ssh de dev quedaban invisibles ocupando 3110 y 5199.
+- **PROYECTO TASKS necesitaba `base: '/'` en el vite**: con `'./'`, una ruta de cliente anidada
+  resolvía los assets contra su directorio, el SPA fallback devolvía el HTML con 200 y la página
+  salía en blanco sin error de red.
+- **MN servía 404 en `/`**: al binario le faltaba `STATIC_DIR=frontend/dist` en el `boton` de build.
