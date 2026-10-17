@@ -9,20 +9,23 @@ Escanea esa carpeta y reúne, en una sola interfaz web:
 - **Repos**: ramas, cambios sin commitear, sincronización.
 - **Documentos**: `AGENTS.md`, `roadmap.md` y los planes de cada proyecto.
 - **Tareas**: la cola de trabajo en curso.
-- **Calidad**: hallazgos de Sentinel y VarSense por proyecto, con línea base y
+- **Sentinel**: hallazgos de Sentinel y VarSense por proyecto, con línea base y
   comparación entre cierres.
 - **Guardián**: política de comandos permitidos y plantillas por stack.
 - **Consola**: problemas agregados de todo el área.
 - **PC** y **VPS**: estado de la máquina local y de los servidores declarados.
 - **Taller**: arranque, parada y logs de los proyectos en un servidor remoto.
+- **Navegador**: los devs publicados, dentro del propio tablero.
+- **Config**: editor de la config privada, con esquema.
 
-Todo es local: el manager corre en tu máquina, no manda nada a ningún servicio.
+Todo corre en tu máquina y no habla con ningún servicio de terceros: lo único
+que sale de ella es lo que tú declares en `config/taller.json`, por SSH, hacia un
+servidor tuyo.
 
 ## Requisitos
 
-- **Node.js 24 o superior.** No hay `engines` en `package.json`: es el mínimo
-  probado. Con versiones anteriores algunos módulos (`import.meta.dirname`) no
-  existen.
+- **Node.js 24 o superior** (`engines` en `package.json`). Con versiones
+  anteriores algunos módulos (`import.meta.dirname`) no existen.
 - Las dependencias npm (`npm ci`).
 
 Nada más es obligatorio. Todo lo demás es opcional y, si falta, el manager
@@ -38,15 +41,17 @@ npm ci
 
 # Plantillas de la config privada: cópialas y ajústalas a tu máquina.
 mkdir -p config
-cp config/ejemplos/registro.example.json config/registro.json
-cp config/ejemplos/taller.example.json  config/taller.json
-cp config/ejemplos/guard-plantillas.example.json config/guard-plantillas.json
+cp config/ejemplos/area.example.json                 config/area.json
+cp config/ejemplos/registro.example.json             config/registro.json
+cp config/ejemplos/taller.example.json               config/taller.json
+cp config/ejemplos/guard-plantillas.example.json     config/guard-plantillas.json
+cp config/ejemplos/quality-consumidores.example.json config/quality-consumidores.json
 
 npm run server   # backend, por defecto en 127.0.0.1:8787
-npm run dev      # front, por defecto en 127.0.0.1:5174
+npm run dev      # front, por defecto en 127.0.0.1:5175
 ```
 
-Abre `http://127.0.0.1:5174`. El front hace proxy de `/api` al backend e inyecta
+Abre `http://127.0.0.1:5175`. El front hace proxy de `/api` al backend e inyecta
 el token de portador en el proxy, así que el navegador nunca lo ve.
 
 El manager asume que vive **dentro** del área: la carpeta que lo contiene es el
@@ -75,9 +80,13 @@ lista de tus proyectos. Las plantillas con la forma esperada están en
 | `config/registro.json` | Un registro por proyecto: `id`, `ruta`, puertos, botón, comandos, healthchecks, y si el análisis corre en remoto (`analisisEn`). |
 | `config/taller.json` | El taller remoto: host SSH, directorio base, intérprete de Node, binario de Mutagen, bases de datos y el bloque `devPublico` (zona, cuenta y túnel de Cloudflare) si publicas devs. |
 | `config/guard-plantillas.json` | La plantilla del Guardián: qué listas de comandos añadir a cada proyecto según su stack. La pestaña Guardián la edita. |
+| `config/area.json` | Los papeles del área: qué proyecto hace de motor de calidad, gestor de despliegues y limpiador, y quién queda fuera del bump. |
+| `config/quality-consumidores.json` | A qué proyectos se propagan los cambios de las herramientas de calidad. |
+| `config/quality-excepciones.json` | Excepciones de calidad aceptadas a mano, por regla y ubicación. Lo escribe el flujo de auditoría; no hay plantilla. |
 
 Si falta alguna, el proceso que la necesita falla temprano diciéndote de qué
-plantilla copiarla.
+plantilla copiarla. Cada papel de `area.json` que falte **desactiva solo su
+función** y lo dice con el remedio; nada más se rompe.
 
 ### Versionada
 
@@ -86,14 +95,21 @@ plantilla copiarla.
 | `sentinel.config.json`, `varsense.config.json` | Reglas y alcance de las dos herramientas de calidad. |
 | `quality-tools.json` | De dónde se provisionan Sentinel y VarSense y en qué commit. |
 | `sentinel.lock.json` | Huella del runtime de calidad en uso. |
-| `excepciones-varsense.json` | Excepciones puntuales por proyecto. |
 
 ### Estado
 
-- `<área>/data/workspace.config.json`: proyectos ignorados, exentos de gate y
-  el escaneo automático. Lo escribe la propia aplicación; vive fuera del repo.
-- `data/cache/analisis.json` (dentro del repo, ignorado): caché de los
-  análisis. Borrarla solo cuesta volver a analizar.
+Nada de esto vive dentro del repo: todo cuelga de `<área>/data/`, que es lo que
+hace que el repo se pueda publicar tal cual.
+
+- `data/workspace.config.json`: proyectos ignorados, exentos de gate y el
+  escaneo automático. Lo escribe la propia aplicación.
+- `data/cache/workspace.json`: el último escaneo del área, para arrancar sin
+  volver a recorrerla.
+- `data/cache/analisis.json`: la caché de los análisis, por proyecto.
+
+Las dos cachés son descartables: borrarlas solo cuesta volver a escanear y
+analizar. Ninguna de las dos se sirve nunca si el dato dejó de ser fresco
+(rama, commit o versión de la herramienta cambiados).
 
 ### Variables de entorno
 
@@ -103,13 +119,18 @@ plantilla copiarla.
 | `WS_CONFIG_ROOT` | Dónde está la config privada. Por defecto, `config/` dentro del repo. |
 | `WS_SKILLS_ROOT` | Carpeta de skills del agente. Por defecto, `~/.agents/skills`. |
 | `WS_PORT` | Puerto del backend. Por defecto, `8787`. |
-| `VITE_PORT`, `VITE_HOST`, `VITE_API_PROXY_TARGET` | Puerto, interfaz y destino del front de desarrollo. |
+| `WS_WEB_PORT` | Puerto del front del tablero. Por defecto, `5175`. |
+| `WS_PREVIEW_PORT` | Puerto de `vite preview`. Por defecto, `4173`. |
+| `WS_OPENCODE_PORT` | Puerto de opencode-propio (ajeno, pero hay que conocerlo para no matarlo nunca). Por defecto, `5174`. |
+| `WS_NOMBRE` | Nombre del tablero. Por defecto, el nombre de la carpeta del repo. |
+| `WM_TMP` | Carpeta de temporales. Por defecto, `C:/tmp` en Windows y `~/tmp` en Linux. |
 | `WM_TOKEN`, `WM_TOKEN_FILE` | Token de portador (ver arriba). |
+| `VITE_PORT`, `VITE_HOST`, `VITE_API_PROXY_TARGET` | Puerto, interfaz y destino del front de desarrollo. Pisan a `WS_WEB_PORT`. |
 
 ## Uso
 
-El mando tiene dos formas. La comodidad es un lanzador corto (`Arranque` en el
-PATH) que reenvía a este script; sin él, se llama directo:
+Todo el mando es un solo script, y se llama directo (si tienes un lanzador corto
+en el PATH que lo reenvíe, es lo mismo):
 
 ```bash
 node scripts/dev/dev.mjs <subcomando> [args]
@@ -143,8 +164,10 @@ la propia máquina. Lo que se degrada es lo que necesita el servidor —arrancar
 proyectos allí, sincronizar árboles, compilar— y el manager lo dice en la
 interfaz en vez de fallar en silencio.
 
-Para activarlo, rellena `config/taller.json` y marca `analisisEn: "dev89"` (o
-el nombre de tu host) en los proyectos del registro que deban analizarse allí.
+Para activarlo basta con rellenar `config/taller.json`: de ahí salen el host, el
+directorio base y **dónde se analiza** cada proyecto (`modoPorDefecto`, `remoto`
+por defecto). En `config/registro.json` solo hace falta `analisisEn` para el
+proyecto que deba ir contra corriente.
 
 ## Pruebas
 
@@ -168,8 +191,8 @@ npx tsx --test "src/**/*.test.ts"
 src/
   server/     backend HTTP: rutas, gate, guardián, escáner, salud, tareas, vps
   shared/     utilidades compartidas entre el backend y los scripts
-  v2/         front: mapa y paneles (React)
-  components/ hooks/ styles/ assets/   front v1
+  v2/         front: mapa y paneles (React). Es el que se sirve.
+  components/ hooks/ styles/ assets/   front v1, conservado por si hay que revertir
 scripts/
   dev/        mando de desarrollo (dev.mjs y sus módulos)
   quality/    provisionado de Sentinel y VarSense
