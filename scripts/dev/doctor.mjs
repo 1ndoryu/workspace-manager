@@ -15,12 +15,13 @@ import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, readdirS
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
+import { rutaConfigPrivada } from '../shared/rutas.mjs';
 import { cabeceraAutorizacion } from './token.mjs';
 import { avisoTaller } from './taller-aviso.mjs';
 
 export const DIR_DEV = dirname(fileURLToPath(import.meta.url));
 export const RAIZ_REPO = resolve(DIR_DEV, '..', '..');
-export const RUTA_REGISTRO = join(DIR_DEV, 'registro.json');
+export const RUTA_REGISTRO = rutaConfigPrivada('registro.json');
 export const TTL_MS = 60_000;
 // [por que] 25 s: Get-CimInstance en frio tardo 7 s medidos; con 12 s el
 // sensor fallaba por carga y no por defecto real.
@@ -890,12 +891,12 @@ export function duenoDePuerto(puerto, pids, procs, entradas, raiz = RAIZ_REPO) {
  * o parar ese proyecto a propósito, no un kill del mando. */
 export function accionParaPuerto(id, puerto, pids, dueno, reclamados = []) {
   if (reclamados.length) {
-    return `el registro declara el puerto ${puerto} para ${[id, ...reclamados].join(' y ')}: deja un solo dueño en scripts/dev/registro.json`;
+    return `el registro declara el puerto ${puerto} para ${[id, ...reclamados].join(' y ')}: deja un solo dueño en config/registro.json`;
   }
   if (dueno && dueno.id !== id) {
-    return `lo ocupa ${dueno.id} (pid ${dueno.pid}, ${dueno.via}); no se mata. Siguiente: mueve el puerto de ${id} en scripts/dev/registro.json y su PORT en .env, o para ${dueno.id} si no lo necesitas ahora`;
+    return `lo ocupa ${dueno.id} (pid ${dueno.pid}, ${dueno.via}); no se mata. Siguiente: mueve el puerto de ${id} en config/registro.json y su PORT en .env, o para ${dueno.id} si no lo necesitas ahora`;
   }
-  return `lo ocupa un proceso ajeno (pid ${pids.join(',')}); no se mata. Siguiente: cierra ese proceso o mueve el puerto de ${id} en scripts/dev/registro.json`;
+  return `lo ocupa un proceso ajeno (pid ${pids.join(',')}); no se mata. Siguiente: cierra ese proceso o mueve el puerto de ${id} en config/registro.json`;
 }
 
 /* Puertos que una entrada declara como suyos (puertos + auxiliares). */

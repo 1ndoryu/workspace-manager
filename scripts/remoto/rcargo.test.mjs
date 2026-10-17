@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import {
   modoEfectivo,
   quitarFlagsTaller,
@@ -15,8 +16,13 @@ import {
   comandoBaseRemota,
   comandoPrepararRama,
 } from './rcargo.mjs';
+import { rutaConfigPrivada } from '../shared/rutas.mjs';
 
-const config = cargarConfig();
+/* [por que] `taller.json` no se versiona (ver config/ejemplos/), asi que el test
+ * no puede exigirla: en un clon ajeno usa un fixture con la misma forma. Los
+ * asserts comparan contra el propio objeto, de modo que el resultado no cambia. */
+const FIXTURE = { modoPorDefecto: 'remoto', proyectos: {} };
+const config = existsSync(rutaConfigPrivada('taller.json')) ? cargarConfig() : FIXTURE;
 
 // [14AA-1] El default lo fija taller.json. Desde 2026-10-15 es remoto (la 89 compila; local solo con --local).
 test('modo por defecto lo fija taller.json; con remoto configurado, remoto', () => {

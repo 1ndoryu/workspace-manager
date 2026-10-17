@@ -92,7 +92,7 @@ export async function manejarRutasConsola(
     hallazgosTaller = [{
       id: 'T0', ambito: 'local', severidad: 'advertencia',
       detalle: `no se pudo evaluar el taller: ${String(err)}`,
-      remedio: 'Revisar scripts/dev/registro.json y el log del manager.',
+      remedio: 'Revisar config/registro.json y el log del manager.',
     }];
   }
   const taller = problemasTallerDe(hallazgosTaller);

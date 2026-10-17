@@ -1,0 +1,379 @@
+{
+  "version": 1,
+  "proyectos": [
+    {
+      "id": "proyecto-1",
+      "ruta": ".",
+      "dominio": "workspace.localhost",
+      "boton": [
+        [
+          "node",
+          "dist-server/server/index.js"
+        ],
+        [
+          "npm",
+          "run",
+          "dev",
+          "--",
+          "--port",
+          "5175",
+          "--strictPort"
+        ]
+      ],
+      "tipoLauncher": "backend = servidor COMPILADO en un solo proceso node (dist-server/, rebuild con npm run build:server; tsx/cli abria consola visible en su worker hijo) + front directo sin npm/cmd via resolverDirecto; reinicio tras cambios con stop+up",
+      "puertos": [
+        8787,
+        5175
+      ],
+      "healths": [
+        {
+          "puerto": 8787,
+          "ruta": "/api/pc/estado",
+          "esperaJson": true
+        },
+        {
+          "puerto": 5175,
+          "ruta": "/",
+          "esperaJson": false
+        }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 60000,
+      "expectedCmdline": [
+        "dist-server",
+        "5175"
+      ],
+      "requiere": [
+        "glory-pulse"
+      ],
+      "comandos": {
+        "gate": null,
+        "typecheck": "npm run type-check",
+        "build": "npm run build",
+        "test-archivo": "node node_modules/tsx/dist/cli.mjs --test <archivo>"
+      }
+    },
+    {
+      "id": "proyecto-2",
+      "ruta": "../glory-pulse",
+      "dominio": "pulse.localhost",
+      "boton": [
+        [
+          "C:\\tmp\\glory-target\\pulse-main\\debug\\pulse.exe"
+        ]
+      ],
+      "puertos": [
+        3000
+      ],
+      "healths": [
+        {
+          "puerto": 3000,
+          "ruta": "/health",
+          "esperaJson": true
+        }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 180000,
+      "expectedCmdline": "pulse",
+      "env": {
+        "SCCACHE_BASEDIRS": "<RAIZ_AREA>"
+      },
+      "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; exe en target por rama C:\\tmp\\glory-target\\pulse-<rama> [05AA-1]; si falta, `up` lo reconstruye solo vía `reconstruir`; requiere PULSE_TOKEN>=32 en entorno, en local vale cualquiera, el real solo vive en Coolify)",
+      "reconstruir": {
+        "manifest": "pulse/Cargo.toml",
+        "targetDir": "C:\\tmp\\glory-target\\pulse-main"
+      },
+      "comandos": {
+        "gate": null,
+        "typecheck": null,
+        "build": null,
+        "test-archivo": null
+      }
+    },
+    {
+      "id": "proyecto-3",
+      "ruta": "../MN-Inmobiliaria",
+      "dominio": "inmobiliaria.localhost",
+      "boton": [
+        [
+          "npm",
+          "run",
+          "dev:back"
+        ],
+        [
+          "npm",
+          "--prefix",
+          "frontend",
+          "run",
+          "dev",
+          "--",
+          "--port",
+          "5199",
+          "--strictPort"
+        ],
+        [
+          "npm",
+          "run",
+          "dev:gateway"
+        ]
+      ],
+      "puertos": [
+        3110,
+        5199,
+        3102
+      ],
+      "procesosAceptados": {
+        "puertos": [
+          3110,
+          5199,
+          3102
+        ],
+        "motivo": "dev de MN mantenido por decisión de la usuaria (09AA-18, 2026-10-12)"
+      },
+      "healths": [
+        {
+          "puerto": 3110,
+          "ruta": "/api/health",
+          "esperaJson": true
+        },
+        {
+          "puerto": 5199,
+          "ruta": "/",
+          "esperaJson": false
+        },
+        {
+          "puerto": 3102,
+          "ruta": "/health",
+          "esperaJson": true
+        },
+        {
+          "puerto": 20241,
+          "ruta": "/ready",
+          "esperaJson": true
+        }
+      ],
+      "timeoutMs": 3000,
+      "arranqueMs": 300000,
+      "expectedCmdline": [
+        "glory-backend",
+        "MN-Inmobiliaria\\frontend",
+        "gateway"
+      ],
+      "env": {
+        "PORT": "3110"
+      },
+      "host": "<ALIAS_SSH>",
+      "envRemoto": [
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "HOST",
+        "PORT",
+        "UPLOAD_DIR",
+        "RUST_LOG",
+        "PUBLIC_BASE_URL",
+        "OPENCODE_GO_API_KEY",
+        "VITE_DEV_EMAIL",
+        "VITE_DEV_PASSWORD"
+      ],
+      "precompilar": [
+        [
+          "cargo",
+          "build",
+          "--bin",
+          "glory-backend"
+        ]
+      ],
+      "dependencias": [
+        "frontend",
+        "gateway"
+      ],
+      "puertosRemotos": [
+        3110,
+        5199,
+        20241
+      ],
+      "tunelesExtra": [
+        [
+          33110,
+          3110
+        ]
+      ],
+      "tunelSsh": false,
+      "hostsPublicos": [
+        "mn-dev.<DOMINIO_BASE>"
+      ],
+      "puertosPublicos": [
+        3110
+      ],
+      "buildMode": "builder",
+      "botonRemoto": [
+        [
+          "env",
+          "PUBLIC_BASE_URL=https://mn-dev.<DOMINIO_BASE>/rust",
+          "cargo",
+          "run",
+          "--bin",
+          "glory-backend"
+        ],
+        [
+          "env",
+          "VITE_API_URL=/rust",
+          "MN_DEV_PUBLIC_HOST=mn-dev.<DOMINIO_BASE>",
+          "npm",
+          "--prefix",
+          "frontend",
+          "run",
+          "dev",
+          "--",
+          "--port",
+          "5199",
+          "--strictPort",
+          "--host",
+          "127.0.0.1"
+        ],
+        [
+          "sh",
+          "-c",
+          "set -a; . <HOME_REMOTO>/.config/cloudflared/mn-dev.env; set +a; exec <HOME_REMOTO>/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run"
+        ]
+      ],
+      "auxiliares": [
+        {
+          "puerto": 3122,
+          "marcador": "mejora.mjs",
+          "motivo": "server:mejora (frontend/server/mejora.mjs), arranque manual fuera del mando"
+        },
+        {
+          "puerto": 3102,
+          "marcador": "--gateway-mn",
+          "motivo": "gateway de WhatsApp de MN: vive en el portatil (15AA-6, tiene las sesiones); lo mantiene el guardian de Inicio"
+        }
+      ],
+      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp + Vite bajo ruta; PORT=3110 por env del mando; front via --prefix+-- para que --port llegue a vite)",
+      "comandos": {
+        "gate": null,
+        "typecheck": "cargo check",
+        "build": null,
+        "test-archivo": "node scripts/run-with-db.mjs test --test <archivo>"
+      },
+      "modo": "build",
+      "build": {
+        "puertos": [
+          3110,
+          20241
+        ],
+        "boton": [
+          [
+            "env",
+            "STATIC_DIR=frontend/dist",
+            "PUBLIC_BASE_URL=https://mn-dev.<DOMINIO_BASE>",
+            "cargo",
+            "run",
+            "--bin",
+            "glory-backend"
+          ],
+          [
+            "sh",
+            "-c",
+            "set -a; . <HOME_REMOTO>/.config/cloudflared/mn-dev.env; set +a; exec <HOME_REMOTO>/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run"
+          ]
+        ],
+        "construirFront": [
+          [
+            "npm",
+            "--prefix",
+            "frontend",
+            "run",
+            "build"
+          ]
+        ],
+        "healths": [
+          {
+            "puerto": 3110,
+            "ruta": "/",
+            "marcador": "<title>MN Inmobiliaria"
+          },
+          {
+            "puerto": 20241,
+            "ruta": "/ready",
+            "esperaJson": true
+          }
+        ]
+      }
+    }
+  ],
+  "vps": [
+    {
+      "id": "89",
+      "alias": "<ALIAS_SSH>",
+      "modo": "completo",
+      "motivo": "taller remoto: usuario dev sin sudo ni docker, clave propia"
+    },
+    {
+      "id": "66",
+      "alias": null,
+      "modo": "lectura",
+      "motivo": "VPS principal con Coolify: solo lectura via coolify-manager-rs; sin alias SSH"
+    }
+  ],
+  "noAplica": {
+    "glory-agent": "sin-servicio",
+    "glory-sentinel": "sin-servicio",
+    "varsense": "sin-servicio"
+  },
+  "ignoradosSistema": [
+    {
+      "exe": "C:\\Riot Games\\Riot Client\\RiotClientServices.exe",
+      "motivo": "Riot Client (League of Legends): cliente de terceros con listener en loopback"
+    },
+    {
+      "exe": "<HOME>\\AppData\\Roaming\\uTorrent Web\\helper\\helper.exe",
+      "motivo": "uTorrent Web: cliente de terceros con listener en loopback"
+    },
+    {
+      "exe": "C:\\Program Files\\Intel\\SUR\\QUEENCREEK\\x64\\esrv.exe",
+      "motivo": "Intel SUR: servicio del fabricante, no del area"
+    },
+    {
+      "exe": "C:\\Program Files\\OpenVPN\\bin\\openvpn.exe",
+      "motivo": "OpenVPN: VPN del usuario, no del area"
+    },
+    {
+      "exe": "<HOME>\\.cargo\\bin\\sccache.exe",
+      "motivo": "sccache: cache de compilacion de cargo, sin proyecto propio"
+    },
+    {
+      "exe": "<HOME>\\.bun\\bin\\bun.exe",
+      "cmdContiene": "serve --port 4096",
+      "motivo": "opencode-propio: servidor bun del app del usuario (gestion-externa; cwd no visible por CIM)"
+    },
+    {
+      "puerto": 8790,
+      "motivo": "gateway local de Claude Desktop: herramienta del usuario, elevada, exe y cmd ilegibles"
+    },
+    {
+      "pid": 4,
+      "motivo": "System: nucleo de Windows, sin exe (PID fijo)"
+    },
+    {
+      "servicio": "SurfaceExperienceService-76.5120.174",
+      "motivo": "Microsoft Surface: servicio LocalSystem de WindowsApps; exe oculto sin elevar"
+    },
+    {
+      "servicio": "ESRV_SVC_QUEENCREEK",
+      "motivo": "Intel SUR: servicio LocalSystem del fabricante (esrv_svc.exe); exe oculto sin elevar"
+    },
+    {
+      "imagen": "TpvNet.exe",
+      "motivo": "BDP-Net TPV (IBERNYX) en C:\\Bdp-Net; exe oculto sin elevar"
+    },
+    {
+      "imagen": "SvrWCF.exe",
+      "motivo": "BDP-Net TPV (IBERNYX), hijo de TpvNet.exe en C:\\Bdp-Net; exe oculto sin elevar"
+    },
+    {
+      "imagen": "GoogleDriveFS.exe",
+      "motivo": "Google Drive File Stream: sync del usuario, tercero; no del area (decidido 2026-10-13)"
+    }
+  ]
+}

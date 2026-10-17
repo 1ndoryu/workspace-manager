@@ -10,6 +10,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, write
 import { basename, dirname, join, resolve } from 'node:path';
 import { RAIZ } from './gate.mjs';
 import { baseDe } from './cierre.mjs';
+import { rutaConfigPrivada } from '../shared/rutas.mjs';
 
 const ok = (nombre, detalle) => ({ nombre, ok: true, detalle });
 const fallo = (nombre, detalle, accion, plan = {}) => ({ nombre, ok: false, detalle, accion, ...plan });
@@ -264,7 +265,7 @@ export async function alta(argv, raiz = RAIZ) {
     return 1;
   }
   try {
-    const registro = JSON.parse(readFileSync(join(raiz, 'scripts', 'dev', 'registro.json'), 'utf8'));
+    const registro = JSON.parse(readFileSync(rutaConfigPrivada('registro.json', raiz), 'utf8'));
     const porId = registro.proyectos.find((x) => x.id === objetivo);
     const ruta = porId ? resolve(raiz, porId.ruta) : resolve(objetivo);
     if (!existsSync(ruta)) {

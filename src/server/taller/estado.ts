@@ -18,9 +18,10 @@ import {
   type MuestraHistorial,
   type RegistroConformidad,
 } from '../../shared/taller/conformidad.js';
+import { rutaConfigPrivada } from '../../shared/rutas.js';
 import { sesionDev } from '../../shared/taller/sesiones.js';
 
-const RUTA_REGISTRO = join(import.meta.dirname, '..', '..', '..', 'scripts', 'dev', 'registro.json');
+const RUTA_REGISTRO = rutaConfigPrivada('registro.json');
 /* Alias SSH del taller (AGENTS §9.4): el único acceso SSH directo autorizado. */
 const TALLER_HOST = 'dev89';
 const SONDA_TALLER = '$HOME/bin/taller-estado';

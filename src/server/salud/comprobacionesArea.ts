@@ -37,7 +37,7 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
           severidad: 'aviso',
           mensaje: `${sinRegistrar.length} repo(s) sin registrar: ${lista(sinRegistrar)}`,
           accion: 'decláralos en registro.json: como proyecto, o en noAplica con sin-mando-intencional si es a propósito',
-          doc: 'workspace-manager/scripts/dev/registro.json',
+          doc: 'workspace-manager/config/registro.json',
         },
       ];
     },

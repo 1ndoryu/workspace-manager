@@ -9,6 +9,7 @@ import { join, resolve } from 'node:path';
 import net from 'node:net';
 import { RAIZ, formatearNuevos, pedir, rutaSnapshot } from './gate.mjs';
 import { avisoTaller } from './taller-aviso.mjs';
+import { rutaConfigPrivada } from '../shared/rutas.mjs';
 
 /* Tablero y opencode-propio: nunca se cuentan como procesos propios del proyecto
  * (AGENTS §5 y §9.2). */
@@ -168,7 +169,7 @@ export async function cierre(argv, raiz = RAIZ) {
     return 1;
   }
   try {
-    const registro = JSON.parse(readFileSync(join(raiz, 'scripts', 'dev', 'registro.json'), 'utf8'));
+    const registro = JSON.parse(readFileSync(rutaConfigPrivada('registro.json', raiz), 'utf8'));
     const entrada = registro.proyectos.find((x) => x.id === id);
     if (!entrada) {
       console.error(`cierre: '${id}' no está en registro.json`);

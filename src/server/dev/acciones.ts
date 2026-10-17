@@ -11,11 +11,12 @@ import { execFile } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { rutaConfigPrivada } from '../../shared/rutas.js';
 import { snapshotArea } from '../snapshot.js';
 
 const DIR_DEV = join(import.meta.dirname, '..', '..', '..', 'scripts', 'dev');
 export const DEV_MJS = join(DIR_DEV, 'dev.mjs');
-const RUTA_REGISTRO = join(DIR_DEV, 'registro.json');
+const RUTA_REGISTRO = rutaConfigPrivada('registro.json');
 
 export type AccionDev = 'up' | 'stop' | 'status' | 'logs' | 'open';
 
