@@ -17,13 +17,12 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
    D, E, F, G, K, L1–L2, `17AA-3` (frentes 3 y 5: el doctor corre donde toca y lo dice, y el
    transporte se separa de `remoto.ts`) y `17AA-4` (frente 9: los binarios del manager, el nombre
    del área y el gestor de despliegues salen de la config; de paso, el `settings.json` de
-   despliegues tenía dos dueños y el panel vps acusaba al taller de un problema suyo). Quedan el 8
-   (SOLID a fondo), el 10 (accesibilidad), H (la nav ajena), I (el resto del tablero) y L3–L6.
+   despliegues tenía dos dueños y el panel vps acusaba al taller de un problema suyo) y `17AA-1`
+   (la nav ajena: ya venía escrita e integrada como `1988e02`; se verificó en el navegador a 1280,
+   1040, 900 y 700 px y el defecto reportado —«taller» cortado a ~1040— no existe). Quedan el 8
+   (SOLID a fondo), el 10 (accesibilidad), I (el resto del tablero) y L3–L6.
 1. `308A-5` — **Corregir hallazgos restantes de Sentinel y VarSense** (piso honesto + wins rápidos).
    Depende de 17AA-2 para no medir sobre reglas que cambian.
-2. `17AA-1` — **Nav responsive: los destinos que no caben se van a un menú.** Pedido de la usuaria
-   (2026-10-17): con ~1040 px «taller» sale cortado. Hay cambio ajeno sin commitear en
-   `src/v2/ui/menu/`; se adopta, se termina, se prueba en el navegador y se commitea aparte.
 
 ## Bloqueos y decisiones
 

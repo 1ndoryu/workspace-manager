@@ -19,7 +19,8 @@ KAMPLES (121), MN (13), NAKOMI (10) y PROYECTO TASKS (10).
 - **Planes: se revisan uno a uno**, pero con criterio: son de agosto-septiembre y el área ha
   cambiado mucho, así que solo se salva lo que siga siendo una mejora importante o un pendiente
   que sume; el resto se archiva.
-- **El nav ajeno de `src/v2/ui/menu/` (17AA-1) se adopta y se termina.**
+- **El nav ajeno de `src/v2/ui/menu/` (17AA-1) se adopta y se termina.** Ya venía terminado e
+  integrado como `1988e02`; el bloque fue verificarlo (ver «Cerrado también, `17AA-1`»).
 
 ## Diagnóstico (causa, no síntoma)
 
@@ -409,9 +410,17 @@ funcionando. Un síntoma que acusaba al taller de un problema del manager. Ahora
 misma función. **Evidencia:** `/api/vps/sitios` devuelve los sitios reales (antes `sitios: []`
 con ese aviso).
 
-**Pendiente:** H (adoptar el cambio ajeno de navegación), I (el resto del tablero: RESTAURANTE 202
-tras B4 y KAMPLES 113, con los 7 `propiedadProhibida` reales), el frente 8 (SOLID a fondo), el
-frente 10 (accesibilidad) y L3–L6 (las skills que citan el pin de Sentinel, las memorias y
+**Cerrado también, `17AA-1` (H).** El nav ya venía escrito e integrado (`1988e02`), así que el
+bloque fue verificación en el navegador a 1280, 1040, 900 y 700 px: el recorte por medida real
+funciona, los toggles no se pliegan nunca, el disparador avisa cuando la página activa cae dentro
+del desplegable, y **el defecto reportado —«taller» cortado a ~1040 px— no existe**. Queda un
+hallazgo para el frente 10: el desplegable declara `role="menu"`/`menuitem` pero **`ArrowDown` no
+mueve el foco** (medido); `Tab` sí llega a las opciones, así que es usable, pero el rol promete de
+más. Se arregla en el frente 10, que es el patrón de todos los desplegables.
+
+**Pendiente:** I (el resto del tablero: RESTAURANTE 202 tras B4 y KAMPLES 113, con los 7
+`propiedadProhibida` reales), el frente 8 (SOLID a fondo), el frente 10 (accesibilidad, con el
+`role="menu"` del nav) y L3–L6 (las skills que citan el pin de Sentinel, las memorias y
 `Agente/documentacion/`).
 
 ### L · Documentación viva: skills, `AGENTS.md` y memorias (encargo de la usuaria, 2026-10-17)
