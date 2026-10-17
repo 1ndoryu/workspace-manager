@@ -31,27 +31,22 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { RAIZ_AREA, RAIZ_REPO, rutaConfigPrivada } from '../shared/rutas.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const AREA = resolve(__dirname, '../../..');
 
-// Nombre de proyecto (argumento) → path relativo al área + config fixada.
-// Solo los proyectos con `variableFiles` correcto y análisis activo.
-const PROYECTOS = {
-  'workspace-manager': 'workspace-manager',
-  RESTAURANTE: 'RESTAURANTE',
-  'ONG AGAPE': 'TRABAJOS CLIENTES/ONG AGAPE',
-  WANDORIUS: 'WANDORIUS',
-  'coolify-manager-rs': 'coolify-manager-rs',
-  gloryapi: 'gloryapi',
-  'Glory-Laminal': 'Glory-Laminal',
-  GLORYPORT: 'GLORYPORT',
-  'glory-harness': 'glory-harness',
-  'PROYECTO TASKS': 'PROYECTO TASKS',
-};
+/* Mapa id → ruta absoluta del repo, derivado del registro privado.
+ * [por que] Antes era una lista de proyectos incrustada en el código: ataba el
+ * script al área de una máquina concreta. El registro ya declara `id` y `ruta`
+ * de cada proyecto (`ruta` es relativa a RAIZ_REPO), así que aquí solo se
+ * resuelve. */
+function reposDelRegistro() {
+  const reg = JSON.parse(readFileSync(rutaConfigPrivada('registro.json'), 'utf8'));
+  return new Map(reg.proyectos.map((p) => [p.id, resolve(RAIZ_REPO, p.ruta)]));
+}
 
 const VARSENSE_CLI = join(
-  AREA,
+  RAIZ_AREA,
   '.quality-tools/varsense/dist/cli/index.js',
 );
 const EXCEPCIONES = join(__dirname, 'excepciones.json');
@@ -126,10 +121,11 @@ function cubiertoPorRegistro(regla, ruta, message, proyectos) {
 
 function main() {
   const arg = process.argv[2];
-  if (!arg || !PROYECTOS[arg]) {
+  const repos = reposDelRegistro();
+  if (!arg || !repos.has(arg)) {
     console.error(
       `Uso: node scripts/quality/analyze-blocks.mjs <proyecto> [--json] [--detalle ruleId]\n` +
-        `Proyectos: ${Object.keys(PROYECTOS).join(', ')}`,
+        `Proyectos: ${[...repos.keys()].join(', ')}`,
     );
     process.exit(2);
   }
@@ -137,7 +133,7 @@ function main() {
     console.error(`Falta el CLI varsense pinneado en ${VARSENSE_CLI}`);
     process.exit(1);
   }
-  const repo = join(AREA, PROYECTOS[arg]);
+  const repo = repos.get(arg);
   if (!existsSync(repo)) {
     console.error(`No existe el repo ${repo}`);
     process.exit(1);

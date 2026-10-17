@@ -25,24 +25,18 @@
  *   3. La verificacio'n por proyecto usa el mismo shape de entrada; `detalle`
  *      lista los ruleId de cada hallazgo para cruzar con los baselines del plan.
  */
-import { dirname, join, resolve } from 'node:path' ;
-import { fileURLToPath } from 'node:url' ;
+import { readFileSync } from 'node:fs' ;
+import { rutaConfigPrivada } from '../shared/rutas.mjs' ;
 
-const __dirname = dirname(fileURLToPath(import.meta.url)) ;
-const AREA = resolve(__dirname, '../../..') ;
 const BASE = process.env.AGREGADO_BASE || 'http://127.0.0.1:8787';
 
-// Proyectos que la misión 308A-6/7 sigue (los demás — freebuff-bridge,
-// GLORYINSPECTOR, glory-sentinel, .quality-tools-* — son repos del área fuera
-// del alcance; se listan pero no cuentan para la misión). glory-harness se
-// integró al harness de convergencia varsense el 2026-09-02 (analyze-blocks.mjs,
-// decisión del usuario) aunque sus hallazgos de Sentinel (llm.rs) no forman
-// parte de este agregado de varsense.
-const MISION = new Set([
-  'workspace-manager','RESTAURANTE','TRABAJOS CLIENTES/ONG AGAPE','WANDORIUS',
-  'coolify-manager-rs','gloryapi','Glory-Laminal','GLORYPORT','PROYECTO TASKS',
-  'glory-harness',
-]);
+/* Proyectos del área seguidos por el agregado, derivados del registro privado.
+ * [por que] Antes era una lista incrustada con los nombres del área de una
+ * máquina concreta; el registro ya los declara, así que la lista se deriva y el
+ * script sirve en cualquier área. Misión 308A-6/7. */
+const MISION = new Set(
+  JSON.parse(readFileSync(rutaConfigPrivada('registro.json'), 'utf8')).proyectos.map((p) => p.id),
+);
 
 function extraerEntradas(shape, nombre) {
   // GET: shape.analisis es un mapa clave → entrada.
@@ -135,8 +129,8 @@ async function main() {
   }
   const totalMision = postR.filas.filter((f) => MISION.has(f.clave))
     .reduce((s, f) => s + f.total, 0);
-  console.log(`\nTotal misión (9 proyectos rastreados): ${totalMision}`);
-  console.log('(PROYECTO TASKS incluye el WIP del usuario — se reporta, no se compara)');
+  console.log(`\nTotal misión (${MISION.size} proyectos rastreados): ${totalMision}`);
+  console.log('(los conteos incluyen el trabajo sin commitear de cada proyecto)');
 }
 
 main().catch((e) => {
