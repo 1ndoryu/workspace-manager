@@ -46,7 +46,8 @@ export interface ResultadoSpawn {
 
 /* Raíz del área (misma fuente del server): la caché de análisis vive bajo
  * <area>/data/cache/analisis.json, como la config del workspace. */
-export const RAÍZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
+import { RAIZ_AREA } from '../../shared/rutas.js';
+export { RAIZ_AREA };
 
 /* [por que] 308A-1 centraliza el runtime: los consumidores declaran
  * `sourcePathEnv: GLORY_SENTINEL_SOURCE_PATH`/`GLORY_VARSENSE_SOURCE_PATH` y
@@ -62,10 +63,10 @@ export function entornoGate(rutaProyecto?: string): NodeJS.ProcessEnv {
    * contra el compartido. El override manual del usuario sigue ganando. */
   if (process.env.GLORY_SENTINEL_SOURCE_PATH === undefined) {
     const propio = rutaProyecto ? cliSentinelParaProyecto(rutaProyecto) : null;
-    env.GLORY_SENTINEL_SOURCE_PATH = propio?.base ?? join(RAÍZ_AREA, '.quality-tools', 'sentinel');
+    env.GLORY_SENTINEL_SOURCE_PATH = propio?.base ?? join(RAIZ_AREA, '.quality-tools', 'sentinel');
   }
   if (process.env.GLORY_VARSENSE_SOURCE_PATH === undefined) {
-    env.GLORY_VARSENSE_SOURCE_PATH = join(RAÍZ_AREA, '.quality-tools', 'varsense');
+    env.GLORY_VARSENSE_SOURCE_PATH = join(RAIZ_AREA, '.quality-tools', 'varsense');
   }
   return env;
 }
@@ -90,7 +91,7 @@ export function hashArtefacto(ruta: string): string {
  * el override de env (GLORY_VARSENSE_SOURCE_PATH) gana, igual que en
  * `entornoGate`. Devuelve null si no está provisionado. */
 export function checkoutVarsense(): string | null {
-  const base = process.env.GLORY_VARSENSE_SOURCE_PATH || join(RAÍZ_AREA, '.quality-tools', 'varsense');
+  const base = process.env.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'varsense');
   const cli = join(base, 'dist', 'cli', 'index.js');
   return existsSync(cli) ? base : null;
 }

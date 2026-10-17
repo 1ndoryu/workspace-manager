@@ -231,7 +231,7 @@ void describe('agente glory-pulse', () => {
 
   /* [309A-2] Detalle por sitio: pide /detalle?sitio=<uuid>, adapta filas
    * (con imagen cuando pulse la sirve) y cachea por sitio. */
-  const FILA_DET = { ...FILA, imagen: 'ghcr.io/1ndoryu/glory-pulse:sha-804f306' };
+  const FILA_DET = { ...FILA, imagen: 'ghcr.io/usuario/app:sha-804f306' };
   const DET = {
     schema: 1,
     hostId: 'vps',
@@ -253,7 +253,7 @@ void describe('agente glory-pulse', () => {
     assert.equal(r.error, null);
     assert.equal(r.detalle?.sitio, 'as0scgwg44wkkkccgwcwg8w0');
     assert.equal(r.detalle?.totalContenedores, 1);
-    assert.equal(r.detalle?.contenedores[0]?.imagen, 'ghcr.io/1ndoryu/glory-pulse:sha-804f306');
+    assert.equal(r.detalle?.contenedores[0]?.imagen, 'ghcr.io/usuario/app:sha-804f306');
     assert.ok(String(ruta).includes('/detalle?sitio=as0scgwg44wkkkccgwcwg8w0'));
   });
 

@@ -34,7 +34,7 @@ import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 /* Raiz del area (misma fuente del server: WS_AREA_ROOT o el default real). */
-const RAIZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
+import { RAIZ_AREA } from './shared/rutas.mjs';
 const CHECKOUT = join(RAIZ_AREA, '.quality-tools');
 
 /* Consumidores del gate (mismos del plan §3.3). Rutas reales del area; ONG

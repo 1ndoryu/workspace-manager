@@ -136,7 +136,7 @@ import path from 'node:path';
 
 const ADAPTER = '${archivo}';
 const RELATIVO = path.join('workspace-manager', 'scripts', 'quality', ADAPTER);
-const AREA_POR_DEFECTO = 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
+import { RAIZ_AREA as AREA_POR_DEFECTO } from '../shared/rutas.mjs';
 
 /* Resuelve la raíz del área sin depender de una ruta absoluta frágil: variable
  * explícita, luego el propio manifiesto (sourcePath apunta a <área>/.quality-tools),

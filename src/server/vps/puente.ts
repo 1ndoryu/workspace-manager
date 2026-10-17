@@ -1,6 +1,6 @@
 /* Puente con coolify-manager-rs para la tab vps (299A-5).
  * [por que] El binario vive fuera de C:\tmp (se purga cada hora):
- * COOLIFY_MANAGER_BIN o C:\Users\Owner\bin\coolify-manager.exe (durable) con
+ * COOLIFY_MANAGER_BIN o <home>\bin\coolify-manager.exe (durable) con
  * fallback a C:\tmp\bin (legacy). Cada consulta es un proceso execFile SIN
  * shell y con argv construido aqui: la allowlist no es una lista de strings
  * sino el conjunto cerrado de funciones de abajo (solo lectura; no existe
@@ -9,8 +9,10 @@
  * acotada, secretos redactados antes de devolver nada. */
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
-const BIN_DURADERO = 'C:\\Users\\Owner\\bin\\coolify-manager.exe';
+const BIN_DURADERO = join(homedir(), 'bin', 'coolify-manager.exe');
 const BIN_LEGACY = 'C:\\tmp\\bin\\coolify-manager.exe';
 const TIMEOUT_MS = 90_000;
 const MAX_SALIDA = 512 * 1024;

@@ -1,10 +1,11 @@
 /* Diagnostico rapido del escaner con datos reales: muestra el resumen del area,
  * agentes globales y un resumen por proyecto. Uso: pnpm exec tsx scripts/diagnostico-escaner.ts */
 import { escanearWorkspace } from '../src/server/scanner/workspace.js';
+import { RAIZ_AREA, CARPETA_SKILLS } from './shared/rutas.mjs';
 
 const s = escanearWorkspace({
-  raiz: process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo',
-  carpetaSkills: process.env.WS_SKILLS_ROOT || 'C:/Users/Owner/.agents/skills',
+  raiz: RAIZ_AREA,
+  carpetaSkills: CARPETA_SKILLS,
 });
 
 console.log(

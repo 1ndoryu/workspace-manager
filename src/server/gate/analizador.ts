@@ -25,7 +25,7 @@ import type {
   SeveridadSentinel,
 } from '../../shared/types.js';
 import {
-  RAÍZ_AREA,
+  RAIZ_AREA,
   checkoutVarsense,
   cliRuntime,
   correrSentinel,
@@ -50,7 +50,7 @@ interface EntradaCache {
 /* [por que] la persistencia vive dentro del area del manager (data/cache/),
  * NO en el runtime de sentinel (solo lectura) ni en ningun proyecto real. */
 function rutaPersistencia(): string {
-  return join(RAÍZ_AREA, 'data', 'cache', 'analisis.json');
+  return join(RAIZ_AREA, 'data', 'cache', 'analisis.json');
 }
 
 const cache = new Map<string, EntradaCache>();

@@ -1,5 +1,5 @@
 /* Raíces del sistema de archivos, en un solo sitio.
- * [por que] Cada módulo llevaba su propio literal `C:/Users/Owner/…` (20
+ * [por que] Cada módulo llevaba su propio literal `<HOME>` (20
  * ficheros de código), que además de duplicar la ruta impedía publicar el
  * repo: un clon ajeno heredaba la ruta de esta máquina. Aquí se derivan de
  * dónde vive el módulo y del home del usuario, y cada una se puede pisar por

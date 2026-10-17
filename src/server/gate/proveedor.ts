@@ -29,7 +29,7 @@ export const RAIZ_VERSIONS = join(
 );
 
 /* Raíz del área (misma fuente que el resto del server; `WS_AREA_ROOT` gana). */
-const RAIZ_AREA = process.env.WS_AREA_ROOT || 'C:/Users/Owner/OneDrive/Documentos/area-trabajo';
+import { RAIZ_AREA } from '../../shared/rutas.js';
 
 /* Checkout COMPARTIDO de Sentinel (<área>/.quality-tools/sentinel): el mismo
  * artefacto que ejecuta el gate de los proyectos (`quality-tools.json` →
