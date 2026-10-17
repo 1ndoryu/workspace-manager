@@ -66,5 +66,10 @@
         ]
       }
     }
+  },
+  "devPublico": {
+    "zona": "<DOMINIO_BASE>",
+    "cuenta": "<CUENTA_CLOUDFLARE>",
+    "tunel": "<TUNEL>"
   }
 }
