@@ -309,29 +309,8 @@
 
 /* Fila de archivo clicable (lista única 299A-4): abre el diff en el
  * lateral; la elegida va en relleno negro (patrón, no color). */
-.reposDetalleArchivo {
-    display: flex;
-    align-items: baseline;
-    gap: var(--v2-spaceSm);
-    width: 100%;
-    padding: 1px var(--v2-spaceXs);
-    border: none;
-    background: none;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-    min-width: 0;
-}
 
-.reposDetalleArchivo:hover {
-    text-decoration: underline;
-}
 
-.reposDetalleArchivo--elegido {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-}
 
 .reposDetalleStats {
     flex: none;

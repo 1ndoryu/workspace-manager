@@ -317,3 +317,87 @@
 .botonV2.tareasPuntos {
     border: none;
 }
+
+/* Ultimos <button> nativos convertidos a <Button> (17AA-2). [por que] La
+ * migracion al boton canonico se quedo a medias: estos ocho sitios seguian
+ * con el elemento nativo y su estilo ad-hoc en el CSS de su panel, mientras
+ * el resto del v2 ya componia por className (`ejQuitar`, `fjSwitch`,
+ * `navegadorRutaChip`). Se mueven aqui, compuestos con `.botonV2` para ganar
+ * la cascada, y cada uno neutraliza lo que la base aporta y el elemento
+ * nativo no tenia: `display` (la base es inline-flex) y `line-height: 1`. */
+
+/* Valor por defecto "fantasma" de una opcion ausente (EditorEsquema): chip de
+ * ancho completo con el valor en texto fantasma y un `＋` de sufijo. */
+.botonV2.ejDefaultGhost {
+    display: inline-block;
+    line-height: normal;
+    font-family: inherit; font-size: var(--v2-textFantasma); color: var(--v2-texto);
+    background: transparent; border: 1px dashed var(--v2-borde); border-radius: var(--v2-radioChico);
+    padding: 3px 8px; cursor: pointer; width: 100%; max-width: 100%;
+    text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ejDefaultGhost .ejAgregarMini { margin-left: 8px; font-size: var(--v2-textFantasma); opacity: .7; }
+
+/* Anadir una opcion ausente con su valor por defecto (EditorEsquema). El borde
+ * discontinuo es la senal de "esto todavia no existe". */
+.botonV2.ejAgregar {
+    display: inline-block;
+    line-height: normal;
+    font-family: inherit; font-size: var(--v2-textSm); letter-spacing: .05em;
+    margin-top: 2px; padding: 3px 8px; width: max-content;
+    border: 1px dashed var(--v2-borde); background: transparent;
+    color: var(--v2-texto); cursor: pointer; border-radius: var(--v2-radioChico);
+}
+
+/* Pestana del catalogo de reglas (SeccionReglas). `cursor: default` es
+ * deliberado: una pestana no es un boton de accion. */
+.botonV2.ejTab {
+    display: inline-block;
+    line-height: normal;
+    font-family: inherit; font-size: var(--v2-textSm); color: var(--v2-texto);
+    background: transparent; border: 1px solid var(--v2-borde);
+    border-radius: var(--v2-radioChico); padding: 3px 8px; cursor: default;
+}
+.botonV2.ejTab--activo {
+    background: var(--v2-texto); color: var(--v2-invertido); border-color: var(--v2-texto);
+}
+
+/* Fila de archivo del detalle de repo (DetalleRepo): lista sin cromo donde el
+ * unico realce es el subrayado al pasar y la inversion del elegido. */
+.botonV2.reposDetalleArchivo {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    line-height: normal;
+    gap: var(--v2-spaceSm);
+    width: 100%;
+    padding: 1px var(--v2-spaceXs);
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+}
+.botonV2.reposDetalleArchivo:hover {
+    text-decoration: underline;
+}
+.botonV2.reposDetalleArchivo--elegido {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+}
+
+/* Fondo pulsable del menu contextual (MenuTarea): cubre la pantalla para
+ * cerrar al pulsar fuera. Sin contenido y sin cromo; por eso `Button` admite
+ * ya children opcional. */
+.botonV2.tareasMenuFondo {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: default;
+    z-index: 40;
+}
