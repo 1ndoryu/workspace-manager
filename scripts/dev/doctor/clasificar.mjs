@@ -1,0 +1,293 @@
+/* Clasificacion de cada proyecto (bajo-mando/deriva/sin-boton/parado) y del area. */
+
+import { isAbsolute, resolve } from 'node:path';
+
+import { RAIZ_REPO } from './base.mjs';
+import { datosCimDe, escanearEscucha, normalizarRuta } from './procesos.mjs';
+import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeQuien } from './puertos.mjs';
+
+/* Clasifica snapshot x registro x escucha. Por proyecto: exactamente un
+ * estado. Huerfanos: listeners sin entrada del registro; se atribuyen por
+ * prefijo de ruta (exe+cmd) o quedan con clave null (grupo propio). */
+export async function clasificar(proyectos, registro, escucha, ignorados = []) {
+  const pids = [...new Set(escucha.map((e) => e.pid))];
+  // [por que] Solo se consulta CIM por servicios si el registro declara alguno.
+  const ignoradosSis = registro.ignoradosSistema ?? [];
+  const { procs, servicios } = await datosCimDe(pids, { servicios: ignoradosSis.some((s) => s.servicio) });
+  const areaNorm = normalizarRuta(RAIZ_REPO);
+
+  const candidatos = escucha.filter((e) => {
+    if (e.ip === '127.0.0.1' || e.ip === '::1') return true;
+    if (e.ip === '0.0.0.0' || e.ip === '::') {
+      const pr = procs.get(e.pid);
+      const texto = normalizarRuta(`${pr?.exe ?? ''} ${pr?.cmd ?? ''}`);
+      return texto.includes(areaNorm);
+    }
+    return false;
+  });
+
+  const porPuerto = new Map();
+  for (const c of candidatos) {
+    if (!porPuerto.has(c.puerto)) porPuerto.set(c.puerto, []);
+    porPuerto.get(c.puerto).push(c);
+  }
+
+  const resultado = [];
+  const consumidos = new Set();
+  for (const p of proyectos) {
+    // [por que 06AA-1] La entrada marcada puede traer `ruta` rota: sin guarda
+    // el isAbsolute romperia TODO el --all. Y se casa tambien por id==clave
+    // para que el aviso salga como deriva atribuida, no como sin-boton mudo.
+    const entrada = [...registro.entradas.values()].find(
+      (e) =>
+        (typeof e.ruta === 'string' &&
+          normalizarRuta(isAbsolute(e.ruta) ? e.ruta : resolve(RAIZ_REPO, e.ruta)) === normalizarRuta(p.ruta)) ||
+        (e._avisoRegistro && e.id === p.clave),
+    );
+    if (!entrada) {
+      if (p.clave in registro.noAplica) {
+        resultado.push({ clave: p.clave, id: null, estado: 'no-aplica', motivo: registro.noAplica[p.clave] });
+      } else {
+        resultado.push({ clave: p.clave, id: null, estado: 'sin-boton', motivo: 'pendiente-onboarding' });
+      }
+      continue;
+    }
+    const r = await clasificarEntrada(p, entrada, porPuerto, procs);
+    for (const k of r.consumidos) consumidos.add(k);
+    resultado.push({ clave: p.clave, id: entrada.id, estado: r.estado, motivo: r.motivo });
+  }
+
+  const huerfanos = [];
+  for (const c of candidatos) {
+    if (consumidos.has(`${c.ip}:${c.puerto}:${c.pid}`)) continue;
+    const proc = procs.get(c.pid);
+    // [por que] Script auxiliar declarado del proyecto (p. ej. mejora.mjs): es
+    // del area y no es hueco ni huerfano; fuera de `puertos` no genera deriva.
+    if (auxiliarDe(c.puerto, proc?.cmd, registro.entradas.values())) continue;
+    // [por que] Terceros/sistema declarados (uTorrent, Intel, VPN, sccache,
+    // kernel, servicios de Windows): no son del area ni son huecos.
+    if (esSistemaIgnorado(c.pid, proc, ignoradosSis, servicios.get(c.pid) ?? null, c.puerto)) continue;
+    // [por que 16AA-20] Tunel ssh de una ficha remota: ocupa su puerto local a
+    // proposito, no es un hueco. Antes salian ocho «(sin proyecto)» —los tres de
+    // la lab (13103/13104/14190) y los cinco de las fichas (3105, 3110, 5199).
+    if (tunelDeQuien(proc, registro.entradas.values())) continue;
+    // [por que] El pool incluye los ignorados del area: opencode-propio (ignorado
+    // en el tablero) se atribuye y cae en noAplica en vez de salir huerfano mudo.
+    const clave = atribuirHuerfano(proc, [...proyectos, ...ignorados]);
+    // [por que] gestion-externa (opencode-propio-dev): su listener no es un hueco
+    // del area; el mando no lo gestiona ni lo reporta como deriva. Otros motivos
+    // de noAplica siguen visibles.
+    if (clave && registro.noAplica?.[clave] === 'gestion-externa') continue;
+    huerfanos.push({
+      ip: c.ip,
+      puerto: c.puerto,
+      pid: c.pid,
+      exe: proc?.exe ?? null,
+      cmd: (proc?.cmd ?? '').slice(0, 200),
+      verificado: Boolean(proc?.cmd),
+      clave,
+    });
+  }
+  return { proyectos: resultado, huerfanos };
+}
+
+
+/* Inspeccion por entrada (F1): mismo veredicto que clasificar + detalle por
+ * puerto para que `up` decida sin reinterpretar strings. situacion:
+ * arriba | libre | ocupado-desconocido | duplicado | no-verificable |
+ * sin-probe. Solo `libre` autoriza arrancar; el resto rehusa en voz alta. */
+export async function clasificarEntrada(p, entrada, porPuerto, procs) {
+  // [por que 06AA-1] Entrada con aviso de registro = no-actuable: deriva con
+  // el motivo del aviso, sin mirar puertos (ni `up` ni `status` la tocan;
+  // `up` solo la reanima por la via `reconstruir` en arrancarUno).
+  if (entrada._avisoRegistro) {
+    return { estado: 'deriva', motivo: entrada._avisoRegistro, detalle: [], consumidos: new Set() };
+  }
+  const timeoutMs = entrada.timeoutMs ?? 2000;
+  const healths = entrada.healths?.length ? entrada.healths : entrada.puertos.map((puerto) => ({ puerto }));
+  const consumidos = new Set();
+  const detalle = [];
+  let estado = 'bajo-mando';
+  let motivo = 'probe verde';
+  // [por que 10AA-3] Varios puertos pueden caer a la vez (RESTAURANTE 3105+5182
+  // tras `stop`). Antes cada problema hacía `break`: el 5182 nunca entraba en
+  // `detalle`, `up` lanzaba solo 3105 y reportaba "probe verde". Ahora se
+  // clasifican todos los puertos; el primer problema fija el motivo.
+  const fijarDeriva = (texto) => {
+    if (estado !== 'bajo-mando') return;
+    estado = 'deriva';
+    motivo = texto;
+  };
+  // [por que 16AA-20] Una ficha con `host` no tiene oyente local: lo que escucha
+  // en el portatil es su tunel ssh. Se clasifica por el tunel —el puerto local
+  // declarado en `puertosLocales`, o el mismo numero— y solo si el tunel esta
+  // abierto. Antes se filtraba por `entrada.puertos`, que en una ficha remota
+  // son los de la 89: el tunel salia «ocupado por desconocido» y los puertos sin
+  // tunel «libre (parado)», asi que cinco proyectos que sirven 200 en la 89
+  // salian en deriva o parados. Y el modo manda: en `build` los puertos son los
+  // del bloque, no los del dev.
+  const remota = esEntradaRemota(entrada);
+  const ef = remota ? entradaEfectiva(entrada) : entrada;
+  const mapaLocal = new Map();
+  if (remota) {
+    const locales = localesDeModo(ef);
+    puertosRemotosDe(ef).forEach((r, i) => mapaLocal.set(r, locales[i]));
+  }
+  const saludLocal = [];
+  const sinTunel = [];
+  for (const h of healths) {
+    const local = remota ? mapaLocal.get(h.puerto) : entrada.puertos.includes(h.puerto) ? h.puerto : undefined;
+    if (local === undefined) continue;
+    if (remota && (porPuerto.get(local) ?? []).length === 0) {
+      sinTunel.push(h.puerto);
+      continue;
+    }
+    saludLocal.push({ ...h, puertoLocal: local });
+  }
+  for (const h of saludLocal) {
+    const oyentes = porPuerto.get(h.puertoLocal) ?? [];
+    // [por que] Dos `tsx watch` del mismo servidor pelean el puerto
+    // (caso real 2026-10-01: pids 23444+16484 en 8787, probe intermitente).
+    // Quedarse con el primero ocultaria el duplicado: es deriva visible.
+    const propios = oyentes.filter(
+      (o) => esDelProyecto(procs.get(o.pid), p.ruta, marcadorPuerto(entrada, h.puerto)) || tunelDeEntrada(procs.get(o.pid), entrada),
+    );
+    // [por que 16AA-20] Un mismo proceso puede tener dos sockets en escucha del
+    // mismo puerto (dual-stack: `::1` y `127.0.0.1`, medido en el tunel ssh de
+    // MN, pid 26076). El duplicado que importa son dos PROCESOS peleando el
+    // puerto; contar sockets daba «duplicado: 26076,26076» en un tunel sano.
+    const porPid = new Map();
+    for (const o of propios) if (!porPid.has(o.pid)) porPid.set(o.pid, o);
+    const duelos = [...porPid.values()];
+    if (duelos.length > 1) {
+      fijarDeriva(`puerto ${h.puerto} con ${duelos.length} procesos del proyecto (duplicado: ${duelos.map((o) => o.pid).join(',')})`);
+      detalle.push({ puerto: h.puerto, situacion: 'duplicado', pids: duelos.map((o) => o.pid) });
+      continue;
+    }
+    const propio = duelos[0];
+    if (!propio) {
+      if (oyentes.length) {
+        fijarDeriva(`puerto ${h.puerto} ocupado por desconocido`);
+        detalle.push({ puerto: h.puerto, situacion: 'ocupado-desconocido', pids: oyentes.map((o) => o.pid) });
+      } else {
+        fijarDeriva(`puerto ${h.puerto} libre (parado)`);
+        detalle.push({ puerto: h.puerto, situacion: 'libre', pids: [] });
+      }
+      continue;
+    }
+    for (const o of oyentes) consumidos.add(`${o.ip}:${o.puerto}:${o.pid}`);
+    const proc = procs.get(propio.pid);
+    if (!proc?.cmd) {
+      fijarDeriva(`puerto ${h.puerto} no verificable (sin cmdline)`);
+      detalle.push({ puerto: h.puerto, situacion: 'no-verificable', pids: [propio.pid] });
+      continue;
+    }
+    consumidos.add(`${propio.ip}:${propio.puerto}:${propio.pid}`);
+    const s = await sondear(h.puertoLocal, h.ruta, h.esperaJson, timeoutMs, entrada.dominio);
+    if (!s.ok) {
+      fijarDeriva(`puerto ${h.puerto} sin probe (status ${s.status})`);
+      detalle.push({ puerto: h.puerto, situacion: 'sin-probe', pids: [propio.pid] });
+      continue;
+    }
+    detalle.push({ puerto: h.puerto, situacion: 'arriba', pids: [propio.pid] });
+  }
+  // [por que] El corte en el primer health fallido dejaba sin consumir los
+  // puertos propios restantes: salian como huerfanos "(sin proyecto)" aunque
+  // fueran del proyecto (MN-Inmobiliaria: gateway 3102 tras 5199 caido). La
+  // atribucion no cambia el estado; solo evita falsos huerfanos.
+  for (const h of saludLocal) {
+    for (const o of porPuerto.get(h.puertoLocal) ?? []) {
+      if (esDelProyecto(procs.get(o.pid), p.ruta, marcadorPuerto(entrada, h.puerto)) || tunelDeEntrada(procs.get(o.pid), entrada)) {
+        consumidos.add(`${o.ip}:${o.puerto}:${o.pid}`);
+      }
+    }
+  }
+  /* Túneles declarados que no están abiertos. [por que] Sin ninguno abierto la
+   * sesión no está en marcha: `parado`, no deriva. Con alguno abierto, uno
+   * cerrado es un hueco visible (`up` lo abre); pero si la ficha declara
+   * `tunelSsh: false` el portátil no abre túneles a propósito y esos puertos los
+   * verifica la 89: darlos por libres era el falso «libre (parado)» de MN. */
+  if (remota && sinTunel.length > 0) {
+    if (saludLocal.length === 0) {
+      return { estado: 'parado', motivo: `tunel cerrado (${sinTunel.join(', ')})`, detalle: [], consumidos };
+    }
+    if (entrada.tunelSsh !== false) fijarDeriva(`tunel cerrado (${sinTunel.join(', ')})`);
+  }
+  if (estado === 'deriva' && detalle.length > 0 && detalle.every((d) => d.situacion === 'libre')) {
+    /* [05AA-4] Todo libre = detenido normal, no caida: 'parado' (exit 0,
+     * seriedad null con botones). Parcial (alguno arriba + alguno libre)
+     * sigue deriva (degradado visible). */
+    estado = 'parado';
+  }
+  return { estado, motivo, detalle, consumidos };
+}
+
+
+export function codigoSalida(informe) {
+  if (informe.errorSensor) return 1;
+  if ((informe.compartidos ?? []).length > 0) return 2;
+  if ((informe.rust ?? []).length > 0) return 2;
+  if (informe.huerfanos.length > 0) return 2;
+  if (informe.proyectos.some((p) => p.estado === 'deriva' || p.estado === 'sin-boton')) return 2;
+  return 0;
+}
+
+
+export function tabla(informe) {
+  const lineas = ['estado      clave                      motivo'];
+  for (const p of informe.proyectos) {
+    lineas.push(`${p.estado.padEnd(11)} ${(p.clave ?? '').slice(0, 26).padEnd(26)} ${p.motivo}`);
+  }
+  for (const h of informe.huerfanos) {
+    lineas.push(`deriva      ${h.clave ? `@${h.clave} ` : '(sin proyecto) '}(puerto ${h.puerto} pid ${h.pid}${h.verificado ? '' : ' NO-VERIFICADO'})`);
+  }
+  for (const c of informe.compartidos ?? []) {
+    lineas.push(`aviso       puerto ${c.puerto} compartido: ${c.ids.join(', ')}`);
+  }
+  for (const r of informe.rust ?? []) {
+    lineas.push(`aviso       rust ${r.chequeo} [${r.proyectos.join(', ')}]: ${r.detalle}`);
+  }
+  for (const d of informe.derivaEnv ?? []) {
+    lineas.push(`aviso       env ${d.id} ${d.archivo}: ${d.motivo}`);
+  }
+  if (informe.errorSensor) lineas.push(`ERROR sensor: ${informe.errorSensor}`);
+  lineas.push(`tomadoEn=${informe.tomadoEn} snapshotEn=${informe.snapshotEn}`);
+  return lineas.join('\n');
+}
+
+
+/* Escucha con UN reintento ante arranque frio (powershell+CIM tras idle
+ * en maquina cargada puede superar los 10s —medido 9s solo el arranque— y
+ * no es defecto del area). Dos fallos = real. */
+export async function escuchaRobusta() {
+  try {
+    return { escucha: await escanearEscucha(), errorSensor: null };
+  } catch (e) {
+    await new Promise((r) => setTimeout(r, 1000));
+    try {
+      return { escucha: await escanearEscucha(), errorSensor: null };
+    } catch (e2) {
+      return { escucha: [], errorSensor: `sensor: ${e.message} / reintento: ${e2.message}` };
+    }
+  }
+}
+
+
+/* Puertos reclamados por >1 entrada: el mando los DETECTA y degrada (exit 2)
+ * en vez de dejar que dos `up` peleen por el mismo puerto. Solo registro
+ * interno; un oyente externo (p. ej. 5173 ocupado por opencode-propio) sale
+ * como ocupado-desconocido en cada entrada, no aqui. */
+export function detectarCompartidos(registro) {
+  const porPuerto = new Map();
+  for (const e of registro.entradas?.values() ?? []) {
+    for (const p of e.puertos ?? []) {
+      if (!porPuerto.has(p)) porPuerto.set(p, []);
+      porPuerto.get(p).push(e.id);
+    }
+  }
+  return [...porPuerto.entries()]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([puerto, ids]) => ({ puerto, ids: [...ids].sort() }))
+    .sort((a, b) => a.puerto - b.puerto);
+}
+
