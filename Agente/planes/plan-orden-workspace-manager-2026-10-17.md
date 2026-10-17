@@ -78,7 +78,7 @@ su commit. El orden importa: **A y B van antes que C**, porque cambian lo que el
     2026-09-11) y adjudica ~49 `token-duplicate`, 39 `token-unused` y 6 `claseHuerfana`; **ningún
     programa lo lee** (barrido de `excepciones-varsense` en `*.ts,*.mjs,*.js,*.cjs,*.rs,*.json`
     sobre toda el área: 0 coincidencias; solo aparece en `.md` y en dos `.gitignore`). El único
-    registro de excepciones que sí se consume es `scripts/quality/excepciones.json`.
+    registro de excepciones que sí se consume es `config/quality-excepciones.json`.
     **Decisión de la usuaria.**
   - **Añadido por A:** `todo-prosa-sin-marcador` casa «todo» en prosa española (`doctor.mjs:1630`,
     «todo verde = 0»); la regla busca el marcador inglés `TODO` y necesita contexto para no leer
@@ -226,6 +226,26 @@ su commit. El orden importa: **A y B van antes que C**, porque cambian lo que el
   en el tipo pero ningún código lo lee: es una clave muerta, no un preset. **Decisión pendiente
   de la usuaria.**
 
+- **K — Rendimiento medido.** Perfilar antes de optimizar; nada a ojo.
+  - **K1 — La verificación de alineación del gate. HECHO (`e4adf45`).** Perfilado con el endpoint
+    en marcha: `GET /api/gate/sincronizacion` tardaba **20,7 s** (min 20193, max 20948, mediana de
+    3) y el informe de alineación solo, 24–33 s. `GIT_TRACE2` dio la causa: **580 procesos git
+    para 8 checkouts distintos**, ninguno de trabajo real. (1) La consulta se repetía por
+    consumidor —20 consumidores sobre los mismos checkouts compartidos pedían 162 veces
+    `merge-base --is-ancestor` del mismo pin contra las mismas refs—: el script es de solo lectura,
+    así que la misma consulta sobre el mismo checkout se responde una vez (memo por cwd+args).
+    (2) `estaPublicado` preguntaba ref a ref, un proceso git por tag, y un pin no publicado obliga
+    a recorrer las ~29 tags: `for-each-ref --contains` responde lo mismo en una llamada.
+    (3) `remotoUpstream` gastaba dos viajes al remoto por checkout; un `ls-remote` sin filtros trae
+    HEAD y tags juntos. **Resultado: 54 procesos, 8,4 s el informe, salida JSON idéntica byte a
+    byte** (diff contra `HEAD`: sin diferencias), endpoint forzado 20,7 → 10,8 s.
+    Además el informe se cachea 60 s en memoria: abrir la pestaña Gate pasa de 10,8 s a **13 ms**,
+    y el botón «verificar alineación» manda `forzar=1` y salta la caché (un informe viejo servido
+    indefinidamente sería peor que no tener caché, por eso caduca). El comentario de la ruta decía
+    «corrida barata»: por creerlo no se cacheaba. Medidor reutilizable: `C:/tmp/wm-perf/mide.mjs`.
+  - **K2 — Pendiente:** perfilar el resto (el escaneo raíz, `analizador.ts` —que se parte por
+    responsabilidad aquí, según E3—) y volver a medir con el mismo medidor.
+
 ## Criterio de hecho
 
 Cero problemas reales abiertos y cero falsos positivos pendientes; ninguna incoherencia con el
@@ -239,10 +259,11 @@ B2 (`623f56c` en varsense, `cssInline*`), **C (los 14 problemas reales de worksp
 el tablero pasa de 16 a 2, y los 2 que quedan son el falso positivo de B6)**.
 
 **Bloque en curso:** E (SOLID y agnóstico), F (README), G (planes). **Hecho además:** D, que
-resultó estar casi todo resuelto de antes y se cerró con el audit remoto (`8fdaa9b`), y la parte
-de SOLID de E (`403ccdd`, E2 + la disposición del resto en E3). **Próximo paso:** E4, el
-agnóstico (sacar del repo lo que es configuración nuestra); luego el rendimiento medido, el
-README y los planes.
+resultó estar casi todo resuelto de antes y se cerró con el audit remoto (`8fdaa9b`), la parte
+de SOLID de E (`403ccdd`, E2 + la disposición del resto en E3) y la primera mitad del
+rendimiento (`e4adf45`, K1: la verificación de alineación, 20,7 s → 10,8 s forzado y 13 ms
+cacheada). **Próximo paso:** E4, el agnóstico (sacar del repo lo que es configuración nuestra);
+luego K2 (perfilar el escaneo raíz y `analizador.ts`), el README y los planes.
 **Falsos positivos pendientes (van al final, por encargo):** B4
 (`tokenDetection.duplicate.excludeTokens`), B5 (el `excepciones-varsense.json` huérfano) y B6
 (el `limite-lineas` de los archivos de test, que es lo único que le queda al tablero de
