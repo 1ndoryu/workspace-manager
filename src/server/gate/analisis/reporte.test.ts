@@ -1,13 +1,15 @@
-/* [08AA-26] Un analisis con estado error no entra en la cache del tablero.
- * Se corre con: node node_modules/tsx/dist/cli.mjs --test src/server/gate/analizador.test.ts */
+/* [08AA-26] Traduccion del reporte y politica de cache: nada de esto lanza el
+ * CLI, asi que se prueba sin runtime de Sentinel.
+ * Se corre con: node node_modules/tsx/dist/cli.mjs --test src/server/gate/analisis/reporte.test.ts */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { esCacheable, marcarVarsenseFallido, normalizar } from './analizador.js';
+import { esCacheable } from './almacen.js';
+import { marcarVarsenseFallido, normalizar } from './reporte.js';
 
 type Dato = Parameters<typeof esCacheable>[0];
 type Reporte = Parameters<typeof normalizar>[0];
 
-describe('analizador: linea de hallazgo en numeracion humana', () => {
+describe('reporte: linea de hallazgo en numeracion humana', () => {
   it('range.start.line 0-based de sentinel se muestra como linea real (+1)', () => {
     const dato = {
       severityCounts: { warning: 1 },
@@ -21,7 +23,7 @@ describe('analizador: linea de hallazgo en numeracion humana', () => {
   });
 });
 
-describe('analizador: solo se cachea un analisis valido', () => {
+describe('almacen: solo se cachea un analisis valido', () => {
   it('estado error no se cachea (fallo transitorio)', () => {
     assert.equal(esCacheable({ estado: 'error' } as Dato), false);
   });
@@ -32,7 +34,7 @@ describe('analizador: solo se cachea un analisis valido', () => {
   });
 });
 
-describe('analizador: varsense declarado sin reporte no es ok', () => {
+describe('reporte: varsense declarado sin reporte no es ok', () => {
   it('pasa a error, conserva el error previo y no se cachea', () => {
     const sinVs = marcarVarsenseFallido({ estado: 'ok', resumen: { error: 0, warning: 0, information: 0, hint: 0 }, hallazgos: [] } as unknown as Dato);
     assert.equal(sinVs.estado, 'error');

@@ -187,9 +187,10 @@ su commit. El orden importa: **A y B van antes que C**, porque cambian lo que el
         exhaustivo y que el compilador avise si falta una herramienta. Abrirlo a `string` cambiaría
         un error de compilación por un `undefined` en ejecución. El punto de extensión ya no es el
         tipo: es añadir una línea al registro.
-  - **E4 — Agnóstico: lo nuestro, fuera del repo. PENDIENTE.** El criterio de la usuaria es que
-    el repo se publique **tal cual** y aun así funcione con nuestra config, que es privada y vive
-    fuera. Inventario, por gravedad:
+  - **E4 — Agnóstico: lo nuestro, fuera del repo. HECHO (`c76079e`).** El criterio de la usuaria es
+    que el repo se publique **tal cual** y aun así funcione con nuestra config, que es privada y vive
+    fuera. Lo que se hizo, y las tres decisiones que se tomaron a propósito, al final de este bloque.
+    Inventario, por gravedad:
     1. **Datos nuestros en archivos versionados** (lo único que impide publicar hoy):
        `scripts/quality-sync.mjs` lleva la lista de ~18 proyectos del área con sus rutas, y
        `scripts/quality/excepciones.json` está *tracked* con nuestras excepciones. Los dos son
@@ -208,6 +209,46 @@ su commit. El orden importa: **A y B van antes que C**, porque cambian lo que el
        van a la config con los valores actuales como defecto documentado.
     4. **Un módulo único de rutas del área** en vez de los literales repetidos: es lo que hace que
        el punto 2 se arregle en un sitio y no en nueve.
+
+    **Cómo quedó.** Los puntos 1 y 4 ya estaban de antes (`scripts/quality-sync.mjs` lee
+    `config/quality-consumidores.json` y degrada a «no hay consumidores que declarar»;
+    `src/shared/rutas.ts` + `scripts/shared/rutas.mjs` son el módulo único). El punto 2 salió con
+    `raizTemporales()`, `RAIZ_REPO` y el área como carpeta padre. El punto 3 se resolvió así:
+
+    - **Puertos** (`src/shared/puertos.ts` + gemelo `.mjs`): dueño único del dato, valores actuales
+      como defecto y `WS_*` para moverlos. Estaban escritos a mano en catorce sitios, y el guardián
+      protegía 5175/8787/4173 mientras el doctor protegía 8787/5174/5175. De paso apareció un fallo
+      latente: el defecto del dev server era **5174**, el puerto de opencode-propio, así que
+      `npm run dev` a secas chocaba y, con `strictPort`, moría.
+    - **Papeles del área** (`config/area.json`, privado, con ejemplo versionado): qué proyecto hace
+      de motor de calidad, gestor de despliegues y limpiador, y quién queda fuera del bump. Sin el
+      fichero no se rompe nada: cada papel ausente desactiva su función y lo dice con el remedio
+      (`avisoSinPapel`); la guarda del centinela **falla cerrada** (503), que es lo correcto para un
+      endpoint que exime.
+    - **Quién es el tablero: por ruta, no por nombre.** `esMando` lo calcula el servidor
+      (`scanner/workspace.ts`) comparando con `RAIZ_REPO` y lo consume la clasificación compartida,
+      que no puede mirar el sistema de archivos. Para la regla L1 el nombre viaja como dato
+      (`nombreMando`), no como literal.
+
+    **Tres decisiones, para que se lean como deliberadas y no como olvidos:**
+
+    1. **`Agente/` queda fuera del alcance de E4.** Es nuestra documentación de trabajo (planes,
+       completados, historial), no código del producto: se versiona a propósito y no es «datos
+       nuestros en archivos versionados» en el sentido del punto 1. Si algún día se publica el repo,
+       esa carpeta se decide aparte.
+    2. **`scripts/quality/certificacion.mjs` conserva su espacio de caché** (`glory-sentinel` /
+       `GlorySentinel`): es el *namespace* del motor de calidad, no una ruta nuestra, y
+       `GLORY_CERT_CACHE` es su override documentado. Cambiarlo rompería la caché de quien ya lo
+       tiene montado sin ganar agnosticidad.
+    3. **`PATRON_OPENCODE_PROPIO` y `PUERTO_OPENCODE` (5174) se quedan como constantes
+       documentadas:** nombran una app de **terceros** (la que no se debe tocar), no un proyecto
+       nuestro. No son configuración del área.
+
+    **Extra que apareció al auditar:** la prueba de `quality-sync` montaba un área con nuestros
+    nombres reales *y* leía nuestra config privada, así que no pasaba en un clon. Ahora el fixture
+    inventa los nombres y escribe su propia lista de consumidores.
+    **Verificado:** type-check limpio, 181/181 en `.mjs`, 427/427 en TS y la trampa del doctor en
+    verde con `config/registro.json` intacto (`diff` contra la copia de seguridad).
 - **F — README.** No existe. Uno en condiciones: qué es, cómo se arranca, dónde vive el estado,
   y el reparto portátil/89.
 - **G — Planes.** Revisar los 24 `PLAN-*.md` de la raíz y los 5 de `Agente/planes/`, uno a uno;
@@ -243,8 +284,28 @@ su commit. El orden importa: **A y B van antes que C**, porque cambian lo que el
     y el botón «verificar alineación» manda `forzar=1` y salta la caché (un informe viejo servido
     indefinidamente sería peor que no tener caché, por eso caduca). El comentario de la ruta decía
     «corrida barata»: por creerlo no se cacheaba. Medidor reutilizable: `C:/tmp/wm-perf/mide.mjs`.
-  - **K2 — Pendiente:** perfilar el resto (el escaneo raíz, `analizador.ts` —que se parte por
-    responsabilidad aquí, según E3—) y volver a medir con el mismo medidor.
+  - **K2 — Hecho (17AA-2):** perfilado el escaneo raíz con el mismo medidor. La causa no era el
+    bucle ni el disco: era **pedirle a git lo que se puede leer del filesystem**. `estadoGit`
+    gastaba 6–7 procesos por repo (uno por cada pregunta: rama, remoto, ahead/behind, cambios,
+    worktrees) y `detectarGit` preguntaba `rev-parse --is-inside-work-tree` en cada carpeta sin
+    `.git` (16 carpetas × 37 ms = **594 ms** solo en eso).
+    (1) `estadoGit` ahora usa **dos** procesos: `status --porcelain --branch` trae de una vez la
+    rama, el upstream, el ahead/behind y el estado de los archivos; y un `log -1` para el último
+    commit. El remoto se lee de `.git/config` (con caída a `git remote get-url origin` si el
+    config lleva `include` o `url`), y `worktree list` se salta cuando no existe
+    `<commondir>/worktrees`, porque sin worktrees secundarios no puede haber huérfanos.
+    (2) `detectarGit` resuelve el `.git` en el filesystem (enlace → `realpath`, fichero →
+    `gitdir:`, y si no, camina hacia arriba buscando `.git`): **594 ms → 4–5 ms**.
+    **Resultado: el escaneo raíz pasa de 8.957 ms y 142 procesos git a ~2.400 ms y 41 procesos
+    propios** (3,7×), con `detectarGit: 32/32` y `estadoGit: 20/20` respuestas idénticas a la
+    implementación vieja sobre las carpetas reales del área. Lo que queda (2,3 s) es `git status`
+    mismo sobre OneDrive (~117 ms por repo, 96 % del escaneo) y ya solo se paga al refrescar de
+    verdad, porque `/api/workspace` sirve caché en memoria y en disco si no se pide `forzar=1`.
+    **No se hizo, a propósito:** caché por mtime (la frescura no es fiable) y escáner asíncrono
+    (paralelizar `git status` sobre OneDrive no acelera; lo satura). De paso: el `snapshotArea`
+    duplicado en `index.ts` se eliminó (era una segunda fuente de verdad del mismo escaneo) y
+    `analizador.ts` se partió por responsabilidad según E3 (`analisis/almacen.ts` guarda,
+    `analisis/reporte.ts` traduce formato, `analizador.ts` lanza y decide dónde corre).
 
 ## Criterio de hecho
 
@@ -258,12 +319,12 @@ hardcodeo, con README; planes terminados y organizados.
 B2 (`623f56c` en varsense, `cssInline*`), **C (los 14 problemas reales de workspace-manager;
 el tablero pasa de 16 a 2, y los 2 que quedan son el falso positivo de B6)**.
 
-**Bloque en curso:** E (SOLID y agnóstico), F (README), G (planes). **Hecho además:** D, que
+**Bloque en curso:** F (README) y G (planes). **Hecho además:** D, que
 resultó estar casi todo resuelto de antes y se cerró con el audit remoto (`8fdaa9b`), la parte
-de SOLID de E (`403ccdd`, E2 + la disposición del resto en E3) y la primera mitad del
-rendimiento (`e4adf45`, K1: la verificación de alineación, 20,7 s → 10,8 s forzado y 13 ms
-cacheada). **Próximo paso:** E4, el agnóstico (sacar del repo lo que es configuración nuestra);
-luego K2 (perfilar el escaneo raíz y `analizador.ts`), el README y los planes.
+de SOLID de E (`403ccdd`, E2 + la disposición del resto en E3), el agnóstico (`c76079e`, E4) y el
+rendimiento entero (K1 `e4adf45`: la verificación de alineación, 20,7 s → 10,8 s
+forzado y 13 ms cacheada; K2: el escaneo raíz, 8.957 ms → ~2.400 ms).
+**Próximo paso:** el README (bloque F) y los planes (bloque G).
 **Falsos positivos pendientes (van al final, por encargo):** B4
 (`tokenDetection.duplicate.excludeTokens`), B5 (el `excepciones-varsense.json` huérfano) y B6
 (el `limite-lineas` de los archivos de test, que es lo único que le queda al tablero de
