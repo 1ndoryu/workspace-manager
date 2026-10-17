@@ -46,7 +46,7 @@ const FILTROS: { clave: 'todos' | Categoria; etiqueta: string }[] = [
  * solo se invoca y se pinta el resultado. Sin devId no hay botones. */
 const BOTONES_DEV: { accion: AccionDevNombre; etiqueta: string; titulo: string }[] = [
   { accion: 'up', etiqueta: 'arrancar', titulo: 'dev up: verifica o arranca (nunca duplica)' },
-  { accion: 'stop', etiqueta: 'detener', titulo: 'dev stop: solo propio no-protegido (nunca 8787/5174/5175)' },
+  { accion: 'stop', etiqueta: 'detener', titulo: 'dev stop: solo propio no-protegido (nunca los del tablero ni el de la app ajena)' },
   { accion: 'logs', etiqueta: 'bitácora', titulo: 'dev logs: ultimas 50 lineas del arranque' },
   { accion: 'open', etiqueta: 'abrir', titulo: 'dev open: abre las URLs servidas' },
 ];

@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import type { EntradaArchivo, ListadoDirectorio } from '../shared/types.js';
+import { nombreDeRuta } from '../shared/vista/format.js';
 import { useWorkspaceStore } from './useWorkspace.js';
 
 export interface ArchivoAbierto {
@@ -16,6 +17,10 @@ export interface ArchivoAbierto {
 export function usePanelNavegador() {
   const navegadorRuta = useWorkspaceStore((s) => s.navegadorRuta);
   const consumirNavegadorRuta = useWorkspaceStore((s) => s.consumirNavegadorRuta);
+  /* Nombre de la carpeta del area, derivado de su raiz (CabeceraSnapshot.raiz).
+   * [por que] El breadcrumb lo llevaba incrustado ('area-trabajo'): en un area
+   * con otro nombre mentia. Vacio mientras no hay snapshot. */
+  const raiz = useWorkspaceStore((s) => s.snapshot?.raiz ?? '');
   const [dir, setDir] = useState('');
   const [padre, setPadre] = useState('');
   const [entradas, setEntradas] = useState<EntradaArchivo[]>([]);
@@ -81,6 +86,7 @@ export function usePanelNavegador() {
   const partes = dir === '' ? [] : dir.split('/');
 
   return {
+    area: raiz ? nombreDeRuta(raiz) : '',
     dir,
     padre,
     entradas,

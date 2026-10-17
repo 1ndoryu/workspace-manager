@@ -14,18 +14,19 @@ import { createHash } from 'node:crypto';
 import { copyFile, mkdir, realpath, readFile, lstat, access, rm } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { BIN_GIT } from '../shared/binarios.mjs';
 
 const LOCK_FILE = 'sentinel.lock.json';
 
 function git(cwd, ...args) {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
+  const result = spawnSync(BIN_GIT, args, { cwd, encoding: 'utf8', windowsHide: true });
   if (result.error || result.status !== 0) return null;
   return result.stdout.trim();
 }
 
 function gitArchiveSha256(toolRoot) {
   return new Promise((resolve, reject) => {
-    const child = spawn('git', ['-C', toolRoot, 'archive', '--format=tar', 'HEAD'], {
+    const child = spawn(BIN_GIT, ['-C', toolRoot, 'archive', '--format=tar', 'HEAD'], {
       cwd: toolRoot, shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     });
     const hash = createHash('sha256');

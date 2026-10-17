@@ -4,6 +4,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
+import { BIN_GIT } from '../../shared/binarios.js';
 import type { ArchivoLocal, CommitResumen, DetalleRepoSync, EstadoGit, LadoSync } from '../../shared/types.js';
 import { commondirDe, detectarGit, gitdirDe, type InfoGit } from './gitDeteccion.js';
 
@@ -22,7 +23,7 @@ export { detectarGit, type InfoGit };
  * el estado cambiado a staged (289A-6). */
 export function git(ruta: string, args: string[]): string | null {
   try {
-    return execFileSync('git', args, {
+    return execFileSync(BIN_GIT, args, {
       cwd: ruta,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],

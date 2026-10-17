@@ -127,8 +127,8 @@ function proyectoCompleto(
 ): Proyecto {
   const clave = claveDe(ruta, raiz);
   const gate = estadoGate(ruta);
-  /* [por que] Excepcion explicita del gate (plan 308A-1): glory-sentinel (el
-   * propio repo del runtime) se exime de llevar gate. Sigue VISIBLE en
+  /* [por que] Excepcion explicita del gate (plan 308A-1): el papel `sentinel`
+   * (el propio repo del runtime) se exime de llevar gate. Sigue VISIBLE en
    * mapa/lista (a diferencia de ignorados) y no genera problema "sin gate"
    * en la consola: la puerta se fuerza a 'none' y gateDisponible a false. */
   const gateReal: EstadoGate | undefined = sinGate.has(clave)

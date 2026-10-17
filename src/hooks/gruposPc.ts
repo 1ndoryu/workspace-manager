@@ -1,4 +1,4 @@
-/* Agrupamiento de entradas del limpiador-pc para la vista (fase → grupos).
+/* Agrupamiento de entradas del papel `limpiador` para la vista (fase → grupos).
  * [por que] Extraido de usePanelPc (limite-lineas del hook): son funciones
  * puras sin estado y el hook solo las consume. */
 import type { EntradaPc } from '../v2/pc/apiPc.js';

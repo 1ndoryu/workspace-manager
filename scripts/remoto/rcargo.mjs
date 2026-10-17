@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exigirConfigPrivada } from '../shared/rutas.mjs';
+import { BIN_GIT, BIN_SSH } from '../shared/binarios.mjs';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const MODOS = new Set(['local', 'remoto']);
@@ -165,7 +166,7 @@ export function argsSsh(config, comandoRemoto) {
 }
 
 function git(cwd, args) {
-  const r = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
+  const r = spawnSync(BIN_GIT, args, { cwd, encoding: 'utf8', windowsHide: true });
   return r.status === 0 ? r.stdout.trim() : null;
 }
 
@@ -220,7 +221,7 @@ export function asegurarSesion({ config, proyecto, rutaLocal, rutas, dryRun = fa
   const lista = correr(mutagen, ['sync', 'list', sesion], { dryRun, cwd, silencioso: true });
   if (lista.status === 2) return 2;
   if (dryRun || lista.status !== 0) {
-    if (correr('ssh', argsSsh(config, ['mkdir', '-p', rutas.dirRemoto, rutas.target]), { dryRun, cwd }).status !== 0) return 1;
+    if (correr(BIN_SSH, argsSsh(config, ['mkdir', '-p', rutas.dirRemoto, rutas.target]), { dryRun, cwd }).status !== 0) return 1;
     if (correr(mutagen, argsCrearSesion(config, proyecto, rutaLocal), { dryRun, cwd }).status !== 0) return 1;
   }
   return correr(mutagen, ['sync', 'flush', sesion], { dryRun, cwd }).status === 0 ? 0 : 1;
@@ -250,7 +251,7 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
   if (sync !== 0) return sync;
 
   const remoto = construirComandoRemoto(config, rutas, args, nombreBd, preparar);
-  return correr('ssh', argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;
+  return correr(BIN_SSH, argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;
 }
 
 async function main(argv) {

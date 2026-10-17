@@ -10,6 +10,7 @@ import net from 'node:net';
 import { RAIZ, formatearNuevos, pedir, rutaSnapshot } from './gate.mjs';
 import { avisoTaller } from '../taller/taller-aviso.mjs';
 import { rutaConfigPrivada } from '../../shared/rutas.mjs';
+import { BIN_GIT } from '../../shared/binarios.mjs';
 
 /* Tablero y opencode-propio: nunca se cuentan como procesos propios del proyecto
  * (AGENTS §5 y §9.2). */
@@ -21,7 +22,7 @@ const fallo = (nombre, detalle, accion, lineas = []) => ({ nombre, ok: false, de
 const omitida = (nombre, motivo) => ({ nombre, ok: true, detalle: `omitida: ${motivo}` });
 
 function git(ruta, args) {
-  return execFileSync('git', ['-C', ruta, ...args], {
+  return execFileSync(BIN_GIT, ['-C', ruta, ...args], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     timeout: 30_000,

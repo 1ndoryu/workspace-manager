@@ -1,6 +1,7 @@
 {
   "$formato": 1,
   "$nota": "Papeles del area: que proyecto hace cada cosa que el manager no puede adivinar. Copia este fichero a config/area.json y pon los nombres de tus proyectos. Todos los campos son opcionales: un papel ausente (o el fichero entero) solo desactiva su funcion, con un aviso que lo dice.",
+  "$despliegueBin": "Solo si el ejecutable que instala tu proyecto de despliegue NO se llama como su carpeta. Pon el nombre base, sin extension. Si falta, se usa el del papel.",
   "sentinel": "mi-motor-de-calidad",
   "despliegue": "mi-gestor-de-despliegues",
   "limpiador": "mi-limpiador",

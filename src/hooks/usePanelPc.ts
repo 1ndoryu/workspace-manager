@@ -1,4 +1,4 @@
-/* Hook del PanelPc: estado + analisis/limpieza/reconstruccion del limpiador-pc.
+/* Hook del PanelPc: estado + analisis/limpieza/reconstruccion del papel `limpiador`.
  * [por que] Extraido de PanelPc para resolver componente-sin-hook-glory (y
  * limite-lineas de paso): el componente renderiza, el hook posee
  * estado/handlers/SSE. */

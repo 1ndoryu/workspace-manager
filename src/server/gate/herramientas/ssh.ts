@@ -4,6 +4,7 @@
  * comandos y con la decisión de modo, que son otra cosa. */
 import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { BIN_SSH, BIN_TAR } from '../../../shared/binarios.js';
 import type { ConfigRemota } from './config.js';
 
 const execFileAsync = promisify(execFile);
@@ -35,7 +36,7 @@ export interface SalidaSsh {
 export async function ssh(cfg: ConfigRemota, comando: string, timeout: number): Promise<SalidaSsh> {
   try {
     const { stdout } = await execFileAsync(
-      'ssh',
+      BIN_SSH,
       ['-n', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', cfg.host, comando],
       { encoding: 'utf8', timeout, windowsHide: true, maxBuffer: MAX_SALIDA },
     );
@@ -62,8 +63,8 @@ function esperarProceso(p: ChildProcess, nombre: string): Promise<string | null>
  * tar por ssh copia en ~8 s. */
 export async function copiarEntradas(base: string, cfg: ConfigRemota, destino: string, entradas: string[]): Promise<void> {
   const remoto = `mkdir -p ${comillas(destino)} && tar -C ${comillas(destino)} -xf -`;
-  const tar = spawn('tar', ['-C', base, '-cf', '-', ...entradas], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
-  const ssh = spawn('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', cfg.host, remoto], {
+  const tar = spawn(BIN_TAR, ['-C', base, '-cf', '-', ...entradas], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const ssh = spawn(BIN_SSH, ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', cfg.host, remoto], {
     windowsHide: true,
     stdio: ['pipe', 'pipe', 'pipe'],
   });

@@ -29,6 +29,7 @@ function tamanoLegible(bytes: number | null): string {
 
 export function PanelNavegador() {
   const {
+    area,
     dir,
     padre,
     entradas,
@@ -52,7 +53,7 @@ export function PanelNavegador() {
                 className={`navegadorRutaChip${dir === '' ? ' navegadorRutaChip--activo' : ''}`}
                 onClick={() => void cargarDir('')}
               >
-                area-trabajo
+                {area}
               </Button>
               {partes.map((seg, i) => {
                 const destino = partes.slice(0, i + 1).join('/');
@@ -69,11 +70,13 @@ export function PanelNavegador() {
                   </span>
                 );
               })}
+              {/* [por que] `padre` no puede ser '': el boton solo se pinta
+                  cuando hay a donde subir (verificado en el navegador). */}
               {padre !== '' && (
                 <Button
                   className="navegadorSubir"
                   onClick={() => void cargarDir(padre)}
-                  title={`Subir a ${padre === '' ? 'area-trabajo' : padre}`}
+                  title={`Subir a ${padre}`}
                 >
                   ↑
                 </Button>

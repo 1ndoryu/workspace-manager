@@ -1,4 +1,4 @@
-/* Elevación selectiva del limpiador-pc: reintentar como administrador solo
+/* Elevación selectiva del papel `limpiador`: reintentar como administrador solo
  * lo que falló por permisos fuera del perfil (p. ej. ProgramData).
  * [por que] El backend corre como usuario estándar y el .exe hereda su token
  * vía execFile sin shell: borrar bajo C:\ProgramData devuelve «os error 5»

@@ -33,8 +33,9 @@ export function crearAccionesConfig(set: Set): AccionesConfig {
       }
     },
 
-    /* Exime/quita la exencion de gate de glory-sentinel (plan 308A-1 F6). El
-     * server valida que la clave sea glory-sentinel; solo persiste la config. */
+    /* Exime/quita la exencion de gate del motor de calidad del area (papel
+     * `sentinel` de config/area.json; plan 308A-1 F6). El server valida la
+     * clave contra ese papel; aqui solo se persiste la config. */
     cambiarSinGate: async (clave, eximir) => {
       try {
         const { data } = await axios.post<{ ok: boolean; snapshot?: SnapshotWorkspace }>('/api/config/singate', {

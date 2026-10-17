@@ -29,6 +29,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { BIN_GIT, BIN_NPM } from '../shared/binarios.mjs';
 import {
   describirClave,
   directorioCertificaciones,
@@ -61,7 +62,7 @@ function run(cmd, args, cwd, label) {
 }
 
 function git(cwd, ...args) {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
+  const result = spawnSync(BIN_GIT, args, { cwd, encoding: 'utf8', windowsHide: true });
   if (result.error || result.status !== 0) return null;
   return result.stdout.trim();
 }
@@ -84,7 +85,7 @@ function refrescarRefs(source, name) {
    * fetch entero («would clobber existing tag», visto con v0.7.6) y el aviso
    * saldría por un motivo que no impide nada. El refspec por defecto ya trae
    * las etiquetas alcanzables sin pisar las existentes. */
-  const resultado = spawnSync('git', ['fetch', 'origin'], {
+  const resultado = spawnSync(BIN_GIT, ['fetch', 'origin'], {
     cwd: source,
     encoding: 'utf8',
     windowsHide: true,
@@ -216,11 +217,11 @@ for (const [name, config] of Object.entries(tools)) {
   if (origen === 'ejecutada') {
     if (buildScript) {
       process.stdout.write(`[quality:setup] ${name}: compilando (npm run ${buildScript})\n`);
-      run('npm', ['run', buildScript], source, `${name} compile`);
+      run(BIN_NPM, ['run', buildScript], source, `${name} compile`);
     }
     if (testScript) {
       process.stdout.write(`[quality:setup] ${name}: suite (npm run ${testScript})\n`);
-      run('npm', ['run', testScript], source, `${name} suite`);
+      run(BIN_NPM, ['run', testScript], source, `${name} suite`);
     }
     ejecutadas += 1;
     if (cacheActiva) {

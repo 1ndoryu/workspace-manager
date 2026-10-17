@@ -11,6 +11,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { RAIZ } from './gate.mjs';
 import { baseDe } from './cierre.mjs';
 import { rutaConfigPrivada } from '../../shared/rutas.mjs';
+import { BIN_GIT } from '../../shared/binarios.mjs';
 
 const ok = (nombre, detalle) => ({ nombre, ok: true, detalle });
 const fallo = (nombre, detalle, accion, plan = {}) => ({ nombre, ok: false, detalle, accion, ...plan });
@@ -35,7 +36,7 @@ const MENSAJES = {
 const RAMA_ALTA = 'alta/10aa-2';
 
 function git(ruta, args) {
-  return execFileSync('git', ['-C', ruta, ...args], {
+  return execFileSync(BIN_GIT, ['-C', ruta, ...args], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     timeout: 30_000,

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useWorkspaceStore } from './useWorkspace.js';
 import type { Proyecto, SkillGlobal } from '../shared/types.js';
+import { nombreDeRuta } from '../shared/vista/format.js';
 import { mensajeDeError, toastError, toastOk } from '../v2/toast.js';
 
 export type DocSeleccionado =
@@ -66,9 +67,14 @@ export function usePanelDocs() {
   const [guardando, setGuardando] = useState(false);
 
   const skills: SkillGlobal[] = snapshot?.agentes.skills ?? [];
+  /* Nombre de la carpeta del area, derivado de su raiz (CabeceraSnapshot.raiz).
+   * [por que] Estaba incrustado ('area-trabajo'): en un area con otro nombre la
+   * lista mentia. Vacio mientras no hay snapshot, y entonces se rotula «raiz». */
+  const area = snapshot?.raiz ? nombreDeRuta(snapshot.raiz) : '';
+  const tituloRaiz = area ? `raíz (${area})` : 'raíz';
   const docs = agentesDoc(
     snapshot?.proyectos ?? [],
-    'raíz (area-trabajo)',
+    tituloRaiz,
     snapshot?.agentes.global.tieneAgentsMd ?? false,
     snapshot?.agentes.global.reglas.length ?? 0,
   );
@@ -84,7 +90,7 @@ export function usePanelDocs() {
       entradas: skills.map((s): EntradaDocs => ({ id: s.nombre, nombre: s.nombre, etiqueta: 'skill', descripcion: s.descripcion })),
     },
     {
-      titulo: 'raíz (area-trabajo)',
+      titulo: tituloRaiz,
       ubicacion: snapshot?.agentes.global.ruta ?? 'AGENTS.md',
       entradas: docs
         .filter((d) => d.id === 'raiz')
@@ -92,7 +98,7 @@ export function usePanelDocs() {
     },
     {
       titulo: `proyectos (${docs.filter((d) => d.id !== 'raiz').length})`,
-      ubicacion: 'area-trabajo/<proyecto>/AGENTS.md',
+      ubicacion: area ? `${area}/<proyecto>/AGENTS.md` : '<proyecto>/AGENTS.md',
       entradas: docs
         .filter((d) => d.id !== 'raiz')
         .map((d): EntradaDocs => ({ id: d.id, nombre: d.nombre, etiqueta: 'AGENTS.md', tiene: d.tiene, reglas: d.reglas })),

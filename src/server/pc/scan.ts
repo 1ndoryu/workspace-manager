@@ -1,4 +1,4 @@
-/* Análisis del limpiador-pc: un solo scan global a la vez, por SSE.
+/* Análisis del papel `limpiador`: un solo scan global a la vez, por SSE.
  * [por que] [299A-11] Bloque E: sale de ejecucion.js (590 líneas efectivas)
  * junto con limpieza.js; la base (fases, tipos, cola, rutas) queda en
  * ejecucion.js. El ciclo scan ↔ limpieza (predicados de exclusión mutua)

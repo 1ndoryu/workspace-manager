@@ -1,4 +1,4 @@
-/* Binario de limpiador-pc: resolucion versionada con auto-reconstruccion.
+/* Binario del papel `limpiador`: resolucion versionada con auto-reconstruccion.
  * [por que] El binario NO vive en C:\tmp (se purga) ni se commitea: reside en
  * `data/bin/` (gitignored, pocos MB) y el server lo reconstruye solo cuando la
  * fuente cambia. Asi una mejora del limpiador se propaga sola al proximo
@@ -48,7 +48,7 @@ export interface EstadoBinario {
   reconstruyendo: boolean;
 }
 
-/* Version declarada en limpiador-pc/Cargo.toml. null si no se puede leer. */
+/* Version declarada en el Cargo.toml del papel `limpiador`. null si no se puede leer. */
 export function versionFuente(): string | null {
   if (!DIR_LIMPIADOR) return null;
   try {
@@ -60,7 +60,7 @@ export function versionFuente(): string | null {
   }
 }
 
-/* Version que reporta el binario (`--version` => "limpiador-pc 0.1.0"). */
+/* Version que reporta el binario (`--version` => "<nombre> <version>"). */
 async function versionBinaria(bin: string): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync(bin, ['--version'], {

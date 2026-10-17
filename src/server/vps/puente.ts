@@ -1,6 +1,7 @@
-/* Puente con coolify-manager-rs para la tab vps (299A-5).
+/* Puente con el gestor de despliegues (papel `despliegue`) para la tab vps
+ * (299A-5).
  * [por que] El binario vive fuera de C:\tmp (se purga cada hora):
- * COOLIFY_MANAGER_BIN o <home>\bin\coolify-manager.exe (durable) con
+ * COOLIFY_MANAGER_BIN o `<home>/bin/<papel despliegue>.exe` (durable) con
  * fallback a C:\tmp\bin (legacy). Cada consulta es un proceso execFile SIN
  * shell y con argv construido aqui: la allowlist no es una lista de strings
  * sino el conjunto cerrado de funciones de abajo (solo lectura; no existe
@@ -11,13 +12,41 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { papelDeArea, papelesDeArea } from '../../shared/area.js';
+import { RAIZ_AREA } from '../../shared/rutas.js';
 import { raizTemporales } from '../plataforma/temporales.js';
 
-const BIN_DURADERO = join(homedir(), 'bin', 'coolify-manager.exe');
-/* [por que] La raiz de temporales sale de su unico dueno (raizTemporales, que
+/* Nombre base del ejecutable del gestor de despliegues. [por que] Estaba
+ * incrustado ('coolify-manager.exe'), igual que su carpeta: dos datos nuestros
+ * en el codigo. La carpeta y el ejecutable no tienen por que llamarse igual
+ * (el nuestro es `coolify-manager-rs` en disco y produce `coolify-manager`),
+ * asi que la config puede declarar `despliegueBin` y, si no, vale el nombre
+ * del papel — que es el caso comun (`limpiador` -> `limpiador.exe`).
+ * Sin papel declarado no hay nombre: la tab vps lo dice ('sin-binario'). */
+function nombreBinDespliegue(): string | null {
+  const papeles = papelesDeArea();
+  const base = papeles.despliegueBin ?? papeles.despliegue;
+  return base ? base + (process.platform === 'win32' ? '.exe' : '') : null;
+}
+
+/* Ruta del ejecutable bajo `<dir>/bin`. Null si no hay papel que lo nombre. */
+function rutaBinDespliegue(dir: string): string | null {
+  const nombre = nombreBinDespliegue();
+  return nombre ? join(dir, 'bin', nombre) : null;
+}
+
+/* [por que] `<home>/bin` es la ubicacion durable, fuera de C:\tmp (que se purga
+ * cada hora). La raiz de temporales sale de su unico dueno (raizTemporales, que
  * ya resuelve Windows vs Linux y el override WM_TMP) en vez de escribirse a
- * mano: era el segundo sitio que sabia donde vive C:\tmp. */
-const BIN_LEGACY = join(raizTemporales(), 'bin', 'coolify-manager.exe');
+ * mano: era el segundo sitio que sabia donde vive C:\tmp. Funcion y no
+ * constante: `WS_CONFIG_ROOT` puede cambiar despues de importar (los tests
+ * apuntan a un directorio temporal) y una constante llegaria tarde. */
+function rutasBinDespliegue(): string[] {
+  return [rutaBinDespliegue(homedir()), rutaBinDespliegue(raizTemporales())].filter(
+    (r): r is string => r !== null,
+  );
+}
+
 const TIMEOUT_MS = 90_000;
 const MAX_SALIDA = 512 * 1024;
 
@@ -27,7 +56,28 @@ const MAX_SALIDA = 512 * 1024;
  * personal del dueno del laptop). Derivado de las mismas constantes que usa
  * rutaBinario(), no puede mentir. */
 export function dondeBuscarBinario(): string {
-  return `COOLIFY_MANAGER_BIN o ${BIN_DURADERO} o ${BIN_LEGACY}`;
+  return ['COOLIFY_MANAGER_BIN', ...rutasBinDespliegue()].join(' o ');
+}
+
+/* Ruta del `settings.json` del gestor de despliegues: la variable de entorno o
+ * el fichero del propio proyecto (`<area>/<papel despliegue>/config/settings.json`).
+ * [por que] El MISMO dato estaba resuelto de dos formas distintas: la semilla del
+ * mapa de sitios (rutasVps) si miraba el fichero del proyecto, pero aqui solo
+ * valia la variable — y aqui es donde se LANZA el binario. Sin la variable, el
+ * binario no encontraba su configuracion y el panel vps avisaba «no se pudo leer
+ * el listado (¿VPS inalcanzable?)»: un sintoma que no tenia nada que ver con la
+ * VPS. Un solo dueno para el dato, y la variable gana (es la anulacion explicita).
+ * Sin papel declarado queda solo la variable. */
+export function rutaConfigDespliegue(): string | null {
+  const papel = papelDeArea('despliegue');
+  const candidatos = [
+    (process.env.COOLIFY_MANAGER_CONFIG ?? '').trim(),
+    papel ? join(RAIZ_AREA, papel, 'config', 'settings.json') : '',
+  ];
+  for (const ruta of candidatos) {
+    if (ruta && existsSync(ruta)) return ruta;
+  }
+  return null;
 }
 
 /* Nombres de sitio aceptados (dueño único; rutasVps lo reutiliza).
@@ -38,8 +88,9 @@ export const NOMBRE_OK = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 export function rutaBinario(): string | null {
   const porEnv = (process.env.COOLIFY_MANAGER_BIN ?? '').trim();
   if (porEnv && existsSync(porEnv)) return porEnv;
-  if (existsSync(BIN_DURADERO)) return BIN_DURADERO;
-  if (existsSync(BIN_LEGACY)) return BIN_LEGACY;
+  for (const ruta of rutasBinDespliegue()) {
+    if (existsSync(ruta)) return ruta;
+  }
   return null;
 }
 
@@ -94,8 +145,8 @@ export function redactar(texto: string): string {
 }
 
 function configArg(): string[] {
-  const ruta = (process.env.COOLIFY_MANAGER_CONFIG ?? '').trim();
-  return ruta && existsSync(ruta) ? ['-c', ruta] : [];
+  const ruta = rutaConfigDespliegue();
+  return ruta ? ['-c', ruta] : [];
 }
 
 function validarNombre(sitio: string): void {

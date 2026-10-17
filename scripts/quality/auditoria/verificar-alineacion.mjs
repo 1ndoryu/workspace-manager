@@ -36,6 +36,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.mjs';
+import { BIN_GIT } from '../../shared/binarios.mjs';
 
 /* Mapa id → ruta absoluta del repo, derivado del registro privado.
  * [por que] Antes era una lista de proyectos incrustada en el código: ataba el
@@ -63,7 +64,7 @@ function git(cwd, ...args) {
   if (MEMO.has(clave)) return MEMO.get(clave);
   let valor;
   try {
-    valor = execFileSync('git', ['-C', cwd, ...args], {
+    valor = execFileSync(BIN_GIT, ['-C', cwd, ...args], {
       encoding: 'utf8', windowsHide: true, timeout: 15000,
     }).trim();
   } catch {

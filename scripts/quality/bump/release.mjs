@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { RAIZ_AREA } from '../../shared/rutas.mjs';
+import { BIN_GIT } from '../../shared/binarios.mjs';
 import { AQUI } from './ajustes.mjs';
 import { comando, ejecutar, leerJson } from './utilidades.mjs';
 
@@ -11,7 +12,7 @@ export function objetivoDelRelease(tool, { commit, version, source }) {
   if (!fs.existsSync(fuente)) {
     throw new Error(`no existe el checkout de referencia ${fuente}; pasa --source o provisiona el área`);
   }
-  const head = ejecutar(comando('git', ['rev-parse', 'HEAD']), fuente);
+  const head = ejecutar(comando(BIN_GIT, ['rev-parse', 'HEAD']), fuente);
   const headReal = head.status === 0 ? head.salida.trim() : null;
   const pkg = leerJson(path.join(fuente, 'package.json'));
   const commitFinal = commit ?? headReal;

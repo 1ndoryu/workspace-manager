@@ -173,7 +173,8 @@ export interface AccionesVulnerabilidades {
 export interface AccionesConfig {
   /* Ignorar / dejar de ignorar un proyecto por su clave y re-escanea. */
   cambiarIgnorado: (clave: string, ignorar: boolean) => Promise<void>;
-  /* Eximir / quitar la exencion de gate de glory-sentinel (plan 308A-1 F6). */
+  /* Eximir / quitar la exencion de gate del motor de calidad (papel
+   * `sentinel` de config/area.json; plan 308A-1 F6). */
   cambiarSinGate: (clave: string, eximir: boolean) => Promise<void>;
   configurarScan: (scan: ConfigScan) => Promise<void>;
   /* `forzar` = recalcular sin caché (botón 'verificar alineación'). */

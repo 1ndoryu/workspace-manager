@@ -1,4 +1,4 @@
-/* Base compartida del borrado del limpiador-pc [0610A-1]: ejecución
+/* Base compartida del borrado del papel `limpiador` [0610A-1]: ejecución
  * tolerante, validación de la selección, parseo, reintento elevado y poda.
  * [por que] `limpieza.ts` superaba el límite (331 efectivas): la mitad de
  * una pasada (`limpiarPc`) y la mitad en vivo (`limpiarTodo`) comparten

@@ -1,6 +1,7 @@
 /* Tunel SSH del laptop a la VPS: args, marcador, identidad y ciclo de vida. */
 
 import { procesosDe, puertosRemotosDe, reenviosTunel } from '../doctor.mjs';
+import { BIN_SSH } from '../../shared/binarios.mjs';
 import { execFile, spawn } from 'node:child_process';
 import { closeSync, mkdirSync, openSync } from 'node:fs';
 import { join } from 'node:path';
@@ -91,7 +92,7 @@ export async function abrirTunel(config, entrada, id) {
   mkdirSync(DIR_LOGS, { recursive: true });
   const rutaLog = join(DIR_LOGS, `remoto-tunel-${id}.log`);
   const fd = openSync(rutaLog, 'a');
-  const hijo = spawn('ssh', argsTunel(config, entrada), { detached: true, stdio: ['ignore', fd, fd], windowsHide: true });
+  const hijo = spawn(BIN_SSH, argsTunel(config, entrada), { detached: true, stdio: ['ignore', fd, fd], windowsHide: true });
   hijo.on('error', () => {});
   hijo.unref();
   closeSync(fd);

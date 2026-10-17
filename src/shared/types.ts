@@ -81,8 +81,9 @@ export interface DetalleRepoSync {
   locales: { archivos: ArchivoLocal[]; truncado: boolean };
 }
 
-/* Tab vps (GET /api/vps/*, 299A-5): despliegues Coolify en solo lectura via
- * coolify-manager-rs. El server ejecuta el binario por consulta (execFile sin
+/* Tab vps (GET /api/vps/*, 299A-5): despliegues en solo lectura via el gestor
+ * de despliegues del area (papel `despliegue` de config/area.json).
+ * El server ejecuta el binario por consulta (execFile sin
  * shell, argv construido solo con comandos de lectura) y aqui solo viajan
  * resumenes parseados: los secretos de settings.json nunca salen del server.
  * Estados: el manager da texto humano en list/health/audit/logs, asi que el
@@ -309,9 +310,9 @@ export interface ConfigWorkspace {
   /* Claves de proyectos pertenecientes al gate que NO llevan gate (plan
    * 308A-1, excepcion explícita). A diferencia de ignorados, el proyecto
    * SIGUE visible en mapa/lista, pero su puerta se fuerza a 'none' y no
-   * genera problema "sin gate" en la consola. Solo se registra
-   * 'glory-sentinel' (el propio repo del runtime; instalarle gate seria
-   * autorreferencial). */
+   * genera problema "sin gate" en la consola. Solo se registra el papel
+   * `sentinel` de config/area.json (el propio repo del runtime; instalarle
+   * gate seria autorreferencial). */
   sinGate?: string[];
   /* Claves de proyectos con sentinel declarado pero exentos de varsense: la
    * consola no genera "varsense ausente" y el analisis no exige varsense.

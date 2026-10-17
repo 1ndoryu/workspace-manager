@@ -18,7 +18,8 @@ import {
   type RegistroConformidad,
 } from '../../shared/taller/conformidad.js';
 import { NOMBRE_MANAGER, rutaConfigPrivada } from '../../shared/rutas.js';
-import { hostTaller } from '../gate/herramientas/config.js';
+import { BIN_SSH } from '../../shared/binarios.js';
+import { hostTaller, leerConfigRemota } from '../gate/herramientas/config.js';
 import { sesionDev } from '../../shared/taller/sesiones.js';
 import { appsAjenas } from '../registro.js';
 
@@ -128,7 +129,7 @@ function errorFormaTaller89(x: unknown): string | null {
 async function leerTaller89(): Promise<{ t89: EstadoTaller89 | null; motivo?: string }> {
   const host = hostTaller();
   if (!host) return { t89: null, motivo: 'sin taller configurado (falta `host` en la config privada)' };
-  const r = await correr('ssh', [
+  const r = await correr(BIN_SSH, [
     '-o', 'BatchMode=yes',
     '-o', 'ConnectTimeout=10',
     '-o', 'ServerAliveInterval=30',
@@ -185,7 +186,7 @@ export function parsearHistorial(texto: string): MuestraHistorial[] {
 async function leerHistorial(): Promise<{ historial: MuestraHistorial[]; motivo?: string }> {
   const host = hostTaller();
   if (!host) return { historial: [], motivo: 'sin taller configurado' };
-  const r = await correr('ssh', [
+  const r = await correr(BIN_SSH, [
     '-o', 'BatchMode=yes',
     '-o', 'ConnectTimeout=10',
     host,
@@ -249,22 +250,39 @@ if ($mutagenPresente) {
 [pscustomobject]@{ procesos = $procesos; escuchas = $escuchas; mutagenPresente = $mutagenPresente; mutagenOk = $mutagenOk; mutagenSalida = $mutagenSalida } | ConvertTo-Json -Compress -Depth 4
 `;
 
-/* [por que] `Get-Command mutagen` no basta: en este laptop el binario está en
- * <home>\bin\mutagen, que no entra en el PATH del PowerShell no interactivo
- * que arranca el manager (16AA-13). Sin esto, L3 sale en error siempre y el sync
- * L→89 no se comprueba nunca. Se prueba el PATH primero y luego las rutas conocidas. */
-const FUNCION_MUTAGEN = `
+/* Mutagen del taller, tal y como lo declara la config privada. [por que] El binario
+ * que hace el flush de la réplica sale de `taller.json` (`sync.binario`) y es el
+ * MISMO que debe usar la sonda: adivinarlo por separado era duplicar el dato y, de
+ * paso, incrustar la organización de esta máquina (`<home>\bin\mutagen`) en el
+ * código. Sin taller declarado no hay ruta que ofrecer. */
+function mutagenDeclarado(): string | null {
+  try {
+    return leerConfigRemota().mutagen;
+  } catch {
+    return null;
+  }
+}
+
+/* [por que] `Get-Command mutagen` no basta: el binario puede estar fuera del PATH del
+ * PowerShell no interactivo que arranca el manager (16AA-13). Sin esto, L3 sale en
+ * error siempre y el sync L→89 no se comprueba nunca. Se prueba el PATH, luego el
+ * declarado en la config y, como último recurso, donde lo deja su instalador. */
+function funcionMutagen(declarado: string | null): string {
+  /* Cita para PowerShell (comilla simple doblada): la ruta la escribe la config. */
+  const ruta = declarado ? `'${declarado.replace(/'/g, "''")}'` : "''";
+  return `
 function resolverMutagen {
   $cmd = Get-Command mutagen -ErrorAction SilentlyContinue
   if ($cmd) { return $cmd.Source }
   $candidatos = @(
-    (Join-Path $env:USERPROFILE 'bin\\mutagen\\mutagen.exe'),
+    ${ruta},
     (Join-Path $env:LOCALAPPDATA 'Mutagen\\mutagen.exe')
   )
-  foreach ($c in $candidatos) { if (Test-Path -LiteralPath $c) { return $c } }
+  foreach ($c in $candidatos) { if ($c -and (Test-Path -LiteralPath $c)) { return $c } }
   return $null
 }
 `;
+}
 
 /* Sesiones taller-* de Mutagen malas: parada, con conflictos o con problemas.
  * [por que] El parser es conservador: sin «Watching» u otro estado de sync, avisa. */
@@ -284,7 +302,7 @@ export function sesionesMutagenMalas(salida: string): string[] {
 async function leerLocal(): Promise<EstadoLocal> {
   const r = await correr('powershell.exe', [
     '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-EncodedCommand', Buffer.from(FUNCION_MUTAGEN + SCRIPT_LOCAL, 'utf16le').toString('base64'),
+    '-EncodedCommand', Buffer.from(funcionMutagen(mutagenDeclarado()) + SCRIPT_LOCAL, 'utf16le').toString('base64'),
   ], TIMEOUT_LOCAL_MS);
   if (r.error) return { procesos: [], escuchas: [], mutagen: null, sinLectura: r.error };
   let d: {

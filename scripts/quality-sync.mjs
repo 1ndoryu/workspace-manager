@@ -3,7 +3,7 @@
  * (308A-1 §F5 / §3.3). Es un script de VALIDACION/CONSISTENCIA en-repo del
  * workspace-manager: NO escribe nada por defecto.
  *
- * [por que] El plan centraliza el runtime en `area-trabajo/.quality-tools/{sentinel,
+ * [por que] El plan centraliza el runtime en `<area>/.quality-tools/{sentinel,
  * varsense}` y exige que TODOS los consumidores apunten al MISMO commit ("mismo
  * commit para todos = quality:sync falla si uno difiere"). Este script es la
  * guarda: recorre los consumidores del gate, compara el `sentinel.commit` /
@@ -40,6 +40,7 @@ import { execFileSync } from 'node:child_process';
 
 /* Raiz del area (misma fuente del server: WS_AREA_ROOT o el default real). */
 import { RAIZ_AREA, rutaConfigPrivada } from './shared/rutas.mjs';
+import { BIN_GIT } from './shared/binarios.mjs';
 const CHECKOUT = join(RAIZ_AREA, '.quality-tools');
 
 /* Consumidores del gate: QUE proyectos del area reciben el pin. [por que] Es
@@ -73,7 +74,7 @@ const QITOOLS = 'quality-tools.json';
 /* Lee el HEAD (hash completo) de un checkout git. Null si no es repo git. */
 function gitHead(dir) {
   try {
-    return execFileSync('git', ['-C', dir, 'rev-parse', 'HEAD'], {
+    return execFileSync(BIN_GIT, ['-C', dir, 'rev-parse', 'HEAD'], {
       encoding: 'utf8',
       windowsHide: true,
     }).trim();
@@ -85,7 +86,7 @@ function gitHead(dir) {
 /* Lista de rutas con cambios respecto de su HEAD (porcelain). Null si no es git. */
 function gitSucio(dir) {
   try {
-    const out = execFileSync('git', ['-C', dir, 'status', '--porcelain'], {
+    const out = execFileSync(BIN_GIT, ['-C', dir, 'status', '--porcelain'], {
       encoding: 'utf8',
       windowsHide: true,
     }).trim();

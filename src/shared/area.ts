@@ -22,12 +22,16 @@ export type NombrePapel = 'sentinel' | 'despliegue' | 'limpiador';
 export interface PapelesArea {
   sentinel: string | null;
   despliegue: string | null;
+  /** Nombre base del ejecutable que instala el proyecto de `despliegue`, si no
+   * coincide con el de su carpeta (el nuestro es `coolify-manager-rs` en disco
+   * y produce `coolify-manager`). Sin declararlo vale el del papel. */
+  despliegueBin: string | null;
   limpiador: string | null;
   /** Proyectos que el propagador de pins (`quality:bump`) no debe tocar. */
   bumpExcluidos: string[];
 }
 
-const VACIOS: PapelesArea = { sentinel: null, despliegue: null, limpiador: null, bumpExcluidos: [] };
+const VACIOS: PapelesArea = { sentinel: null, despliegue: null, despliegueBin: null, limpiador: null, bumpExcluidos: [] };
 
 function texto(v: unknown): string | null {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
@@ -47,6 +51,7 @@ export function papelesDeArea(): PapelesArea {
   return {
     sentinel: texto(d.sentinel),
     despliegue: texto(d.despliegue),
+    despliegueBin: texto(d.despliegueBin),
     limpiador: texto(d.limpiador),
     bumpExcluidos: Array.isArray(bump.excluidos)
       ? bump.excluidos.filter((x): x is string => texto(x) !== null)

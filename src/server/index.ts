@@ -164,8 +164,8 @@ export function crearServidor(opciones: OpcionesServidor = {}) {
         if (await manejarRutasRepos(req, res, url, ruta)) {
           return;
         }
-        /* Rutas de la tab vps (/api/vps/*, 299A-5, solo lectura via
-         * coolify-manager-rs): viven en vps/rutas/rutasVps.ts. */
+        /* Rutas de la tab vps (/api/vps/*, 299A-5, solo lectura): viven en
+         * vps/rutas/rutasVps.ts. */
         if (await manejarRutasVps(req, res, url, ruta)) {
           return;
         }

@@ -1,4 +1,4 @@
-/* Borrado del limpiador-pc: limpiarPc (una pasada) y limpiarTodo (SSE).
+/* Borrado del papel `limpiador`: limpiarPc (una pasada) y limpiarTodo (SSE).
  * [por que] [299A-11] Bloque E: sale de ejecucion.js (590 líneas efectivas)
  * junto con scan.js; la base (fases, tipos, cola, rutas) queda en
  * ejecucion.js. El ciclo limpieza ↔ scan (predicados de exclusión mutua)

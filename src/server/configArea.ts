@@ -11,7 +11,8 @@ export const NOMBRE_CONFIG = 'workspace.config.json';
 /* [por que] v2: agrega la seccion 'scan' (analisis automatico de sentinel,
  * opt-in y apagado por defecto). Una config v1 (ignorados a secas) sigue
  * valid siendo leida, se normaliza al default de scan. v3 (308A-1): agrega
- * 'sinGate' (proyectos del gate exentos de llevar gate, solo glory-sentinel).
+ * 'sinGate' (proyectos del gate exentos de llevar gate: solo el declarado
+ * como papel `sentinel` en config/area.json).
  * v4: agrega 'varsenseOpcional' (proyectos con sentinel exentos de varsense).
  * v5: agrega 'carpetasIgnoradas' y 'carpetasRecursivas' (el escaner traia
  * incrustados los nombres de carpeta de NUESTRA area). */
@@ -67,7 +68,8 @@ export function leerConfigArea(raiz: string): ConfigWorkspace {
       version: typeof d.version === 'number' ? d.version : CONFIG_DEFECTO.version,
       /* Normaliza: solo strings no vacios, unicos, sin duplicados. */
       ignorados: listaTexto(d.ignorados),
-      /* [por que] sinGate es opt-in por excepcion explicita (solo glory-sentinel). */
+      /* [por que] sinGate es opt-in por excepcion explicita (solo el papel
+       * `sentinel`). */
       sinGate: listaTexto(d.sinGate),
       /* [por que] varsenseOpcional (v4) es opt-in por excepcion explicita
        * (proyectos con sentinel donde varsense no aporta, p. ej. Tailwind
@@ -109,8 +111,9 @@ export function guardarConfigScan(raiz: string, scan: ConfigWorkspace['scan']): 
 }
 
 /* Alterna la clave de un proyecto en la lista sinGate (exencion del gate) y
- * persiste. [por que] Plan 308A-1 F6: solo glory-sentinel (el runtime) es
- * elegible; el endpoint valida la clave, aqui solo se persiste la lista. */
+ * persiste. [por que] Plan 308A-1 F6: solo el motor de calidad del area (papel
+ * `sentinel`) es elegible; el endpoint valida la clave, aqui solo se persiste
+ * la lista. */
 export function cambiarSinGate(raiz: string, clave: string, eximir: boolean): ConfigWorkspace {
   const config = leerConfigArea(raiz);
   const sinDuplicados = (config.sinGate ?? []).filter((c) => c !== clave);

@@ -32,6 +32,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, delimiter, dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { leerConfigArea } from '../configArea.js';
 import { RAIZ_AREA } from '../../shared/rutas.js';
+import { BIN_SSH, BIN_TAR } from '../../shared/binarios.js';
 import { leerConfigRemota } from './herramientas/config.js';
 import { comillas } from './herramientas/ssh.js';
 
@@ -188,9 +189,9 @@ function hermanosDe(raiz: string, proyecto: string, pesadas: ReadonlySet<string>
  * por defecto de esta maquina, no una verdad del proyecto. Git en
  * `%LOCALAPPDATA%\Programs\Git`, en otro idioma de sistema o en Linux no casaba
  * ninguno y se caia a `tar` (bsdtar), que es justo lo que se queria evitar. La
- * raiz se deriva ahora del `git` que haya en el PATH; `WM_TAR` la fija a mano. */
+ * raiz se deriva ahora del `git` que haya en el PATH; `WS_TAR` la fija a mano. */
 export function tarReal(): string {
-  const declarado = process.env.WM_TAR?.trim();
+  const declarado = process.env.WS_TAR?.trim();
   if (declarado) return declarado;
   for (const c of candidatosTar()) {
     try {
@@ -199,7 +200,7 @@ export function tarReal(): string {
       /* siguiente candidato */
     }
   }
-  return 'tar';
+  return BIN_TAR;
 }
 
 /* Candidatos a `tar` de Git, derivados de donde este `git` en el PATH.
@@ -242,7 +243,7 @@ function raizDeGit(): string | null {
  * respuestas validas. Un fallo de ssh devuelve codigo null y stdout vacio. */
 function sshTexto(host: string, comando: string): Promise<SalidaRemota> {
   return new Promise((listo) => {
-    const hijo = spawn('ssh', [...SSH_OPTS, host, comando], { windowsHide: true });
+    const hijo = spawn(BIN_SSH, [...SSH_OPTS, host, comando], { windowsHide: true });
     let out = '';
     const to = setTimeout(() => {
       hijo.kill();
@@ -272,7 +273,7 @@ function enviar(host: string, raiz: string, destino: string, archivos: string[],
       `rm -rf ${comillas(destino)} && mkdir -p ${comillas(destino)} && tar xzf - -C ${comillas(destino)} ` +
       `&& printf '%s' ${comillas(firma)} > ${comillas(`${destino}/.firma`)}`;
     const tar = spawn(tarReal(), ['czf', '-', '-C', raiz, '-T', '-'], { stdio: ['pipe', 'pipe', 'inherit'] });
-    const ssh = spawn('ssh', [...SSH_OPTS_TAR, host, orden], { stdio: ['pipe', 'inherit', 'inherit'] });
+    const ssh = spawn(BIN_SSH, [...SSH_OPTS_TAR, host, orden], { stdio: ['pipe', 'inherit', 'inherit'] });
     /* Si ssh muere antes de tragarse el tar, el pipe revienta con EPIPE; sin este
      * manejador seria un error no capturado que tumbaria el manager. */
     ssh.stdin.on('error', () => {});

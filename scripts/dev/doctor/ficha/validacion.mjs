@@ -70,8 +70,8 @@ export function validarEntrada(e) {
     return;
   }
   const rutaAbs = isAbsolute(e.ruta) ? normalize(e.ruta) : resolve(RAIZ_REPO, e.ruta);
-  // [por que] El mando gestiona proyectos hermanos (glory-pulse, ...): el
-  // area valida es area-trabajo, no solo este repo.
+  // [por que] El mando gestiona proyectos hermanos: el area valida es la
+  // carpeta que contiene a este repo, no este repo solo.
   const areaNorm = normalize(resolve(RAIZ_REPO, '..'));
   if (rutaAbs !== areaNorm && !rutaAbs.startsWith(areaNorm + sep)) {
     mal(`registro: '${e.id}' ruta fuera del area (${e.ruta})`);

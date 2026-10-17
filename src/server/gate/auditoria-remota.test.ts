@@ -71,22 +71,22 @@ test('el PATH remoto es POSIX y depende del gestor', () => {
  * Antes eran dos literales de `C:\Program Files\Git`. Un Git instalado en otro
  * sitio (o en Linux) no casaba ninguno y se caia a `tar`, que en Windows es
  * bsdtar — justo el binario que no se ha probado. Estos casos fijan las tres
- * salidas: `WM_TAR` manda, la raiz se deriva del `git` del PATH, y sin `git`
+ * salidas: `WS_TAR` manda, la raiz se deriva del `git` del PATH, y sin `git`
  * se usa el `tar` del PATH. */
-test('tarReal - WM_TAR manda sobre cualquier busqueda', () => {
-  const original = process.env.WM_TAR;
-  process.env.WM_TAR = 'C:/ruta/elegida/tar.exe';
+test('tarReal - WS_TAR manda sobre cualquier busqueda', () => {
+  const original = process.env.WS_TAR;
+  process.env.WS_TAR = 'C:/ruta/elegida/tar.exe';
   try {
     assert.equal(tarReal(), 'C:/ruta/elegida/tar.exe');
   } finally {
-    if (original === undefined) delete process.env.WM_TAR;
-    else process.env.WM_TAR = original;
+    if (original === undefined) delete process.env.WS_TAR;
+    else process.env.WS_TAR = original;
   }
 });
 
 test('tarReal - deriva la raiz de Git desde el PATH', () => {
   const originalPath = process.env.PATH;
-  const originalTar = process.env.WM_TAR;
+  const originalTar = process.env.WS_TAR;
   const raiz = mkdtempSync(join(tmpdir(), 'wm-tar-'));
   try {
     /* Un Git de mentira con la forma real: el ejecutable en `bin/` y el `tar`
@@ -97,32 +97,32 @@ test('tarReal - deriva la raiz de Git desde el PATH', () => {
     mkdirSync(usrBin, { recursive: true });
     writeFileSync(join(bin, process.platform === 'win32' ? 'git.exe' : 'git'), '');
     writeFileSync(join(usrBin, 'tar.exe'), '');
-    delete process.env.WM_TAR;
+    delete process.env.WS_TAR;
     process.env.PATH = bin;
 
     assert.equal(tarReal(), join(usrBin, 'tar.exe'));
   } finally {
     if (originalPath === undefined) delete process.env.PATH;
     else process.env.PATH = originalPath;
-    if (originalTar === undefined) delete process.env.WM_TAR;
-    else process.env.WM_TAR = originalTar;
+    if (originalTar === undefined) delete process.env.WS_TAR;
+    else process.env.WS_TAR = originalTar;
     rmSync(raiz, { recursive: true, force: true });
   }
 });
 
 test('tarReal - sin git en el PATH cae al tar del PATH', () => {
   const originalPath = process.env.PATH;
-  const originalTar = process.env.WM_TAR;
+  const originalTar = process.env.WS_TAR;
   const vacio = mkdtempSync(join(tmpdir(), 'wm-tar-vacio-'));
   try {
-    delete process.env.WM_TAR;
+    delete process.env.WS_TAR;
     process.env.PATH = vacio;
     assert.equal(tarReal(), 'tar');
   } finally {
     if (originalPath === undefined) delete process.env.PATH;
     else process.env.PATH = originalPath;
-    if (originalTar === undefined) delete process.env.WM_TAR;
-    else process.env.WM_TAR = originalTar;
+    if (originalTar === undefined) delete process.env.WS_TAR;
+    else process.env.WS_TAR = originalTar;
     rmSync(vacio, { recursive: true, force: true });
   }
 });

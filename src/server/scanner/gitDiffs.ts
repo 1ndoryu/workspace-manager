@@ -4,6 +4,7 @@
  * importa de allí el helper `git`. */
 import { execFileSync } from 'node:child_process';
 import { git, MAX_ARCHIVOS_LOCALES } from './git.js';
+import { BIN_GIT } from '../../shared/binarios.js';
 import type { ArchivosRepo, EntradaCambio } from '../../shared/types.js';
 
 /* Limites del lateral de cambios por archivo (299A-4, copiado de
@@ -16,7 +17,7 @@ const MAX_UNTRACKED_DIFF = 20;
  * diferencias (no es error); otro codigo o excepcion = fallo real. */
 function gitCodigo(ruta: string, args: string[]): { salida: string; codigo: number } | null {
   try {
-    const salida = execFileSync('git', args, {
+    const salida = execFileSync(BIN_GIT, args, {
       cwd: ruta,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],

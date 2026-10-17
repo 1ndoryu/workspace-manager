@@ -33,3 +33,12 @@ export function horaCorta(fecha: string | number | Date): string {
 export function hashCorto(hash: string): string {
   return hash.slice(0, 7);
 }
+
+/* Último segmento de una ruta, con `/` o `\`, sin la barra final. [por qué] El
+ * nombre del área es el de su carpeta, y el navegador de archivos y la lista de docs
+ * lo llevaban incrustado (`'area-trabajo'`): en un área con otro nombre los dos
+ * mentían. Se deriva de la raíz que ya manda el snapshot. Aquí y no en `rutas.ts`
+ * porque esto corre en el navegador y no puede importar `node:path`. */
+export function nombreDeRuta(ruta: string): string {
+  return ruta.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? '';
+}

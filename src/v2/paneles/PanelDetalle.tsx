@@ -28,7 +28,7 @@ const ETIQUETA_ESTADO: Record<string, string> = {
  * 4 literales estaticos para no crear modulo compartido por esto. */
 const BOTONES_DETALLE_DEV = [
   { accion: 'up', etiqueta: 'arrancar', titulo: 'dev up: verifica o arranca (nunca duplica)' },
-  { accion: 'stop', etiqueta: 'detener', titulo: 'dev stop: solo propio no-protegido (nunca 8787/5174/5175)' },
+  { accion: 'stop', etiqueta: 'detener', titulo: 'dev stop: solo propio no-protegido (nunca los del tablero ni el de la app ajena)' },
   { accion: 'logs', etiqueta: 'bitácora', titulo: 'dev logs: ultimas 50 lineas del arranque' },
   { accion: 'open', etiqueta: 'abrir', titulo: 'dev open: abre las URLs servidas' },
 ] as const;

@@ -80,7 +80,7 @@ lista de tus proyectos. Las plantillas con la forma esperada están en
 | `config/registro.json` | Un registro por proyecto: `id`, `ruta`, puertos, botón, comandos, healthchecks, y si el análisis corre en remoto (`analisisEn`). |
 | `config/taller.json` | El taller remoto: host SSH, directorio base, intérprete de Node, binario de Mutagen, bases de datos y el bloque `devPublico` (zona, cuenta y túnel de Cloudflare) si publicas devs. |
 | `config/guard-plantillas.json` | La plantilla del Guardián: qué listas de comandos añadir a cada proyecto según su stack. La pestaña Guardián la edita. |
-| `config/area.json` | Los papeles del área: qué proyecto hace de motor de calidad, gestor de despliegues y limpiador, y quién queda fuera del bump. |
+| `config/area.json` | Los papeles del área: qué proyecto hace de motor de calidad, gestor de despliegues y limpiador, y quién queda fuera del bump. `despliegueBin` solo hace falta si el ejecutable que instala ese proyecto no se llama como su carpeta. |
 | `config/quality-consumidores.json` | A qué proyectos se propagan los cambios de las herramientas de calidad. |
 | `config/quality-excepciones.json` | Excepciones de calidad aceptadas a mano, por regla y ubicación. Lo escribe el flujo de auditoría; no hay plantilla. |
 

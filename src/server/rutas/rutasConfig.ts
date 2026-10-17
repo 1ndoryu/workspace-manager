@@ -63,7 +63,8 @@ export async function manejarRutasConfig(
     return true;
   }
   /* Exencion del gate (plan 308A-1 F6): marcar/desmarcar un proyecto
-   * en sinGate. [por que] Solo glory-sentinel (el runtime) es elegible;
+   * en sinGate. [por que] Solo el motor de calidad del area (papel
+   * `sentinel` de config/area.json) es elegible;
    * el endpoint no acepta claves arbitrarias. El proyecto sigue VISIBLE
    * (a diferencia de ignorados), solo fuerza puerta none sin problema
    * 'sin gate' en la consola. */

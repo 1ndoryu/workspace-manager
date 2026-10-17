@@ -1,4 +1,4 @@
-/* Base del limpiador-pc: modelo (fases, tipos) + infra compartida (cola
+/* Base del papel `limpiador`: modelo (fases, tipos) + infra compartida (cola
  * serial, rutas en data/pc, escritura atomica).
  * [por que] [299A-11] Bloque E: el analisis vive en scan.js y el borrado en
  * limpieza.js; ambos comparten este modulo (una sola direccion de imports:

@@ -7,7 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { rutaConfigPrivada } from './rutas.mjs';
 
-const VACIOS = { sentinel: null, despliegue: null, limpiador: null, bumpExcluidos: [] };
+const VACIOS = { sentinel: null, despliegue: null, despliegueBin: null, limpiador: null, bumpExcluidos: [] };
 
 function texto(v) {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
@@ -26,6 +26,7 @@ export function papelesDeArea() {
   return {
     sentinel: texto(crudo.sentinel),
     despliegue: texto(crudo.despliegue),
+    despliegueBin: texto(crudo.despliegueBin),
     limpiador: texto(crudo.limpiador),
     bumpExcluidos: Array.isArray(bump.excluidos)
       ? bump.excluidos.filter((x) => texto(x) !== null)

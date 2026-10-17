@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { BIN_GIT } from '../../../shared/binarios.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -20,7 +21,7 @@ const execFileAsync = promisify(execFile);
 const TOPE_ARCHIVOS = 5000;
 
 async function listaGit(ruta: string, args: string[]): Promise<string[]> {
-  const { stdout } = await execFileAsync('git', ['-C', ruta, ...args, '-z'], {
+  const { stdout } = await execFileAsync(BIN_GIT, ['-C', ruta, ...args, '-z'], {
     encoding: 'utf8',
     timeout: 15_000,
     maxBuffer: 16 * 1024 * 1024,

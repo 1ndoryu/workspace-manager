@@ -5,11 +5,8 @@
  * lo no reconocido es 'desconocido', nunca un estado inventado. Devuelve
  * true si atendio. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { json } from '../../http.js';
-import { RAIZ_AREA } from '../../../shared/rutas.js';
-import { papelDeArea } from '../../../shared/area.js';
 import type { VpsAviso, VpsConfig, VpsDetalle, VpsPieza, VpsSitio } from '../../../shared/types.js';
 import { agenteProd, enriquecerConSitios, type InfoSitio } from '../agente.js';
 import { historialProd } from '../historial.js';
@@ -24,6 +21,7 @@ import {
   logs,
   NOMBRE_OK,
   rutaBinario,
+  rutaConfigDespliegue,
   salud,
   statsJson,
   versionBinario,
@@ -47,35 +45,30 @@ const MAPA_SITIOS_MS = 600_000;
  * desde este archivo (no desde cwd: el backend puede arrancar en otra
  * carpeta y la semilla fallaba en silencio). */
 function sembrarMapaSettings(): void {
-  /* [por que] El gestor de despliegues es configuracion nuestra: su carpeta
-   * sale de `config/area.json`, no de un literal. Sin papel declarado esta
-   * semilla no existe y queda solo la variable de entorno (que ya gana). */
-  const despliegue = papelDeArea('despliegue');
-  const candidatos = [
-    (process.env.COOLIFY_MANAGER_CONFIG ?? '').trim(),
-    despliegue ? join(RAIZ_AREA, despliegue, 'config', 'settings.json') : '',
-  ].filter((r) => r && existsSync(r));
-  for (const ruta of candidatos) {
-    try {
-      const cfg = JSON.parse(readFileSync(ruta, 'utf8')) as {
-        sitios?: { nombre?: unknown; dominio?: unknown; stackUuid?: unknown }[];
-      };
-      if (!Array.isArray(cfg.sitios)) continue;
-      for (const s of cfg.sitios) {
-        if (typeof s?.stackUuid === 'string' && s.stackUuid && typeof s?.nombre === 'string') {
-          mapaSitios.set(s.stackUuid, {
-            nombre: s.nombre,
-            dominio: typeof s.dominio === 'string' ? s.dominio : '',
-          });
-        }
+  /* [por que] El fichero del gestor de despliegues lo resuelve su unico dueno
+   * (`rutaConfigDespliegue` en puente.ts): es el MISMO que recibe el binario con
+   * `-c`, asi que no pueden divergir — antes la semilla miraba el fichero del
+   * proyecto y el binario solo la variable, y sin variable el panel avisaba de
+   * una VPS inalcanzable que estaba perfectamente viva. Sin papel ni variable no
+   * hay ruta y esta semilla no existe. */
+  const ruta = rutaConfigDespliegue();
+  if (!ruta) return;
+  try {
+    const cfg = JSON.parse(readFileSync(ruta, 'utf8')) as {
+      sitios?: { nombre?: unknown; dominio?: unknown; stackUuid?: unknown }[];
+    };
+    if (!Array.isArray(cfg.sitios)) return;
+    for (const s of cfg.sitios) {
+      if (typeof s?.stackUuid === 'string' && s.stackUuid && typeof s?.nombre === 'string') {
+        mapaSitios.set(s.stackUuid, {
+          nombre: s.nombre,
+          dominio: typeof s.dominio === 'string' ? s.dominio : '',
+        });
       }
-      if (mapaSitios.size > 0) {
-        mapaSitiosTs = Date.now();
-        return;
-      }
-    } catch {
-      /* Siguiente candidato. */
     }
+    if (mapaSitios.size > 0) mapaSitiosTs = Date.now();
+  } catch {
+    /* Fichero ilegible: sin semilla local; el mapa se llena con el binario. */
   }
 }
 

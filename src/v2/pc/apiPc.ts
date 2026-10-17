@@ -1,5 +1,5 @@
 /* Cliente HTTP de la tab PC: habla con /api/pc/* (el server es dueño del
- * binario limpiador-pc). [por que] Capa fina sobre axios como el resto de
+ * binario del papel `limpiador`). [por que] Capa fina sobre axios como el resto de
  * acciones del store; el análisis global llega por SSE (EventSource) para
  * pintar cada fase en vivo, el resto es axios normal. */
 import axios from 'axios';

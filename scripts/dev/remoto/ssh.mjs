@@ -1,11 +1,12 @@
 /* SSH al taller: ejecutar un comando y dejar un archivo en la VPS. */
 
 import { argsSsh, shQuote } from '../../remoto/rcargo.mjs';
+import { BIN_SSH } from '../../shared/binarios.mjs';
 import { execFile, spawn } from 'node:child_process';
 
 export function sshRemoto(config, comando, timeoutMs = 30_000) {
   return new Promise((resolveP) => {
-    execFile('ssh', argsSsh(config, [comando]), { timeout: timeoutMs, windowsHide: true, encoding: 'utf8' }, (err, stdout, stderr) => {
+    execFile(BIN_SSH, argsSsh(config, [comando]), { timeout: timeoutMs, windowsHide: true, encoding: 'utf8' }, (err, stdout, stderr) => {
       resolveP({
         ok: !err,
         codigo: err ? (typeof err.code === 'number' ? err.code : 1) : 0,
@@ -23,7 +24,7 @@ export function escribirArchivoRemoto(config, ruta, contenido, timeoutMs = 30_00
   // [por que] mkdir -p del padre en la misma llamada: el directorio puede no existir aún (primer `up` de un proyecto).
   const comando = `mkdir -p ${shQuote(ruta.slice(0, ruta.lastIndexOf('/')))} && umask 077 && cat > ${shQuote(tmp)} && chmod 600 ${shQuote(tmp)} && mv -f ${shQuote(tmp)} ${shQuote(ruta)}`;
   return new Promise((resolveP) => {
-    const hijo = spawn('ssh', argsSsh(config, [comando]), { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    const hijo = spawn(BIN_SSH, argsSsh(config, [comando]), { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     let stderr = '';
     hijo.stderr.on('data', (d) => { stderr += d; });
     const reloj = setTimeout(() => hijo.kill(), timeoutMs);

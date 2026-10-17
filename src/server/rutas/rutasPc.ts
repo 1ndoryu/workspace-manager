@@ -1,4 +1,4 @@
-/* Rutas de la tab PC (/api/pc/*): interfaz del limpiador-pc.
+/* Rutas de la tab PC (/api/pc/*): interfaz del papel `limpiador`.
  * [por que] Dominio propio como gate/config/documentos: el server es dueño
  * de ejecutar el binario (resolver, versionar, cola serial) y el cliente
  * solo pide análisis/limpieza y presenta resultados. Un solo análisis global
