@@ -348,7 +348,7 @@ workspace-manager)**, D, E1–E4, F y K1–K2.
 (`doctor.test.mjs` 516 y `remoto.test.mjs` 398) eran el falso positivo, ya corregido en la
 regla. No se ocultó ninguno.
 
-**Bloque en curso:** I (el resto del tablero) y L (documentación viva). **Hecho además:** D, que
+**Bloque en curso:** I (el resto del tablero). L queda cerrado (L1–L6). **Hecho además:** D, que
 resultó estar casi todo resuelto de antes y se cerró con el audit remoto (`8fdaa9b`), la parte
 de SOLID de E (`403ccdd`, E2 + la disposición del resto en E3), el agnóstico (`c76079e`, E4), el
 rendimiento entero (K1 `e4adf45`: la verificación de alineación, 20,7 s → 10,8 s
@@ -443,9 +443,25 @@ diálogo en vez de en la entrada, botón de cerrar canónico en el modal, `menui
 Un hallazgo anotado sin tocar: `mapaV2Tile--${estado}` es una clase muerta que ningún CSS pinta
 (inventarle color rompería la regla monocroma del v2).
 
-**Pendiente:** I (el resto del tablero: RESTAURANTE 202 tras B4 y KAMPLES 113, con los 7
-`propiedadProhibida` reales) y L3–L6 (las skills que citan el pin de Sentinel, las memorias y
-`Agente/documentacion/`).
+**Cerrado también, L3–L6:** las tres líneas de skill desfasadas (el puerto `5174` de la skill
+`workspace-manager`, el pin de Sentinel en `quality-gate-setup`, la ruta de `analyze-blocks.mjs`
+en `build-artefactos`), sincronizadas a la 89 con md5; las dos memorias con anclas viejas
+(`wm-cache-analisis-se-pierde`, `wm-contador-solo-suma-conhallazgos`); y `Agente/documentacion/`
+(7 rutas muertas y la versión de Sentinel del roadmap). `AGENTS.md` §2 ya estaba al día.
+
+**Cerrado también, dos falsos positivos más del manager (bloque I):** el catálogo de varsense no
+conocía `tokenDetection.duplicate.excludeTokens` (una sola forma para las dos reglas de tokens) y
+la caché de vulnerabilidades vivía solo en memoria, así que cada reinicio del backend tiraba 53
+entradas del tablero **en silencio**; ahora se persiste como la de Sentinel. Detalle y medidas en
+`Agente/completados/tareas-2026-10-17.md`.
+
+**Pendiente (por aquí se retoma):** el bloque I. Lo primero es **subir el pin de varsense en
+RESTAURANTE** (`quality-tools.json` fija `2.2.9`/`33192580`, anterior a B4 `3375e18`, así que su
+`excludeTokens` se ignora y sus 41 `token-duplicate` siguen ahí), y comprobar los otros 15
+consumidores. Después, la deuda propia de cada proyecto: RESTAURANTE (42 `ruta-post-sin-rate-limit`,
+43 `limite-lineas`, 17 planes sin cerrar), KAMPLES (53 `sqlx-query*-sin-macro`, 16 `god-object-rs`)
+y las 53 `vulnerabilidad` de 7 proyectos (`rustls` y `zip`: un `cargo update` por proyecto, vía la
+89, devolviendo el `Cargo.lock` al portátil; es `16AA-11`).
 
 ### L · Documentación viva: skills, `AGENTS.md` y memorias (encargo de la usuaria, 2026-10-17)
 

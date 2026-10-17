@@ -21,13 +21,15 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
    (la nav ajena: ya venía escrita e integrada como `1988e02`; se verificó en el navegador a 1280,
    1040, 900 y 700 px y el defecto reportado —«taller» cortado a ~1040— no existe), el 8 (SOLID a
    fondo, `0302cf3`) y el 10 (accesibilidad: foco visible y teclado donde el rol lo prometía,
-   medido en el navegador). Quedan I (el resto del tablero) y L3–L6.
+   medido en el navegador), y L1–L6 (documentación viva: skills, memorias, `AGENTS.md` y
+   `Agente/documentacion/`). **Queda I (el resto del tablero), y se retoma por el pin de varsense
+   de RESTAURANTE.**
 1. `308A-5` — **Corregir hallazgos restantes de Sentinel y VarSense** (piso honesto + wins rápidos).
    Depende de 17AA-2 para no medir sobre reglas que cambian.
 
 ## Bloqueos y decisiones
 
-- **Sentinel 0.7.21** — decisiones tomadas el 2026-10-11; ver `Agente/planes/` y el histórico.
+- **Sentinel 0.7.21 (la versión de entonces; hoy el pin es 0.7.26)** — decisiones tomadas el 2026-10-11; ver `Agente/planes/` y el histórico.
 - **`guard-sin-shim`** — bloqueado.
 - **`10AA-2` F4** — cerrado el 2026-10-13 con limitación conocida.
 - **`16A-5`** — **CERRADO (2026-10-17):** `quality:bump` sobre los 16 consumidores da 0 con
@@ -60,8 +62,11 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
   corregido (`listen_addresses = 'localhost'`); falta reiniciar el servicio (hecho externo).
 - `16AA-17` — **Higiene de WANDORIUS tras su alta en el taller**: le faltan el script
   `quality:check` y `.runtime/` en `.gitignore`. No bloquea nada.
-- `16AA-11` — **Vulnerabilidades de cargo heredadas**, visibles desde el 2026-10-16 (4 en cada uno
-  de coolify-manager-rs, glory-agent, glory-harness, KAMPLES, MN-Inmobiliaria).
+- `16AA-11` — **Vulnerabilidades de cargo heredadas**, visibles desde el 2026-10-16. Medido el
+  2026-10-17: **53 entradas en 7 proyectos**, y son casi todas el mismo par de avisos —`rustls`
+  0.23.45 (y 0.23.37 en RESTAURANTE) contra el arreglo ≥0.23.46, y `zip` 1.1.4—, así que un
+  `cargo update` por proyecto las cierra. El portátil no tiene toolchain: va por la 89 y hay que
+  devolver el `Cargo.lock` al portátil para commitearlo. Es lo primero del bloque I tras el pin.
 - `12AA-6` — `quality:doctor` usa el `sentinel` del PATH en vez del CLI del checkout del proyecto.
 - `12AA-7` — `Arranque up` responde `ya-arriba` aunque el puerto no lo sirva el proceso nuevo.
 - `16A-4 bis` — adapter de calidad legacy de RESTAURANTE y WANDORIUS frente al canónico
