@@ -83,23 +83,131 @@ su commit. El orden importa: **A y B van antes que C**, porque cambian lo que el
   - **Añadido por A:** `todo-prosa-sin-marcador` casa «todo» en prosa española (`doctor.mjs:1630`,
     «todo verde = 0»); la regla busca el marcador inglés `TODO` y necesita contexto para no leer
     el artículo español.
-- **C — Problemas reales de workspace-manager.** 16 tras A. De `.mjs`: `directorio-abarrotado` en
-  `scripts/dev/` (20 archivos) y `scripts/quality/` (11); `limite-lineas` en `doctor.mjs` (1716
-  efectivas), `remoto.mjs` (814), `doctor.test.mjs` (513), `remoto.test.mjs` (398) y `bump.mjs`
-  (460), con sus niveles 2–4 en `doctor.mjs`; `import-muerto` ×2 en `agregado-8787.mjs` y ×1 en
-  `sync-gate-schema.mjs`. Heredado: `directorio-abarrotado` en `src/server/gate/` (12, de
-  `16AA-14`). ~~El backend escucha en `0.0.0.0:8787`~~: **descartado, era una lectura mía
-  errónea** — `0.0.0.0:0` es la columna de dirección remota de `netstat`, no el bind; el
-  backend escucha en `127.0.0.1:8787` (`index.ts:235`), correcto. `src/server/gate/` pasa de 12 a
-  **14 archivos** con B1, así que su `directorio-abarrotado` sigue en pie y lo resuelve E.
-  Los `limite-lineas` de `doctor.mjs`/`remoto.mjs` son la misma deuda que ataca E: se resuelven
-  ahí, no con dos arreglos.
-- **D — Coherencia con el taller.** `analisisEn: "dev89"` en las cinco fichas que faltan, con
-  validación contra local al activarlo (AGENTS §7); `modoAnalisis` por defecto alineado con
-  `modoPorDefecto` de `taller.json`; `TALLER_HOST` leído de `taller.json`.
-- **E — SOLID y agnóstico.** Partir `doctor.mjs` y `remoto.mjs` por responsabilidad; un módulo
-  único de rutas del área en vez de 9 literales; sacar de `scripts/quality*` las listas de
-  proyectos que duplican `registro.json`.
+- **C — Problemas reales de workspace-manager.** Partía de 16 tras A y **queda en 2**.
+  Cerrado en cuatro tandas:
+  - `da9adf4` (doctor.mjs), `222085a` (remoto.mjs) y `1af4b01` (reorganización de
+    `scripts/dev/` por dominio: 20 → 8 en la raíz): resuelven los `limite-lineas` de
+    `doctor.mjs` (1716 efectivas, con sus niveles 2–4) y `remoto.mjs` (814), y el
+    `directorio-abarrotado` de `scripts/dev/`. Los módulos nuevos viven en
+    `scripts/dev/{proyecto,taller,doctor,remoto}/`; `dev.mjs` sigue siendo la única entrada.
+  - `01c8ffa`: `bump.mjs` (460) partido en `scripts/quality/bump/` (9 módulos) y las cuatro
+    auditorías movidas a `scripts/quality/auditoria/`, lo que además quita el
+    `directorio-abarrotado` de `scripts/quality/` (11 → 7).
+  - `8073bcf`: `gate/vulnerabilidades/` (parseo + CVSS) y `shared/consola/`, que quitan los
+    `directorio-abarrotado` de `src/server/gate/` (14 → 9) y `src/shared/` (11 → 9). Aquí
+    entró también el `import-muerto` de `bump/cli.mjs`, que quedó muerto al separar la
+    propagación del CLI.
+  - `381f815`: **regresión propia**, no hallazgo del tablero. Al mover `gate.mjs` a
+    `scripts/dev/proyecto/`, su `RAIZ` —que se calcula contando carpetas— pasó a resolver
+    `scripts/`, así que `--inicio` escribía el snapshot en `scripts/data/gate-inicio/` y
+    `--cierre` habría comparado contra una base vacía. El test no podía detectarlo porque
+    comparaba contra el propio `RAIZ`; ahora se ancla al `package.json` del repo.
+  - **Los `import-muerto` de `agregado-8787.mjs` y `sync-gate-schema.mjs` ya no aparecen** en
+    el análisis del 2026-10-17T14:27Z; no consta arreglo explícito, así que se dieron por
+    resueltos al mover/reescribir esos archivos.
+  - ~~El backend escucha en `0.0.0.0:8787`~~: **descartado, era una lectura mía errónea** —
+    `0.0.0.0:0` es la columna de dirección remota de `netstat`, no el bind; el backend escucha
+    en `127.0.0.1:8787` (`index.ts:235`), correcto.
+  - **Quedan 2**, y son el falso positivo de B (ver más abajo): `limite-lineas` en
+    `doctor.test.mjs` (516) y `remoto.test.mjs` (398). No se trocean: la regla mide «este
+    módulo debería partirse por responsabilidad» y un archivo de tests se parte por casos.
+    Se corrige la regla, no el síntoma.
+- **D — Coherencia con el taller. CASI TODO YA ESTABA; el resto, HECHO (`8fdaa9b`).**
+  Lo que el diagnóstico de partida daba por pendiente resultó estar resuelto, y se comprobó
+  ejecutando `modoAnalisisEn` contra la config real (no leyendo código):
+  - `TALLER_HOST`: ya no existe. `estado.ts:25` lee `hostTaller()` de `taller.json` desde un
+    cambio anterior; el literal `'dev89'` solo sobrevive en el comentario que explica por qué se
+    quitó.
+  - `analisisEn` en las fichas: **no hace falta**. `modoAnalisisEn` cae a `host` + `modoPorDefecto`
+    de `taller.json` (que ya es `"remoto"`), así que los seis proyectos del taller —MN-Inmobiliaria,
+    NAKOMI, PROYECTO TASKS, WANDORIUS, RESTAURANTE y KAMPLES— ya resuelven a `taller` sin declarar
+    nada. Añadir la clave a cinco fichas habría sido configuración redundante que hay que mantener.
+  - `modoAnalisis` «por defecto local»: falso. Lo decide `modoPorDefecto`, no un literal.
+  - **Lo único que quedaba era real:** `vulnerabilidades.ts` corría el audit de npm/pnpm en el
+    portátil aunque el proyecto fuera del taller. Ver E1.
+- **E — SOLID y agnóstico.** Partir `doctor.mjs` y `remoto.mjs` por responsabilidad (ya hecho en
+  C); un módulo único de rutas del área en vez de 9 literales; sacar de `scripts/quality*` las
+  listas de proyectos que duplican `registro.json`.
+  - **E2 — Proveedor sustituible y esquemas en un registro. HECHO (`403ccdd`).** Dos fallos que
+    se veían juntos en el editor de config:
+    - **ISP/LSP.** `ProveedorGate` obligaba a declarar `reglas()` y `versionReferencia()`, y
+      varsense no tiene ni catálogo de reglas propio ni versión de curación: las cumplía con un
+      degenerado (`[]` y `'—'`). Como el contrato obligaba a mentir, el consumidor se lo saltaba
+      ramificando por tipo (`rutasGate.ts`: `tipo === 'sentinel' ? reglasGate().reglas : []`).
+      Ahora son opcionales y `'—'` pasa a `null`: quien no las tiene no las declara, y quien
+      consume recibe cero reglas sin saber de qué herramienta se trata.
+    - **OCP.** La correspondencia herramienta → esquema y herramienta → archivo de config estaba
+      escrita a mano en cuatro cadenas de `? :` (cliente y server): añadir una herramienta
+      obligaba a tocar los cuatro sitios. Ahora vive en `shared/gate/esquemas.ts`, que es la mitad
+      **estática** del proveedor: existe para cuando el server no responde (el bundle del cliente
+      lleva el esquema embebido) y para mapear el nombre del archivo, que el proveedor no conoce.
+    - **Testigo** (`proveedor.test.ts`, 3 casos): los dos proveedores se consumen igual, el que no
+      tiene catálogo no se distingue del que lo tiene, y el registro estático cubre los mismos
+      tipos y archivos que los proveedores registrados. El positivo del barrido son los dos
+      proveedores: un bucle sobre cero entradas no habría probado nada.
+    - **Verificado:** type-check limpio; 422 tests TS y 181 `.mjs` en verde; `vite build` ok; en
+      vivo `GET /api/gate/dinamico` da sentinel 121 reglas con referencia 0.7.19 y varsense 0
+      reglas con `versionReferencia: null`.
+  - **E1 — El audit corre en la 89 para los tres gestores. HECHO (`8fdaa9b`).** `cargo-remoto.ts`
+    pasa a `auditoria-remota.ts` y generaliza el envío por gestor: npm y pnpm solo necesitan
+    manifiestos y lockfiles, cargo sigue necesitando los `.rs` y los hermanos de `path`. Cada gestor
+    tiene su árbol en `/var/tmp` (antes uno por proyecto: el segundo `rm -rf` habría borrado el del
+    primero en WANDORIUS, que tiene npm y cargo). Sin taller, con `taller.json` ilegible o si el
+    envío falla, cae a local. De paso centraliza `gestor === 'cargo'`, que estaba repartido en tres
+    cadenas (SOLID §3 de la auditoría). **Medido:** audits remotos npm 0,61 s y cargo 0,75 s; el
+    coste del forzado (~37 s) son los `cargo tree -i` de la comprobación de alcanzabilidad, uno por
+    hallazgo, no el transporte. La llamada cacheada son 5,7 s, y ese tiempo es el `snapshotArea(true)`
+    de la ruta, no el audit.
+  - **E3 — Resto de la auditoría SOLID: qué se corrige y qué se deja a propósito.** La auditoría
+    pasó los 12 hallazgos; además de los dos de E2 y el OCP de `gestor === 'cargo'` (que se cerró
+    en E1), quedan:
+    - **Se corrige, con el agnóstico (E4):** los literales de ruta y de proyecto (hallazgos de
+      hardcodeo) — `C:\Users\Owner` en `conformidad.ts` y `rutasVps.ts`, la ruta de
+      `coolify-manager-rs`, `limpiador-pc` en `doctor/sistema/rust.mjs`, la lista de 18 proyectos
+      de `quality-sync.mjs`, los puertos del tablero y de `cierre.mjs`, `BIN_LEGACY`, y
+      `statfsSync('C:/')`.
+    - **Se corrige, con el rendimiento (F7):** `analizador.ts` mezcla persistencia, caché en
+      memoria, single-flight, normalización de formato y caída a remoto/local en dos funciones
+      largas; se parte por responsabilidad al perfilar, que es cuando se sabe qué trozo pesa.
+    - **Se deja como está, a propósito:**
+      - **D — I/O concreto sin punto de inyección** (`estado.ts`, `scanner/git.ts`,
+        `scanner/gate.ts`, `salud/recoger.ts`, `remoto.ts`): son *adaptadores*, y su oficio es
+        exactamente llamar al sistema. Inyectarles un lector de ficheros no los haría
+        sustituibles en ningún escenario real —nadie los va a usar contra otro sistema de
+        ficheros— y añadiría una capa por función. Donde sí hay lógica que merece test se inyecta
+        ya (`agente.ts` recibe `fetchImpl` y `ahora`, `historial.ts` recibe `ruta` y `ahora`,
+        `detectarLockfiles` recibe `existe`), que es el criterio correcto: **se inyecta lo que
+        tiene decisiones, no lo que tiene llamadas**. `remoto.test.ts` lo dice en su cabecera:
+        «sin SSH ni mutagen: eso se prueba en la ejecución real», y así se hizo (E1).
+      - **S — funciones largas de los `.mjs` del doctor** (`lanzar.mjs`, `clasificar.mjs`) y
+        `bump/propagacion.mjs`: son guiones lineales de arranque y clasificación, sin estado
+        compartido ni ramas que se puedan reordenar. Partirlos daría funciones de una llamada. Los
+        `.ts` largos que sí mezclan responsabilidades se parten (arriba).
+      - **L/O — `TipoGate` como unión cerrada:** es lo que permite que el registro de E2 sea
+        exhaustivo y que el compilador avise si falta una herramienta. Abrirlo a `string` cambiaría
+        un error de compilación por un `undefined` en ejecución. El punto de extensión ya no es el
+        tipo: es añadir una línea al registro.
+  - **E4 — Agnóstico: lo nuestro, fuera del repo. PENDIENTE.** El criterio de la usuaria es que
+    el repo se publique **tal cual** y aun así funcione con nuestra config, que es privada y vive
+    fuera. Inventario, por gravedad:
+    1. **Datos nuestros en archivos versionados** (lo único que impide publicar hoy):
+       `scripts/quality-sync.mjs` lleva la lista de ~18 proyectos del área con sus rutas, y
+       `scripts/quality/excepciones.json` está *tracked* con nuestras excepciones. Los dos son
+       configuración, no código: van a `config/` (ya ignorado) con su `*.example.json` en
+       `config/ejemplos/`, que es el patrón que el repo ya usa para `registro` y `taller`. Sin el
+       archivo, el script degrada a «no hay consumidores que sincronizar» en vez de fallar.
+    2. **Rutas personales y de nuestra área** en código: `C:\Users\Owner` en
+       `conformidad.ts:243,245` y `rutasVps.ts:192`, la ruta del checkout de `coolify-manager-rs`
+       (`rutasVps.ts:51`), `BIN_LEGACY = 'C:\tmp\bin\coolify-manager.exe'` (`vps/puente.ts:16`),
+       `statfsSync('C:/')` (`salud/recoger.ts:190`). Todas salen de la config o de `os.homedir()`
+       y de la raíz del área ya resuelta.
+    3. **Nombres y puertos nuestros incrustados:** `limpiador-pc` en `doctor/sistema/rust.mjs`,
+       `['glory-harness']` en `bump/ajustes.mjs`, `PUERTOS_TABLERO = [5175, 8787, 4173]`
+       (`guardian/operacion/seguridad.ts`) y `PUERTOS_PROTEGIDOS = [5174, 5175, 8787]`
+       (`scripts/dev/proyecto/cierre.mjs`). Los puertos del tablero son de nuestro despliegue:
+       van a la config con los valores actuales como defecto documentado.
+    4. **Un módulo único de rutas del área** en vez de los literales repetidos: es lo que hace que
+       el punto 2 se arregle en un sitio y no en nueve.
 - **F — README.** No existe. Uno en condiciones: qué es, cómo se arranca, dónde vive el estado,
   y el reparto portátil/89.
 - **G — Planes.** Revisar los 24 `PLAN-*.md` de la raíz y los 5 de `Agente/planes/`, uno a uno;
@@ -126,8 +234,26 @@ hardcodeo, con README; planes terminados y organizados.
 
 ## Estado
 
-**Bloque en curso:** B. **Próximo paso:** recoger la evidencia de los seis falsos positivos y
-corregir la regla que los produce, empezando por `todo-prosa-sin-marcador` (medido en A).
-**Cerrado:** A (glory-sentinel `d99f4c5` + pin en 16 manifiestos).
-**Pendiente de decisión de la usuaria:** J (semántica de `includePatterns`) y, en D, si las cinco
-fichas pasan a `analisisEn: "dev89"`.
+**Cerrado:** A (glory-sentinel `d99f4c5` + pin en 16 manifiestos), B1 (`fa3edc8`, CVSS),
+B2 (`623f56c` en varsense, `cssInline*`), **C (los 14 problemas reales de workspace-manager;
+el tablero pasa de 16 a 2, y los 2 que quedan son el falso positivo de B6)**.
+
+**Bloque en curso:** E (SOLID y agnóstico), F (README), G (planes). **Hecho además:** D, que
+resultó estar casi todo resuelto de antes y se cerró con el audit remoto (`8fdaa9b`), y la parte
+de SOLID de E (`403ccdd`, E2 + la disposición del resto en E3). **Próximo paso:** E4, el
+agnóstico (sacar del repo lo que es configuración nuestra); luego el rendimiento medido, el
+README y los planes.
+**Falsos positivos pendientes (van al final, por encargo):** B4
+(`tokenDetection.duplicate.excludeTokens`), B5 (el `excepciones-varsense.json` huérfano) y B6
+(el `limite-lineas` de los archivos de test, que es lo único que le queda al tablero de
+workspace-manager). **Pendiente de decisión de la usuaria:** J (semántica de `includePatterns`).
+
+### B6 · `limite-lineas` sobre archivos de test (falso positivo, al final)
+
+`obtenerLimiteArchivo` da a un arnés de test de Rust (`/tests/`, `_test.rs`) un techo de **1000**
+líneas —con el comentario `[FP-S4 11-09-2026]`, es decir, ya se reconoció una vez que el techo de
+producción no aplica ahí— pero a `.test.ts`/`.test.mjs` les da el techo de módulo de producción
+(**300**). La regla busca módulos que deberían partirse *por responsabilidad*; un archivo de test
+se parte *por casos* y ya lleva secciones. Es la misma situación que el precedente de Rust, sin
+resolver en JS. Afecta a `doctor.test.mjs` (516) y `remoto.test.mjs` (398), y a cualquier test
+largo de los otros consumidores.
