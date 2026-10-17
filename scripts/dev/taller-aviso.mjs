@@ -28,6 +28,6 @@ export async function avisoTaller({ fetchFn = fetch, log = console.log, url = UR
     const d = await r.json();
     log(resumenTaller(d.hallazgos));
   } catch (e) {
-    log(`taller: no consultado (${e.message}); arranca el manager: Arranque up "workspace-manager"`);
+    log(`taller: no consultado (${e.message}); arranca el manager: Arranque up "<id del manager>"`);
   }
 }

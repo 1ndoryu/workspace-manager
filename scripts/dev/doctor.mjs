@@ -204,10 +204,20 @@ function validarEntrada(e) {
     if (!e._avisoRegistro) e._avisoRegistro = motivo;
   };
   // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) {
       mal(`registro: clave desconocida '${k}' en '${e.id}'`);
+      return;
+    }
+  }
+  // [por que] envTareas, tokenPulse e higieneRust son banderas del proyecto:
+  // antes se deducian comparando `id` con un nombre concreto (env de tareas de
+  // workspace-manager, token estable de glory-pulse, higiene Rust de PROYECTO
+  // TASKS); ahora las declara el registro.
+  for (const k of ['envTareas', 'tokenPulse', 'higieneRust']) {
+    if (k in e && typeof e[k] !== 'boolean') {
+      mal(`registro: '${e.id}' ${k} debe ser booleano`);
       return;
     }
   }
@@ -1590,9 +1600,17 @@ export async function contextoEntrada(id, args, { autoBackend = false } = {}) {
  * [por que] Sin el, `up` de cualquier proyecto se queda parado. Solo se llama
  * si 8787 esta libre (ECONNREFUSED): nunca mata ni suplanta un 8787 ocupado. */
 async function arrancarBackend(registro) {
-  const wm = registro.entradas.get('workspace-manager');
+  /* [por que] El backend que sirve el snapshot es el de ESTE repo: se identifica
+   * por su ruta (la raiz del repo), no por un id concreto, que cambia con el
+   * nombre de la carpeta al clonar. Es la misma identidad con la que la
+   * validacion protege los puertos (rutaAbs === RAIZ_REPO). */
+  const raizRepo = normalize(RAIZ_REPO);
+  const wm = [...registro.entradas.values()].find((e) => {
+    const abs = isAbsolute(e.ruta) ? normalize(e.ruta) : resolve(RAIZ_REPO, e.ruta);
+    return abs === raizRepo;
+  });
   if (!wm || !Array.isArray(wm.boton) || !wm.boton[0]) {
-    return 'servidor caido y sin entrada workspace-manager con boton: pasa --snapshot-file';
+    return 'servidor caido y sin entrada de este repo con boton: pasa --snapshot-file';
   }
   const rutaWm = isAbsolute(wm.ruta) ? normalize(wm.ruta) : resolve(RAIZ_REPO, wm.ruta);
   let lan;
@@ -1619,7 +1637,7 @@ export function veredictoUpSinCobertura(id, r, motivo) {
   }
   return {
     codigo: 1,
-    resumen: `up ${id}: rehusado (${r.estado}: ${r.motivo}); sin cobertura (${motivo}) no se arranca. Arranca workspace-manager (su boton[0]) o pasa --snapshot-file`,
+    resumen: `up ${id}: rehusado (${r.estado}: ${r.motivo}); sin cobertura (${motivo}) no se arranca. Arranca el backend de este repo (su boton[0]) o pasa --snapshot-file`,
   };
 }
 
@@ -1677,14 +1695,14 @@ function envPara(entrada) {
   // mezcla sobre process.env). PULSE_TOKEN de proceso o declarado se respeta:
   // el token estable del archivo solo entra cuando falta en ambos.
   const extra = entrada.env && typeof entrada.env === 'object' ? { ...entrada.env } : undefined;
-  if (entrada.id === 'workspace-manager') {
+  if (entrada.envTareas === true) {
     const salida = { ...extra };
     for (const [clave, valor] of Object.entries(leerEnvTareas())) {
       if (!process.env[clave] && salida[clave] === undefined) salida[clave] = valor;
     }
     return salida;
   }
-  if (entrada.id !== 'glory-pulse' || process.env.PULSE_TOKEN || (extra && extra.PULSE_TOKEN)) return extra;
+  if (entrada.tokenPulse !== true || process.env.PULSE_TOKEN || (extra && extra.PULSE_TOKEN)) return extra;
   let token = '';
   try {
     token = readFileSync(RUTA_TOKEN_PULSE, 'utf8').trim();
@@ -1729,10 +1747,12 @@ export function detectarCompartidos(registro) {
  * el doctor ni el --assert). Cada aviso degrada a exit 2 via codigoSalida.
  * [por que] Misma forma que detectarCompartidos: funcion pura sobre el
  * registro + lecturas; la consola y trampa ignoran el campo extra `rust`.
- * PROYECTO TASKS fuera (roto por dependencia ajena E0753, no es higiene). */
+ * [por que] La entrada que no quiere esta higiene lo declara con
+ * `"higieneRust": false` en el registro (antes se deducia por nombre: PROYECTO
+ * TASKS quedo fuera por un roto de dependencia ajena E0753, no por higiene;
+ * el caso se menciona solo como motivo, no como regla). */
 const RUST_UMBRAL_BYTES = 2 * 1024 * 1024 * 1024;
 const RUST_HIT_MIN = 5; // % (05AA-1: 0,89% era cache decorativa)
-const RUST_FUERA = new Set(['PROYECTO TASKS']);
 const RE_RUST = /cargo|run-with-db|dev-web\.mjs/i;
 
 function esEntradaRust(e) {
@@ -1841,7 +1861,7 @@ export function detectarRust(registro, opts = {}) {
   try {
     const proyectos = [];
     for (const e of registro.entradas?.values() ?? []) {
-      if (!esEntradaRust(e) || RUST_FUERA.has(e.id)) continue;
+      if (!esEntradaRust(e) || e.higieneRust === false) continue;
       // [por que 06AA-1] Sin ruta string no hay nada que medir (la marcada
       // con ruta rota se omite: fail-open documentado de esta higiene).
       if (typeof e.ruta !== 'string') continue;

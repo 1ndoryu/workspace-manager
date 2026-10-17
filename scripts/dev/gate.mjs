@@ -77,7 +77,7 @@ export async function pedir(metodo, ruta, cuerpo) {
       signal: AbortSignal.timeout(200_000),
     });
   } catch (e) {
-    throw new Error(`backend ${API} sin respuesta (${e?.message ?? e}). Arranca con: Arranque up "workspace-manager"`);
+    throw new Error(`backend ${API} sin respuesta (${e?.message ?? e}). Arranca con: Arranque up "<id del manager>"`);
   }
   const datos = await res.json().catch(() => ({}));
   if (!res.ok) {
