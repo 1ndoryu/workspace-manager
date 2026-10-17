@@ -4,7 +4,7 @@ import { execFile, execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isAbsolute, join, normalize, resolve } from 'node:path';
 
-import { RAIZ_REPO } from './base.mjs';
+import { RAIZ_REPO } from '../base.mjs';
 import { normalizarRuta } from './procesos.mjs';
 import { resolverExe } from './resolver.mjs';
 

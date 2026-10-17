@@ -8,8 +8,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import net from 'node:net';
 import { RAIZ, formatearNuevos, pedir, rutaSnapshot } from './gate.mjs';
-import { avisoTaller } from './taller-aviso.mjs';
-import { rutaConfigPrivada } from '../shared/rutas.mjs';
+import { avisoTaller } from '../taller/taller-aviso.mjs';
+import { rutaConfigPrivada } from '../../shared/rutas.mjs';
 
 /* Tablero y opencode-propio: nunca se cuentan como procesos propios del proyecto
  * (AGENTS §5 y §9.2). */

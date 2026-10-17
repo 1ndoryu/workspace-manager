@@ -2,12 +2,14 @@
  * [por que] La superficie del mando crece por fases del plan; el dispatcher
  * existe desde F0 para fijar los argv sin arrancar nada. Lo no autorizado
  * responde con su fase, nunca con verde ambiguo. */
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { main as doctor, up } from './doctor.mjs';
 import { logs, open, status, stop } from './acciones.mjs';
-import { problemas } from './consola.mjs';
-import { comandos, gate } from './gate.mjs';
-import { cierre } from './cierre.mjs';
-import { alta } from './alta.mjs';
+import { problemas } from './taller/consola.mjs';
+import { comandos, gate } from './proyecto/gate.mjs';
+import { cierre } from './proyecto/cierre.mjs';
+import { alta } from './proyecto/alta.mjs';
 import { despachar as remoto, entradaRemotaDe } from './remoto.mjs';
 
 const AYUDA = `uso: dev <comando>
@@ -50,7 +52,9 @@ export async function main(argv) {
   return cmd ? 1 : 0;
 }
 
-const esCli = (process.argv[1] ?? '').replace(/\\/g, '/').endsWith('/scripts/dev/dev.mjs');
+/* [por que] Se compara con la ruta real de este archivo, no con un sufijo
+ * literal: asi el guard sobrevive a mover el modulo de carpeta. */
+const esCli = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (esCli) {
   main().then(
     (c) => process.exit(c),

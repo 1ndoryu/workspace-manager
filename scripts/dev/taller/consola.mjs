@@ -6,7 +6,9 @@
  * (`--proyecto` es solo filtro de visualizacion, jamas requisito).
  * Solo lectura por defecto; `--forzar` re-escanea (tarda minutos).
  * Sin backend, rehusa a ciegas (exit 1), igual que status/up/stop. */
-import { cabeceraAutorizacion } from './token.mjs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { cabeceraAutorizacion } from '../token.mjs';
 const API = process.env.WM_API ?? 'http://127.0.0.1:8787';
 
 function ayuda() {
@@ -63,7 +65,9 @@ export async function problemas(argv) {
   return 0;
 }
 
-const esCli = (process.argv[1] ?? '').replace(/\\/g, '/').endsWith('/scripts/dev/consola.mjs');
+/* [por que] Se compara con la ruta real de este archivo, no con un sufijo
+ * literal: asi el guard sobrevive a mover el modulo de carpeta. */
+const esCli = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (esCli) {
   problemas().then(
     (c) => process.exit(c),

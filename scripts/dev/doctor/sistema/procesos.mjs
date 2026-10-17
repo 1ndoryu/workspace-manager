@@ -2,7 +2,7 @@
 
 import { execFile } from 'node:child_process';
 
-import { MAX_PIDS_CONSULTA, TIMEOUT_SENSOR_MS } from './base.mjs';
+import { MAX_PIDS_CONSULTA, TIMEOUT_SENSOR_MS } from '../base.mjs';
 
 /* Ejecuta powershell con salida UTF-8 y timeout duro. */
 function correrPs(script, timeoutMs = TIMEOUT_SENSOR_MS) {

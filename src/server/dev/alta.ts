@@ -1,6 +1,6 @@
 /* Alta de un proyecto en el tablero (10AA-2 F10): ejecuta `dev.mjs alta <ruta> --json`
  * y devuelve los ítems. Pendientes = código 1, un resultado normal y no un fallo.
- * [por que] La lista la decide el CLI (scripts/dev/alta.mjs), igual que las acciones
+ * [por que] La lista la decide el CLI (scripts/dev/proyecto/alta.mjs), igual que las acciones
  * del mando: aquí solo se lanza sin shell y se valida la salida antes de mostrarla. */
 import { execFile } from 'node:child_process';
 import { DEV_MJS } from './acciones.js';

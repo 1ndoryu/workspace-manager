@@ -4,7 +4,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 
-import { RUTA_REGISTRO } from './base.mjs';
+import { RUTA_REGISTRO } from '../base.mjs';
 import { validarEntrada, validarMotivo } from './validacion.mjs';
 
 /* Lee y valida el registro (schema v1). Falla cerrado: cualquier desvio

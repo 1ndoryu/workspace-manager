@@ -3,8 +3,8 @@
 import { existsSync } from 'node:fs';
 import { isAbsolute, normalize, resolve, sep } from 'node:path';
 
-import { EXES_PERMITIDOS, MOTIVOS_ENUM, PUERTOS_PROTEGIDOS, RAIZ_REPO, RE_OTRO, SCRIPTS_NODO_VALIDOS } from './base.mjs';
-import { entradaEfectiva, puertoDeSaludValido, validarBloqueBuild } from './puertos.mjs';
+import { EXES_PERMITIDOS, MOTIVOS_ENUM, PUERTOS_PROTEGIDOS, RAIZ_REPO, RE_OTRO, SCRIPTS_NODO_VALIDOS } from '../base.mjs';
+import { entradaEfectiva, puertoDeSaludValido, validarBloqueBuild } from '../sistema/puertos.mjs';
 
 export function validarEntrada(e) {
   // [por que 06AA-1] Un desvio en UNA entrada jamas bloquea el mando global:

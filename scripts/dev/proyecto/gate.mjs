@@ -11,8 +11,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rutaConfigPrivada } from '../shared/rutas.mjs';
-import { cabeceraAutorizacion } from './token.mjs';
+import { rutaConfigPrivada } from '../../shared/rutas.mjs';
+import { cabeceraAutorizacion } from '../token.mjs';
 
 export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const API = process.env.WM_API ?? 'http://127.0.0.1:8787';

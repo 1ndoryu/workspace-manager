@@ -34,7 +34,7 @@ export {
   escanearEscucha,
   parsearNetstat,
   procesosDe,
-} from './doctor/procesos.mjs';
+} from './doctor/sistema/procesos.mjs';
 
 export {
   esEntradaRemota,
@@ -59,21 +59,21 @@ export {
   accionParaPuerto,
   detectarDerivaEnv,
   esSistemaIgnorado,
-} from './doctor/puertos.mjs';
+} from './doctor/sistema/puertos.mjs';
 
 export {
   validarMotivo,
-} from './doctor/validacion.mjs';
+} from './doctor/ficha/validacion.mjs';
 
 export {
   leerRegistro,
   validarVps,
   validarIgnoradoSistema,
-} from './doctor/registro.mjs';
+} from './doctor/ficha/registro.mjs';
 
 export {
   detectarRust,
-} from './doctor/rust.mjs';
+} from './doctor/sistema/rust.mjs';
 
 export {
   clasificar,
