@@ -4,7 +4,7 @@
  * lados, sin tuberia paralela. Solo tipos de shared/types.js y shared/dev.js;
  * sin DOM ni Node, para importar desde cualquier entry. */
 import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from './types.js';
-import type { InformeDev } from './dev.js';
+import type { HuerfanoDev, InformeDev } from './dev.js';
 import { CLAVE_AREA, type ResultadoSalud } from './salud/salud.js';
 import type { Hallazgo } from './taller/conformidad.js';
 
@@ -183,6 +183,18 @@ export function problemasVulnerabilidadDe(
  * la consola lo deriva igual que sentinel/vulnerabilidades, sin tuberia
  * paralela. Los fallos del sensor y del fetch se pintan en la fila del propio
  * manager (fail-loud: si la vigilancia falla, se ve donde vive). */
+/* Nombre del proceso dueño de un listener, a partir del exe o, si no lo hay, de la
+ * primera palabra de la linea de comandos. [por que] Un proceso elevado deja el exe
+ * vacio (CIM no lo lee sin permisos) y el motivo salia como «pid 12528 (pid 12528)»:
+ * el pid dos veces y ningun nombre, que es justo lo que hace falta para saber de quien
+ * es el puerto. El cmd suele traerlo aunque el exe no. */
+function nombreDeProceso(h: HuerfanoDev): string {
+  const primera = (h.cmd ?? '').trim().match(/^"[^"]+"|\S+/)?.[0]?.replace(/^"|"$/g, '');
+  const ruta = h.exe ?? primera;
+  if (!ruta) return 'proceso desconocido';
+  return ruta.split(/[\\/]/).pop() || ruta;
+}
+
 export function problemasDevDe(
   p: Proyecto,
   dev: InformeDev | null,
@@ -207,7 +219,7 @@ export function problemasDevDe(
   }
   for (const h of dev?.huerfanos ?? []) {
     if (h.clave !== p.clave) continue;
-    const quien = h.exe ? (h.exe.split(/[\\/]/).pop() ?? h.exe) : `pid ${h.pid}`;
+    const quien = nombreDeProceso(h);
     entradas.push({
       categoria: 'huerfano',
       motivo: `puerto ${h.puerto} ocupado por ${quien} (pid ${h.pid})${h.verificado ? '' : ' NO-VERIFICADO'}`,
@@ -228,7 +240,7 @@ export function problemaHuerfanosSinProyecto(dev: InformeDev | null): Problema |
   const solos = dev.huerfanos.filter((h) => h.clave == null);
   if (solos.length === 0) return null;
   const entradas: Entrada[] = solos.map((h) => {
-    const quien = h.exe ? (h.exe.split(/[\\/]/).pop() ?? h.exe) : `pid ${h.pid}`;
+    const quien = nombreDeProceso(h);
     return {
       categoria: 'huerfano' as const,
       motivo: `puerto ${h.puerto} sin proyecto: ${quien} (pid ${h.pid})${h.verificado ? '' : ' NO-VERIFICADO'}`,
