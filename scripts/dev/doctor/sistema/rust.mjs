@@ -4,7 +4,8 @@ import { execFile, execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isAbsolute, join, normalize, resolve } from 'node:path';
 
-import { RAIZ_REPO } from '../base.mjs';
+import { RAIZ_AREA, RAIZ_REPO } from '../base.mjs';
+import { papelDeArea } from '../../../shared/area.mjs';
 import { normalizarRuta } from './procesos.mjs';
 import { resolverExe } from './resolver.mjs';
 
@@ -144,13 +145,16 @@ export function detectarRust(registro, opts = {}) {
       const rutaAbs = isAbsolute(e.ruta) ? normalize(e.ruta) : resolve(RAIZ_REPO, e.ruta);
       proyectos.push({ id: e.id, rutaAbs, entrada: e, env: e.env && typeof e.env === 'object' ? e.env : {} });
     }
-    // [por que] limpiador-pc es noAplica (sin boton) pero compila Rust: se
-    // cubre fijo en vez de inventar boton en el registro. `incluirLimpiador`
-    // solo existe para el fixture (evita que el limpiador real contamine).
-    if (opts.incluirLimpiador ?? true) {
-      const rutaLimp = resolve(RAIZ_REPO, '..', 'limpiador-pc');
-      if (existsSync(join(rutaLimp, 'Cargo.toml')) && !proyectos.some((p) => p.id === 'limpiador-pc')) {
-        proyectos.push({ id: 'limpiador-pc', rutaAbs: rutaLimp, entrada: { boton: [] }, env: {} });
+    // [por que] El limpiador es noAplica (sin boton) pero compila Rust: se
+    // cubre sin inventar boton en el registro. Su nombre sale del papel
+    // declarado en config/area.json; sin papel no hay nada que cubrir.
+    // `incluirLimpiador` solo existe para el fixture (evita que el limpiador
+    // real contamine).
+    const rolLimpiador = papelDeArea('limpiador');
+    if (rolLimpiador && (opts.incluirLimpiador ?? true)) {
+      const rutaLimp = join(RAIZ_AREA, rolLimpiador);
+      if (existsSync(join(rutaLimp, 'Cargo.toml')) && !proyectos.some((p) => p.id === rolLimpiador)) {
+        proyectos.push({ id: rolLimpiador, rutaAbs: rutaLimp, entrada: { boton: [] }, env: {} });
       }
     }
     for (const p of proyectos) {

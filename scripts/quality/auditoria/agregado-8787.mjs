@@ -27,8 +27,9 @@
  */
 import { readFileSync } from 'node:fs' ;
 import { rutaConfigPrivada } from '../../shared/rutas.mjs' ;
+import { URL_API } from '../../shared/puertos.mjs';
 
-const BASE = process.env.AGREGADO_BASE || 'http://127.0.0.1:8787';
+const BASE = process.env.AGREGADO_BASE || URL_API;
 
 /* Proyectos del área seguidos por el agregado, derivados del registro privado.
  * [por que] Antes era una lista incrustada con los nombres del área de una

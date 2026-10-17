@@ -4,7 +4,7 @@
  * sitio donde se permite: el resto de scripts importa de aquí. */
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
@@ -12,11 +12,26 @@ const AQUI = dirname(fileURLToPath(import.meta.url));
 /** Raíz del repo de workspace-manager (donde está `package.json`). */
 export const RAIZ_REPO = join(AQUI, '..', '..');
 
+/* Nombre del propio tablero: el de su carpeta. Gemelo de `NOMBRE_MANAGER` de
+ * `src/shared/rutas.ts`; `WS_NOMBRE` lo pisa. */
+export const NOMBRE_MANAGER = process.env.WS_NOMBRE || basename(RAIZ_REPO);
+
 /** Directorio que contiene los proyectos; por defecto el repo cuelga de él. */
 export const RAIZ_AREA = process.env.WS_AREA_ROOT || dirname(RAIZ_REPO);
 
 /** Carpeta de skills del agente (índice en AGENTS §11). */
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || join(homedir(), '.agents', 'skills');
+
+/** Raíz de los temporales (gemelo de `src/server/plataforma/temporales.ts`).
+ * [por que] Varios scripts escribían `C:/tmp/...` a mano: en Linux eso es una
+ * ruta RELATIVA al cwd, no la raíz de temporales. Aquí se resuelve una vez, con
+ * la misma regla que el servidor (Windows `C:/tmp`, Linux `~/tmp`, y `WM_TMP`
+ * gana sobre ambas). */
+export function raizTemporales(env = process.env, plataforma = process.platform, casa = homedir()) {
+  const declarada = env.WM_TMP?.trim();
+  if (declarada) return declarada;
+  return plataforma === 'win32' ? 'C:/tmp' : join(casa, 'tmp');
+}
 
 /* Config privada del área: registro de proyectos y ficha del taller. No se
  * versiona (ver `config/ejemplos/`), porque lleva rutas de esta máquina y la

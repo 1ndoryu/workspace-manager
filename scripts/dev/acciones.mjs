@@ -166,7 +166,7 @@ export async function open(argv) {
 }
 
 /* F2 `stop <id>`: detiene SOLO listeners propios en puertos NO protegidos.
- * Protegidos (8787/5174/5175) = refuse siempre (el servidor se apaga por
+ * Protegidos (PUERTOS_PROTEGIDOS) = refuse siempre (el servidor se apaga por
  * otros medios). Ocupante ajeno = refuse (no mata). Pre-kill: re-query CIM y
  * creationTime exacta; post-kill: puerto libre verificado. */
 export async function stop(argv) {

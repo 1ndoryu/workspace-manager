@@ -83,6 +83,11 @@ export interface EntradaConformidad {
   /* Alias SSH del taller, para que el remedio diga a qué máquina conectarse. Null si
    * no hay taller configurado: el texto entonces no nombra ninguna. */
   hostTaller?: string | null;
+  /* Nombre de la carpeta del propio tablero, para reconocer sus procesos. Lo
+   * aporta quien reúne el estado (el único que puede mirar el sistema de
+   * archivos: este módulo es puro y se importa también desde el cliente). Sin
+   * él no se reconoce ningún proceso suyo, y eso solo afecta a la regla L1. */
+  nombreMando?: string | null;
 }
 
 /* Umbrales. Disco: el mismo de cm-heavy (CM_HEAVY_MIN_DISK_GB). */
@@ -94,7 +99,13 @@ const MAX_HORAS_BD = 24;
 
 const LOOPBACK = (d: string): boolean => d === '127.0.0.1' || d === '::1' || d.startsWith('127.');
 const PATRON_OPENCODE_PROPIO = /opencode-propio/i;
-const PATRON_MANAGER = /workspace-manager/i;
+/* ¿Este proceso es del propio tablero? Se reconoce por el nombre de su carpeta
+ * (`entrada.nombreMando`), no por un literal: un clon con otro nombre de carpeta
+ * —o la réplica de la 89— se tomaba por un vite de proyecto ajeno y salía como
+ * problema. Comparación por subcadena, que es lo que ya hacía el patrón. */
+function esDelMando(cmd: string, nombreMando: string | null | undefined): boolean {
+  return !!nombreMando && cmd.toLowerCase().includes(nombreMando.toLowerCase());
+}
 /* cloudflared ata sockets UDP a `*` para su transporte QUIC hacia el borde de Cloudflare: son
  * salientes, nadie se conecta a ellos y no se pueden cerrar sin tumbar el túnel. Contarlos como
  * escucha dejaba A1 en error permanente y sin arreglo posible por parte de quien opera. */
@@ -221,7 +232,7 @@ const REGLAS_LOCAL: ReglaLocal[] = [
       for (const p of e.local.procesos) {
         if (PATRON_OPENCODE_PROPIO.test(p.cmd)) continue;
         if (/\bcargo(\.exe)?\s+run\b|\brustc(\.exe)?\b/.test(p.cmd)) malos.push(`pid ${p.pid} build/run Rust`);
-        else if (/\bvite\b/.test(p.cmd) && !PATRON_MANAGER.test(p.cmd)) malos.push(`pid ${p.pid} vite de proyecto`);
+        else if (/\bvite\b/.test(p.cmd) && !esDelMando(p.cmd, e.nombreMando)) malos.push(`pid ${p.pid} vite de proyecto`);
       }
       const dup = e.local.procesos.filter((p) => /opencode-delegate/i.test(p.cmd) && !PATRON_OPENCODE_PROPIO.test(p.cmd));
       if (dup.length > 1) malos.push(`${dup.length} procesos opencode-delegate (pids ${dup.map((p) => p.pid).join(', ')})`);
@@ -240,9 +251,9 @@ const REGLAS_LOCAL: ReglaLocal[] = [
   },
   {
     id: 'L3', ambito: 'local', severidad: 'advertencia',
-    remedio: 'Mutagen instalado (PATH o C:\\Users\\usuario\\bin\\mutagen) con el daemon arrancado (`mutagen daemon start`) y las sesiones taller-* en marcha.',
+    remedio: 'Mutagen instalado (PATH o <home>\\bin\\mutagen) con el daemon arrancado (`mutagen daemon start`) y las sesiones taller-* en marcha.',
     falla: (e) => {
-      if (e.local.mutagen === null) return 'mutagen no encontrado (ni en el PATH ni en C:\\Users\\usuario\\bin\\mutagen): el sync L→89 no se comprueba';
+      if (e.local.mutagen === null) return 'mutagen no encontrado (ni en el PATH ni en <home>\\bin\\mutagen): el sync L→89 no se comprueba';
       return e.local.mutagen.daemonVivo ? null : 'daemon de Mutagen parado';
     },
   },

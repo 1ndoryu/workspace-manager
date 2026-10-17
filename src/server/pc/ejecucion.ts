@@ -5,7 +5,7 @@
  * scan/limpieza → ejecucion, sin ciclos). */
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RAIZ_AREA } from '../../shared/rutas.js';
+import { RAIZ_REPO } from '../../shared/rutas.js';
 
 export type FasePc = 'area' | 'caches' | 'extern' | 'vscode' | 'chrome' | 'tmp';
 
@@ -140,8 +140,10 @@ export function encolar<T>(fn: () => Promise<T>): Promise<T> {
   return turno;
 }
 
+/* [por que] `data/` es de este repo: se pide desde RAIZ_REPO en vez de armar
+ * `<area>/workspace-manager/data`, que incrustaba el nombre del proyecto. */
 export function dirPc(): string {
-  const d = join(RAIZ_AREA, 'workspace-manager', 'data', 'pc');
+  const d = join(RAIZ_REPO, 'data', 'pc');
   mkdirSync(d, { recursive: true });
   return d;
 }

@@ -261,6 +261,8 @@ export interface IdentidadProyecto {
   esGit: boolean;
   tipo: TipoProyecto;
   padre?: string;
+  /** Este proyecto es el propio tablero (se decide por ruta, no por nombre). */
+  esMando?: boolean;
 }
 
 /* Estado observable de un proyecto (gate, git, resumenes). Subinterface de

@@ -6,8 +6,8 @@
 import { existsSync, readdirSync, statSync, statfsSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
-import { rutaConfigPrivada } from '../../shared/rutas.js';
+import { basename, join, parse } from 'node:path';
+import { CARPETA_SKILLS, RAIZ_AREA, RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.js';
 import type { Proyecto } from '../../shared/types.js';
 import { leerArchivo } from '../http.js';
 import { leerSentinelLock } from '../scanner/gate.js';
@@ -40,9 +40,12 @@ function leerJson(ruta: string): Record<string, unknown> | null {
   }
 }
 
-/* Versión fijada de Sentinel en el área: workspace-manager/quality-tools.json. */
-export function leerPinArea(raizArea: string): string | null {
-  const json = leerJson(join(raizArea, 'workspace-manager', 'quality-tools.json'));
+/* Versión fijada de Sentinel en el área: quality-tools.json del propio manager.
+ * [por que] Se resolvia como `<area>/workspace-manager/quality-tools.json`, que
+ * incrustaba el nombre del proyecto y solo acertaba si el area era justo la
+ * carpeta padre del repo. El fichero es del manager: se pide desde su raiz. */
+export function leerPinArea(): string | null {
+  const json = leerJson(join(RAIZ_REPO, 'quality-tools.json'));
   const tools = json?.tools as { sentinel?: { version?: unknown } } | undefined;
   const v = tools?.sentinel?.version;
   return typeof v === 'string' ? v : null;
@@ -187,7 +190,11 @@ function encabezados(texto: string | null): string[] {
 
 function discoLibreGb(): number | null {
   try {
-    const s = statfsSync('C:/');
+    /* [por que] La unidad se DERIVA de la raiz del area, no se escribe a mano:
+     * el dato que se quiere medir es «cuanto espacio libre tiene el area», y
+     * esa es su unidad. Un `C:/` fijo mentia en cualquier maquina donde el
+     * area viva en otra letra (o en Linux, donde ni existe C:). */
+    const s = statfsSync(parse(RAIZ_AREA).root);
     return (Number(s.bavail) * Number(s.bsize)) / GB;
   } catch {
     return null;
@@ -233,18 +240,24 @@ async function medirTmp(raiz: string, presupuestoMs: number): Promise<{ bytes: n
   return { bytes, parcial };
 }
 
-/* El mando declara sus subcomandos en el bloque AYUDA de dev.mjs. */
-function subcomandosArranque(raizArea: string): string[] {
-  const bloque = leerArchivo(join(raizArea, 'workspace-manager', 'scripts', 'dev', 'dev.mjs'))?.match(
+/* El mando declara sus subcomandos en el bloque AYUDA de dev.mjs.
+ * [por que] Igual que leerPinArea: el mando es de este repo, asi que su script
+ * se pide desde RAIZ_REPO y no como `<area>/workspace-manager/...`. */
+function subcomandosArranque(): string[] {
+  const bloque = leerArchivo(join(RAIZ_REPO, 'scripts', 'dev', 'dev.mjs'))?.match(
     /const AYUDA = `([\s\S]*?)`;/,
   );
   if (!bloque) return [];
   return [...bloque[1].matchAll(/^ {2}(\w+)/gm)].map((m) => m[1]);
 }
 
-/* leerArchivo devuelve null si no existe; '' (vacío) también cuenta como ausente. */
+/* leerArchivo devuelve null si no existe; '' (vacío) también cuenta como ausente.
+ * [por que] La carpeta sale de CARPETA_SKILLS (su unico dueno, con WS_SKILLS_ROOT)
+ * y el nombre de la skill se deriva del del repo: antes se escribia a mano
+ * `~/.agents/skills/workspace-manager/SKILL.md`, que en un clon con otro nombre
+ * de carpeta no encontraba nada. */
 function skillArranque(): string | null {
-  return leerArchivo(join(homedir(), '.agents', 'skills', 'workspace-manager', 'SKILL.md')) || null;
+  return leerArchivo(join(CARPETA_SKILLS, basename(RAIZ_REPO), 'SKILL.md')) || null;
 }
 
 /* AGENTS §10 pide que las copias en ~/.config/opencode/skills coincidan con
@@ -304,7 +317,7 @@ export async function recogerArea(
     agentsBytes,
     titulosAgents: encabezados(agentsTexto),
     titulosClaudeMd: encabezados(leerArchivo(join(homedir(), '.claude', 'CLAUDE.md'))),
-    subcomandosArranque: subcomandosArranque(raizArea),
+    subcomandosArranque: subcomandosArranque(),
     skillArranque: skillArranque(),
     copiasSkill: copiasSkill(),
   };

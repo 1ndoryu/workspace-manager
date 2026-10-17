@@ -3,6 +3,7 @@
  * cualquiera puede usarlo sin crear ciclos. */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { papelesDeArea } from '../../shared/area.mjs';
 
 /* [por que] Este modulo vive en scripts/quality/bump, pero lo que los
  * consumidores esperan de AQUI es la carpeta de los comandos (scripts/quality):
@@ -17,7 +18,10 @@ export const ROUTERS = [
   { archivo: 'lock-generator.mjs', prefijo: 'quality:lock' },
 ];
 
-export const EXCLUIDOS_POR_ALCANCE = ['glory-harness'];
+/* [por que] Que proyectos quedan fuera del bump es configuracion nuestra
+ * (`config/area.json`), no del propagador: estaba incrustado. Sin declararlo,
+ * el bump los toca a todos. */
+export const EXCLUIDOS_POR_ALCANCE = papelesDeArea().bumpExcluidos;
 
 const argv = process.argv.slice(2);
 

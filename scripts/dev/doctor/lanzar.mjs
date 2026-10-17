@@ -13,6 +13,7 @@ import { escanearEscucha, normalizarRuta, procesosDe } from './sistema/procesos.
 import { esDelProyecto, marcadorPuerto, sondear } from './sistema/puertos.mjs';
 import { leerRegistro } from './ficha/registro.mjs';
 import { resolverDirecto, resolverExe } from './sistema/resolver.mjs';
+import { PUERTO_API } from '../../shared/puertos.mjs';
 
 /* Lanza detached con logs a <ruta>/logs/dev-up-<id>.log (*.log gitignored).
  * Devuelve pid. Nunca mata nada: el dueño del puerto decide. */
@@ -111,7 +112,7 @@ export function esperarProbe(puerto, rutaRecurso, esperaJson, timeoutMs, limiteM
 export function leerSnapshotServidor(forzar = false) {
   return new Promise((resolveP) => {
     const req = http.get(
-      { host: '127.0.0.1', port: 8787, path: forzar ? '/api/workspace?forzar=1' : '/api/workspace', timeout: 30_000, headers: cabeceraAutorizacion() },
+      { host: '127.0.0.1', port: PUERTO_API, path: forzar ? '/api/workspace?forzar=1' : '/api/workspace', timeout: 30_000, headers: cabeceraAutorizacion() },
       (res) => {
         let cuerpo = '';
         res.on('data', (t) => {
@@ -260,10 +261,10 @@ async function arrancarBackend(registro) {
   } catch (e) {
     return `servidor caido y el arranque del backend fallo (${e.message})`;
   }
-  const h = (wm.healths ?? []).find((x) => x.puerto === 8787) ?? { ruta: '/api/pc/estado', esperaJson: true };
-  const ok = await esperarProbe(8787, h.ruta, h.esperaJson, wm.timeoutMs ?? 3000, wm.arranqueMs ?? 60_000, wm.dominio);
+  const h = (wm.healths ?? []).find((x) => x.puerto === PUERTO_API) ?? { ruta: '/api/pc/estado', esperaJson: true };
+  const ok = await esperarProbe(PUERTO_API, h.ruta, h.esperaJson, wm.timeoutMs ?? 3000, wm.arranqueMs ?? 60_000, wm.dominio);
   if (!ok) return `backend arrancado pid ${lan.pid} pero sin probe en 8787 (log ${lan.rutaLog}): NO verde`;
-  if (!(await oyenteDelProyecto(wm, rutaWm, 8787))) {
+  if (!(await oyenteDelProyecto(wm, rutaWm, PUERTO_API))) {
     return `backend arrancado pid ${lan.pid} pero el oyente de 8787 no es el suyo (log ${lan.rutaLog}): NO verde`;
   }
   return null;

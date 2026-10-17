@@ -10,6 +10,7 @@ import { closeSync, fstatSync, openSync, readdirSync, readFileSync, readSync, st
 import os from 'node:os';
 import path from 'node:path';
 import { ErrorValidacion } from '../configuracion/politica.js';
+import { raizTemporales } from '../../plataforma/temporales.js';
 
 export const DECISIONES_REGISTRO = ['bloqueado', 'observado', 'paso'] as const;
 export type DecisionRegistro = (typeof DECISIONES_REGISTRO)[number];
@@ -89,7 +90,11 @@ export interface ActividadGuardian {
 /* Espejo de guardLogDir (glory-sentinel/src/core/guardLog.ts). */
 export function guardLogDirPorDefecto(env: NodeJS.ProcessEnv = process.env): string {
   if (env.GLORY_GUARD_LOG_DIR) return env.GLORY_GUARD_LOG_DIR;
-  const base = process.platform === 'win32' ? 'C:/tmp' : os.tmpdir();
+  /* [por que] En Windows la raiz sale de raizTemporales() (su unico dueno, con
+   * el override WM_TMP) en vez de repetir el literal. En Linux se mantiene
+   * os.tmpdir() a proposito: es lo que resuelve glory-sentinel y esta funcion
+   * es su espejo. */
+  const base = process.platform === 'win32' ? raizTemporales(env) : os.tmpdir();
   return path.join(base, 'glory-quality-guard');
 }
 
@@ -97,7 +102,7 @@ export function guardLogDirPorDefecto(env: NodeJS.ProcessEnv = process.env): str
 export function guardRootPorDefecto(env: NodeJS.ProcessEnv = process.env): string {
   let base: string;
   if (env.CARGO_TARGET_DIR_BASE) base = path.resolve(env.CARGO_TARGET_DIR_BASE);
-  else if (process.platform === 'win32') base = 'C:\\tmp\\glory-target';
+  else if (process.platform === 'win32') base = path.join(raizTemporales(env), 'glory-target');
   else base = path.join(os.tmpdir(), 'glory-target');
   return path.join(path.dirname(base), 'glory-quality-guard');
 }

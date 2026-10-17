@@ -44,7 +44,7 @@
         "5175"
       ],
       "requiere": [
-        "glory-pulse"
+        "proyecto-2"
       ],
       "comandos": {
         "gate": null,
@@ -55,11 +55,11 @@
     },
     {
       "id": "proyecto-2",
-      "ruta": "../glory-pulse",
-      "dominio": "pulse.localhost",
+      "ruta": "../proyecto-rust",
+      "dominio": "rust.localhost",
       "boton": [
         [
-          "C:\\tmp\\glory-target\\pulse-main\\debug\\pulse.exe"
+          "<TMP>\\target\\app-main\\debug\\app.exe"
         ]
       ],
       "puertos": [
@@ -74,14 +74,14 @@
       ],
       "timeoutMs": 3000,
       "arranqueMs": 180000,
-      "expectedCmdline": "pulse",
+      "expectedCmdline": "app",
       "env": {
         "SCCACHE_BASEDIRS": "<RAIZ_AREA>"
       },
-      "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; exe en target por rama C:\\tmp\\glory-target\\pulse-<rama> [05AA-1]; si falta, `up` lo reconstruye solo vía `reconstruir`; requiere PULSE_TOKEN>=32 en entorno, en local vale cualquiera, el real solo vive en Coolify)",
+      "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; exe en target por rama <TMP>\\target\\app-<rama> [05AA-1]; si falta, `up` lo reconstruye solo vía `reconstruir`; requiere <TOKEN_API>>=32 en entorno, en local vale cualquiera, el real solo vive en el gestor de despliegues)",
       "reconstruir": {
-        "manifest": "pulse/Cargo.toml",
-        "targetDir": "C:\\tmp\\glory-target\\pulse-main"
+        "manifest": "app/Cargo.toml",
+        "targetDir": "<TMP>\\target\\app-main"
       },
       "comandos": {
         "gate": null,
@@ -92,8 +92,8 @@
     },
     {
       "id": "proyecto-3",
-      "ruta": "../MN-Inmobiliaria",
-      "dominio": "inmobiliaria.localhost",
+      "ruta": "../proyecto-web",
+      "dominio": "web.localhost",
       "boton": [
         [
           "npm",
@@ -128,7 +128,7 @@
           5199,
           3102
         ],
-        "motivo": "dev de MN mantenido por decisión de la usuaria (09AA-18, 2026-10-12)"
+        "motivo": "dev mantenido a proposito en el portatil; declararlo evita que el doctor lo tome por un proceso suelto"
       },
       "healths": [
         {
@@ -155,8 +155,8 @@
       "timeoutMs": 3000,
       "arranqueMs": 300000,
       "expectedCmdline": [
-        "glory-backend",
-        "MN-Inmobiliaria\\frontend",
+        "app-backend",
+        "proyecto-web\\frontend",
         "gateway"
       ],
       "env": {
@@ -171,7 +171,7 @@
         "UPLOAD_DIR",
         "RUST_LOG",
         "PUBLIC_BASE_URL",
-        "OPENCODE_GO_API_KEY",
+        "<CLAVE_API>",
         "VITE_DEV_EMAIL",
         "VITE_DEV_PASSWORD"
       ],
@@ -180,7 +180,7 @@
           "cargo",
           "build",
           "--bin",
-          "glory-backend"
+          "app-backend"
         ]
       ],
       "dependencias": [
@@ -200,7 +200,7 @@
       ],
       "tunelSsh": false,
       "hostsPublicos": [
-        "mn-dev.<DOMINIO_BASE>"
+        "web-dev.<DOMINIO_BASE>"
       ],
       "puertosPublicos": [
         3110
@@ -209,16 +209,16 @@
       "botonRemoto": [
         [
           "env",
-          "PUBLIC_BASE_URL=https://mn-dev.<DOMINIO_BASE>/rust",
+          "PUBLIC_BASE_URL=https://web-dev.<DOMINIO_BASE>/rust",
           "cargo",
           "run",
           "--bin",
-          "glory-backend"
+          "app-backend"
         ],
         [
           "env",
           "VITE_API_URL=/rust",
-          "MN_DEV_PUBLIC_HOST=mn-dev.<DOMINIO_BASE>",
+          "WEB_DEV_PUBLIC_HOST=web-dev.<DOMINIO_BASE>",
           "npm",
           "--prefix",
           "frontend",
@@ -234,7 +234,7 @@
         [
           "sh",
           "-c",
-          "set -a; . <HOME_REMOTO>/.config/cloudflared/mn-dev.env; set +a; exec <HOME_REMOTO>/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run"
+          "set -a; . <HOME_REMOTO>/.config/cloudflared/web-dev.env; set +a; exec <HOME_REMOTO>/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run"
         ]
       ],
       "auxiliares": [
@@ -246,10 +246,10 @@
         {
           "puerto": 3102,
           "marcador": "--gateway-mn",
-          "motivo": "gateway de WhatsApp de MN: vive en el portatil (15AA-6, tiene las sesiones); lo mantiene el guardian de Inicio"
+          "motivo": "gateway de mensajeria: vive en el portatil (tiene las sesiones); lo mantiene el guardian de Inicio"
         }
       ],
-      "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp + Vite bajo ruta; PORT=3110 por env del mando; front via --prefix+-- para que --port llegue a vite)",
+      "tipoLauncher": "plantilla con wrapper run-with-db.mjs: backend en <TMP> + Vite bajo ruta; PORT por env del mando; front via --prefix+-- para que --port llegue a vite",
       "comandos": {
         "gate": null,
         "typecheck": "cargo check",
@@ -266,16 +266,16 @@
           [
             "env",
             "STATIC_DIR=frontend/dist",
-            "PUBLIC_BASE_URL=https://mn-dev.<DOMINIO_BASE>",
+            "PUBLIC_BASE_URL=https://web-dev.<DOMINIO_BASE>",
             "cargo",
             "run",
             "--bin",
-            "glory-backend"
+            "app-backend"
           ],
           [
             "sh",
             "-c",
-            "set -a; . <HOME_REMOTO>/.config/cloudflared/mn-dev.env; set +a; exec <HOME_REMOTO>/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run"
+            "set -a; . <HOME_REMOTO>/.config/cloudflared/web-dev.env; set +a; exec <HOME_REMOTO>/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run"
           ]
         ],
         "construirFront": [
@@ -291,7 +291,7 @@
           {
             "puerto": 3110,
             "ruta": "/",
-            "marcador": "<title>MN Inmobiliaria"
+            "marcador": "<title>Proyecto Web"
           },
           {
             "puerto": 20241,
@@ -304,76 +304,47 @@
   ],
   "vps": [
     {
-      "id": "89",
+      "id": "vps-taller",
       "alias": "<ALIAS_SSH>",
       "modo": "completo",
-      "motivo": "taller remoto: usuario dev sin sudo ni docker, clave propia"
+      "motivo": "taller remoto: usuario sin sudo ni docker, clave propia; aqui se compila, se prueba y se ejecuta"
     },
     {
-      "id": "66",
+      "id": "vps-produccion",
       "alias": null,
       "modo": "lectura",
-      "motivo": "VPS principal con Coolify: solo lectura via coolify-manager-rs; sin alias SSH"
+      "motivo": "VPS de produccion con el gestor de despliegues: solo lectura via su CLI; sin alias SSH"
     }
   ],
   "noAplica": {
-    "glory-agent": "sin-servicio",
-    "glory-sentinel": "sin-servicio",
-    "varsense": "sin-servicio"
+    "herramienta-a": "sin-servicio",
+    "herramienta-b": "sin-servicio",
+    "herramienta-c": "sin-servicio"
   },
   "ignoradosSistema": [
     {
-      "exe": "C:\\Riot Games\\Riot Client\\RiotClientServices.exe",
-      "motivo": "Riot Client (League of Legends): cliente de terceros con listener en loopback"
+      "exe": "<HOME>\\AppData\\Local\\Programs\\cliente-tercero\\cliente.exe",
+      "motivo": "cliente de terceros del usuario con listener en loopback"
     },
     {
-      "exe": "<HOME>\\AppData\\Roaming\\uTorrent Web\\helper\\helper.exe",
-      "motivo": "uTorrent Web: cliente de terceros con listener en loopback"
-    },
-    {
-      "exe": "C:\\Program Files\\Intel\\SUR\\QUEENCREEK\\x64\\esrv.exe",
-      "motivo": "Intel SUR: servicio del fabricante, no del area"
-    },
-    {
-      "exe": "C:\\Program Files\\OpenVPN\\bin\\openvpn.exe",
-      "motivo": "OpenVPN: VPN del usuario, no del area"
-    },
-    {
-      "exe": "<HOME>\\.cargo\\bin\\sccache.exe",
-      "motivo": "sccache: cache de compilacion de cargo, sin proyecto propio"
-    },
-    {
-      "exe": "<HOME>\\.bun\\bin\\bun.exe",
-      "cmdContiene": "serve --port 4096",
-      "motivo": "opencode-propio: servidor bun del app del usuario (gestion-externa; cwd no visible por CIM)"
+      "exe": "C:\\Program Files\\Fabricante\\Servicio\\x64\\servicio.exe",
+      "motivo": "servicio del fabricante del equipo, no del area"
     },
     {
       "puerto": 8790,
-      "motivo": "gateway local de Claude Desktop: herramienta del usuario, elevada, exe y cmd ilegibles"
+      "motivo": "herramienta del usuario, elevada: exe y cmd ilegibles sin permisos, se ignora por puerto"
     },
     {
       "pid": 4,
       "motivo": "System: nucleo de Windows, sin exe (PID fijo)"
     },
     {
-      "servicio": "SurfaceExperienceService-76.5120.174",
-      "motivo": "Microsoft Surface: servicio LocalSystem de WindowsApps; exe oculto sin elevar"
-    },
-    {
-      "servicio": "ESRV_SVC_QUEENCREEK",
-      "motivo": "Intel SUR: servicio LocalSystem del fabricante (esrv_svc.exe); exe oculto sin elevar"
-    },
-    {
-      "imagen": "TpvNet.exe",
-      "motivo": "BDP-Net TPV (IBERNYX) en C:\\Bdp-Net; exe oculto sin elevar"
-    },
-    {
-      "imagen": "SvrWCF.exe",
-      "motivo": "BDP-Net TPV (IBERNYX), hijo de TpvNet.exe en C:\\Bdp-Net; exe oculto sin elevar"
+      "imagen": "ClienteCorporativo.exe",
+      "motivo": "cliente de un sistema externo al area; exe oculto sin elevar"
     },
     {
       "imagen": "GoogleDriveFS.exe",
-      "motivo": "Google Drive File Stream: sync del usuario, tercero; no del area (decidido 2026-10-13)"
+      "motivo": "sync de nube del usuario, tercero; no del area"
     }
   ]
 }
