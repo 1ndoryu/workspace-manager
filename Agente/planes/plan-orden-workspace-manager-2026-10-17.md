@@ -368,12 +368,19 @@ config viejas en `skills/dev-bootstrap`), L1–L2 (`AGENTS.md` §2 sin la nota d
 la skill `workspace-manager` al día, las dos sincronizadas a la 89) y G (los planes abiertos,
 revisados y organizados).
 
+**Cerrado además:** `17AA-3` — el frente 3 (la última incoherencia real: `doctorSentinel` corría
+siempre en el portátil, con `execFileSync` bloqueando la API, e ignoraba la decisión de modo) y el
+frente 5 para el doctor (degrada al portátil **y lo dice**: `modo` + `aviso` en la API y en el
+panel). De paso, un defecto de `copiarEntradas` que el frente 5 destapó: un `ssh` que moría en un
+segundo dejaba a `tar` bloqueado hasta el vigilante de 120 s, así que un host inexistente tardaba
+**123 s** en dar el motivo (más que los 90 s que el panel espera) en vez de 4,9 s. La entrada está
+en `Agente/completados/tareas-2026-10-17.md`.
+
 **Pendiente:** H (adoptar el cambio ajeno de navegación), I (el resto del tablero: RESTAURANTE 202
-tras B4 y KAMPLES 113, con los 7 `propiedadProhibida` reales), el frente 3 (coherencia con el
-taller: `modoAnalisisEn` cae a local en silencio, `doctorSentinel` no consulta la decisión,
-binarios sin variable de entorno), el frente 5 (con y sin VPS), el frente 8 (SOLID a fondo), el
-frente 9 (hardcodeo), el frente 10 (accesibilidad) y L3–L6 (las skills que citan el pin de
-Sentinel, las memorias y `Agente/documentacion/`).
+tras B4 y KAMPLES 113, con los 7 `propiedadProhibida` reales), el frente 3 en su parte de
+hardcodeo (los binarios `ssh`/`tar` sin variable de entorno, que es del frente 9), el frente 8
+(SOLID a fondo), el frente 9 (hardcodeo), el frente 10 (accesibilidad) y L3–L6 (las skills que
+citan el pin de Sentinel, las memorias y `Agente/documentacion/`).
 
 ### L · Documentación viva: skills, `AGENTS.md` y memorias (encargo de la usuaria, 2026-10-17)
 

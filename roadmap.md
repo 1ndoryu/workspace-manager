@@ -14,9 +14,10 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 0. `17AA-2` — **Poner workspace-manager en orden** (encargo de la usuaria, 2026-10-17). Plan:
    `Agente/planes/plan-orden-workspace-manager-2026-10-17.md`. Cerrados A (`.mjs`), B1–B6 (los
    falsos positivos, el último B4 en `varsense` `3375e18`), C (14 problemas reales; tablero 16 → 0),
-   D, E, F, G, K y L1–L2. Quedan el frente 3 (coherencia con el taller), el 5 (con y sin VPS), el 8
-   (SOLID a fondo), el 9 (hardcodeo), el 10 (accesibilidad), H (la nav ajena), I (el resto del
-   tablero) y L3–L6.
+   D, E, F, G, K, L1–L2 y `17AA-3` (frentes 3 y 5: el doctor corre donde toca y lo dice, y el
+   transporte se separa de `remoto.ts`). Quedan el resto del frente 3 (los binarios sin variable de
+   entorno, que es del 9), el 8 (SOLID a fondo), el 9 (hardcodeo), el 10 (accesibilidad), H (la nav
+   ajena), I (el resto del tablero) y L3–L6.
 1. `308A-5` — **Corregir hallazgos restantes de Sentinel y VarSense** (piso honesto + wins rápidos).
    Depende de 17AA-2 para no medir sobre reglas que cambian.
 2. `17AA-1` — **Nav responsive: los destinos que no caben se van a un menú.** Pedido de la usuaria
