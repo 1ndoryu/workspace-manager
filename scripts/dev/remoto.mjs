@@ -42,12 +42,61 @@ export function esEntradaRemota(entrada) {
   return typeof entrada?.host === 'string' && entrada.host !== '';
 }
 
+// --- Modo del proyecto (16AA-18) ---
+// `dev` = vite + backend, con HMR. `build` = front construido a `dist/` y servido por el backend
+// Rust, como producción: se cae el vite, que son 150-650 MB de RAM por proyecto.
+// [por que] El defecto sigue siendo `dev` hasta F8: invertirlo antes rompería las seis fichas del
+// taller, porque en build hay un puerto menos y `validarHostRemoto` exige un botón por puerto.
+export const MODO_POR_DEFECTO = 'dev';
+const MODOS = new Set(['dev', 'build']);
+
+// `override` = lo que pidan `up --dev` / `up --build` para esa sesión, sin tocar la ficha.
+export function modoDe(entrada, override) {
+  return override ?? entrada.modo ?? MODO_POR_DEFECTO;
+}
+
+// El bloque `build` declara sus propios puertos, botones, healths y locales porque no siempre es
+// «un puerto menos»: la sesión de MN también aloja el conector de Cloudflare (20241).
+// [por que] Todo el camino de arranque lee `puertosRemotos`/`botonRemoto`/`healths`/`puertosLocales`
+// alineados por índice, así que devolver una copia con los del modo efectivo evita ramificar en
+// cada función. En `dev` devuelve la entrada tal cual: cero cambios de comportamiento.
+export function entradaEfectiva(entrada, modo = modoDe(entrada)) {
+  if (modo !== 'build') return entrada;
+  const b = entrada.build ?? {};
+  return {
+    ...entrada,
+    puertos: b.puertos,
+    puertosRemotos: b.puertos,
+    puertosLocales: b.puertosLocales,
+    botonRemoto: b.boton,
+    healths: b.healths ?? [],
+  };
+}
+
+// Lo mínimo para que `entradaEfectiva` dé algo arrancable; el resto lo comprueba el doctor sobre el
+// registro entero (`build.healths`, `marcador`, claves del bloque).
+function validarBloqueBuild(b) {
+  if (typeof b !== 'object' || b === null) return 'modo build sin bloque build en la ficha';
+  if (!Array.isArray(b.puertos) || b.puertos.length === 0) return 'build.puertos: lista de puertos, no vacía';
+  if (!Array.isArray(b.boton) || b.boton.length !== b.puertos.length) return 'build.boton debe tener un comando por puerto';
+  return null;
+}
+
 // [por que] Los nombres de variable van sin entrecomillar en el shell remoto y en el .env: solo identificadores.
 const RE_NOMBRE_ENV = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const dependenciaSegura = (d) => typeof d === 'string' && d !== '' && !isAbsolute(d) && !d.split(/[\\/]/).includes('..');
 
 // Solo el host declarado en taller.json; sin requiere (no hay orquestacion remota de dependencias).
-export function validarHostRemoto(entrada, config) {
+// `override` (--dev/--build) elige qué bloque se valida: el del modo efectivo, nunca los dos.
+export function validarHostRemoto(entrada, config, override) {
+  const modo = modoDe(entrada, override);
+  if (!MODOS.has(modo)) return `modo '${modo}' no valido (dev|build)`;
+  if (modo === 'build') {
+    const mal = validarBloqueBuild(entrada.build);
+    if (mal) return mal;
+  }
+  // A partir de aqui se valida el bloque del modo efectivo, que en dev es la entrada intacta.
+  entrada = entradaEfectiva(entrada, modo);
   if (entrada.host !== config.host) return `host '${entrada.host}' no permitido (solo '${config.host}')`;
   if (entrada.requiere?.length) return 'requiere no se soporta en host remoto';
   const remotos = puertosRemotosDe(entrada);
@@ -211,6 +260,17 @@ export function comandoPrecompilar(config, rutas, id, argv, env = {}) {
   return `mkdir -p ${shQuote(rutas.dirLogs)} && cd ${shQuote(rutas.dirRemoto)} && bash -lc ${shQuote(interno)} >> ${shQuote(log)} 2>&1`;
 }
 
+// Build del front en modo build: **sin cm-heavy**. Son ~200 MB y 11,5 s; meterlo en el mismo saco
+// tendría un efecto perverso: sin 6 GB libres no se podría ni reconstruir el front aunque el binario
+// Rust ya estuviera compilado. Y **sin el env del registro**: `vite build` hornea lo que ve, y
+// `entrada.env` lleva la URL del proxy de dev (`http://localhost:3103`), que desde el navegador del
+// portátil no existe. Solo cuenta el `env K=V` escrito en su propio argv.
+export function comandoConstruirFront(rutas, id, argv) {
+  const log = `${rutas.dirLogs}/construir-front-${id}.log`;
+  const interno = `${PATH_NODE}cd ${shQuote(rutas.dirRemoto)} && ${argv.map(shQuote).join(' ')}`;
+  return `mkdir -p ${shQuote(rutas.dirLogs)} && bash -lc ${shQuote(interno)} >> ${shQuote(log)} 2>&1`;
+}
+
 // npm ci solo si cambió package-lock.json: la marca es su sha256 dentro de node_modules (node_modules no viaja por Mutagen).
 const etiquetaNpm = (sub) => (sub === '.' ? 'raiz' : sub.replace(/[^A-Za-z0-9]+/g, '_'));
 export const rutaLogNpmCi = (dirLogs, sub, id) => `${dirLogs}/npm-ci-${id}-${etiquetaNpm(sub)}.log`;
@@ -272,34 +332,46 @@ export function variablesDistintas(textoEnviron, esperado) {
     .map(([k]) => k);
 }
 
-function sondear(puerto, ruta = '/', timeoutMs = 2000) {
+function sondear(puerto, ruta = '/', timeoutMs = 2000, marcador = null) {
   return new Promise((resolveP) => {
     const req = http.get({ host: '127.0.0.1', port: puerto, path: ruta, timeout: timeoutMs }, (res) => {
-      res.resume();
-      resolveP(res.statusCode === 200);
+      // [por que] Con marcador hay que leer el cuerpo; sin él basta el código. El tope de 64 KB
+      // acota la memoria: el index.html de una SPA son ~1 KB y la API responde JSON pequeño.
+      let cuerpo = '';
+      res.on('data', (t) => {
+        cuerpo += t;
+        if (cuerpo.length > 64 * 1024) req.destroy();
+      });
+      res.on('end', () => resolveP(res.statusCode === 200 && (!marcador || cuerpo.includes(marcador))));
     });
     req.on('timeout', () => req.destroy());
     req.on('error', () => resolveP(false));
   });
 }
 
-async function esperarSonda(puerto, ruta, limiteMs) {
+async function esperarSonda(puerto, ruta, limiteMs, marcador = null) {
   const t0 = Date.now();
-  while (!(await sondear(puerto, ruta))) {
+  while (!(await sondear(puerto, ruta, 2000, marcador))) {
     if (Date.now() - t0 > limiteMs) return false;
     await new Promise((r) => setTimeout(r, 1000));
   }
   return true;
 }
 
-// Sin túnel, el probe corre en la 89 contra su loopback, con el mismo criterio que sondear (solo 200).
+// Sin túnel, el probe corre en la 89 contra su loopback, con el mismo criterio que sondear.
 // [por que] La salida es el código HTTP; el código de salida de curl no se usa (000 = sin respuesta).
-export const comandoSondaRemota = (puerto, ruta) => `curl -s -o /dev/null -w '%{http_code}' --max-time 2 ${shQuote(`http://127.0.0.1:${puerto}${ruta}`)}`;
+export const comandoSondaRemota = (puerto, ruta, marcador = null) => {
+  const url = shQuote(`http://127.0.0.1:${puerto}${ruta}`);
+  if (!marcador) return `curl -s -o /dev/null -w '%{http_code}' --max-time 2 ${url}`;
+  // El cuerpo va a un temporal para poder buscar el marcador; el código HTTP no basta para
+  // distinguir la SPA de un 200 de la API.
+  return `t=$(mktemp); s=$(curl -s -o "$t" -w '%{http_code}' --max-time 2 ${url}); if [ "$s" = 200 ] && grep -qF -- ${shQuote(marcador)} "$t"; then echo 200; else echo 000; fi; rm -f "$t"`;
+};
 
-async function esperarSondaRemota(config, puerto, ruta, limiteMs) {
+async function esperarSondaRemota(config, puerto, ruta, limiteMs, marcador = null) {
   const t0 = Date.now();
   for (;;) {
-    const r = await sshRemoto(config, comandoSondaRemota(puerto, ruta), 10_000);
+    const r = await sshRemoto(config, comandoSondaRemota(puerto, ruta, marcador), 10_000);
     if (r.salida.trim() === '200') return true;
     if (Date.now() - t0 > limiteMs) return false;
     await new Promise((res) => setTimeout(res, 1000));
@@ -416,9 +488,14 @@ function rutaAbsDe(entrada) {
   return isAbsolute(entrada.ruta) ? normalize(entrada.ruta) : resolve(RAIZ_REPO, entrada.ruta);
 }
 
-function rutaSonda(entrada, puerto) {
-  return entrada.healths?.find((h) => h.puerto === puerto)?.ruta ?? '/';
+// El health del puerto: de ahí salen la ruta y el marcador. En build el `/` lo sirve el backend, así
+// que un 200 puede ser la API y no la SPA; el marcador (p. ej. `<div id="root">`) es lo que las
+// distingue. Sin marcador, el criterio sigue siendo el de siempre: solo el 200.
+function saludDe(entrada, puerto) {
+  return entrada.healths?.find((h) => h.puerto === puerto) ?? {};
 }
+const rutaSonda = (entrada, puerto) => saludDe(entrada, puerto).ruta ?? '/';
+const marcadorSonda = (entrada, puerto) => saludDe(entrada, puerto).marcador ?? null;
 
 async function estadoRemoto(config, id, entrada) {
   const tunel = usaTunel(entrada);
@@ -434,9 +511,9 @@ async function estadoRemoto(config, id, entrada) {
   // Sin túnel, el probe solo corre si hay sesiones: sin ellas no hay nada que sondear.
   let sondasOk = remotos.map(() => false);
   if (tunel && pidTunel) {
-    sondasOk = await Promise.all(remotos.map((p, i) => esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), 3000)));
+    sondasOk = await Promise.all(remotos.map((p, i) => esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), 3000, marcadorSonda(entrada, p))));
   } else if (!tunel && sesionesVivas.length) {
-    sondasOk = await Promise.all(remotos.map((p) => esperarSondaRemota(config, p, rutaSonda(entrada, p), 3000)));
+    sondasOk = await Promise.all(remotos.map((p) => esperarSondaRemota(config, p, rutaSonda(entrada, p), 3000, marcadorSonda(entrada, p))));
   }
   const conexion = tunel ? `tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}` : 'sin tunel';
   const detalle = `tmux ${sesionesVivas.length}/${remotos.length}, ${conexion}, probe ${sondasOk.filter(Boolean).length}/${remotos.length}`;
@@ -468,6 +545,9 @@ async function esperarEscucha(config, entrada, limiteMs) {
 
 // Build en frío (241–307 s medidos) y npm ci: más que el timeout corto de ssh.
 const TIMEOUT_BUILD_MS = 900_000;
+// Dónde deja el front construido `npm run build` en los seis proyectos del taller. Es el directorio
+// que sirve el backend en modo build, así que su `index.html` es la prueba de que el build cuajó.
+const DIST_FRONT = 'frontend/dist';
 
 // Protocolo de arranque remoto (decidido 2026-10-14). Orden fijo; cada paso falla cerrado con su motivo:
 // 1) .env local con las claves pedidas; 2) base de la rama en la 89 (si hay Cargo.toml y taller.json `bd`);
@@ -489,7 +569,26 @@ function entornoRemoto(config, id, entrada, rama) {
   return { env, urlBd, nombreBd };
 }
 
-async function prepararRemoto(config, id, entrada, rama, rutas) {
+// Construye el front en la 89 y comprueba que dejó el `dist`. En build el backend sirve ese
+// directorio, así que un `dist` viejo o ausente es un verde fingido: aquí se aborta en claro.
+export async function construirFrontRemoto(config, id, entrada, rutas) {
+  const pasos = entrada.build?.construirFront ?? [];
+  if (!pasos.length) {
+    return { ok: false, resumen: `modo build sin build.construirFront en la ficha de ${id}: no hay nada que construya el front` };
+  }
+  // [por que] Mutagen ignora `.env*`, así que un `frontend/.env.local` escrito por un `up` anterior
+  // en dev sobrevive en la 89 y `vite build` lo leería igual: hornearía las credenciales de dev.
+  await sshRemoto(config, `rm -f ${shQuote(`${rutas.dirRemoto}/frontend/.env.local`)}`);
+  for (const argv of pasos) {
+    const r = await sshRemoto(config, comandoConstruirFront(rutas, id, argv), TIMEOUT_BUILD_MS);
+    if (!r.ok) return { ok: false, resumen: `construirFront fallo, log ${rutas.dirLogs}/construir-front-${id}.log en ${config.host}: ${r.error}` };
+  }
+  const d = await sshRemoto(config, `test -f ${shQuote(`${rutas.dirRemoto}/${DIST_FRONT}/index.html`)}`);
+  if (!d.ok) return { ok: false, resumen: `build.construirFront no dejo ${DIST_FRONT}/index.html en ${config.host}` };
+  return { ok: true };
+}
+
+async function prepararRemoto(config, id, entrada, rama, rutas, modo = MODO_POR_DEFECTO) {
   const ruta = rutaAbsDe(entrada);
   let base;
   try {
@@ -518,10 +617,15 @@ async function prepararRemoto(config, id, entrada, rama, rutas) {
   if (contenidoEnv !== null) {
     const w = await escribirArchivoRemoto(config, `${rutas.dirRemoto}/.env`, contenidoEnv);
     if (!w.ok) return { ok: false, resumen: `.env remoto no se pudo escribir: ${w.error}` };
-    const front = contenidoEnvFrontend(contenidoEnv);
-    if (front !== null && existsSync(join(ruta, 'frontend'))) {
-      const wf = await escribirArchivoRemoto(config, `${rutas.dirRemoto}/frontend/.env.local`, front);
-      if (!wf.ok) return { ok: false, resumen: `frontend/.env.local remoto no se pudo escribir: ${wf.error}` };
+    // [por que] En build no se escribe el `.env` del front: es justo lo que hornearía las
+    // credenciales de dev (`VITE_DEV_EMAIL`/`VITE_DEMO_PASSWORD`) en el bundle. El residuo de un
+    // `up` anterior en dev lo borra `construirFrontRemoto`.
+    if (modo !== 'build') {
+      const front = contenidoEnvFrontend(contenidoEnv);
+      if (front !== null && existsSync(join(ruta, 'frontend'))) {
+        const wf = await escribirArchivoRemoto(config, `${rutas.dirRemoto}/frontend/.env.local`, front);
+        if (!wf.ok) return { ok: false, resumen: `frontend/.env.local remoto no se pudo escribir: ${wf.error}` };
+      }
     }
   }
   for (const sub of entrada.dependencias ?? []) {
@@ -532,6 +636,12 @@ async function prepararRemoto(config, id, entrada, rama, rutas) {
     const r = await sshRemoto(config, comandoPrecompilar(config, rutas, id, argv), TIMEOUT_BUILD_MS);
     if (r.codigo === 75) return { ok: false, resumen: `cm-heavy ocupado en ${config.host} (otro build pesado); reintenta en unos minutos` };
     if (!r.ok) return { ok: false, resumen: `precompilar fallo, log ${rutas.dirLogs}/precompilar-${id}.log en ${config.host}: ${r.error}` };
+  }
+  // El front se construye después del binario y antes de arrancar: si falla, nunca se arranca con un
+  // `dist` viejo.
+  if (modo === 'build') {
+    const cf = await construirFrontRemoto(config, id, entrada, rutas);
+    if (!cf.ok) return cf;
   }
   return { ok: true, env, nombreBd };
 }
@@ -714,8 +824,12 @@ export async function sincronizarBd(config, id, entrada, ruta, nombreBd, forzar 
 }
 
 async function upRemoto(config, id, entrada, args = []) {
-  const error = validarHostRemoto(entrada, config);
+  // `--dev`/`--build` sobrescriben el modo de la ficha solo para esta sesión.
+  const modo = modoDe(entrada, args.includes('--dev') ? 'dev' : args.includes('--build') ? 'build' : undefined);
+  const error = validarHostRemoto(entrada, config, modo);
   if (error) return { codigo: 1, resumen: `up ${id}: rehusado (${error})` };
+  // A partir de aquí todo el arranque trabaja sobre el bloque del modo efectivo.
+  entrada = entradaEfectiva(entrada, modo);
   const rama = detectarRama(rutaAbsDe(entrada));
   const rutas = rutasRemotas(config, id, rama);
   // [por que] Antes del estado: si la sesión de sync se perdió, `up` la restaura aunque los procesos sigan vivos.
@@ -729,9 +843,18 @@ async function upRemoto(config, id, entrada, args = []) {
   if (previo.estado === 'bajo-mando') {
     reiniciar = await puertosConEntornoDistinto(config, id, entrada, rama);
     if (!reiniciar.ok) return { codigo: 1, resumen: `up ${id}: ${reiniciar.motivo}: NO verde` };
-    if (!reiniciar.puertos.length && !sincronizar) return { codigo: 0, resumen: `up ${id}: ya-arriba (${previo.motivo})` };
+    if (!reiniciar.puertos.length && !sincronizar) {
+      // [por que] Sin esto un proyecto ya arriba nunca reconstruía el front: esta rama responde
+      // antes de `prepararRemoto`, así que el `dist` se quedaba con el código de la vez anterior.
+      // El backend sirve el directorio desde disco, así que basta con rehacerlo: no hay que reiniciar.
+      if (modo === 'build') {
+        const cf = await construirFrontRemoto(config, id, entrada, rutas);
+        if (!cf.ok) return { codigo: 1, resumen: `up ${id}: ${cf.resumen}: NO verde` };
+      }
+      return { codigo: 0, resumen: `up ${id}: ya-arriba (${previo.motivo})${modo === 'build' ? ', front reconstruido' : ''}` };
+    }
   }
-  const prep = await prepararRemoto(config, id, entrada, rama, rutas);
+  const prep = await prepararRemoto(config, id, entrada, rama, rutas, modo);
   if (!prep.ok) return { codigo: 1, resumen: `up ${id}: ${prep.resumen}: NO verde` };
   let bdResumen = null;
   if (sincronizar) {
@@ -780,10 +903,11 @@ async function upRemoto(config, id, entrada, args = []) {
   }
   for (const [i, p] of remotos.entries()) {
     const ruta = rutaSonda(entrada, p);
+    const marcador = marcadorSonda(entrada, p);
     // [por que] Sin túnel el probe corre en la 89: es el loopback que expone cloudflared (o el propio servicio).
     const ok = usaTunel(entrada)
-      ? await esperarSonda(puertosLocalesDe(entrada)[i], ruta, limiteMs)
-      : await esperarSondaRemota(config, p, ruta, limiteMs);
+      ? await esperarSonda(puertosLocalesDe(entrada)[i], ruta, limiteMs, marcador)
+      : await esperarSondaRemota(config, p, ruta, limiteMs, marcador);
     if (!ok) return { codigo: 1, resumen: `up ${id}: probe sin respuesta ${usaTunel(entrada) ? 'por el tunel' : `en ${config.host}`} (puerto ${p}, ${limiteMs}ms): NO verde` };
   }
   escribirEstado(id, {
@@ -795,7 +919,7 @@ async function upRemoto(config, id, entrada, args = []) {
   });
   const reinicio = reiniciar.puertos.length ? `, reiniciados por entorno distinto: ${reiniciar.detalle.join('; ')}` : '';
   const via = pid ? `tunel pid ${pid}` : 'sin tunel';
-  return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (puertos ${remotos.join(', ')}, ${via}${reinicio})${bdResumen ? `; ${bdResumen}` : ''} + probe verde` };
+  return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (modo ${modo}, puertos ${remotos.join(', ')}, ${via}${reinicio})${bdResumen ? `; ${bdResumen}` : ''} + probe verde` };
 }
 
 async function statusRemoto(config, id, entrada) {
@@ -859,13 +983,16 @@ export async function despachar(cmd, args, entrada) {
     return sale({ codigo: 1, resumen: `${cmd} ${id}: taller.json no legible (${e.message})` });
   }
   if (cmd === 'up') return sale(await upRemoto(config, id, entrada, args));
-  if (cmd === 'status') return sale(await statusRemoto(config, id, entrada));
-  if (cmd === 'stop') return sale(await stopRemoto(config, id, entrada));
+  // Los otros tres trabajan sobre el bloque del modo efectivo de la ficha: en build hay menos
+  // puertos, así que `status` no debe sondear el 5199 del vite que ya no existe.
+  const ef = entradaEfectiva(entrada);
+  if (cmd === 'status') return sale(await statusRemoto(config, id, ef));
+  if (cmd === 'stop') return sale(await stopRemoto(config, id, ef));
   if (cmd === 'logs') {
     const iLin = args.indexOf('--lineas');
     const n = iLin >= 0 ? Number.parseInt(args[iLin + 1], 10) : 50;
     const lineas = Number.isInteger(n) ? Math.min(Math.max(n, 1), 200) : 50;
-    const r = await logsRemoto(config, id, entrada, lineas);
+    const r = await logsRemoto(config, id, ef, lineas);
     console.log(r.salida);
     return r.codigo;
   }

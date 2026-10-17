@@ -16,6 +16,7 @@ import {
   procesosDe,
   RAIZ_REPO,
 } from './doctor.mjs';
+import { entradaEfectiva } from './remoto.mjs';
 
 function taskkill(pid, forzado) {
   const args = forzado ? ['/F', '/PID', String(pid), '/T'] : ['/PID', String(pid), '/T'];
@@ -153,8 +154,11 @@ export async function open(argv) {
     console.error(`open ${id}: ${e.resumen}`);
     return 1;
   }
-  const healths = e.entrada.healths?.length ? e.entrada.healths : e.entrada.puertos.map((puerto) => ({ puerto }));
-  const dominio = e.entrada.dominio ?? '127.0.0.1';
+  // [por que] En modo build los puertos son los del bloque `build`, no los del dev: imprimir el 5199
+  // del vite que ya no existe es ruido que parece un fallo.
+  const ef = entradaEfectiva(e.entrada);
+  const healths = ef.healths?.length ? ef.healths : (ef.puertos ?? []).map((puerto) => ({ puerto }));
+  const dominio = ef.dominio ?? '127.0.0.1';
   for (const h of healths) {
     console.log(`http://${dominio}:${h.puerto}${h.ruta ?? '/'}`);
   }

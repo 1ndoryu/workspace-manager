@@ -18,6 +18,7 @@ import {
   leerRegistro,
   parsearNetstat,
   puertoDeSaludValido,
+  validarBloqueBuild,
   validarIgnoradoSistema,
   validarVps,
   veredictoUpSinCobertura,
@@ -355,4 +356,48 @@ test('veredictoUpSinCobertura: sin probe verde rehusa (parado o deriva), nunca a
     assert.match(r.resumen, new RegExp(`rehusado \\(${estado}: `));
     assert.match(r.resumen, /sin cobertura \(snapshot del servidor: timeout\) no se arranca/);
   }
+});
+
+// --- Modo del proyecto (16AA-18): validacion del bloque `build` en el registro ---
+const bloqueOk = {
+  puertos: [3105],
+  boton: [['cargo', 'run', '--release']],
+  construirFront: [['npm', '--prefix', 'frontend', 'run', 'build']],
+  healths: [{ puerto: 3105, ruta: '/', marcador: '<div id="root">' }],
+};
+
+test('validarBloqueBuild: sin bloque solo vale si el modo no es build', () => {
+  assert.equal(validarBloqueBuild({}), null);
+  assert.equal(validarBloqueBuild({ modo: 'dev' }), null);
+  assert.match(validarBloqueBuild({ modo: 'build' }), /sin bloque build/);
+  assert.match(validarBloqueBuild({ modo: 'produccion' }), /no valido/);
+});
+
+test('validarBloqueBuild: exige puertos, un boton por puerto y construirFront', () => {
+  const e = (b) => ({ modo: 'build', build: { ...bloqueOk, ...b } });
+  assert.equal(validarBloqueBuild(e({})), null);
+  assert.match(validarBloqueBuild(e({ puertos: [] })), /build.puertos/);
+  assert.match(validarBloqueBuild(e({ puertos: [80] })), /build.puertos/);
+  assert.match(validarBloqueBuild(e({ boton: [] })), /un comando por puerto/);
+  assert.match(validarBloqueBuild(e({ boton: [['cargo', 'run'], ['npm', 'run']] })), /un comando por puerto/);
+  assert.match(validarBloqueBuild(e({ boton: [['cargo', 'run'], []] })), /un comando por puerto/);
+  assert.match(validarBloqueBuild(e({ boton: ['cargo run'] })), /lista de comandos/);
+  assert.match(validarBloqueBuild(e({ construirFront: [] })), /construirFront/);
+  assert.match(validarBloqueBuild(e({ construirFront: ['npm run build'] })), /construirFront/);
+  assert.match(validarBloqueBuild(e({ puertosLocales: [13105, 15182] })), /puertosLocales debe tener/);
+  assert.match(validarBloqueBuild(e({ puertosLocales: [13105, 13105] })), /puertosLocales debe tener/);
+  assert.match(validarBloqueBuild(e({ otra: 1 })), /clave desconocida 'otra'/);
+});
+
+test('validarBloqueBuild: healths atados a build.puertos y marcador acotado', () => {
+  const e = (healths) => ({ modo: 'build', build: { ...bloqueOk, healths } });
+  assert.match(validarBloqueBuild(e([{ puerto: 5199, ruta: '/' }])), /puerto fuera de build.puertos/);
+  assert.match(validarBloqueBuild(e([{ puerto: 3105, ruta: 'api' }])), /ruta absoluta/);
+  assert.match(validarBloqueBuild(e([{ puerto: 3105, ruta: '/', esperaJson: 'si' }])), /esperaJson no booleano/);
+  assert.match(validarBloqueBuild(e([{ puerto: 3105, ruta: '/', marcador: 'ab' }])), /marcador debe ser texto/);
+  assert.match(validarBloqueBuild(e([{ puerto: 3105, ruta: '/', marcador: 'x'.repeat(121) }])), /marcador debe ser texto/);
+  assert.match(validarBloqueBuild(e([{ puerto: 3105, ruta: '/', espera: true }])), /clave desconocida 'espera'/);
+  assert.equal(validarBloqueBuild(e([{ puerto: 3105, ruta: '/', esperaJson: true }])), null);
+  // [por que] En build `/` tambien lo sirve la API: sin marcador un 200 no distingue SPA de API.
+  assert.equal(validarBloqueBuild(e([{ puerto: 3105, ruta: '/', marcador: 'id="root"' }])), null);
 });

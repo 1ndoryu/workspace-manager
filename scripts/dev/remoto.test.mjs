@@ -3,16 +3,21 @@ import assert from 'node:assert/strict';
 import {
   analizarEscucha,
   argsTunel,
+  comandoConstruirFront,
   comandoNpmCi,
   comandoPrecompilar,
   comandoRemotoUp,
   comandoSondaRemota,
+  construirFrontRemoto,
   contenidoEnvFrontend,
   contenidoEnvRemoto,
   diferenciasConteos,
   desviosDeConteos,
+  entradaEfectiva,
   esEntradaRemota,
   filtrarSqlParaPg16,
+  MODO_POR_DEFECTO,
+  modoDe,
   parsearConteos,
   leerUrlBdLocal,
   marcadorTunel,
@@ -322,4 +327,96 @@ test('tunelSsh: false no reenvía y la sonda va por el loopback de la 89; valore
   assert.ok(sonda.includes('curl'));
   assert.ok(sonda.includes("'http://127.0.0.1:3110/api/health'"));
   assert.ok(sonda.includes('%{http_code}'));
+});
+
+// --- Modo del proyecto (16AA-18): `build` sirve el front desde el backend, sin vite ---
+const fichaBuild = {
+  host: 'dev89',
+  modo: 'build',
+  puertos: [3105, 5182],
+  boton: [['npm', 'run', 'dev:back'], ['npm', 'run', 'dev:front']],
+  precompilar: [['cargo', 'build', '--release']],
+  build: {
+    puertos: [3105],
+    boton: [['cargo', 'run', '--release']],
+    construirFront: [['npm', '--prefix', 'frontend', 'run', 'build']],
+    healths: [{ puerto: 3105, ruta: '/', marcador: '<div id="root">' }],
+  },
+};
+
+test('modoDe: sin `modo` el defecto es dev; --dev/--build mandan sobre la ficha', () => {
+  assert.equal(MODO_POR_DEFECTO, 'dev');
+  assert.equal(modoDe(entrada), 'dev');
+  assert.equal(modoDe(fichaBuild), 'build');
+  assert.equal(modoDe(fichaBuild, 'dev'), 'dev');
+  assert.equal(modoDe(entrada, 'build'), 'build');
+});
+
+test('entradaEfectiva: en dev la entrada vuelve intacta; en build cambia los arrays alineados', () => {
+  // La misma referencia, no una copia: en dev no cambia nada de lo que ya hacía el taller.
+  assert.equal(entradaEfectiva(entrada), entrada);
+  assert.equal(entradaEfectiva(fichaBuild, 'dev'), fichaBuild);
+  const ef = entradaEfectiva(fichaBuild);
+  assert.deepEqual(ef.puertos, [3105]);
+  assert.deepEqual(ef.puertosRemotos, [3105]);
+  assert.deepEqual(ef.botonRemoto, [['cargo', 'run', '--release']]);
+  assert.deepEqual(ef.healths, fichaBuild.build.healths);
+  // Sin `build.puertosLocales` no se inventa túnel; y la ficha original no se toca.
+  assert.equal(ef.puertosLocales, undefined);
+  assert.deepEqual(fichaBuild.puertos, [3105, 5182]);
+});
+
+test('validarHostRemoto: en build valida el bloque build, no el del dev', () => {
+  assert.equal(validarHostRemoto(fichaBuild, config), null);
+  // `--build` sobre una ficha sin bloque: se rechaza, no se cae a los puertos del dev.
+  assert.match(validarHostRemoto(entrada, config, 'build'), /sin bloque build/);
+  assert.match(validarHostRemoto({ ...entrada, modo: 'build' }, config), /sin bloque build/);
+  assert.match(validarHostRemoto({ ...fichaBuild, build: { ...fichaBuild.build, puertos: [] } }, config), /no vacía/);
+  assert.match(validarHostRemoto({ ...fichaBuild, build: { ...fichaBuild.build, boton: [] } }, config), /un comando por puerto/);
+  assert.match(validarHostRemoto({ ...fichaBuild, modo: 'produccion' }, config), /no valido/);
+  // El bloque del dev deja de mirarse en build (y el del build en dev: `--dev` sigue viendo el de siempre).
+  assert.equal(validarHostRemoto({ ...fichaBuild, puertos: [8787] }, config), null);
+  assert.match(validarHostRemoto({ ...fichaBuild, build: { ...fichaBuild.build, puertos: [8787] } }, config), /protegidos/);
+  assert.equal(validarHostRemoto(fichaBuild, config, 'dev'), null);
+  // tunelSsh:false no admite locales; en build el bloque los trae y la regla sigue valiendo.
+  assert.match(validarHostRemoto({ ...fichaBuild, tunelSsh: false, build: { ...fichaBuild.build, puertosLocales: [13105] } }, config), /no aplica/);
+  assert.equal(validarHostRemoto({ ...fichaBuild, build: { ...fichaBuild.build, puertosLocales: [13105] } }, config), null);
+});
+
+test('comandoConstruirFront: sin cm-heavy, sin el env del registro, log fuera de la réplica', () => {
+  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+  const cmd = comandoConstruirFront(rutas, 'P', ['npm', '--prefix', 'frontend', 'run', 'build']);
+  // [por que] ~200 MB y 11,5 s: bajo cm-heavy no se podría reconstruir el front sin 6 GB libres.
+  assert.equal(cmd.includes('cm-heavy'), false);
+  assert.equal(cmd.includes('CARGO_TARGET_DIR'), false);
+  assert.equal(cmd.includes('SQLX_OFFLINE'), false);
+  // `vite build` hornea lo que ve: el env del registro lleva el proxy de dev y no debe llegar.
+  assert.equal(cmd.includes('VITE_'), false);
+  assert.ok(cmd.includes('/home/usuario/taller/P'));
+  assert.ok(cmd.includes('/home/usuario/taller/_logs/P/construir-front-P.log'));
+  assert.equal(cmd.includes('/home/usuario/taller/P/logs'), false);
+});
+
+test('construirFrontRemoto: sin build.construirFront aborta antes de tocar la 89', async () => {
+  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P' };
+  for (const construirFront of [undefined, []]) {
+    const ficha = { ...fichaBuild, build: { ...fichaBuild.build, construirFront } };
+    const r = await construirFrontRemoto(config, 'P', ficha, rutas);
+    assert.equal(r.ok, false);
+    assert.match(r.resumen, /construirFront/);
+  }
+});
+
+test('comandoSondaRemota: con marcador exige que el cuerpo lo contenga; sin él, solo el 200', () => {
+  const sin = comandoSondaRemota(3105, '/');
+  assert.equal(sin.includes('grep'), false);
+  assert.equal(sin.includes('mktemp'), false);
+  assert.ok(sin.includes("'http://127.0.0.1:3105/'"));
+  const con = comandoSondaRemota(3105, '/', '<div id="root">');
+  assert.ok(con.includes('mktemp'));
+  assert.ok(con.includes('grep -qF'));
+  assert.ok(con.includes("'<div id=\"root\">'"));
+  // Sin marcador en el cuerpo la sonda no da 200: en build `/` también lo sirve la API.
+  assert.ok(con.includes('%{http_code}'));
+  assert.ok(con.includes('echo 000'));
 });
