@@ -41,14 +41,17 @@ if systemctl is-active --quiet cm-sweep.timer 2>/dev/null; then TIMER=true; else
 MEM_MIB=$(awk '/^MemAvailable:/{print int($2/1024)}' /proc/meminfo)
 SWAP_MIB=$(awk '/^SwapTotal:/{t=$2} /^SwapFree:/{f=$2} END{print int((t-f)/1024)}' /proc/meminfo)
 
-# Escuchas TCP y UDP. Formato de ss -H: columna 4 = dirección local:puerto.
+# Escuchas TCP y UDP. Formato de ss -H -lpn: columna 4 = dirección local:puerto, columna 6 =
+# proceso (`users:(("nombre",pid=…))`). La columna 6 llega vacía para los sockets de otro
+# usuario (p. ej. systemd-resolved, que corre como root): sin ese dato, el proceso se omite.
 escuchas() {
-  ss -H "-l$1n" 2>/dev/null | awk '{print $4}' | while read -r dir; do
+  ss -H "-l${1}np" 2>/dev/null | awk '{print $4"\t"$6}' | while IFS="$(printf '\t')" read -r dir proc; do
     local puerto=${dir##*:} addr=${dir%:*}
     [[ "$puerto" =~ ^[0-9]+$ ]] || continue
     addr=${addr#[}; addr=${addr%]}
     [ "$addr" = "*" ] && addr=0.0.0.0
-    printf '{"direccion":"%s","puerto":%s,"proto":"%s"}\n' "$addr" "$puerto" "$2"
+    proc=$(printf '%s\n' "$proc" | sed -n 's/^users:((\"\([^"]*\)\".*/\1/p')
+    printf '{"direccion":"%s","puerto":%s,"proto":"%s","proceso":"%s"}\n' "$addr" "$puerto" "$2" "$proc"
   done
 }
 ESCUCHAS=$({ escuchas t tcp; escuchas u udp; } | paste -sd, -)

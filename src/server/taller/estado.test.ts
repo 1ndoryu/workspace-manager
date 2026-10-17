@@ -77,6 +77,9 @@ test('Registro: las sesiones dev de MN salen de host + puertos remotos', () => {
   assert.ok(r.sesionesDev.includes('dev-MN-Inmobiliaria-5199'));
   assert.ok(!r.sesionesDev.includes('dev-MN-Inmobiliaria-3102'), 'el 3102 no es remoto');
   assert.ok(r.hostsPublicos.includes('mn-dev.wandori.us'));
-  assert.ok(r.puertosLocalesPublicos.includes(5199));
+  /* El puerto público de MN es 3110 desde el repunte de 16AA-18 (registro.json);
+   * 5199 sigue siendo puerto de dev, pero ya no se publica. */
+  assert.ok(r.puertosLocalesPublicos.includes(3110));
+  assert.ok(!r.puertosLocalesPublicos.includes(5199));
   assert.ok(r.sitiosRust.some((s) => s.buildMode === 'builder'));
 });

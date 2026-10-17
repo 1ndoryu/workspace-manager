@@ -24,7 +24,8 @@ export interface EstadoTaller89 {
   disco: { libreGb: number };
   sweep: { edadHoras: number | null; timerActivo: boolean };
   memoria: { disponibleMiB: number; swapUsadaMiB: number };
-  escuchas: { direccion: string; puerto: number; proto: 'tcp' | 'udp' }[];
+  /* `proceso` llega vacío cuando el socket es de otro usuario (la sonda no corre como root). */
+  escuchas: { direccion: string; puerto: number; proto: 'tcp' | 'udp'; proceso?: string }[];
   tmux: string[];
   cmHeavy: { ocupado: boolean };
   buildsFueraDeCmHeavy: { pid: number; cmd: string }[];
@@ -91,6 +92,10 @@ const MAX_HORAS_BD = 24;
 const LOOPBACK = (d: string): boolean => d === '127.0.0.1' || d === '::1' || d.startsWith('127.');
 const PATRON_OPENCODE_PROPIO = /opencode-propio/i;
 const PATRON_MANAGER = /workspace-manager/i;
+/* cloudflared ata sockets UDP a `*` para su transporte QUIC hacia el borde de Cloudflare: son
+ * salientes, nadie se conecta a ellos y no se pueden cerrar sin tumbar el túnel. Contarlos como
+ * escucha dejaba A1 en error permanente y sin arreglo posible por parte de quien opera. */
+const PATRON_TUNEL_SALIENTE = /cloudflared/i;
 
 /* Lista de reglas sobre la sonda de la 89 (solo cuando hay lectura válida). */
 interface Regla89 {
@@ -107,7 +112,8 @@ const REGLAS_89: Regla89[] = [
     falla: (t) => {
       const malas = t.escuchas.filter((x) => !LOOPBACK(x.direccion)
         && !(x.proto === 'tcp' && x.puerto === 22)
-        && !(x.proto === 'udp' && x.puerto === 51820));
+        && !(x.proto === 'udp' && x.puerto === 51820)
+        && !(x.proto === 'udp' && PATRON_TUNEL_SALIENTE.test(x.proceso ?? '')));
       return malas.length ? `escucha fuera de loopback: ${malas.map((x) => `${x.direccion}:${x.puerto}/${x.proto}`).join(', ')}` : null;
     },
   },
@@ -221,7 +227,9 @@ const REGLAS_LOCAL: ReglaLocal[] = [
   },
   {
     id: 'L2', ambito: 'local', severidad: 'error',
-    remedio: 'Postgres local solo en 127.0.0.1 (AGENTS §9.4).',
+    /* `listen_addresses` es parámetro de postmaster: un reload no lo aplica, hace falta reiniciar
+     * el servicio (y eso pide administrador). El remedio lo dice para no mandar a un callejón. */
+    remedio: 'Postgres local solo en 127.0.0.1: `listen_addresses` en postgresql.conf y reiniciar el servicio (no basta con recargar).',
     falla: (e) => {
       const malas = e.local.escuchas.filter((x) => /postgres/i.test(x.proceso) && !LOOPBACK(x.direccion));
       return malas.length ? malas.map((x) => `Postgres en ${x.direccion}:${x.puerto}`).join(', ') : null;
