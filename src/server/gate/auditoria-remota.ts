@@ -29,7 +29,7 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, dirname, join, posix, relative, resolve, sep } from 'node:path';
+import { basename, delimiter, dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { comillas, leerConfigRemota } from './remoto.js';
 
 /* Los tres gestores que el audit sabe leer (ver detectarLockfiles). */
@@ -173,10 +173,16 @@ function hermanosDe(raiz: string, proyecto: string): string[] {
 }
 
 /* `tar` del PATH puede ser el de Windows (bsdtar) segun como arranque el padre;
- * el de Git es el que se ha probado. Se resuelve por ruta, no por orden. */
-function tarReal(): string {
-  const candidatos = ['C:\\Program Files\\Git\\usr\\bin\\tar.exe', 'C:\\Program Files\\Git\\bin\\tar.exe'];
-  for (const c of candidatos) {
+ * el de Git es el que se ha probado. Se resuelve por ruta, no por orden.
+ * [por que] Antes eran dos rutas fijas de `C:\Program Files\Git`: la instalacion
+ * por defecto de esta maquina, no una verdad del proyecto. Git en
+ * `%LOCALAPPDATA%\Programs\Git`, en otro idioma de sistema o en Linux no casaba
+ * ninguno y se caia a `tar` (bsdtar), que es justo lo que se queria evitar. La
+ * raiz se deriva ahora del `git` que haya en el PATH; `WM_TAR` la fija a mano. */
+export function tarReal(): string {
+  const declarado = process.env.WM_TAR?.trim();
+  if (declarado) return declarado;
+  for (const c of candidatosTar()) {
     try {
       if (statSync(c).isFile()) return c;
     } catch {
@@ -184,6 +190,40 @@ function tarReal(): string {
     }
   }
   return 'tar';
+}
+
+/* Candidatos a `tar` de Git, derivados de donde este `git` en el PATH.
+ * [por que] No hay una sola forma: segun la instalacion, el ejecutable aparece
+ * en `<raiz>\cmd`, `<raiz>\bin` o `<raiz>\mingw64\bin` (medido aqui: Git Bash
+ * pone `mingw64\bin`), y el `tar` de Git vive en `<raiz>\usr\bin`. En vez de
+ * fijar una, se suben hasta tres niveles desde el directorio de `git` probando
+ * las ubicaciones en cada uno. En Linux no casa ninguna y se cae a `tar`, que
+ * alli ya es GNU tar. */
+function candidatosTar(): string[] {
+  let dir = raizDeGit();
+  if (dir === null) return [];
+  const rutas: string[] = [];
+  for (let nivel = 0; nivel < 3; nivel++) {
+    rutas.push(join(dir, 'usr', 'bin', 'tar.exe'), join(dir, 'bin', 'tar.exe'), join(dir, 'tar.exe'));
+    const padre = dirname(dir);
+    if (padre === dir) break;
+    dir = padre;
+  }
+  return rutas;
+}
+
+/* Directorio del `git` que resuelve el PATH. Null si no hay ninguno. */
+function raizDeGit(): string | null {
+  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
+    if (dir === '') continue;
+    const exe = join(dir, process.platform === 'win32' ? 'git.exe' : 'git');
+    try {
+      if (statSync(exe).isFile()) return dir;
+    } catch {
+      /* siguiente directorio del PATH */
+    }
+  }
+  return null;
 }
 
 /* Ejecuta un comando en la 89 y devuelve su stdout con el codigo de salida. No
