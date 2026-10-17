@@ -5,7 +5,7 @@ description: Arrancar, detener o comprobar cualquier proyecto del área con el m
 
 # Dev-bootstrap
 
-Operas los proyectos de `scripts/dev/registro.json` del área con el mando `dev`. Todo desde `workspace-manager/` en Windows PowerShell.
+Operas los proyectos de `config/registro.json` del área con el mando `dev`. Todo desde `workspace-manager/` en Windows PowerShell.
 
 ## Comandos
 
@@ -19,13 +19,13 @@ Arranque open "<id>"            # mostrar URLs con nombre (http://<slug>.localho
 Arranque alta "<id|carpeta>" [--aplicar]  # lista de alta: en seco; --aplicar crea lo mecánico en la rama alta/10aa-2
 ```
 
-`Arranque` = atajo global (`C:\Users\usuario\bin\Arranque.cmd` en el PATH de usuario; hace falta terminal nueva la primera vez). Sin atajo: `node scripts/dev/dev.mjs ...` desde el repo.
+`Arranque` = atajo global (`%USERPROFILE%\bin\Arranque.cmd` en el PATH de usuario; hace falta terminal nueva la primera vez). Sin atajo: `node scripts/dev/dev.mjs ...` desde el repo.
 
-Los `<id>` válidos están en `scripts/dev/registro.json` (p. ej. `MN-Inmobiliaria`, `NAKOMI`, `WANDORIUS`, `PROYECTO TASKS`, `glory-pulse`, `gloryapi`).
+Los `<id>` válidos están en `config/registro.json` (p. ej. `MN-Inmobiliaria`, `NAKOMI`, `WANDORIUS`, `PROYECTO TASKS`, `glory-pulse`, `gloryapi`).
 
 ## Alta de proyecto nuevo
 
-Añadir una entrada en `scripts/dev/registro.json`. Campos admitidos (el `doctor` rechaza cualquier otro; la lista exacta es `conocidas` en `scripts/dev/doctor.mjs:199`: además de los del ejemplo, `procesosAceptados`, `reconstruir`, `auxiliares`, `comandos`, `host`, `envRemoto`, `botonRemoto`, `puertosRemotos`, `puertosLocales`, `tunelSsh`, `hostsPublicos`, `puertosPublicos`, `buildMode`, `precompilar` y `dependencias`):
+Añadir una entrada en `config/registro.json`. Campos admitidos (el `doctor` rechaza cualquier otro; la lista exacta es `conocidas` en `scripts/dev/doctor/ficha/validacion.mjs:50`: además de los del ejemplo, `procesosAceptados`, `reconstruir`, `auxiliares`, `comandos`, `host`, `analisisEn`, `envRemoto`, `botonRemoto`, `puertosRemotos`, `puertosLocales`, `tunelSsh`, `tunelesExtra`, `hostsPublicos`, `puertosPublicos`, `buildMode`, `modo`, `build`, `precompilar`, `dependencias`, `envTareas`, `tokenPulse` y `higieneRust`):
 
 ```json
 {

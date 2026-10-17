@@ -7,7 +7,24 @@
 # Uso: escritorio-89.sh [--solo-tunel | --cerrar]
 set -euo pipefail
 
-ALIAS=dev89
+# El alias SSH del taller no va incrustado: sale de la config privada
+# (config/taller.json), que se puede mover con WS_CONFIG_ROOT. WM_HOST lo pisa
+# para una prueba puntual. Mismo patrón que build-remoto.sh.
+RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+FICHA="${WS_CONFIG_ROOT:-$RAIZ/config}/taller.json"
+if [ -n "${WM_HOST:-}" ]; then
+  ALIAS="$WM_HOST"
+elif [ -f "$FICHA" ]; then
+  # Git Bash da rutas /c/... que el node de Windows no resuelve: se traducen.
+  FICHA_NODE="$FICHA"
+  command -v cygpath >/dev/null 2>&1 && FICHA_NODE="$(cygpath -w "$FICHA")"
+  ALIAS="$(node -e 'process.stdout.write(require(process.argv[1]).host || "")' "$FICHA_NODE" 2>/dev/null || true)"
+else
+  echo "escritorio-89: falta $FICHA (copia config/ejemplos/taller.example.json) o define WM_HOST" >&2
+  exit 3
+fi
+[ -n "$ALIAS" ] || { echo "escritorio-89: $FICHA no declara 'host'; define WM_HOST" >&2; exit 3; }
+
 PUERTO_LOCAL=6090
 PUERTO_REMOTO=6080
 URL="http://localhost:$PUERTO_LOCAL"

@@ -8,7 +8,9 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-OPERADOR=dev
+# Usuario del taller dueño de ~/taller. No va incrustado: se deduce de quien
+# invoca sudo, que es justo quien tiene el directorio. OPERADOR lo pisa.
+OPERADOR="${OPERADOR:-${SUDO_USER:-dev}}"
 DIR_WG=/etc/wireguard
 IFAZ=wg0
 PUERTO_WG=51820
