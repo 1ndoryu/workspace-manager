@@ -7,8 +7,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import type { EstadoGate, ProblemaGate } from '../../shared/types.js';
 import { diagnosticar, rutaEtiqueta, severidadDe, type NodoEsquema } from '../../shared/gate/esquema.js';
-import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
-import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
+import { ESQUEMAS } from '../../shared/gate/esquemas.js';
 import { cliRuntime } from '../gate/ejecucion.js';
 
 /* Hojas de estilo y configs de tailwind: lo que VarSense valida.
@@ -173,7 +172,7 @@ export function diagnosticarGate(rutaProyecto: string): ProblemaGate[] {
     }
   }
 
-  correr('sentinel.config.json', ESQUEMA_SENTINEL());
-  correr('varsense.config.json', ESQUEMA_VARSENSE());
+  /* Una entrada por herramienta del gate: anadir una no toca este archivo. */
+  for (const h of ESQUEMAS) correr(h.archivo, h.esquema());
   return problemas;
 }
