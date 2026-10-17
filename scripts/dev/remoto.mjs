@@ -634,7 +634,9 @@ async function prepararRemoto(config, id, entrada, rama, rutas, modo = MODO_POR_
   }
   for (const argv of entrada.precompilar ?? []) {
     const r = await sshRemoto(config, comandoPrecompilar(config, rutas, id, argv), TIMEOUT_BUILD_MS);
-    if (r.codigo === 75) return { ok: false, resumen: `cm-heavy ocupado en ${config.host} (otro build pesado); reintenta en unos minutos` };
+    // [por que] El 75 no siempre es el candado: cm-heavy tambien lo devuelve por RAM o disco, y
+    // decir "otro build pesado" cuando falta RAM manda a esperar algo que no va a cambiar solo.
+    if (r.codigo === 75) return { ok: false, resumen: `cm-heavy no arranca en ${config.host}: ${r.error || 'sin motivo'} (ver §12 de AGENTS.md)` };
     if (!r.ok) return { ok: false, resumen: `precompilar fallo, log ${rutas.dirLogs}/precompilar-${id}.log en ${config.host}: ${r.error}` };
   }
   // El front se construye después del binario y antes de arrancar: si falla, nunca se arranca con un
