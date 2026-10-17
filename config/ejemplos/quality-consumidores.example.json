@@ -1,0 +1,8 @@
+{
+  "$formato": 1,
+  "$nota": "Ejemplo de la lista de consumidores del gate. Copialo a config/quality-consumidores.json y pon los proyectos de tu area: los que reciben el pin del checkout compartido (.quality-tools) y que `npm run sync:quality` valida. Sin este archivo, sync:quality no falla: informa de que no hay consumidores declarados y sale en verde (el manager funciona igual sin el).",
+  "consumidores": [
+    { "nombre": "mi-proyecto", "ruta": "mi-proyecto", "fase": "F1" },
+    { "nombre": "otro-proyecto", "ruta": "carpeta/otro-proyecto", "fase": "F2" }
+  ]
+}

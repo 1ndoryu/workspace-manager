@@ -12,7 +12,7 @@
  *      por este proyecto) sobre el repo del proyecto, scope `all`.
  *   2. Resume: total por severidad + desglose por regla y por archivo.
  *   3. Clasifica cada hallazgo contra el registro estructurado de excepciones
- *      (`scripts/quality/excepciones.json`), sembrado con las familias ya
+ *      (`config/quality-excepciones.json`), sembrado con las familias ya
  *      verificadas en 318A-7V2..V12 (evidencia en el plan §J-11). Formato v2
  *      (318A-7V16): entradas por proyecto con `familias` (reglas amplias con
  *      archivos/marcas y `conteo` esperado) y `pares` (hallazgos
@@ -49,7 +49,10 @@ const VARSENSE_CLI = join(
   RAIZ_AREA,
   '.quality-tools/varsense/dist/cli/index.js',
 );
-const EXCEPCIONES = join(__dirname, '..', 'excepciones.json');
+/* Registro de excepciones verificadas. [por que] Es configuracion nuestra (que
+ * hallazgos ya aceptamos y por que), no del producto: vive en la config privada
+ * y sin ella el veredicto sale sin cobertura, que es un resultado valido. */
+const EXCEPCIONES = rutaConfigPrivada('quality-excepciones.json');
 
 function severidadKey(s) {
   const sev = String(s || '').toLowerCase();
@@ -198,7 +201,7 @@ function main() {
     try {
       registro = JSON.parse(readFileSync(EXCEPCIONES, 'utf8'));
     } catch {
-      console.warn('excepciones.json no parsea — veredicto sin cobertura');
+      console.warn(`${EXCEPCIONES} no parsea — veredicto sin cobertura`);
     }
   }
   const proyReg = (registro.proyectos || []).find(
