@@ -192,6 +192,12 @@
         5199,
         20241
       ],
+      "tunelesExtra": [
+        [
+          33110,
+          3110
+        ]
+      ],
       "tunelSsh": false,
       "hostsPublicos": [
         "mn-dev.wandori.us"
@@ -236,6 +242,11 @@
           "puerto": 3122,
           "marcador": "mejora.mjs",
           "motivo": "server:mejora (frontend/server/mejora.mjs), arranque manual fuera del mando"
+        },
+        {
+          "puerto": 3102,
+          "marcador": "--gateway-mn",
+          "motivo": "gateway de WhatsApp de MN: vive en el portatil (15AA-6, tiene las sesiones); lo mantiene el guardian de Inicio"
         }
       ],
       "tipoLauncher": "glory-template (wrapper run-with-db.mjs: backend en C:\\tmp + Vite bajo ruta; PORT=3110 por env del mando; front via --prefix+-- para que --port llegue a vite)",
@@ -1035,12 +1046,12 @@
         ]
       ],
       "puertos": [
-        8790,
+        8791,
         5181
       ],
       "healths": [
         {
-          "puerto": 8790,
+          "puerto": 8791,
           "ruta": "/api/salud",
           "esperaJson": true
         },
@@ -1235,6 +1246,10 @@
   },
   "ignoradosSistema": [
     {
+      "exe": "C:\\Riot Games\\Riot Client\\RiotClientServices.exe",
+      "motivo": "Riot Client (League of Legends): cliente de terceros con listener en loopback"
+    },
+    {
       "exe": "C:\\Users\\Owner\\AppData\\Roaming\\uTorrent Web\\helper\\helper.exe",
       "motivo": "uTorrent Web: cliente de terceros con listener en loopback"
     },
@@ -1254,6 +1269,10 @@
       "exe": "C:\\Users\\Owner\\.bun\\bin\\bun.exe",
       "cmdContiene": "serve --port 4096",
       "motivo": "opencode-propio: servidor bun del app del usuario (gestion-externa; cwd no visible por CIM)"
+    },
+    {
+      "puerto": 8790,
+      "motivo": "gateway local de Claude Desktop: herramienta del usuario, elevada, exe y cmd ilegibles"
     },
     {
       "pid": 4,
