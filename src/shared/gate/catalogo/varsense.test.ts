@@ -1,10 +1,10 @@
 /* Diagnostico del esquema de varsense.config.json (tablero).
- * Se corre con: node node_modules/tsx/dist/cli.mjs --test src/shared/gate/varsense.test.ts
+ * Se corre con: node node_modules/tsx/dist/cli.mjs --test src/shared/gate/catalogo/varsense.test.ts
  * [por que] El tablero marcaba "clave desconocida" en MN-Inmobiliaria porque el
  * esquema no conocia tokenDetection.unused.excludeTokens, que varsense sí acepta. */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { diagnosticar } from './esquema.js';
+import { diagnosticar } from '../modelo/esquema.js';
 import { ESQUEMA_VARSENSE } from './varsense.js';
 
 const desconocidas = (json: unknown) =>

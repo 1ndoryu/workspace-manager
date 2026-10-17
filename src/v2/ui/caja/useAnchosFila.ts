@@ -8,7 +8,7 @@
  * [por que] Fracciones (no px): sobreviven a cambios de ventana; con ids
  * estables la caja que se abre/cierra no pierde el reparto de las demas. */
 import { useEffect, useState } from 'react';
-import { guardarJson, leerJson } from '../../../shared/storage.js';
+import { guardarJson, leerJson } from '../../../shared/vista/storage.js';
 import { MIN_ANCHO } from '../../useLayoutV2.js';
 
 function claveFila(fila: string): string {

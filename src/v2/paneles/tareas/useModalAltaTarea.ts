@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ETIQUETAS_PRIORIDAD,
   ETIQUETAS_URGENCIA,
-} from '../../../shared/tareasTab.js';
+} from '../../../shared/tareas/tareasTab.js';
 
 /* Subconjunto de DatosCreacion de TASKS que el proxy soporta. */
 export interface DatosAltaTarea {

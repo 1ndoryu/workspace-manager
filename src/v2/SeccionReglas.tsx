@@ -2,9 +2,9 @@
  * severidad por regla. [por que] Vive en modulo propio para que
  * EditorEsquema.tsx no supere el limite de lineas. */
 import { useEffect, useState } from 'react';
-import { infoSegmento } from '../shared/gate/etiquetas.js';
-import type { NodoEsquema, Ruta, ValorJson } from '../shared/gate/esquema.js';
-import type { ReglaCatalogo } from '../shared/gate/reglas.js';
+import { infoSegmento } from '../shared/gate/etiquetas/etiquetas.js';
+import type { NodoEsquema, Ruta, ValorJson } from '../shared/gate/modelo/esquema.js';
+import type { ReglaCatalogo } from '../shared/gate/catalogo/reglas.js';
 import { EtiquetaDeRuta } from './EtiquetaDeRuta.js';
 import { Selector } from './ui/selector/Selector.js';
 

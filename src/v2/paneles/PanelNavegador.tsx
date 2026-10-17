@@ -12,7 +12,7 @@ import { Button } from '../ui/form/Button.js';
 import { Caja } from '../ui/caja/Caja.js';
 import { FilaCajas } from '../ui/caja/FilaCajas.js';
 import { usePanelNavegador } from '../../hooks/usePanelNavegador.js';
-import { fmtBytes } from '../../shared/format.js';
+import { fmtBytes } from '../../shared/vista/format.js';
 import './paneles.css';
 
 /* Extensiones de texto conocidas; el resto se intenta leer igual y el

@@ -27,7 +27,7 @@ import {
   urgenciaTarea,
   type ParcheTareaTab,
   type TareaTab,
-} from '../../../shared/tareasTab.js';
+} from '../../../shared/tareas/tareasTab.js';
 import { MenuTarea } from './MenuTarea.js';
 import { useMenuTarjeta } from './useMenuTarjeta.js';
 

@@ -4,13 +4,13 @@
 import axios from 'axios';
 import type { StoreApi } from 'zustand';
 import type { SnapshotWorkspace } from '../../shared/types.js';
-import type { ReglaCatalogo } from '../../shared/gate/reglas.js';
-import type { NodoEsquema } from '../../shared/gate/esquema.js';
+import type { ReglaCatalogo } from '../../shared/gate/catalogo/reglas.js';
+import type { NodoEsquema } from '../../shared/gate/modelo/esquema.js';
 import type { TipoGate } from '../../shared/gate/proveedores.js';
 import type { AccionesCarga, EstadoWorkspace } from './tipos.js';
 import { logger } from '../../shared/logger.js';
-import { deserializarEsquema } from '../../shared/gate/serial.js';
-import { esquemaPorTipo } from '../../shared/gate/esquemas.js';
+import { deserializarEsquema } from '../../shared/gate/modelo/serial.js';
+import { esquemaPorTipo } from '../../shared/gate/catalogo/esquemas.js';
 
 type Set = StoreApi<EstadoWorkspace>['setState'];
 type Get = StoreApi<EstadoWorkspace>['getState'];

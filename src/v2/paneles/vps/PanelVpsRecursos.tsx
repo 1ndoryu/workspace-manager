@@ -14,8 +14,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { VpsAgenteSnapshot } from '../../../shared/types.js';
 import { Caja } from '../../ui/caja/Caja.js';
-import { guardarJson, guardarTexto, leerJson, leerTexto } from '../../../shared/storage.js';
-import { fmtBytes } from '../../../shared/format.js';
+import { guardarJson, guardarTexto, leerJson, leerTexto } from '../../../shared/vista/storage.js';
+import { fmtBytes } from '../../../shared/vista/format.js';
 import { bajarVentana, suscribirVentana } from '../../../shared/platform/plataforma.js';
 
 /* Muestra como tupla [t, cpu, mem, rx, tx, br, bw, dr, dw]: compacta en

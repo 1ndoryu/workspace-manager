@@ -13,7 +13,7 @@
  * sanos (NAKOMI 2026-09-28). La severidad cuando falta una opcion sigue la
  * misma convencion que sentinel:
  * requerida->error, recomendada->advertencia, opcional->silencio en la consola. */
-import type { NodoEsquema, Necesidad, OpcionValor } from './esquema.js';
+import type { NodoEsquema, Necesidad, OpcionValor } from '../modelo/esquema.js';
 
 const SEVERIDADES_VAR = ['error', 'warning', 'information', 'hint'] as const;
 

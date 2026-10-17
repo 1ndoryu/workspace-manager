@@ -6,7 +6,7 @@
  * Ahora este modelo vivia en src/v2/schemas; se movio aqui (src/shared/gate)
  * para que el SERVER (escaneo -> snapshot -> consola) y el EDITOR compartan la
  * misma fuente de verdad y no se desincronicen. */
-import { descripcionDeRuta, detalleDeRuta, nombreDeRuta } from './etiquetas.js';
+import { descripcionDeRuta, detalleDeRuta, nombreDeRuta } from '../etiquetas/etiquetas.js';
 
 export type ValorJson = boolean | number | string | null | ValorJson[] | { [k: string]: ValorJson };
 

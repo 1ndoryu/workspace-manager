@@ -3,7 +3,7 @@
  * (layout, seleccion, ui, historial/rango vps, fila:*, mapa). Un solo dueño:
  * texto plano o JSON, con aviso opcional (algunas lecturas prefieren
  * silencio y valor por defecto). */
-import { logger } from './logger.js';
+import { logger } from '../logger.js';
 
 export function leerTexto(clave: string, aviso?: string): string | null {
   try {

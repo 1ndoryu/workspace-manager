@@ -5,7 +5,7 @@
  * Cálculo local sin fetch: el pie lo dice para no mentir. */
 import { useState, type ReactNode } from 'react';
 import type { ArchivoLocal, CommitResumen, DetalleRepoSync, LadoSync } from '../../../shared/types.js';
-import { fechaCorta, hashCorto } from '../../../shared/format.js';
+import { fechaCorta, hashCorto } from '../../../shared/vista/format.js';
 
 const MAX_COMMITS_VISIBLES = 25;
 const MAX_ARCHIVOS_VISIBLES = 100;

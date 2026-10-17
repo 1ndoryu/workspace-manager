@@ -5,7 +5,7 @@
  * aporta todos los sitios y pulse solo el vivo (fila con estado Coolify y
  * ceros si está detenido). Sin legacy: detalle de 7 piezas y resumen del
  * audit salieron (solo queda el % de disco del host). */
-import { fmtBytes } from '../../../shared/format.js';
+import { fmtBytes } from '../../../shared/vista/format.js';
 import { PanelVpsRecursos } from './PanelVpsRecursos.js';
 import { FilaCajas } from '../../ui/caja/FilaCajas.js';
 import { Button } from '../../ui/form/Button.js';

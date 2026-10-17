@@ -23,7 +23,7 @@ import {
   ETIQUETAS_URGENCIA,
   PRIORIDADES_TAREA,
   URGENCIAS_TAREA,
-} from '../../../shared/tareasTab.js';
+} from '../../../shared/tareas/tareasTab.js';
 import { useModalAltaTarea, type DatosAltaTarea } from './useModalAltaTarea.js';
 
 export type { DatosAltaTarea };

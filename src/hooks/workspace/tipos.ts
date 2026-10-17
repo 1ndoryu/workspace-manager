@@ -11,8 +11,8 @@ import type {
   SnapshotWorkspace,
 } from '../../shared/types.js';
 import type { InformeDevVivo } from './accionesDev.js';
-import type { ReglaCatalogo } from '../../shared/gate/reglas.js';
-import type { NodoEsquema } from '../../shared/gate/esquema.js';
+import type { ReglaCatalogo } from '../../shared/gate/catalogo/reglas.js';
+import type { NodoEsquema } from '../../shared/gate/modelo/esquema.js';
 import type { TipoGate } from '../../shared/gate/proveedores.js';
 import type { ReporteSincronizacion } from '../../server/gate/sincronizacion.js';
 import type { ResultadoSalud } from '../../shared/salud/salud.js';

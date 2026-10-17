@@ -3,7 +3,7 @@
  * quede visual (regla componente-sin-hook): el estado del layout y su
  * persistencia en localStorage viven aqui. */
 import { useEffect, useState } from 'react';
-import { guardarJson, leerJson } from '../shared/storage.js';
+import { guardarJson, leerJson } from '../shared/vista/storage.js';
 
 export interface LayoutV2 {
   anchoDetalle: number;

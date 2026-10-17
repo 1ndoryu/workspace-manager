@@ -27,8 +27,8 @@ import {
   type ParcheTareaTab,
   type TareaTab,
   type TareasEstado,
-} from '../shared/tareasTab.js';
-import { guardarJson, leerJson } from '../shared/storage.js';
+} from '../shared/tareas/tareasTab.js';
+import { guardarJson, leerJson } from '../shared/vista/storage.js';
 import {
   actualizarTarea,
   columnasTareas,

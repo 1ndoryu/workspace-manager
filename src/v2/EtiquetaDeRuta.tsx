@@ -8,8 +8,8 @@ import { useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { altoVentana, anchoVentana, cuerpoDocumento } from '../shared/platform/plataforma.js';
-import { rutaDetalle, rutaEtiqueta } from '../shared/gate/esquema.js';
-import type { Ruta } from '../shared/gate/esquema.js';
+import { rutaDetalle, rutaEtiqueta } from '../shared/gate/modelo/esquema.js';
+import type { Ruta } from '../shared/gate/modelo/esquema.js';
 
 export function EtiquetaDeRuta({ ruta, texto }: { ruta: Ruta; texto?: string }) {
   const detalle = rutaDetalle(ruta);

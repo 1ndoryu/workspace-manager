@@ -6,7 +6,7 @@
  * dato, conserva lo viejo), tope 2 000 ≈ 16 h, poda >7 días. Puro y
  * testeable (sin React ni DOM): el componente decide cuándo muestrear y
  * guardar. Clave = la de la tabla (`sitio:<nombre>` o `infra`). */
-import { guardarJson, leerJson } from '../../shared/storage.js';
+import { guardarJson, leerJson } from '../../shared/vista/storage.js';
 
 /* Muestra como tupla [t, cpuPct, memMiB]: redondeada al muestrear. */
 export type MuestraSitio = [number, number, number];

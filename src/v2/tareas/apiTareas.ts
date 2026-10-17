@@ -13,7 +13,7 @@ import {
   type TareaTab,
   type TareasEstado,
   type TareasMovimientoTab,
-} from '../../shared/tareasTab.js';
+} from '../../shared/tareas/tareasTab.js';
 
 function mensajeFallo(operacion: string, err: unknown): Error {
   const resp = axios.isAxiosError(err) ? err.response : undefined;

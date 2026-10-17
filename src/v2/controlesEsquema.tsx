@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Button } from './ui/form/Button.js';
 import { Selector } from './ui/selector/Selector.js';
 import { toastInfo } from './toast.js';
-import type { OpcionValor, ValorJson } from '../shared/gate/esquema.js';
+import type { OpcionValor, ValorJson } from '../shared/gate/modelo/esquema.js';
 
 /* Control segun el tipo de opcion (sin JSON crudo). */
 export function Control({

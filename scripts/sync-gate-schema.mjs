@@ -25,7 +25,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { RAIZ_VERSIONS, checkoutSentinel, versionRuntime, versionSentinel, VERSION_CURACION_SENTINEL } from '../src/server/gate/proveedor.js';
-import { ESQUEMA_SENTINEL } from '../src/shared/gate/sentinel.js';
+import { ESQUEMA_SENTINEL } from '../src/shared/gate/catalogo/sentinel.js';
 
 /* ------------------------------------------------------------------ *
  *  Parsing del config.d.ts (interface SentinelConfigFile del runtime)

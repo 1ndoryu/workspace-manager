@@ -1,11 +1,11 @@
 /* Diagnostico del catalogo de reglas de sentinel.config.json.
- * Se corre con: node node_modules/tsx/dist/cli.mjs --test src/shared/gate/esquema.test.ts
+ * Se corre con: node node_modules/tsx/dist/cli.mjs --test src/shared/gate/modelo/esquema.test.ts
  * [por que] Un id del catalogo sin entrada usa su valor por defecto en el runtime;
  * no debe avisar como "falta una opcion recomendada" (105 avisos falsos en MN). */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { diagnosticar } from './esquema.js';
-import { ESQUEMA_SENTINEL } from './sentinel.js';
+import { ESQUEMA_SENTINEL } from '../catalogo/sentinel.js';
 
 const base = {
   schemaVersion: 2,
