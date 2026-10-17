@@ -60,9 +60,11 @@ export function crearAccionesConfig(set: Set): AccionesConfig {
      * validacion de quality-sync via endpoint y la cachea en el store. Se
      * refresca con el boton 'Verificar' del panel (nunca en el arranque para no
      * correr git en cada carga). */
-    cargarSincronizacion: async () => {
+    cargarSincronizacion: async (forzar = false) => {
       try {
-        const { data } = await axios.get<{ reporte: ReporteSincronizacion }>('/api/gate/sincronizacion');
+        const { data } = await axios.get<{ reporte: ReporteSincronizacion }>(
+          `/api/gate/sincronizacion${forzar ? '?forzar=1' : ''}`,
+        );
         if (data && data.reporte) set({ sincronizacion: data.reporte, errorSincronizacion: null });
       } catch (err) {
         /* [por que] Antes solo se logueaba y la vista seguia mostrando el hint
