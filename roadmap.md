@@ -41,8 +41,8 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 
 ## Tareas pendientes (orden de dependencia)
 
-- `14AA-1` — **TRASLADADO (2026-10-14).** Plan cerrado:
-  `Agente/planes/completados/plan-taller-remoto-vps89-…`.
+- `14AA-1` — **TRASLADADO (2026-10-14).** Plan cerrado, archivado en el área:
+  `Agente/planes/completados/plan-taller-remoto-vps89-2026-10-14.md`.
 - `14AA-4` — **PARCIAL (2026-10-15): dev público de MN** por Cloudflare Tunnel + Access
   (`mn-dev.wandori.us`). Falta el resto de proyectos publicables.
 - `11AA-6` — **PENDIENTE DE HECHO EXTERNO (2026-10-11): NAKOMI, build TS de `main`.**
@@ -58,8 +58,6 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 - `12AA-7` — `Arranque up` responde `ya-arriba` aunque el puerto no lo sirva el proceso nuevo.
 - `16A-4 bis` — adapter de calidad legacy de RESTAURANTE y WANDORIUS frente al canónico
   (`bump.mjs` `pasosDe` prefiere el `scripts/quality/setup.mjs` del consumidor).
-- `308A-1` — **Centralizar el runtime del gate** (checkout compartido `.quality-tools/` +
-  `sourcePathEnv`).
 - `308A-8` — **Invertir la regla del escáner**: un directorio es proyecto solo con señal real, en
   vez de la lista negra `IGNORADAS` de `src/server/scanner/workspace.ts`.
 - `07AA-5` — **ACTIVA (2026-10-07): pestaña `tareas` (kanban por proyecto)** con TASKS como
@@ -67,13 +65,7 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 - `07AA-3` — **ACTIVA (2026-10-07): barrido de la consola** (142 → 0 accionable). Plan:
   `Agente/planes/plan-barrido-consola-2026-10-07.md`.
 - `299A-12` — **ACTIVA (2026-09-29): `glory-pulse`**, agente en la VPS para tiempo real. Plan:
-  `PLAN-glory-pulse-2026-09-29.md` (Rev.3 + §F0).
-- `309A-2` — **ACTIVA (2026-10-05): detalle por sitio en una sola conexión.** Plan:
-  `Agente/planes/plan-detalle-sitio-2026-10-05.md`.
-- `0110A-3` — **APROBADA por la usuaria (2026-10-05, no volver a preguntar): detalle completo del
-  despliegue.** Plan: `PLAN-vps-detalle-despliegue-2026-10-01.md`.
-- `05AA-1` — **ACTIVA (2026-10-05): perfil dev adelgazado de Rust.** Plan:
-  `Agente/planes/plan-rust-perfil-y-purga-2026-10-05.md`.
+  `Agente/planes/PLAN-glory-pulse-2026-09-29.md` (Rev.3 + §F0).
 - `04AA-1` — **REPLANTEADA (2026-10-05, veredicto REPLANTEAR).**
 - `039A-1` — plan vivo del frente cero-deuda:
   `PROYECTO TASKS/Agente/planes/plan-cero-deuda-todos-proyectos-2026-09-03.md` §9.
@@ -82,7 +74,6 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 
 - `Agente/planes/plan-orden-workspace-manager-2026-10-17.md` — `17AA-2` (este encargo).
 - `Agente/planes/plan-barrido-consola-2026-10-07.md` — `07AA-3`.
-- `Agente/planes/plan-detalle-sitio-2026-10-05.md` — `309A-2`.
-- `Agente/planes/plan-rust-perfil-y-purga-2026-10-05.md` — `05AA-1`.
-- `PLAN-glory-pulse-2026-09-29.md` — `299A-12`.
-- `PLAN-vps-detalle-despliegue-2026-10-01.md` — `0110A-3`.
+- `Agente/planes/plan-tareas-tasks-2026-10-07.md` — `07AA-5`.
+- `Agente/planes/PLAN-glory-pulse-2026-09-29.md` — `299A-12`.
+- `Agente/planes/PLAN-saneamiento-agents-y-analisis.md` — `S2` (en ejecución controlada).
