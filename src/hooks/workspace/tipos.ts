@@ -176,7 +176,8 @@ export interface AccionesConfig {
   /* Eximir / quitar la exencion de gate de glory-sentinel (plan 308A-1 F6). */
   cambiarSinGate: (clave: string, eximir: boolean) => Promise<void>;
   configurarScan: (scan: ConfigScan) => Promise<void>;
-  cargarSincronizacion: () => Promise<void>;
+  /* `forzar` = recalcular sin caché (botón 'verificar alineación'). */
+  cargarSincronizacion: (forzar?: boolean) => Promise<void>;
 }
 
 /* Setters sincronos de sesion y UI (10 miembros, en el limite permitido). */

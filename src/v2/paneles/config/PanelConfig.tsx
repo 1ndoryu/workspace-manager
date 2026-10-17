@@ -61,8 +61,10 @@ export function PanelConfig() {
         titulo={vista === 'excepciones' ? `excepciones (${ignorados.length})` : TITULO_VISTA[vista]}
         etiqueta="Opción seleccionada"
         acciones={
+          /* forzar=true: el botón es una petición explícita de dato fresco y no
+           * debe servir el informe cacheado al abrir la pestaña. */
           vista === 'gate' ? (
-            <Button pequeno onClick={() => void cargarSincronizacion()}>
+            <Button pequeno onClick={() => void cargarSincronizacion(true)}>
               verificar alineación
             </Button>
           ) : undefined

@@ -102,7 +102,20 @@ export interface ReporteAlineacion {
  * hasta 'close' en vez de execFile promisificado (que lanzaria en exit!=0 por
  * el desync real de WANDORIUS). Lanza solo si el proceso muere o el stdout no
  * es JSON (nunca se devuelve un reporte inventado). */
-export async function correrSincronizacion(): Promise<ReporteSincronizacion> {
+/* Cache en memoria del ultimo informe, con marca de tiempo.
+ * [por que] El informe cuesta ~8,4 s medidos: recorre cada consumidor y, por
+ * cada checkout distinto, lanza varios procesos git mas un ls-remote contra su
+ * remoto. La pestaña Gate lo pide al abrirse, asi que sin cache cada apertura
+ * paga el precio entero. La cache NO manda sobre el dato: caduca, y el boton
+ * 'verificar alineacion' pide `forzar`, que la salta. Servir un informe viejo
+ * indefinidamente seria peor que no tener cache. */
+const CACHE_MS = 60_000;
+let cache: { en: number; reporte: ReporteSincronizacion } | null = null;
+
+export async function correrSincronizacion(
+  forzar = false,
+): Promise<ReporteSincronizacion> {
+  if (!forzar && cache && Date.now() - cache.en < CACHE_MS) return cache.reporte;
   const script = rutaScript();
   const hijo = spawn(process.execPath, [script, '--json'], {
     cwd: RAIZ_REPO,
@@ -136,6 +149,7 @@ export async function correrSincronizacion(): Promise<ReporteSincronizacion> {
     logger.warn('alineacion pin/runtime no disponible:', err);
     obj.alineacion = null;
   }
+  cache = { en: Date.now(), reporte: obj };
   return obj;
 }
 

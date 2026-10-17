@@ -176,16 +176,20 @@ export async function manejarRutasGate(
   }
   /* Estado de centralización del gate (plan centralizar-gate 308A-1 F7):
    * corre quality-sync.mjs --json (reúsa la validación fail-closed que ya
-   * existe) y sirve el reporte. [por que] Es GET puro de lectura, de
-   * corrida barata (git rev-parse del checkout y los manifests), sin tocar
-   * el escaneo raíz ni ningún JSON real. La UI lo muestra con badges
-   * verde/desync. */
+   * existe) y sirve el reporte. [por que] Es GET puro de lectura: no toca
+   * el escaneo raíz ni ningún JSON real, y la UI lo muestra con badges
+   * verde/desync. NO es barato —recorre cada consumidor y cada checkout
+   * distinto con varios git más un ls-remote a su remoto: ~8,4 s medidos—,
+   * así que el informe se cachea en correrSincronizacion y aquí solo se
+   * decide si se salta la caché. */
   if (ruta === '/api/gate/sincronizacion') {
     if (req.method !== 'GET') {
       json(res, 405, { error: 'Metodo no permitido' });
       return true;
     }
-    const reporte = await correrSincronizacion();
+    /* `forzar=1` lo manda el botón 'verificar alineación' (dato fresco sí o sí);
+     * abrir la pestaña reúsa el informe cacheado si aún es joven. */
+    const reporte = await correrSincronizacion(url.searchParams.get('forzar') === '1');
     json(res, 200, { reporte });
     return true;
   }

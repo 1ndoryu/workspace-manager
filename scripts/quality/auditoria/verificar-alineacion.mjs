@@ -47,14 +47,30 @@ function reposDelRegistro() {
   return new Map(reg.proyectos.map((p) => [p.id, resolve(RAIZ_REPO, p.ruta)]));
 }
 
+/* Memoria de consultas git de ESTA corrida.
+ * [por que] El script es de solo lectura (no muta ningún repo), así que la
+ * misma consulta sobre el mismo checkout devuelve siempre lo mismo y se
+ * responde una sola vez. Sin esto, la comprobación se repetía por cada
+ * consumidor: 20 consumidores apuntando a los mismos checkouts compartidos
+ * producían 580 procesos git (162 de ellos `merge-base --is-ancestor` del
+ * mismo pin contra las mismas refs) y el panel tardaba 25,9 s en pintar el
+ * estado, casi todo en arrancar procesos, no en trabajar. La clave incluye el
+ * cwd y los argumentos: es la identidad exacta de la consulta. */
+const MEMO = new Map();
+
 function git(cwd, ...args) {
+  const clave = `${cwd}\0${args.join('\0')}`;
+  if (MEMO.has(clave)) return MEMO.get(clave);
+  let valor;
   try {
-    return execFileSync('git', ['-C', cwd, ...args], {
+    valor = execFileSync('git', ['-C', cwd, ...args], {
       encoding: 'utf8', windowsHide: true, timeout: 15000,
     }).trim();
   } catch {
-    return null;
+    valor = null;
   }
+  MEMO.set(clave, valor);
+  return valor;
 }
 
 function corto(h) { return h ? h.slice(0, 9) : '--'; }
@@ -73,14 +89,22 @@ function expandirRefs(checkout, releaseRefs) {
   return refs;
 }
 
-/** ¿pin alcanzable desde alguna releaseRef (publicado)? */
+/** ¿pin alcanzable desde alguna releaseRef (publicado)?
+ * [por que] Antes se preguntaba `merge-base --is-ancestor` ref a ref, que es
+ * un proceso git por cada tag: un pin NO publicado obliga a recorrer las ~29
+ * tags del checkout (118 procesos en el área). `for-each-ref --contains` es la
+ * misma pregunta —qué refs alcanzan el pin— resuelta en UNA llamada; luego se
+ * cruza con las releaseRefs declaradas. Semántica idéntica (incluye el caso
+ * pin == ref), sin el coste por ref. */
 function estaPublicado(checkout, pin, refs) {
   if (!pin || !checkout) return null; // indeterminado (sin checkout)
-  for (const r of refs) {
-    const ok = git(checkout, 'merge-base', '--is-ancestor', pin, r);
-    if (ok === '') return true; // ancestro → alcanzable
-  }
-  return false;
+  if (refs.length === 0) return false;
+  const lista = git(checkout, 'for-each-ref', '--contains', pin, '--format=%(refname)');
+  /* Un fallo de git se trata como "no publicado", igual que antes (donde el
+   * exit != 0 de merge-base daba false). */
+  if (lista === null) return false;
+  const alcanzan = new Set(lista.split('\n').filter(Boolean));
+  return refs.some((r) => alcanzan.has(r));
 }
 
 /** ¿pin existe como objeto en el checkout? */
@@ -159,14 +183,24 @@ function remotoUpstream(dir, tool) {
   const url = git(dir, 'remote', 'get-url', 'origin');
   if (!url) return base;
   base.url = url;
-  const headOut = git(dir, 'ls-remote', url, 'HEAD');
-  if (headOut) base.headRemoto = headOut.split(/\s/)[0] || null;
-  const tagsOut = git(dir, 'ls-remote', '--tags', url);
-  if (tagsOut) {
-    for (const ln of tagsOut.split('\n')) {
-      const m = /^([0-9a-f]{40})\s+refs\/tags\/(.+)$/.exec(ln.trim());
-      if (m && !m[2].endsWith('^{}') && /^v?\d+\.\d+\.\d+$/.test(m[2])) {
-        base.tags.push({ tag: m[2], commit: m[1] });
+  /* Un solo ls-remote sin filtros: devuelve HEAD y las tags en el MISMO viaje
+   * de red. [por que] Antes eran dos llamadas (una por HEAD, otra por tags)
+   * contra el remoto, y contra un remoto de verdad cada una es una ida y vuelta
+   * completa: aquí el informe entero esperaba al doble de round-trips. El
+   * listado sin filtros trae HEAD y refs/tags/* igual que las dos consultas
+   * separadas; solo añade refs/heads/*, que se ignora. */
+  const out = git(dir, 'ls-remote', url);
+  if (out) {
+    for (const ln of out.split('\n')) {
+      const m = /^([0-9a-f]{40})\s+(.+)$/.exec(ln.trim());
+      if (!m) continue;
+      if (m[2] === 'HEAD') {
+        base.headRemoto = m[1];
+        continue;
+      }
+      const t = /^refs\/tags\/(.+)$/.exec(m[2]);
+      if (t && !t[1].endsWith('^{}') && /^v?\d+\.\d+\.\d+$/.test(t[1])) {
+        base.tags.push({ tag: t[1], commit: m[1] });
       }
     }
     base.tags.sort((a, b) => cmpSemver(b.tag, a.tag));
