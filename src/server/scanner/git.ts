@@ -2,8 +2,8 @@
  * [por que] Sin libgit2 ni binarios nativos: funciona en cualquier entorno y es
  * el mismo enfoque ligero del resto del proyecto. */
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync } from 'node:fs';
-import { join, normalize } from 'node:path';
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { dirname, join, normalize, resolve } from 'node:path';
 import type { ArchivoLocal, CommitResumen, DetalleRepoSync, EstadoGit, LadoSync } from '../../shared/types.js';
 
 export interface InfoGit {
@@ -15,37 +15,66 @@ export interface InfoGit {
 /** Detecta si una carpeta es repo Git (carpeta .git) o worktree (archivo .git). */
 export function detectarGit(ruta: string): InfoGit {
   const gitPath = join(ruta, '.git');
-  if (existsSync(gitPath)) {
-    /* [por que] lstatSync NO sigue symlinks: un symlink roto (destino inexistente)
-     * hace que statSync lance ENOENT y el repo se pierda (caso GLORYINSPECTOR). */
-    const stat = lstatOrNull(gitPath);
-    if (stat?.isDirectory()) {
+  /* [por que] lstatSync NO sigue symlinks: un symlink roto (destino inexistente)
+   * hace que statSync lance ENOENT y el repo se pierda (caso GLORYINSPECTOR). */
+  const stat = lstatOrNull(gitPath);
+  if (stat?.isDirectory()) {
+    return { esRepo: true, esWorktree: false, padre: null };
+  }
+  if (stat) {
+    /* Un `.git` que es enlace (o junction) se resuelve aqui: si apunta a una
+     * carpeta es un gitdir; si apunta a un archivo, un worktree. [por que] Antes
+     * esto lo decidia `git rev-parse --is-inside-work-tree`, un proceso por
+     * carpeta (~37 ms medidos: 16 carpetas no-repo del area = 594 ms por
+     * escaneo). */
+    const destino = stat.isSymbolicLink() ? realpathOrNull(gitPath) : gitPath;
+    const statDestino = destino ? lstatOrNull(destino) : null;
+    if (statDestino?.isDirectory()) {
       return { esRepo: true, esWorktree: false, padre: null };
     }
-    if (stat?.isFile() || stat?.isSymbolicLink()) {
+    if (statDestino?.isFile()) {
       /* worktree: .git es un archivo con "gitdir: <ruta>" */
       try {
-        const contenido = readFileSync(gitPath, 'utf8');
-        const m = contenido.match(/gitdir:\s*(.+)/);
+        const m = readFileSync(destino as string, 'utf8').match(/gitdir:\s*(.+)/);
         if (m) {
           return { esRepo: true, esWorktree: true, padre: m[1].trim() };
         }
       } catch {
-        /* sin lectura -> comprobar con git directamente */
+        /* sin lectura -> no es repo */
       }
     }
   }
-  /* [por que] ultimo recurso: si git reconoce la carpeta, es repo aunque el
-   * .git sea un symlink/junction que el filesystem no resuelve bien. */
-  if (git(ruta, ['rev-parse', '--is-inside-work-tree']) === 'true') {
+  /* Sin `.git` propio: git solo lo reconoceria si la carpeta esta dentro del
+   * arbol de trabajo de un repo de mas arriba, y eso se responde subiendo. */
+  if (dentroDeArbol(ruta)) {
     return { esRepo: true, esWorktree: false, padre: null };
   }
   return { esRepo: false, esWorktree: false, padre: null };
 }
 
+/* ¿La carpeta esta dentro de un arbol de trabajo? Es la pregunta que responde
+ * `git rev-parse --is-inside-work-tree`, hecha con el filesystem. */
+function dentroDeArbol(ruta: string): boolean {
+  let dir = resolve(ruta);
+  for (;;) {
+    if (existsSync(join(dir, '.git'))) return true;
+    const padre = dirname(dir);
+    if (padre === dir) return false;
+    dir = padre;
+  }
+}
+
 function lstatOrNull(ruta: string) {
   try {
     return lstatSync(ruta);
+  } catch {
+    return null;
+  }
+}
+
+function realpathOrNull(ruta: string) {
+  try {
+    return realpathSync(ruta);
   } catch {
     return null;
   }
@@ -88,40 +117,107 @@ export function ramaPrimariaDeclarada(ruta: string): string {
   return 'main';
 }
 
+/* Ruta real del gitdir de un repo (o null si no se puede resolver sin git).
+ * [por que] En un worktree el `.git` es un archivo `gitdir: <ruta>` y tanto su
+ * config como sus worktrees viven en el repo principal. Resolverlo leyendo el
+ * archivo evita arrancar `git` solo para preguntarlo. */
+function gitdirDe(ruta: string): string | null {
+  const gitPath = join(ruta, '.git');
+  const stat = lstatOrNull(gitPath);
+  if (stat?.isDirectory()) return gitPath;
+  if (!stat) return null;
+  /* Un `.git` enlazado se resuelve antes de leerlo (misma regla que
+   * `detectarGit`): si el enlace apunta a una carpeta, esa carpeta es el gitdir. */
+  const destino = stat.isSymbolicLink() ? realpathOrNull(gitPath) : gitPath;
+  if (!destino) return null;
+  const statDestino = lstatOrNull(destino);
+  if (statDestino?.isDirectory()) return destino;
+  if (!statDestino?.isFile()) return null;
+  try {
+    const m = readFileSync(destino, 'utf8').match(/gitdir:\s*(.+)/);
+    if (m) return resolve(dirname(destino), m[1].trim());
+  } catch {
+    /* sin lectura -> no se puede resolver */
+  }
+  return null;
+}
+
+/* Directorio comun del repo: donde estan la config y los worktrees. En un
+ * worktree lo dice el archivo `commondir`; en un repo normal es el gitdir. */
+function commondirDe(gitdir: string): string {
+  try {
+    return resolve(gitdir, readFileSync(join(gitdir, 'commondir'), 'utf8').trim());
+  } catch {
+    return gitdir;
+  }
+}
+
+/* URL de origin leida de `.git/config`. null si no hay origin o no se puede
+ * leer. [por que] `git remote get-url origin` costaba un proceso por repo
+ * (~43 ms en el portatil, medido en el escaneo raiz): el dato esta en un
+ * fichero de texto. Lo que la lectura directa no puede resolver se le deja a
+ * git (ver el guardia de `include`/`url` mas abajo). */
+function leerRemotoOrigin(ruta: string): string | null {
+  const gitdir = gitdirDe(ruta);
+  if (!gitdir) return null;
+  let config: string;
+  try {
+    config = readFileSync(join(commondirDe(gitdir), 'config'), 'utf8');
+  } catch {
+    return null;
+  }
+  /* [por que] `include` trae mas config y `url.<base>.insteadOf` reescribe la URL:
+   * en esos dos casos la lectura directa no ve lo que git responderia. */
+  if (/^\s*\[(include|url)\b/m.test(config)) return git(ruta, ['remote', 'get-url', 'origin']);
+  const seccion = config.match(/\[remote\s+"origin"\]\s*([\s\S]*?)(?=\n\s*\[|$)/);
+  if (!seccion) return null;
+  const url = seccion[1].match(/^\s*url\s*=\s*(.+)$/m);
+  return url ? url[1].trim() : null;
+}
+
+/* Cabecera de `git status --porcelain --branch`: rama, upstream y ahead/behind.
+ * [por que] Un solo proceso da lo que antes pedian tres (`symbolic-ref`,
+ * `rev-list --left-right` y `status`). Formatos posibles:
+ *   `## main...origin/main [ahead 1, behind 2]`   normal con upstream
+ *   `## main...origin/main [gone]`               upstream borrado
+ *   `## main`                                    sin upstream
+ *   `## HEAD (no branch)`                        detached
+ *   `## No commits yet on main`                  repo sin commits (unborn) */
+function leerCabeceraStatus(cabecera: string): { rama: string; ahead: number; behind: number } {
+  const cuerpo = cabecera.slice(3).trim();
+  if (/^HEAD \(no branch\)$/.test(cuerpo)) return { rama: 'DETACHED', ahead: 0, behind: 0 };
+  const unborn = cuerpo.match(/^No commits yet on (.+)$/);
+  if (unborn) return { rama: unborn[1], ahead: 0, behind: 0 };
+  const rama = cuerpo.split('...')[0].trim();
+  const cuenta = cuerpo.match(/\[ahead (\d+)(?:, behind (\d+))?\]/) ?? cuerpo.match(/\[behind (\d+)\]/);
+  /* `[behind N]` sin ahead: el primer grupo del segundo patron es el de behind. */
+  const soloBehind = cuerpo.includes('[behind') && !cuerpo.includes('[ahead');
+  return {
+    rama,
+    ahead: soloBehind ? 0 : Number(cuenta?.[1] ?? 0) || 0,
+    behind: soloBehind ? Number(cuenta?.[1] ?? 0) || 0 : Number(cuenta?.[2] ?? 0) || 0,
+  };
+}
+
 /** Estado completo de un repo: rama, remoto, dirty, ahead/behind, submodulos, ultimo commit. */
 export function estadoGit(ruta: string): EstadoGit | null {
   /* [por que] `git rev-parse --abbrev-ref HEAD` devuelve "HEAD" tanto en detached
-   * como en repo vacio (unborn, sin commits). Distinguir con symbolic-ref +
-   * rev-parse --verify HEAD: si no hay commits, reportar la rama por defecto
-   * como "(sin commits)" en vez de DETACHED, que seria falso. */
-  let rama: string;
-  let esDetached = false;
-  const ramaRef = git(ruta, ['symbolic-ref', '--short', 'HEAD']);
-  if (ramaRef !== null) {
-    rama = ramaRef;
-  } else if (git(ruta, ['rev-parse', '--verify', 'HEAD']) !== null) {
-    esDetached = true;
-    rama = 'DETACHED';
-  } else {
-    rama = `${ramaPrimariaDeclarada(ruta)} (sin commits)`;
-  }
-
-  const remoto = git(ruta, ['remote', 'get-url', 'origin']);
-  const status = git(ruta, ['status', '--porcelain']) ?? '';
-  const dirty = status.length > 0;
-  const cambios = contarCambios(status);
-
-  /* ahead/behind contra el upstream de la rama actual */
-  let ahead = 0;
-  let behind = 0;
-  const revList = git(ruta, ['rev-list', '--left-right', '--count', 'HEAD...@{upstream}']);
-  if (revList) {
-    const partes = revList.split(/\s+/);
-    if (partes.length === 2) {
-      ahead = Number(partes[0]) || 0;
-      behind = Number(partes[1]) || 0;
-    }
-  }
+   * como en repo vacio (unborn, sin commits). La cabecera de `status --branch`
+   * los distingue (`## HEAD (no branch)`, `## No commits yet on <rama>`), asi que
+   * no hace falta preguntarlo aparte. */
+  const status = git(ruta, ['status', '--porcelain', '--branch']) ?? '';
+  const lineas = status.split('\n');
+  const cabecera = lineas[0]?.startsWith('## ') ? lineas[0] : null;
+  const info = cabecera
+    ? leerCabeceraStatus(cabecera)
+    : /* Sin cabecera no hubo respuesta de git (carpeta que no es repo): se
+       * reporta como repo sin commits, que es lo que se deducia antes al fallar
+       * tambien `symbolic-ref` y `rev-parse --verify HEAD`. */
+      { rama: `${ramaPrimariaDeclarada(ruta)} (sin commits)`, ahead: 0, behind: 0 };
+  /* El cuerpo empieza en la segunda linea; el espacio inicial de la primera
+   * entrada (` M ruta`) es dato y no se toca. */
+  const cuerpo = (cabecera ? lineas.slice(1) : lineas).join('\n');
+  const dirty = cuerpo.length > 0;
 
   const submodulos = leerSubmodulos(ruta);
   const ultimoCommit = git(ruta, ['log', '-1', '--format=%H%x09%ci%x09%s']);
@@ -132,13 +228,13 @@ export function estadoGit(ruta: string): EstadoGit | null {
   }
 
   return {
-    rama: esDetached ? 'DETACHED' : rama,
-    remoto,
+    rama: info.rama,
+    remoto: leerRemotoOrigin(ruta),
     ramaPrimaria: ramaPrimariaDeclarada(ruta),
     dirty,
-    ahead,
-    behind,
-    cambios,
+    ahead: info.ahead,
+    behind: info.behind,
+    cambios: contarCambios(cuerpo),
     worktreesOrfanos: worktreesOrfanos(ruta),
     submodulos,
     ultimoCommit: commit,
@@ -171,6 +267,10 @@ function contarCambios(status: string): EstadoGit['cambios'] {
  * [por que] `git worktree prune` no es necesario para detectar: se lee la
  * lista porcelana y se valida la existencia real; el escaner SOLO reporta. */
 function worktreesOrfanos(ruta: string): string[] {
+  /* [por que] Sin `<gitdir>/worktrees/` no hay worktrees secundarios, asi que no
+   * puede haber huerfanos: se evita un proceso git por repo (~43 ms medidos). */
+  const gitdir = gitdirDe(ruta);
+  if (gitdir && !existsSync(join(commondirDe(gitdir), 'worktrees'))) return [];
   const salida = git(ruta, ['worktree', 'list', '--porcelain']);
   if (!salida) return [];
   const raizNorm = normalize(ruta).toLowerCase();

@@ -5,8 +5,10 @@ import { createServer, type ServerResponse } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { json } from './http.js';
-import { obtenerSnapshot } from './cache.js';
-import { escanearWorkspace } from './scanner/workspace.js';
+/* [por que] `snapshotArea` vive en snapshot.ts desde que se extrajo alli por
+ * limite de lineas; tener aqui una copia era una segunda fuente de verdad del
+ * mismo escaneo (y arrastraba estos imports). */
+import { snapshotArea } from './snapshot.js';
 import { manejarRutasGate } from './rutas/rutasGate.js';
 import { manejarRutasAlta } from './rutas/rutasAlta.js';
 import { manejarRutasGuardian } from './rutas/guardian/rutasGuardian.js';
@@ -28,7 +30,6 @@ import { obtenerToken } from './seguridad/token.js';
 import { registrarAuditoria, rutaAuditoriaPorDefecto } from './seguridad/auditoria.js';
 import { logger } from '../shared/logger.js';
 
-import { RAIZ_AREA, CARPETA_SKILLS } from '../shared/rutas.js';
 import { PUERTO_API } from '../shared/puertos.js';
 export const PUERTO = PUERTO_API;
 
@@ -47,13 +48,6 @@ const MIME: Record<string, string> = {
 };
 
 /* Escaner con cache; el flag `forzar` re-escanea. */
-function snapshotArea(forzar: boolean) {
-  return obtenerSnapshot(
-    RAIZ_AREA,
-    () => escanearWorkspace({ raiz: RAIZ_AREA, carpetaSkills: CARPETA_SKILLS }),
-    forzar,
-  );
-}
 
 /* Proxy tareas con las columnas del snapshot (08AA-6 sync): instancia unica;
  * `snapshotArea(false)` sirve cache sin escanear (la columna nueva aparece

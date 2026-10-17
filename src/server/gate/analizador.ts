@@ -2,7 +2,7 @@
  * [por que] La consola debe reportar los hallazgos reales que `sentinel
  * analyze` detecta en cada repo SIN consumir recursos. Para eso este modulo:
  *  - corre `sentinel analyze --workspace <ruta> --format json` (una sola vez por
- *    cambio real), nunca dentro del escaneo raiz (~2.6 s) que vive aparte;
+ *    cambio real), nunca dentro del escaneo raiz (~2.4 s) que vive aparte;
  *  - cachea por frescura = branch + HEAD + version de sentinel: si el repo no
  *    cambio y sentinel no cambio, se sirve cacheado sin volver a spawn;
  *  - es elegibilidad por puerta ('sentinel'), salta carpetas/cargo;
@@ -13,19 +13,25 @@
  *  - si el proyecto es del taller (registro.json + taller.json), el analisis corre
  *    en la VPS sobre su replica (remoto.ts, S3.7); si esa corrida no arranca, se
  *    reintenta en el portatil y se anota el porque en `aviso`. Lo demas no cambia.
- * El cliente es 'tonto': pide y muestra; este modulo es el dueno de la ejecucion. */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, posix, relative } from 'node:path';
+ * El cliente es 'tonto': pide y muestra; este modulo es el dueno de la ejecucion.
+ *
+ * [por que esta partido] La auditoria SOLID (E3) vio dos oficios en un fichero:
+ * guardar (que se cachea, cuando se poda, como se persiste) y traducir formato
+ * (JSON de las herramientas -> AnalisisSentinel, fusion sentinel + varsense).
+ * Los dos viven ahora en `analisis/`; aqui queda lanzar y decidir donde corre. */
+import { join } from 'node:path';
 import { huellaArbol } from './arbol/huella.js';
 import { compartirVuelo } from './vuelo.js';
-import { RAIZ_AREA } from '../../shared/rutas.js';
-import type {
-  AnalisisSentinel,
-  HallazgoSentinel,
-  NombreSeveridad,
-  Proyecto,
-  SeveridadSentinel,
-} from '../../shared/types.js';
+import type { AnalisisSentinel, Proyecto } from '../../shared/types.js';
+import {
+  analisisFresco,
+  esCacheable,
+  guardarAnalisis,
+  leerAnalisis,
+  leerTodas,
+  podarAnalisis,
+} from './analisis/almacen.js';
+import { datoError, montarAnalisis } from './analisis/reporte.js';
 import {
   checkoutVarsense,
   cliRuntime,
@@ -36,45 +42,14 @@ import {
   varsenseConfigHash,
   varsenseRuntime,
 } from './ejecucion.js';
-import type { EntryJson, FindingJson, ReporteJson, ResultadoSpawn } from './ejecucion.js';
+import type { ResultadoSpawn } from './ejecucion.js';
 import { correrSentinelRemoto, correrVarsenseRemoto, leerConfigRemota, mensaje, modoAnalisis, rutaRemota, sincronizar } from './remoto.js';
 import type { ConfigRemota } from './remoto.js';
 
-/* Dueno de la cache en memoria (clave -> resultado con su frescura). */
-
-/* Dueno de la cache en memoria (clave -> resultado con su frescura). */
-interface EntradaCache {
-  fresco: string;
-  dato: AnalisisSentinel;
-}
-
-/* [por que] la persistencia vive dentro del area del manager (data/cache/),
- * NO en el runtime de sentinel (solo lectura) ni en ningun proyecto real. */
-function rutaPersistencia(): string {
-  return join(RAIZ_AREA, 'data', 'cache', 'analisis.json');
-}
-
-const cache = new Map<string, EntradaCache>();
-
-/* Carga la cache persistida al arranque (arranque instantaneo). */
-try {
-  const obj = JSON.parse(readFileSync(rutaPersistencia(), 'utf8')) as Record<string, EntradaCache>;
-  for (const k of Object.keys(obj)) cache.set(k, obj[k]);
-} catch {
-  /* sin cache persistido: arranca vacio, no es error. */
-}
-
-/* Persiste la cache en disco (best-effort: no debe tumbar el analisis). */
-function persistir(): void {
-  try {
-    const obj: Record<string, EntradaCache> = {};
-    for (const [k, v] of cache) obj[k] = v;
-    mkdirSync(dirname(rutaPersistencia()), { recursive: true });
-    writeFileSync(rutaPersistencia(), JSON.stringify(obj, null, 2), 'utf8');
-  } catch {
-    /* silencioso: la cache en memoria sigue valiendo. */
-  }
-}
+/* La lectura de lo guardado se reexporta aqui a proposito: este fichero es la
+ * puerta del analisis para las rutas, y quien pide resultados no deberia tener
+ * que saber en que submodulo viven. */
+export { esCacheable, leerAnalisis, leerTodas } from './analisis/almacen.js';
 
 /* Solo los proyectos cuyo gate real es sentinel (carpetas/cargo no aplican). */
 export function esElegible(p: Proyecto): boolean {
@@ -102,171 +77,6 @@ function frescoDe(p: Proyecto): string {
 
 /* [por que] Ejecutar N repos en serie no satura CPU; el detalle esta en las
  * funciones de corrida que ceden el event loop (async) y en la cola serial. */
-
-/* Normaliza una severidad arbitraria del JSON a las 4 conocidas. */
-function sev(s: unknown): SeveridadSentinel {
-  const t = String(s ?? 'warning').toLowerCase();
-  if (t === 'error' || t === 'warning' || t === 'information' || t === 'hint') return t;
-  return 'warning';
-}
-
-/* Convierte la ruta absoluta del entry a relativa al workspace si aplica. */
-function relArchivo(abs: string, raiz: string): string {
-  if (!abs || !raiz) return abs;
-  try {
-    /* [por que] S3.7: los reportes de la 89 traen rutas POSIX; `relative` de Windows
-     * las trataría como rutas de unidad y no relativizaría nada. */
-    const rel = raiz.startsWith('/') ? posix.relative(raiz, abs) : relative(raiz, abs);
-    if (rel && !rel.startsWith('..')) return rel;
-  } catch {
-    /* ruta no relativizable */
-  }
-  return abs;
-}
-
-/* Normaliza el JSON real de `analyze` a un AnalisisSentinel plano y acotado.
- * `fuenteHallazgo` taguea cada hallazgo con la herramienta que lo emitio
- * ('sentinel' | 'varsense', fase G). */
-export function normalizar(
-  dato: ReporteJson,
-  clave: string,
-  version: string,
-  raiz: string,
-  fuenteHallazgo: 'sentinel' | 'varsense' = 'sentinel',
-  commitCli: string | null = null,
-): AnalisisSentinel {
-  const sc = dato.severityCounts ?? {};
-  const resumen = {
-    error: Number(sc.error) || 0,
-    warning: Number(sc.warning) || 0,
-    information: Number(sc.information) || 0,
-    hint: Number(sc.hint) || 0,
-  };
-  const hallazgos: HallazgoSentinel[] = [];
-  for (const entry of dato.entries ?? []) {
-    const archivo = relArchivo(String(entry.ruta ?? entry.path ?? entry.archivo ?? ''), raiz);
-    for (const f of entry.findings ?? []) {
-      /* `range.start.line` de sentinel es 0-based (contrato LSP); el tablero
-       * muestra numeros de linea humanos, asi que suma 1. Sin esto cada aviso
-       * apunta a la linea anterior a la real. */
-      const lineaRaw = f.range?.start?.line;
-      const linea = typeof lineaRaw === 'number' ? lineaRaw + 1 : null;
-      const sugerencia = typeof f.suggestion === 'string' ? f.suggestion : undefined;
-      hallazgos.push({
-        ruleId: String(f.ruleId ?? 'regla-desconocida'),
-        mensaje: String(f.message ?? f.mensaje ?? 'sin mensaje'),
-        severidad: sev(f.severity ?? f.severidad),
-        archivo,
-        linea,
-        sugerencia,
-        fuente: fuenteHallazgo,
-      });
-    }
-  }
-  const total = resumen.error + resumen.warning + resumen.information + resumen.hint;
-  return {
-    clave,
-    version,
-    /* [por que] 039A-4: commit del binario que midió (solo cuando el proyecto
-     * declara provisionPath propio; null = compartido/instalado o caché vieja). */
-    commitCli: commitCli ?? undefined,
-    fuente: 'runtime',
-    estado: total > 0 ? 'conHallazgos' : 'ok',
-    analizadoEn: new Date().toISOString(),
-    resumen,
-    /* [por que] 308A-6J11: los hallazgos se guardan COMPLETOS (sin cap 500).
-     * El cap truncaba la lista y los conteos por regla del agregado no
-     * coincidian con el CLI directo (p.ej. claseHuerfana de PT: 298 en la
-     * consola vs 1083 reales). El render del cliente sigue siendo acotado;
-     * aqui la fuente de verdad es el reporte completo. */
-    hallazgos,
-  };
-}
-
-/* Suma dos resumenes por severidad (merge de sentinel + varsense). */
-function sumarResumen(a: NombreSeveridad, b: NombreSeveridad): NombreSeveridad {
-  return {
-    error: a.error + b.error,
-    warning: a.warning + b.warning,
-    information: a.information + b.information,
-    hint: a.hint + b.hint,
-  };
-}
-
-/* [08AA-26] Solo un analisis valido entra en la cache. Un error es transitorio
- * (p. ej. timeout o runtime ocupado): cachearlo servia "error" en el tablero hasta
- * el siguiente forzado. Si ya habia un analisis valido, se conserva.
- * [por que] Funcion pura: se testea sin lanzar el CLI de Sentinel. */
-export function esCacheable(dato: AnalisisSentinel): boolean {
-  return dato.estado !== 'error';
-}
-
-/* [por que] Varsense declarado y provisionado que no devuelve reporte (timeout,
- * salida no JSON o spawn fallido) no puede dar 'ok': el tablero afirmaria "sin
- * problemas" sin haber analizado varsense. Queda en 'error' (no se cachea, el
- * siguiente analisis reintenta) y conserva los hallazgos de sentinel. */
-export function marcarVarsenseFallido(dato: AnalisisSentinel, motivo?: string): AnalisisSentinel {
-  return {
-    ...dato,
-    estado: 'error',
-    error: dato.error ?? (motivo
-      ? `varsense declarado no produjo reporte: ${motivo}`
-      : 'varsense declarado no produjo reporte (timeout, salida no JSON o fallo de spawn)'),
-  };
-}
-
-/* Resultado de error de un análisis que no llegó a obtener reportes. */
-function datoError(clave: string, error: string): AnalisisSentinel {
-  return {
-    clave,
-    version: '—',
-    fuente: null,
-    estado: 'error',
-    analizadoEn: new Date().toISOString(),
-    resumen: { error: 0, warning: 0, information: 0, hint: 0 },
-    hallazgos: [],
-    error,
-  };
-}
-
-/* Motivos de fallo por herramienta (remoto: el error de la corrida; local: sin motivo). */
-export interface Motivos {
-  sentinel?: string;
-  varsense?: string;
-}
-
-/* Une los reportes de sentinel y varsense en un AnalisisSentinel. `raiz` es la ruta que
- * se quita de los archivos del reporte: la local, o la de la réplica en la 89. */
-export function montarAnalisis(
-  p: Proyecto,
-  res: ResultadoSpawn | null,
-  resVs: ResultadoSpawn | null,
-  raiz: string = p.ruta,
-  motivos: Motivos = {},
-): AnalisisSentinel {
-  const clave = p.clave;
-  let dato: AnalisisSentinel;
-  if (!res) {
-    dato = datoError(clave, motivos.sentinel ?? 'runtime sentinel no disponible o analisis fallo');
-    if (resVs) {
-      const vs = normalizar(resVs.dato, clave, resVs.version, raiz, 'varsense');
-      dato.resumen = vs.resumen;
-      dato.hallazgos = vs.hallazgos;
-      dato.varsense = { version: resVs.version, resumen: vs.resumen };
-    }
-  } else {
-    dato = normalizar(res.dato, clave, res.version, raiz, 'sentinel', res.commit);
-    if (resVs) {
-      const vs = normalizar(resVs.dato, clave, resVs.version, raiz, 'varsense');
-      dato.resumen = sumarResumen(dato.resumen, vs.resumen);
-      dato.hallazgos = [...dato.hallazgos, ...vs.hallazgos];
-      dato.varsense = { version: resVs.version, resumen: vs.resumen };
-      if (dato.estado === 'ok' && vs.estado === 'conHallazgos') dato.estado = 'conHallazgos';
-    }
-  }
-  if (!resVs && varsenseAplica(p.ruta)) dato = marcarVarsenseFallido(dato, motivos.varsense);
-  return dato;
-}
 
 /* Ejecuta una corrida remota: un fallo se convierte en motivo, no en excepción. */
 async function intentar(f: () => Promise<ResultadoSpawn | null>): Promise<[ResultadoSpawn | null, string | undefined]> {
@@ -337,8 +147,10 @@ const enVuelo = new Map<string, Promise<AnalisisSentinel>>();
 export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisSentinel> {
   const clave = p.clave;
   const fresco = frescoDe(p);
-  const mem = cache.get(clave);
-  if (!forzar && mem && mem.fresco === fresco) return Promise.resolve(mem.dato);
+  if (!forzar) {
+    const guardado = analisisFresco(clave, fresco);
+    if (guardado) return Promise.resolve(guardado);
+  }
   return compartirVuelo(enVuelo, clave, async (): Promise<AnalisisSentinel> => {
     /* [por que] Cualquier fallo del despacho queda en 'error' (nunca rompe el snapshot). */
     let dato: AnalisisSentinel;
@@ -347,10 +159,7 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
     } catch (err) {
       dato = datoError(clave, mensaje(err));
     }
-    if (esCacheable(dato)) {
-      cache.set(clave, { fresco, dato });
-      persistir();
-    }
+    guardarAnalisis(clave, fresco, dato);
     return dato;
   });
 }
@@ -387,31 +196,6 @@ export async function analizarTodo(
   for (const p of proyectos.filter(esElegible)) {
     detalles.push(await analizarProyecto(p, forzar));
   }
-  /* [por que] Eviccion de la cache: si un proyecto se renombra/elimina del
-   * area o deja de existir en el snapshot, su entrada quedaba en memoria y en
-   * data/cache/analisis.json para SIEMPRE (mapa sin eviccion = cache no
-   * acotada). Se podan las claves que ya no existen hoy y se persiste una
-   * sola vez tras el barrido. Sin await en el medio: check+set es atomico. */
-  const vivas = new Set(proyectos.map((p) => p.clave));
-  let huboPoda = false;
-  for (const clave of [...cache.keys()]) {
-    if (!vivas.has(clave)) {
-      cache.delete(clave);
-      huboPoda = true;
-    }
-  }
-  if (huboPoda) persistir();
+  podarAnalisis(new Set(proyectos.map((p) => p.clave)));
   return detalles;
-}
-
-/* Sirve la cache de un proyecto (para counts sin volcar hallazgos). */
-export function leerAnalisis(clave: string): AnalisisSentinel | null {
-  return cache.get(clave)?.dato ?? null;
-}
-
-/* Sirve TODA la cache persistida (para rehidratar el store del cliente al
- * recargar la pagina, sin volver a analizar). El cliente la pide una vez al
- * arrancar; si un proyecto aun no se analizo, simplemente no aparece. */
-export function leerTodas(): AnalisisSentinel[] {
-  return [...cache.values()].map((e) => e.dato);
 }

@@ -38,7 +38,8 @@ export function rutaCache(raiz: string): string {
 
 /* Snapshot en memoria del ultimo escaneo: permite mutarlo (ignorar/quitar)
  * sin re-escandear, y sirve de cache caliente para el siguiente GET. [por
- * que] El escaneo con git es lento (~2.6s); alternar un ignorado no cambia
+ * que] El escaneo con git es lento (~2,4 s medidos con 20 repos, tras bajar a
+ * dos procesos git por repo en el 17AA-2); alternar un ignorado no cambia
  * git/gate/roadmap, solo la visibilidad, asi que se muta este snapshot. */
 let snapshotMemoria: SnapshotWorkspace | null = null;
 
