@@ -1,6 +1,7 @@
 # Plan — Modo `build` por defecto y adelgazamiento del disco del taller (`16AA-18`, `16AA-19`)
 
-**Estado:** en ejecución. **Próximo paso:** D1 (disco).
+**Estado:** cerrado (2026-10-17). `16AA-19` (disco) y `16AA-18` (modo `build`) completados;
+evidencia en `Agente/completados/tareas-2026-10-17.md`.
 **Fecha:** 2026-10-16. **Decide:** la usuaria (encargo del 2026-10-16).
 **Ámbito:** `workspace-manager` (taller) + cambios pequeños en WANDORIUS y MN-Inmobiliaria.
 **Revisado:** tres revisiones adversariales (diseño, disco, ejecución). Este documento ya incorpora
@@ -642,8 +643,8 @@ de 05AA-1 (`[profile.dev]` adelgazado) sigue siendo el sitio donde decidirlo si 
   error sin serlo.
 
 ### D5 — cierre del disco
-- [ ] `Arranque gate "workspace-manager" --cierre`; `Arranque cierre "workspace-manager" --tarea 16AA-19`.
-- [ ] Entrada en `Agente/completados/tareas-2026-10-17.md`; roadmap y doc del taller al día.
+- [x] `Arranque gate "workspace-manager" --cierre` → 0 nuevos, 0 resueltos (base 1); `Arranque cierre "workspace-manager" --tarea 16AA-19` en verde.
+- [x] Entrada en `Agente/completados/tareas-2026-10-17.md`; roadmap y doc del taller al día.
 
 ### F1–F9 — modo build
 - [x] **F1** contrato del modo (`modo`, `build`, `marcador`, `conocidas`) + tests.
@@ -657,6 +658,14 @@ de 05AA-1 (`[profile.dev]` adelgazado) sigue siendo el sitio donde decidirlo si 
 - [x] **F9** docs, AGENTS, `Arranque cierre --tarea 16AA-18`.
 - [x] **F10** repaso de las 22 skills del índice (AGENTS §11): 8 corregidas, 14 correctas; tabla de
   veredicto abajo y las dos copias (laptop y 89) idénticas por `md5sum`.
+
+### Cierre de `16AA-18`
+- [x] Suite completa **563/563** (`src` 395 + `scripts` 168) y `npm run type-check` sin errores.
+- [x] `Arranque gate "workspace-manager" --cierre` → **0 nuevos, 0 resueltos** (base 1, el heredado
+  de `16AA-14`). `AGENTS.md` y las 22 skills idénticas en laptop y 89 (`md5sum`).
+- [x] Entrada en `Agente/completados/tareas-2026-10-17.md`; plan archivado aquí; `16AA-18` fuera del
+  roadmap, con el hallazgo heredado del `doctor` anotado como `16AA-20`.
+- [ ] A las 24 h de `16AA-19`: `docker system df` — la caché debe seguir ≤ ~13 GB.
 
 **Lo que apareció al ejecutar y no estaba en el plan** (commits `543e6bb`, `0cedf8f`, `8ace145`
 en `workspace-manager` y `0fb5dc3` en PROYECTO TASKS):
