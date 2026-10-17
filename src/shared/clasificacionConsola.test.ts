@@ -4,12 +4,14 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   contarProblemas,
+  problemaHuerfanosSinProyecto,
   problemasDevDe,
   problemasSentinelDe,
   problemasVulnerabilidadDe,
   type Entrada,
 } from './clasificacionConsola.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from './types.js';
+import type { HuerfanoDev } from './dev.js';
 import type { InformeDev } from './dev.js';
 
 /* Proyecto minimo: solo los campos que lee la clasificacion. */
@@ -106,5 +108,28 @@ describe('dev: bajo mando', () => {
     const p = problemasDevDe(proyecto, informe('deriva'), null);
     assert.ok(p);
     assert.equal(contarProblemas(p.entradas), 1);
+  });
+});
+
+/* [por que] Un proceso elevado deja `exe` vacio (CIM no lo lee sin permisos) y el
+ * motivo salia como «pid 12528 (pid 12528)»: el pid dos veces y ningun nombre. El
+ * cmd es la unica fuente del nombre cuando el exe no llega. */
+describe('huerfano: nombre del proceso', () => {
+  const huerfano = (over: Partial<HuerfanoDev>): HuerfanoDev =>
+    ({ ip: '127.0.0.1', puerto: 5432, pid: 12528, exe: null, cmd: '', verificado: false, clave: null, ...over }) as HuerfanoDev;
+
+  it('sin exe, el nombre sale del cmd (proceso elevado)', () => {
+    const p = problemaHuerfanosSinProyecto({ huerfanos: [huerfano({ cmd: '"C:\\Program Files\\PostgreSQL\\16\\bin\\postgres.exe" -D C:\\pgdata' })] } as unknown as InformeDev);
+    assert.match(p!.entradas[0].motivo, /sin proyecto: postgres\.exe \(pid 12528\) NO-VERIFICADO/);
+  });
+
+  it('sin exe ni cmd se dice desconocido, no el pid dos veces', () => {
+    const p = problemaHuerfanosSinProyecto({ huerfanos: [huerfano({})] } as unknown as InformeDev);
+    assert.match(p!.entradas[0].motivo, /sin proyecto: proceso desconocido \(pid 12528\)/);
+  });
+
+  it('el exe manda sobre el cmd', () => {
+    const p = problemaHuerfanosSinProyecto({ huerfanos: [huerfano({ exe: 'C:\\otro\\servicio.exe', cmd: 'algo.exe --x' })] } as unknown as InformeDev);
+    assert.match(p!.entradas[0].motivo, /sin proyecto: servicio\.exe/);
   });
 });
