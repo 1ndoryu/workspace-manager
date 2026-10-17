@@ -6,13 +6,16 @@ import {
 
 const CATCH = { service: 'http_status:404' };
 
-test('validarHost acepta solo <proyecto>-dev.wandori.us de un nivel', () => {
-  assert.equal(validarHost('mn-dev.wandori.us'), 'mn-dev.wandori.us');
-  assert.throws(() => validarHost('mn.dev.wandori.us'), /formato/);
-  assert.throws(() => validarHost('mn.wandori.us'), /formato/);
-  assert.throws(() => validarHost('mn-dev.otra.us'), /formato/);
-  assert.throws(() => validarHost('-dev.wandori.us'), /formato/);
-  assert.throws(() => validarHost(undefined), /formato/);
+/* La zona se pasa como argumento: así el test no depende de la config privada
+ * (la zona real vive en `config/taller.json`, que no se versiona). */
+test('validarHost acepta solo <proyecto>-dev.<zona> de un nivel', () => {
+  const zona = 'ejemplo.test';
+  assert.equal(validarHost('mn-dev.ejemplo.test', zona), 'mn-dev.ejemplo.test');
+  assert.throws(() => validarHost('mn.dev.ejemplo.test', zona), /formato/);
+  assert.throws(() => validarHost('mn.ejemplo.test', zona), /formato/);
+  assert.throws(() => validarHost('mn-dev.otra.test', zona), /formato/);
+  assert.throws(() => validarHost('-dev.ejemplo.test', zona), /formato/);
+  assert.throws(() => validarHost(undefined, zona), /formato/);
 });
 
 test('validarPuerto exige entero entre 1024 y 65535', () => {

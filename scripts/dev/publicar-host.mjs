@@ -1,4 +1,4 @@
-/* Publica un dev server en `<proyecto>-dev.wandori.us` por el túnel `taller-89-dev`.
+/* Publica un dev server en `<proyecto>-dev.<zona>` por el túnel declarado.
  * Por defecto solo lee y muestra el plan. `--aplicar` escribe en Cloudflare y en registro.json.
  *   node scripts/dev/publicar-host.mjs <host> --puerto <n> [--proyecto <id>] [--copiar-acceso <host>] [--aplicar]
  *   … --repuntar: cambia el destino de un host YA publicado (p. ej. al pasar la ficha a modo build, que
@@ -6,24 +6,40 @@
  *   veces el mismo nombre por descuido pisaría lo que ya funciona. No toca DNS ni Access: solo la regla
  *   de ingress del túnel, y el CNAME ya apunta a él.
  * [por que] Orden al aplicar: Access, ingress, DNS. Así ningún host resuelve antes de tener app de Access
- * (la app nueva sin política deniega todo). Un nivel por host: Universal SSL no cubre `x.dev.wandori.us`.
- * Token fuera del repo: CLOUDFLARE_API_TOKEN o ~/.cloudflare/dev-publico.token. */
+ * (la app nueva sin política deniega todo). Un nivel por host: Universal SSL no cubre `x.dev.<zona>`.
+ * Token fuera del repo: CLOUDFLARE_API_TOKEN o ~/.cloudflare/dev-publico.token.
+ * [por que] Zona, cuenta y túnel salen de `config/taller.json` (`devPublico`): son datos del
+ * taller, no del programa, y con ellos dentro el repo no se podía publicar. */
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rutaConfigPrivada } from '../shared/rutas.mjs';
+import { exigirConfigPrivada, rutaConfigPrivada } from '../shared/rutas.mjs';
 
-export const CUENTA = 'adb83ea98dfe13362aebca91c42ed9c5';
-export const TUNEL_NOMBRE = 'taller-89-dev';
-export const ZONA_NOMBRE = 'wandori.us';
 const API = 'https://api.cloudflare.com/client/v4';
+
+/* Datos del taller (zona, cuenta y túnel de Cloudflare). Se leen una vez, al
+ * primer uso y no al importar, para que el módulo se pueda cargar sin config. */
+let _publico = null;
+export function devPublico() {
+  if (_publico) return _publico;
+  const taller = JSON.parse(readFileSync(exigirConfigPrivada('taller.json'), 'utf8'));
+  const d = taller.devPublico;
+  if (!d?.zona || !d?.cuenta || !d?.tunel) {
+    throw new Error("taller.json: falta el bloque 'devPublico' con zona, cuenta y tunel");
+  }
+  return (_publico = d);
+}
 const REGISTRO = rutaConfigPrivada('registro.json');
 const CATCH_ALL = { service: 'http_status:404' };
 
-export function validarHost(host) {
-  if (!/^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?-dev\.wandori\.us$/.test(host ?? '')) {
-    throw new Error(`host "${host}": formato <proyecto>-dev.wandori.us (un nivel, sufijo -dev)`);
+/* La zona se pasa como argumento (no se lee de la config aquí) para que la
+ * validación se pueda probar sin config privada. */
+export function validarHost(host, zona) {
+  const escapada = String(zona ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const forma = new RegExp(`^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?-dev\\.${escapada}$`);
+  if (!forma.test(host ?? '')) {
+    throw new Error(`host "${host}": formato <proyecto>-dev.${zona} (un nivel, sufijo -dev)`);
   }
   return host;
 }
@@ -133,20 +149,21 @@ async function cf(token, metodo, ruta, cuerpo) {
 const ETIQUETA = { ya: 'ya existe', crear: 'crear', repuntar: 'repuntar' };
 
 export async function main(argv = process.argv.slice(2), { log = console.log } = {}) {
-  const host = validarHost(argv[0]);
+  const pub = devPublico();
+  const host = validarHost(argv[0], pub.zona);
   const valorDe = (flag, por) => (argv.includes(flag) ? argv[argv.indexOf(flag) + 1] : por);
   const puerto = validarPuerto(valorDe('--puerto'));
   const proyecto = valorDe('--proyecto', null);
-  const referencia = valorDe('--copiar-acceso', 'mn-dev.wandori.us');
+  const referencia = valorDe('--copiar-acceso', null);
   const aplicar = argv.includes('--aplicar');
   const repuntar = argv.includes('--repuntar');
   const token = leerToken();
 
-  const [tunel] = await cf(token, 'GET', `/accounts/${CUENTA}/cfd_tunnel?name=${TUNEL_NOMBRE}&is_deleted=false`);
-  if (!tunel) throw new Error(`no existe el túnel ${TUNEL_NOMBRE}`);
-  const [zona] = await cf(token, 'GET', `/zones?name=${ZONA_NOMBRE}`);
-  const apps = await cf(token, 'GET', `/accounts/${CUENTA}/access/apps?per_page=100`);
-  const config = (await cf(token, 'GET', `/accounts/${CUENTA}/cfd_tunnel/${tunel.id}/configurations`)).config;
+  const [tunel] = await cf(token, 'GET', `/accounts/${pub.cuenta}/cfd_tunnel?name=${pub.tunel}&is_deleted=false`);
+  if (!tunel) throw new Error(`no existe el túnel ${pub.tunel}`);
+  const [zona] = await cf(token, 'GET', `/zones?name=${pub.zona}`);
+  const apps = await cf(token, 'GET', `/accounts/${pub.cuenta}/access/apps?per_page=100`);
+  const config = (await cf(token, 'GET', `/accounts/${pub.cuenta}/cfd_tunnel/${tunel.id}/configurations`)).config;
   const registros = await cf(token, 'GET', `/zones/${zona.id}/dns_records?name=${host}`);
 
   const ing = planificarIngress(config.ingress ?? [], host, puerto, { repuntar });
@@ -162,7 +179,7 @@ export async function main(argv = process.argv.slice(2), { log = console.log } =
     reg = { accion: registroTexto === actual ? 'ya' : actual.includes(`"${host}"`) ? 'repuntar' : 'crear' };
   }
 
-  log(`Host ${host} → http://127.0.0.1:${puerto} (túnel ${TUNEL_NOMBRE})`);
+  log(`Host ${host} → http://127.0.0.1:${puerto} (túnel ${pub.tunel})`);
   log(`  1. Access app      : ${ETIQUETA[acc.accion]} (política copiada de ${referencia})`);
   log(`  2. Ingress         : ${ETIQUETA[ing.accion]}${ing.accion === 'repuntar' ? ` (${ing.de} → http://127.0.0.1:${puerto})` : ''}`);
   log(`  3. DNS CNAME       : ${ETIQUETA[dns.accion]} → ${destino} (proxied)`);
@@ -179,21 +196,22 @@ export async function main(argv = process.argv.slice(2), { log = console.log } =
 
   if (acc.accion === 'crear') {
     const referenciaApp = apps.find((a) => a.domain === referencia);
+    if (!referencia) throw new Error('--copiar-acceso <host> es obligatorio para crear la app: de ahí se copia la política allow');
     if (!referenciaApp) throw new Error(`no encuentro la app de referencia ${referencia}`);
-    const politicas = await cf(token, 'GET', `/accounts/${CUENTA}/access/apps/${referenciaApp.id}/policies`);
+    const politicas = await cf(token, 'GET', `/accounts/${pub.cuenta}/access/apps/${referenciaApp.id}/policies`);
     const permitida = politicas.find((p) => p.decision === 'allow');
     if (!permitida) throw new Error(`${referencia} no tiene política allow que copiar`);
-    const app = await cf(token, 'POST', `/accounts/${CUENTA}/access/apps`, {
+    const app = await cf(token, 'POST', `/accounts/${pub.cuenta}/access/apps`, {
       name: host, domain: host, type: 'self_hosted', session_duration: '24h',
     });
     // Sin política la app deniega todo: si falla este paso, el host queda cerrado.
-    await cf(token, 'POST', `/accounts/${CUENTA}/access/apps/${app.id}/policies`, {
+    await cf(token, 'POST', `/accounts/${pub.cuenta}/access/apps/${app.id}/policies`, {
       name: 'Acceso del propietario', decision: 'allow', precedence: 1, include: permitida.include,
     });
     log(`✓ Access app ${host} creada con política allow`);
   }
   if (ing.accion === 'crear' || ing.accion === 'repuntar') {
-    await cf(token, 'PUT', `/accounts/${CUENTA}/cfd_tunnel/${tunel.id}/configurations`, {
+    await cf(token, 'PUT', `/accounts/${pub.cuenta}/cfd_tunnel/${tunel.id}/configurations`, {
       config: { ...config, ingress: ing.ingress },
     });
     log(ing.accion === 'crear' ? `✓ Ingress: regla ${host} añadida` : `✓ Ingress: ${host} ${ing.de} → http://127.0.0.1:${puerto}`);
