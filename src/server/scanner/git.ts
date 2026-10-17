@@ -1,18 +1,38 @@
 /* Escaner Git: lee estado de un repositorio usando solo `git` CLI + filesystem.
  * [por que] Sin libgit2 ni binarios nativos: funciona en cualquier entorno y es
  * el mismo enfoque ligero del resto del proyecto. */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { BIN_GIT } from '../../shared/binarios.js';
 import type { ArchivoLocal, CommitResumen, DetalleRepoSync, EstadoGit, LadoSync } from '../../shared/types.js';
 import { commondirDe, detectarGit, gitdirDe, type InfoGit } from './gitDeteccion.js';
 
+/* Cuanto se espera a git antes de darlo por colgado. [por que] Un repo con un
+ * hook o un filtro lento bloquea el escaneo entero; 10 s es el tope que ya
+ * tenian los dos sitios que lanzaban git. */
+const TIMEOUT_GIT_MS = 10_000;
+
 /* detectarGit se reexporta para no tocar a quien ya lo importaba de aqui
  * (workspace.ts, git.test.ts). [por que] El corte de 17AA-2 saco a
  * gitDeteccion.ts lo que se responde sin arrancar git; la superficie publica
  * de este modulo no cambia. */
 export { detectarGit, type InfoGit };
+
+/** Opciones con las que el manager lanza git: sin shell, acotado y sin ventana.
+ * [por que] El objeto estaba copiado byte a byte aqui y en gitDiffs.ts: dos
+ * sitios que deciden lo mismo y que solo coinciden por disciplina. El dia que
+ * uno suba el timeout o acote `maxBuffer`, el otro miente sobre cuanto puede
+ * tardar o cuanto puede leer. */
+export function opcionesGit(cwd: string): ExecFileSyncOptionsWithStringEncoding {
+  return {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: TIMEOUT_GIT_MS,
+    windowsHide: true,
+  };
+}
 
 /** Ejecuta git con args en un cwd, devolviendo salida limpia o null si falla.
  * Exportado para gitDiffs.js (mismo dominio, [299A-11] Bloque E). */
@@ -23,13 +43,7 @@ export { detectarGit, type InfoGit };
  * el estado cambiado a staged (289A-6). */
 export function git(ruta: string, args: string[]): string | null {
   try {
-    return execFileSync(BIN_GIT, args, {
-      cwd: ruta,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 10000,
-      windowsHide: true,
-    }).trimEnd();
+    return execFileSync(BIN_GIT, args, opcionesGit(ruta)).trimEnd();
   } catch {
     return null;
   }

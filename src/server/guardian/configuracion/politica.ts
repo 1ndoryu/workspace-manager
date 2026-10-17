@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { diffLineas, eolDe, escribirAtomico, hashDe, leerFichero, type BloqueDiff, type Eol } from '../escritura.js';
+import { esObjeto } from '../../../shared/guardas.js';
 
 export const MODOS_GUARD = ['enforce', 'observe', 'pass-through'] as const;
 export type ModoGuard = (typeof MODOS_GUARD)[number];
@@ -49,10 +50,6 @@ export type LecturaPolitica =
 export type ResultadoValidacion =
   | { ok: true; modo: ModoGuard; listas: Listas }
   | { ok: false; motivo: string };
-
-function esObjeto(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
 
 export function validarEntradas(valores: unknown, nombre: string): string[] {
   if (!Array.isArray(valores)) throw new ErrorValidacion(`${nombre} debe ser una lista`);

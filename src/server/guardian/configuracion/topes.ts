@@ -9,6 +9,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { type BloqueDiff, type Eol, diffLineas, eolDe, escribirAtomico, hashDe, leerFichero } from '../escritura.js';
+import { esObjeto } from '../../../shared/guardas.js';
 import { CLASES_TOPE, type ClaseTope, type ModoTope, extraDeOverride } from './lector.js';
 import { ErrorValidacion } from './politica.js';
 
@@ -60,10 +61,6 @@ interface PlanExtra {
   nuevo: string | null;
   cambia: boolean;
   diff: BloqueDiff | null;
-}
-
-function esObjeto(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
 function enteroEn(valor: unknown, min: number, max: number, nombre: string): number {

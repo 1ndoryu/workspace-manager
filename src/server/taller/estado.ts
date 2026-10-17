@@ -19,6 +19,7 @@ import {
 } from '../../shared/taller/conformidad.js';
 import { NOMBRE_MANAGER, rutaConfigPrivada } from '../../shared/rutas.js';
 import { BIN_SSH } from '../../shared/binarios.js';
+import { esNumero, esObjeto } from '../../shared/guardas.js';
 import { hostTaller, leerConfigRemota } from '../gate/herramientas/config.js';
 import { sesionDev } from '../../shared/taller/sesiones.js';
 import { appsAjenas } from '../registro.js';
@@ -109,9 +110,6 @@ export function leerRegistroConformidad(): RegistroConformidad {
 
 /* ---------- VPS 89 (sonda por SSH) ---------- */
 
-const esObjeto = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-const esNumero = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-
 /* Comprueba la forma antes de confiar en el JSON: una sonda desactualizada o rota no debe
  * producir hallazgos falsos ni «sano» por campos ausentes. */
 function errorFormaTaller89(x: unknown): string | null {
@@ -201,12 +199,18 @@ async function leerHistorial(): Promise<{ historial: MuestraHistorial[]; motivo?
 
 /* ---------- HTTP público (P1, sin credenciales) ---------- */
 
-async function pedirPublico(host: string): Promise<EstadoPublico['hosts'][number]> {
+/* Comprueba que un host público está detrás de Access. `fetchImpl` se inyecta
+ * igual que en vps/agente.ts (`fetchImpl?`): la comprobación decide si un dev
+ * queda expuesto, y con el `fetch` global no se puede probar sin salir a la red. */
+export async function pedirPublico(
+  host: string,
+  fetchImpl: typeof fetch = globalThis.fetch,
+): Promise<EstadoPublico['hosts'][number]> {
   if (!HOST_OK.test(host)) return { host, status: null, location: null, error: 'hostname no válido en el registro' };
   try {
     /* [por que] redirect manual: la prueba es si Cloudflare redirige a Access (Location), no
      * seguir hasta la página de login. Node no envía cookies: la petición va sin credenciales. */
-    const res = await fetch(`https://${host}/`, {
+    const res = await fetchImpl(`https://${host}/`, {
       redirect: 'manual',
       signal: AbortSignal.timeout(TIMEOUT_PUBLICO_MS),
     });
@@ -218,7 +222,7 @@ async function pedirPublico(host: string): Promise<EstadoPublico['hosts'][number
 }
 
 async function leerPublico(hosts: string[]): Promise<EstadoPublico> {
-  return { hosts: await Promise.all(hosts.map(pedirPublico)) };
+  return { hosts: await Promise.all(hosts.map((h) => pedirPublico(h))) };
 }
 
 /* ---------- Laptop (procesos, escuchas, Mutagen) ---------- */

@@ -17,12 +17,15 @@ import { calcularEdicionPlantilla, guardarEdicionPlantilla } from '../../guardia
 import { calcularTopes, guardarTopes, validarCambioTopes } from '../../guardian/configuracion/topes.js';
 import type { EntradaMantenimiento } from '../../guardian/operacion/mantenimiento.js';
 import type { Contexto } from './rutasGuardianTipos.js';
+/* [por que] `esObjeto` se importa de su dueno (shared/guardas) y no de las
+ * ayudas: la ayuda solo lo reexportaba, un paso de mas que ocultaba de donde
+ * venia la guarda. */
+import { esObjeto } from '../../../shared/guardas.js';
 import {
   booleanoDe,
   confirmarDe,
   contextoPlantilla,
   entradasLote,
-  esObjeto,
   hashesDeTexto,
   hashesTopesDe,
   proyectoElegible,

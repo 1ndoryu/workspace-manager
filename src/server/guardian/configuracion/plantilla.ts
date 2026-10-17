@@ -7,6 +7,7 @@
  * reformateo completo en vez de los cambios de verdad. */
 import { join } from 'node:path';
 import { diffLineas, eolDe, escribirAtomico, hashDe, leerFichero, type BloqueDiff, type Eol } from '../escritura.js';
+import { esObjeto } from '../../../shared/guardas.js';
 import { ErrorValidacion, LISTAS_GUARD, validarEntradas, type Listas, type Plantilla } from './politica.js';
 
 /* Nombre del fichero dentro de la config privada. [por que] La plantilla lleva la
@@ -20,10 +21,6 @@ export type LecturaPlantilla =
   | { estado: 'ok'; plantilla: Plantilla; contenido: string; hash: string };
 
 export type ResultadoPlantilla = { ok: true; plantilla: Plantilla } | { ok: false; motivo: string };
-
-function esObjeto(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
 
 /* Mismas reglas que validarPolitica: lo que no encaja se rechaza con motivo. */
 export function validarPlantilla(json: unknown): ResultadoPlantilla {

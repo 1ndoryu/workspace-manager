@@ -3,6 +3,7 @@
  * ninguna ayuda toca el disco: solo valida el cuerpo y da forma a la respuesta. */
 import type { ServerResponse } from 'node:http';
 import { json } from '../../http.js';
+import { esObjeto } from '../../../shared/guardas.js';
 import { esElegible } from '../../gate/analizador.js';
 import type { Proyecto } from '../../../shared/types.js';
 import { hashDe, type BloqueDiff } from '../../guardian/escritura.js';
@@ -21,10 +22,6 @@ import type { DependenciasGuardian } from './rutasGuardianTipos.js';
 
 /* [por que] Límite de proyectos por lote: acota el trabajo de una sola petición. */
 export const MAX_LOTE = 50;
-
-export function esObjeto(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
 
 export function textoRequerido(valor: unknown, nombre: string): string {
   if (typeof valor !== 'string' || valor === '' || valor.length > 512) {

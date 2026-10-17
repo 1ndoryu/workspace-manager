@@ -15,6 +15,7 @@ import type {
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { esNumero } from '../../shared/guardas.js';
 
 export interface OpcionesAgente {
   baseUrl: string;
@@ -72,10 +73,6 @@ interface DetallePulse {
   sitio: string;
   contenedores: FilaPulse[];
   totalContenedores: number;
-}
-
-function esNumero(v: unknown): v is number {
-  return typeof v === 'number' && Number.isFinite(v);
 }
 
 function esFila(v: unknown): v is FilaPulse {

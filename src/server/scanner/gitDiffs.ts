@@ -3,7 +3,7 @@
  * efectivas); la detección/estado/sync quedan en git.js y este módulo
  * importa de allí el helper `git`. */
 import { execFileSync } from 'node:child_process';
-import { git, MAX_ARCHIVOS_LOCALES } from './git.js';
+import { git, MAX_ARCHIVOS_LOCALES, opcionesGit } from './git.js';
 import { BIN_GIT } from '../../shared/binarios.js';
 import type { ArchivosRepo, EntradaCambio } from '../../shared/types.js';
 
@@ -17,13 +17,7 @@ const MAX_UNTRACKED_DIFF = 20;
  * diferencias (no es error); otro codigo o excepcion = fallo real. */
 function gitCodigo(ruta: string, args: string[]): { salida: string; codigo: number } | null {
   try {
-    const salida = execFileSync(BIN_GIT, args, {
-      cwd: ruta,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 10000,
-      windowsHide: true,
-    }).trimEnd();
+    const salida = execFileSync(BIN_GIT, args, opcionesGit(ruta)).trimEnd();
     return { salida, codigo: 0 };
   } catch (e) {
     const err = e as { status?: number; stdout?: unknown };
