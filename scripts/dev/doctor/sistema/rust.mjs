@@ -225,6 +225,14 @@ export function detectarRust(registro, opts = {}) {
  * (si el puerto esta ocupado, rehusa). Sin shell: execFile directo; el build
  * loguea a logs/dev-up-<id>.log (mismo destino que lanzar). */
 
+/* [por que] Desde el 2026-10-16 el portatil no lleva toolchain de Rust: ahi
+ * `cargo` no existe y esta reconstruccion no puede salir. No se retira el
+ * camino local (quien clone el repo y tenga Rust compila igual), pero cuando
+ * falla el remedio que se nombra es el taller, que es donde compila todo el
+ * mundo: `node scripts/run-cargo.mjs` en la 89. Decir "a mano" mandaba a un
+ * comando que ya no esta. */
+const REMEDIO_RUST = 'compilalo en el taller: `node scripts/run-cargo.mjs <args>` en el host remoto (o `Arranque up` de nuevo tras el build)';
+
 /* Cargo para `reconstruir`: el `cargo` de PATH puede ser un shim .cmd
  * (GlorySentinel) que CreateProcess no ejecuta directo; se prefieren los
  * cargo.exe reales conocidos y solo al final el resolver generico. */
@@ -256,7 +264,7 @@ export async function asegurarExe(id, entrada, rutaAbs) {
   try {
     cargo = await resolverCargo();
   } catch (e) {
-    return `up ${id}: exe ausente y cargo irresoluble (${e.message}): reconstruir a mano`;
+    return `up ${id}: exe ausente y cargo irresoluble (${e.message}): ${REMEDIO_RUST}`;
   }
   const dirLog = join(rutaAbs, 'logs');
   mkdirSync(dirLog, { recursive: true });
@@ -280,7 +288,7 @@ export async function asegurarExe(id, entrada, rutaAbs) {
   appendFileSync(rutaLog, `${hijo.stdout.slice(-4000)}\n${hijo.stderr.slice(-4000)}\n`);
   if (hijo.err || !existsSync(resolve(entrada._exeAusente))) {
     const causa = hijo.err ? String(hijo.err.message ?? hijo.err).slice(0, 160) : 'exe sigue ausente tras compilar';
-    return `up ${id}: reconstruccion fallo (${causa}, log ${rutaLog}): nada arrancado`;
+    return `up ${id}: reconstruccion fallo (${causa}, log ${rutaLog}): nada arrancado. ${REMEDIO_RUST}`;
   }
   entrada._avisoRegistro = null;
   entrada._exeAusente = null;

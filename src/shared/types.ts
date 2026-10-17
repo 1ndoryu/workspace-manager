@@ -429,6 +429,10 @@ export interface AnalisisVulnerabilidades {
   noAlcanzables?: HallazgoVulnerabilidad[];
   /* Detalle cuando estado === 'error' o 'noAuditable'. */
   error?: string;
+  /* El audit salió, pero no donde tocaba (el proyecto se analiza en el taller y
+   * el envío del árbol no salió, así que corrió en el portátil). No es `error`:
+   * hay resultado; es el porqué de que venga de donde viene. */
+  aviso?: string;
 }
 
 export interface SkillGlobal {

@@ -103,16 +103,19 @@ function resumenAnalisis(a: AnalisisSentinel | undefined): string | null {
 /* Resumen corto de una auditoria de dependencias para la fila del detalle. */
 function resumenAuditoria(a: AnalisisVulnerabilidades | undefined): string | null {
   if (!a) return null;
-  if (a.estado === 'error') return `auditoría falló${a.error ? `: ${a.error}` : ''}`;
-  if (a.estado === 'noAuditable') return `no auditables${a.error ? ` (${a.error})` : ''}`;
-  if (a.estado === 'ok') return `${a.gestor ?? 'deps'} sin vulnerabilidades`;
+  /* El aviso de degradacion se dice al final, para que el conteo no se lea como
+   * si viniera del taller (misma regla que el analisis de Sentinel). */
+  const conAviso = (texto: string) => (a.aviso ? `${texto} · ${a.aviso}` : texto);
+  if (a.estado === 'error') return conAviso(`auditoría falló${a.error ? `: ${a.error}` : ''}`);
+  if (a.estado === 'noAuditable') return conAviso(`no auditables${a.error ? ` (${a.error})` : ''}`);
+  if (a.estado === 'ok') return conAviso(`${a.gestor ?? 'deps'} sin vulnerabilidades`);
   const { critical, high, moderate, low } = a.resumen;
   const partes: string[] = [];
   if (critical) partes.push(`${critical} crític${critical === 1 ? 'a' : 'as'}`);
   if (high) partes.push(`${high} alta${high === 1 ? '' : 's'}`);
   if (moderate) partes.push(`${moderate} moderada${moderate === 1 ? '' : 's'}`);
   if (low) partes.push(`${low} baja${low === 1 ? '' : 's'}`);
-  return `auditoría: ${partes.join(' · ') || 'sin detalle'}`;
+  return conAviso(`auditoría: ${partes.join(' · ') || 'sin detalle'}`);
 }
 
 /* Resultado de `GET /api/proyecto/alta` (lo calcula scripts/dev/proyecto/alta.mjs). Tipo

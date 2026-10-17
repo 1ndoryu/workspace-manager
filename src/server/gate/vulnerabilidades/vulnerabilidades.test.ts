@@ -187,6 +187,21 @@ test('agregarAnalisis: suma resumen y une lockfiles', () => {
   assert.equal(r.gestor, 'cargo');
 });
 
+/* [por que] Un proyecto con dos lockfiles puede degradar en uno y no en el otro:
+ * el aviso viaja al agregado y se dice una sola vez, sin perderlo si la parte
+ * degradada ademas fallo. */
+test('agregarAnalisis: propaga el aviso de degradacion y lo deduplica', () => {
+  const texto = 'hecho en local, el taller no respondió (ssh: connect failed)';
+  const uno = parte('conHallazgos', { lockfile: 'Cargo.lock', aviso: texto });
+  const dos = parte('noAuditable', { lockfile: 'frontend/package-lock.json', aviso: texto, error: 'sin salida' });
+  const r = agregarAnalisis('x', [uno, dos]);
+  assert.equal(r.aviso, texto);
+  assert.equal(r.error, 'frontend/package-lock.json: sin salida');
+
+  /* Sin degradacion no hay aviso: el campo solo aparece cuando hay algo que decir. */
+  assert.equal('aviso' in agregarAnalisis('x', [parte('ok')]), false);
+});
+
 const TOML_EXCEPCIONES = [
   '[advisories]',
   'ignore = [',
