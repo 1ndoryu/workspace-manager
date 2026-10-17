@@ -2,7 +2,7 @@
  * de 60 s y el single-flight viven aquí para que el tablero y la ruta no relancen la
  * lectura de disco y Git en cada petición.
  * [por que] `forzar` salta el caché pero no se une a un vuelo en curso: ya es fresco. */
-import { RAIZ_AREA } from '../http.js';
+import { dirConfigPrivada, RAIZ_AREA } from '../../shared/rutas.js';
 import { snapshotArea } from '../snapshot.js';
 import { leerPlantilla } from '../guardian/configuracion/plantilla.js';
 import { CLAVE_AREA, type Hallazgo, type Omitida, type ResultadoSalud } from '../../shared/salud/salud.js';
@@ -69,7 +69,7 @@ export function saludProyectos(forzar = false): Promise<Map<string, ResultadoSal
       const datos = recogerProyectos(snapshot.proyectos, {
         ahora,
         pinArea: leerPinArea(RAIZ_AREA),
-        plantilla: leerPlantilla(RAIZ_AREA),
+        plantilla: leerPlantilla(dirConfigPrivada()),
       });
       const calculadoEn = new Date(ahora).toISOString();
       return new Map(datos.map((d) => [d.clave, ejecutar('proyecto', d.clave, COMPROBACIONES_PROYECTO, d, calculadoEn)]));

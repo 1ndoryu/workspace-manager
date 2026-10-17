@@ -11,6 +11,9 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { RAIZ_VERSIONS, checkoutSentinel, cliSentinelParaProyecto, versionRuntime, versionSentinel } from './proveedor.js';
 import type { ResolucionCli } from './proveedor.js';
+/* Raíz del área (misma fuente del server): la caché de análisis vive bajo
+ * <area>/data/cache/analisis.json, como la config del workspace. */
+import { RAIZ_AREA } from '../../shared/rutas.js';
 
 /* Tipos del JSON real que devuelve `sentinel analyze --format json` (varsense
  * `all` comparte la forma: severityCounts + entries con findings). No se
@@ -43,11 +46,6 @@ export interface ResultadoSpawn {
   commit: string | null;
   dato: ReporteJson;
 }
-
-/* Raíz del área (misma fuente del server): la caché de análisis vive bajo
- * <area>/data/cache/analisis.json, como la config del workspace. */
-import { RAIZ_AREA } from '../../shared/rutas.js';
-export { RAIZ_AREA };
 
 /* [por que] 308A-1 centraliza el runtime: los consumidores declaran
  * `sourcePathEnv: GLORY_SENTINEL_SOURCE_PATH`/`GLORY_VARSENSE_SOURCE_PATH` y

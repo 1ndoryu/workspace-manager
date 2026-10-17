@@ -29,7 +29,6 @@ import { registrarAuditoria, rutaAuditoriaPorDefecto } from './seguridad/auditor
 import { logger } from '../shared/logger.js';
 
 import { RAIZ_AREA, CARPETA_SKILLS } from '../shared/rutas.js';
-export { RAIZ_AREA, CARPETA_SKILLS };
 export const PUERTO = Number(process.env.WS_PORT) || 8787;
 
 /* [por que] resolver DIST relativo al script y no al cwd: el servidor puede

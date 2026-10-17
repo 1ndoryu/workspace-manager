@@ -1,5 +1,5 @@
-/* Plantilla de guard por stack (F11.4): `.quality-tools/guard-plantillas.json`
- * del tablero. La pestaña Guardián la aplica a cada proyecto según su
+/* Plantilla de guard por stack (F11.4): `guard-plantillas.json` de la config
+ * privada. La pestaña Guardián la aplica a cada proyecto según su
  * `stackDeProyecto` y la edita con el mismo escritor seguro que la política.
  * [por que] Se valida con las reglas de las listas (validarEntradas) para que una
  * plantilla mal escrita no llegue a sentinel.config.json. Se serializa con listas
@@ -9,7 +9,10 @@ import { join } from 'node:path';
 import { diffLineas, eolDe, escribirAtomico, hashDe, leerFichero, type BloqueDiff, type Eol } from '../escritura.js';
 import { ErrorValidacion, LISTAS_GUARD, validarEntradas, type Listas, type Plantilla } from './politica.js';
 
-export const RUTA_PLANTILLA = '.quality-tools/guard-plantillas.json';
+/* Nombre del fichero dentro de la config privada. [por que] La plantilla lleva la
+ * lista de proyectos del area, asi que no puede vivir en el repo: es la misma
+ * config privada que el registro y la ficha del taller (ver shared/rutas.ts). */
+export const NOMBRE_PLANTILLA = 'guard-plantillas.json';
 
 export type LecturaPlantilla =
   | { estado: 'ausente' }
@@ -112,8 +115,8 @@ export function serializarPlantilla(p: Plantilla, eol: Eol): string {
 }
 
 /* Lee y valida la plantilla del tablero. Symlink o carpeta → inválida. */
-export function leerPlantilla(raizArea: string): LecturaPlantilla {
-  const lectura = leerFichero(join(raizArea, RUTA_PLANTILLA));
+export function leerPlantilla(dirConfig: string): LecturaPlantilla {
+  const lectura = leerFichero(join(dirConfig, NOMBRE_PLANTILLA));
   if (lectura.estado === 'ausente') return { estado: 'ausente' };
   if (lectura.estado === 'invalido') return { estado: 'invalida', motivo: lectura.motivo, hash: null };
   let json: unknown;
@@ -137,10 +140,10 @@ type PlanPlantilla =
   | { estado: 'conflicto'; motivo: string }
   | { estado: 'error'; motivo: string };
 
-function planificar(raizArea: string, hashPrevio: string, entrada: unknown): PlanPlantilla {
-  const lectura = leerPlantilla(raizArea);
+function planificar(dirConfig: string, hashPrevio: string, entrada: unknown): PlanPlantilla {
+  const lectura = leerPlantilla(dirConfig);
   if (lectura.estado !== 'ok') {
-    return { estado: 'error', motivo: lectura.estado === 'ausente' ? `falta ${RUTA_PLANTILLA}` : lectura.motivo };
+    return { estado: 'error', motivo: lectura.estado === 'ausente' ? `falta ${NOMBRE_PLANTILLA}` : lectura.motivo };
   }
   if (lectura.hash !== hashPrevio) {
     return { estado: 'conflicto', motivo: 'la plantilla cambió desde que se leyó; recarga la página' };
@@ -157,22 +160,22 @@ function publico(p: Extract<PlanPlantilla, { estado: 'ok' }>): ResultadoEdicionP
 }
 
 /* Vista previa sin escribir. */
-export function calcularEdicionPlantilla(raizArea: string, hashPrevio: string, entrada: unknown): ResultadoEdicionPlantilla {
-  const p = planificar(raizArea, hashPrevio, entrada);
+export function calcularEdicionPlantilla(dirConfig: string, hashPrevio: string, entrada: unknown): ResultadoEdicionPlantilla {
+  const p = planificar(dirConfig, hashPrevio, entrada);
   if (p.estado !== 'ok') return p;
   return publico(p);
 }
 
 /* Escritura atómica. Relee antes de escribir: si el fichero cambió desde el
  * cálculo, no se pisa. Sin cambios, no toca el fichero. */
-export function guardarEdicionPlantilla(raizArea: string, hashPrevio: string, entrada: unknown): ResultadoEdicionPlantilla {
-  const p = planificar(raizArea, hashPrevio, entrada);
+export function guardarEdicionPlantilla(dirConfig: string, hashPrevio: string, entrada: unknown): ResultadoEdicionPlantilla {
+  const p = planificar(dirConfig, hashPrevio, entrada);
   if (p.estado !== 'ok') return p;
   if (!p.cambia) return publico(p);
-  const ahora = leerPlantilla(raizArea);
+  const ahora = leerPlantilla(dirConfig);
   if (ahora.estado !== 'ok' || ahora.hash !== p.lectura.hash) {
     return { estado: 'conflicto', motivo: 'la plantilla cambió mientras se calculaba la edición; recarga la página' };
   }
-  escribirAtomico(join(raizArea, RUTA_PLANTILLA), p.nuevo);
+  escribirAtomico(join(dirConfig, NOMBRE_PLANTILLA), p.nuevo);
   return publico(p);
 }

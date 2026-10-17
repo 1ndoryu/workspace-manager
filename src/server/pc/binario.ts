@@ -16,7 +16,7 @@ import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
-import { RAIZ_AREA } from '../http.js';
+import { RAIZ_AREA } from '../../shared/rutas.js';
 
 const execFileAsync = promisify(execFile);
 

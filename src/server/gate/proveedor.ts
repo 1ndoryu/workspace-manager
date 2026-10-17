@@ -20,6 +20,7 @@ import { proveedorDe, registrarProveedor } from '../../shared/gate/proveedores.j
 import { ESQUEMA_SENTINEL } from '../../shared/gate/sentinel.js';
 import { ESQUEMA_VARSENSE } from '../../shared/gate/varsense.js';
 import { serializarEsquema } from '../../shared/gate/serial.js';
+import { RAIZ_AREA } from '../../shared/rutas.js';
 
 /* Raíz de las versiones instaladas de GlorySentinel (AppData local). */
 export const RAIZ_VERSIONS = join(
@@ -29,7 +30,6 @@ export const RAIZ_VERSIONS = join(
 );
 
 /* Raíz del área (misma fuente que el resto del server; `WS_AREA_ROOT` gana). */
-import { RAIZ_AREA } from '../../shared/rutas.js';
 
 /* Checkout COMPARTIDO de Sentinel (<área>/.quality-tools/sentinel): el mismo
  * artefacto que ejecuta el gate de los proyectos (`quality-tools.json` →

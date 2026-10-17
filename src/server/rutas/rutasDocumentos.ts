@@ -6,7 +6,8 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { campoStr, json, leerArchivo, leerBody, RAIZ_AREA } from '../http.js';
+import { campoStr, json, leerArchivo, leerBody } from '../http.js';
+import { RAIZ_AREA } from '../../shared/rutas.js';
 import { snapshotArea } from '../snapshot.js';
 import { logger } from '../../shared/logger.js';
 

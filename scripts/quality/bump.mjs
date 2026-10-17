@@ -39,10 +39,10 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { RAIZ_AREA } from '../shared/rutas.mjs';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const MANAGER = path.resolve(AQUI, '..', '..');
-const RAIZ_AREA = path.resolve(MANAGER, '..');
 
 /* Routers: archivos que en cada consumidor son solo un puente al adapter único
  * del área. `ADAPTER` es el nombre del archivo canónico al que delegan. */

@@ -5,7 +5,7 @@
  * scan/limpieza → ejecucion, sin ciclos). */
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RAIZ_AREA } from '../http.js';
+import { RAIZ_AREA } from '../../shared/rutas.js';
 
 export type FasePc = 'area' | 'caches' | 'extern' | 'vscode' | 'chrome' | 'tmp';
 

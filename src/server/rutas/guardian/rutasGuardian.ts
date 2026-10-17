@@ -5,7 +5,8 @@
  * rutasGuardianEscritura.ts. Devuelve true si atendió la ruta, false si no es suya. */
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { json, RAIZ_AREA } from '../../http.js';
+import { json } from '../../http.js';
+import { dirConfigPrivada } from '../../../shared/rutas.js';
 import { snapshotArea } from '../../snapshot.js';
 import { esElegible } from '../../gate/analizador.js';
 import type { Proyecto } from '../../../shared/types.js';
@@ -37,7 +38,7 @@ import {
 const proyectosActuales = (): Proyecto[] => snapshotArea(false).snapshot.proyectos;
 
 export const dependenciasReales: DependenciasGuardian = {
-  raizArea: RAIZ_AREA,
+  dirConfig: dirConfigPrivada(),
   proyectos: proyectosActuales,
   proyectoPorClave: (clave) => proyectosActuales().find((p) => p.clave === clave) ?? null,
   leerActividad,
@@ -151,7 +152,7 @@ function diferenciasDe(clave: string, listas: EstadoListas, plantilla: LecturaPl
  * plantilla se lee una sola vez para todo el barrido. */
 async function estadoArea({ res, deps }: Contexto): Promise<void> {
   const proyectos = deps.proyectos();
-  const plantilla = leerPlantilla(deps.raizArea);
+  const plantilla = leerPlantilla(deps.dirConfig);
   json(res, 200, {
     total: proyectos.length,
     sinShim: [...SIN_SHIM],
@@ -164,7 +165,7 @@ async function estadoArea({ res, deps }: Contexto): Promise<void> {
 }
 
 async function verPlantilla({ res, deps }: Contexto): Promise<void> {
-  json(res, 200, leerPlantilla(deps.raizArea));
+  json(res, 200, leerPlantilla(deps.dirConfig));
 }
 
 async function verActividad({ res, url, deps }: Contexto): Promise<void> {

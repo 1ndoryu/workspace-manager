@@ -17,6 +17,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, relative } from 'node:path';
 import { huellaArbol } from './arbol/huella.js';
 import { compartirVuelo } from './vuelo.js';
+import { RAIZ_AREA } from '../../shared/rutas.js';
 import type {
   AnalisisSentinel,
   HallazgoSentinel,
@@ -25,7 +26,6 @@ import type {
   SeveridadSentinel,
 } from '../../shared/types.js';
 import {
-  RAIZ_AREA,
   checkoutVarsense,
   cliRuntime,
   correrSentinel,
