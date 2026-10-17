@@ -208,16 +208,25 @@ async function cliDeAudit(g: GestorAudit, cwd: string, remoto: boolean): Promise
  * analiza alli. */
 type Corredor = (comando: string) => Promise<Ejecucion>;
 
-/* Deja en la 89 el arbol que necesita este gestor. Devuelve false si no se pudo
- * (sin taller, taller.json ilegible o envio fallido): el audit cae a local en vez
- * de fallar, que es lo que hace el manager sin VPS. */
-async function prepararRemoto(rutaProyecto: string, gestor: GestorAudit): Promise<boolean> {
+/* Deja en la 89 el arbol que necesita este gestor. Devuelve null si se pudo, o el
+ * motivo por el que no: el audit cae a local en vez de fallar, que es lo que hace
+ * el manager sin VPS. [por que] Antes devolvia false en silencio, y un audit que
+ * corrio en el portatil se mostraba igual que uno de la 89: la degradacion tiene
+ * que decirse, no callarse. */
+async function prepararRemoto(rutaProyecto: string, gestor: GestorAudit): Promise<string | null> {
   try {
     await prepararArbolRemoto(rutaProyecto, gestor);
-    return true;
-  } catch {
-    return false;
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
   }
+}
+
+/* Aviso de degradacion, para que el panel distinga un audit de la 89 de uno que
+ * se quedo en local. Misma forma que el de `analizador.ts` para Sentinel y
+ * VarSense: `aviso`, no `error`, porque hay resultado. */
+function avisoLocal(fallo: string): string {
+  return `hecho en local, el taller no respondió (${fallo.slice(0, 120)})`;
 }
 
 /* Si el proyecto se analiza en la 89. `modoAnalisis` lee registro.json, que es
@@ -255,6 +264,7 @@ function sinDatos(
   base: Pick<AnalisisVulnerabilidades, 'clave' | 'gestor' | 'lockfile'>,
   estado: 'noAuditable' | 'error',
   error: string,
+  aviso?: string,
 ): AnalisisVulnerabilidades {
   return {
     ...base,
@@ -264,6 +274,7 @@ function sinDatos(
     hallazgos: [],
     noAlcanzables: [],
     error,
+    ...(aviso ? { aviso } : {}),
   };
 }
 
@@ -279,11 +290,13 @@ async function correrAudit(p: Proyecto, lock: LockDetectado, enLa89: boolean): P
    * asi que con `modoAnalisis === 'taller'` corre alli, igual que Sentinel y
    * VarSense. Solo viaja lo que el gestor necesita para resolver su lockfile, y si
    * el envio no se puede hacer se cae a local: el manager funciona sin VPS. */
-  const remoto = enLa89 && (await prepararRemoto(p.ruta, lock.gestor));
+  const falloRemoto = enLa89 ? await prepararRemoto(p.ruta, lock.gestor) : null;
+  const remoto = enLa89 && falloRemoto === null;
+  const aviso = falloRemoto ? avisoLocal(falloRemoto) : undefined;
 
   const cli = await cliDeAudit(lock.gestor, cwdAudit, remoto);
   if (!cli) {
-    return sinDatos(base, 'noAuditable', 'pnpm no disponible (ni pnpm ni corepack en PATH)');
+    return sinDatos(base, 'noAuditable', 'pnpm no disponible (ni pnpm ni corepack en PATH)', aviso);
   }
 
   const correr: Corredor = remoto
@@ -317,16 +330,17 @@ async function correrAudit(p: Proyecto, lock: LockDetectado, enLa89: boolean): P
       resumen,
       hallazgos: hallazgos.slice(0, 300).map((h) => ({ ...h, origen: lock.lockfile })),
       noAlcanzables: noAlcanzables.map((h) => ({ ...h, origen: lock.lockfile })),
+      ...(aviso ? { aviso } : {}),
     };
   } catch (err) {
     /* [por que] cargo-audit ausente produce stdout vacio o no-JSON. Se marca
      * 'noAuditable' (visible sin problema) como limitacion documentada. */
     if (lock.gestor === 'cargo') {
       const donde = remoto ? 'en la 89' : 'en local';
-      return sinDatos(base, 'noAuditable', `cargo-audit no disponible ${donde} (no instalado o sin salida)`);
+      return sinDatos(base, 'noAuditable', `cargo-audit no disponible ${donde} (no instalado o sin salida)`, aviso);
     }
     const msg = stdout.trim() === '' ? 'sin salida del CLI' : err instanceof Error ? err.message : 'audit fallo';
-    return sinDatos(base, 'error', `audit fallo: ${msg.slice(0, 120)}`);
+    return sinDatos(base, 'error', `audit fallo: ${msg.slice(0, 120)}`, aviso);
   }
 }
 
@@ -345,11 +359,15 @@ export function agregarAnalisis(
   const hallazgos: HallazgoVulnerabilidad[] = [];
   const noAlcanzables: HallazgoVulnerabilidad[] = [];
   const avisos: string[] = [];
+  /* Un proyecto con varios lockfile puede degradar en unos y no en otros: el
+   * aviso se deduplica para no repetir la misma frase por cada parte. */
+  const degradados = new Set<string>();
   for (const p of partes) {
     for (const s of SEVERIDADES) resumen[s] += p.resumen[s];
     hallazgos.push(...p.hallazgos);
     noAlcanzables.push(...(p.noAlcanzables ?? []));
     if (p.error) avisos.push(`${p.lockfile}: ${p.error}`);
+    if (p.aviso) degradados.add(p.aviso);
   }
   const estados = partes.map((p) => p.estado);
   const estado: AnalisisVulnerabilidades['estado'] = estados.includes('conHallazgos')
@@ -369,6 +387,7 @@ export function agregarAnalisis(
     hallazgos: hallazgos.slice(0, 300),
     noAlcanzables,
     ...(avisos.length ? { error: avisos.join('; ').slice(0, 300) } : {}),
+    ...(degradados.size ? { aviso: [...degradados].join('; ').slice(0, 300) } : {}),
   };
 }
 
