@@ -8,7 +8,7 @@
  * hallazgos). Este script consume ambos endpoints con el mismo mapeo y reporta
  * una tabla única por proyecto:
  *
- *   node scripts/quality/agregado-8787.mjs [--solo-mision] [--json]
+ *   node scripts/quality/auditoria/agregado-8787.mjs [--solo-mision] [--json]
  *
  * Endpoints (server 8787, proyecto workspace-manager):
  *   GET  /api/gate/analisis        → { total: <nº proyectos>, analisis: { clave: entrada } }
@@ -26,7 +26,7 @@
  *      lista los ruleId de cada hallazgo para cruzar con los baselines del plan.
  */
 import { readFileSync } from 'node:fs' ;
-import { rutaConfigPrivada } from '../shared/rutas.mjs' ;
+import { rutaConfigPrivada } from '../../shared/rutas.mjs' ;
 
 const BASE = process.env.AGREGADO_BASE || 'http://127.0.0.1:8787';
 
