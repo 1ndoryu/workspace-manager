@@ -26,10 +26,16 @@ function rutaPersistencia(): string {
 const cache = new Map<string, EntradaCache>();
 
 /* Carga la cache persistida al arranque (arranque instantaneo, y el tablero no
- * pierde el conteo al reiniciar). */
+ * pierde el conteo al reiniciar).
+ * [por que se filtra al cargar] `esCacheable` gobierna lo que se ESCRIBE; sin
+ * filtrar aqui, un fichero escrito por una version anterior de la regla seguiria
+ * sirviendo sus entradas —que es exactamente como un `noAuditable` viejo podia
+ * sobrevivir al cambio de criterio. */
 try {
   const obj = JSON.parse(readFileSync(rutaPersistencia(), 'utf8')) as Record<string, EntradaCache>;
-  for (const k of Object.keys(obj)) cache.set(k, obj[k]);
+  for (const k of Object.keys(obj)) {
+    if (esCacheable(obj[k]?.dato)) cache.set(k, obj[k]);
+  }
 } catch {
   /* sin cache persistido: arranca vacio, no es error. */
 }
@@ -46,14 +52,23 @@ function persistir(): void {
   }
 }
 
-/* [por que] Solo un análisis válido entra en la caché. `error` es transitorio
- * (cargo-audit ausente, timeout, la 89 ocupada): guardarlo servía «error» en el
- * tablero hasta el siguiente forzado, y encima el conteo caía a cero sin avisar.
- * `noAuditable` SÍ se guarda: es un hecho estable del proyecto (no tiene lockfile),
- * y re-detectarlo en cada arranque es trabajo repetido. Función pura: se testea
- * sin lanzar ninguna herramienta. */
+/* [por que] Solo entra en la caché una MEDICIÓN: `conHallazgos` u `ok`. Ni
+ * `error` ni `noAuditable`.
+ *
+ * `error` es transitorio (timeout, la 89 ocupada) y guardarlo servía «error»
+ * hasta el siguiente forzado.
+ *
+ * `noAuditable` lo parecía estable y no lo es: el único caso estructural —sin
+ * lockfile— sale antes de llegar aquí (`vulnerabilidades.ts`, el `return` de
+ * `locks.length === 0`), así que **todo `noAuditable` que llega a guardarse es
+ * un fallo de medición**: `cargo-audit`/`pnpm` ausente, o el audit remoto que no
+ * respondió. Congelarlo dejaba el proyecto en «0 problemas» hasta el día
+ * siguiente —el día va en la clave de frescura—, que es justo el silencio que
+ * este almacén existe para evitar. Se prefiere volver a preguntar.
+ *
+ * Función pura: se testea sin lanzar ninguna herramienta. */
 export function esCacheable(dato: AnalisisVulnerabilidades): boolean {
-  return dato.estado !== 'error';
+  return dato.estado === 'conHallazgos' || dato.estado === 'ok';
 }
 
 /** Resultado guardado con esa misma clave de frescura, o `null`. */

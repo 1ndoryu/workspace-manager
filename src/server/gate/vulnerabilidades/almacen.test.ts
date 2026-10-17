@@ -18,11 +18,15 @@ describe('gate: caché de vulnerabilidades', () => {
     assert.equal(esCacheable(dato('ok')), true);
   });
 
-  it('guarda noAuditable: es un hecho estable del proyecto, y re-detectarlo en cada arranque es trabajo repetido', () => {
-    assert.equal(esCacheable(dato('noAuditable')), true);
-  });
-
   it('NO guarda error: es transitorio y servirlo dejaba el conteo en cero sin avisar', () => {
     assert.equal(esCacheable(dato('error')), false);
+  });
+
+  /* [por que] El caso estructural (sin lockfile) sale antes de llegar aquí, así
+   * que un `noAuditable` guardado es siempre un fallo de medición: `cargo-audit`
+   * ausente, o el audit remoto que no respondió. Congelarlo servía «0 problemas»
+   * hasta el día siguiente, que es el silencio que este almacén evita. */
+  it('NO guarda noAuditable: es un fallo de medición, no un hecho del proyecto', () => {
+    assert.equal(esCacheable(dato('noAuditable')), false);
   });
 });
