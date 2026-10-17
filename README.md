@@ -212,3 +212,7 @@ Sentinel y VarSense son proyectos aparte. `quality-tools.json` declara de dónde
 se clonan y en qué commit; `npm run quality:setup` los provisiona en
 `.quality-tools/`. Si no están, el manager funciona igual: simplemente no hay
 hallazgos que mostrar.
+
+## Licencia
+
+GPL-3.0. El texto completo está en [LICENSE](LICENSE).
