@@ -68,7 +68,7 @@ export function saludProyectos(forzar = false): Promise<Map<string, ResultadoSal
       const { snapshot } = snapshotArea(false);
       const datos = recogerProyectos(snapshot.proyectos, {
         ahora,
-        pinArea: leerPinArea(RAIZ_AREA),
+        pinArea: leerPinArea(),
         plantilla: leerPlantilla(dirConfigPrivada()),
       });
       const calculadoEn = new Date(ahora).toISOString();
@@ -84,7 +84,7 @@ export function saludArea(forzar = false): Promise<ResultadoSalud> {
     async () => {
       const ahora = Date.now();
       const { snapshot } = snapshotArea(false);
-      const datos = await recogerArea(snapshot.proyectos, RAIZ_AREA, leerPinArea(RAIZ_AREA), ahora);
+      const datos = await recogerArea(snapshot.proyectos, RAIZ_AREA, leerPinArea(), ahora);
       return ejecutar('area', CLAVE_AREA, COMPROBACIONES_AREA, datos, new Date(ahora).toISOString());
     },
     forzar,

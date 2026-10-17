@@ -17,7 +17,7 @@ import {
   type MuestraHistorial,
   type RegistroConformidad,
 } from '../../shared/taller/conformidad.js';
-import { rutaConfigPrivada } from '../../shared/rutas.js';
+import { NOMBRE_MANAGER, rutaConfigPrivada } from '../../shared/rutas.js';
 import { hostTaller } from '../gate/remoto.js';
 import { sesionDev } from '../../shared/taller/sesiones.js';
 
@@ -318,6 +318,7 @@ async function calcular(): Promise<EstadoTallerCompleto> {
     local,
     registro,
     hostTaller: hostTaller(),
+    nombreMando: NOMBRE_MANAGER,
   };
   return {
     tomadoEn: new Date().toISOString(),

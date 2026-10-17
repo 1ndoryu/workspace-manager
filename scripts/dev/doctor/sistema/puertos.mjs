@@ -7,6 +7,7 @@ import { isAbsolute, join, normalize, resolve } from 'node:path';
 
 import { RAIZ_REPO } from '../base.mjs';
 import { normalizarRuta } from './procesos.mjs';
+import { PUERTO_API } from '../../../shared/puertos.mjs';
 
 /* --- Modo del proyecto (16AA-18) y entrada remota ---------------------------
  * [por que] Viven aqui, en la base, y no en remoto.mjs: el doctor tambien los
@@ -350,10 +351,10 @@ export function sondear(puerto, rutaRecurso, esperaJson, timeoutMs, dominio) {
   // verifica que el servicio sirve ese nombre virtual. Sin dominio, como antes.
   // [por que 2] Vite por defecto escucha solo en ::1 (IPv6): si 127.0.0.1
   // rehusa la conexion se reintenta contra ::1 con la misma cabecera Host.
-  // [por que 3] Host con puerto: la guardia del manager (8787) exige host:puerto, como un navegador.
+  // [por que 3] Host con puerto: la guardia del manager exige host:puerto, como un navegador.
   const cabeceras = dominio && dominio !== '127.0.0.1' ? { Host: `${dominio}:${puerto}` } : undefined;
-  // [por que] El token solo va al manager (8787): sondear sirve a todos los puertos y no debe filtrarlo a otros servicios.
-  const conAuth = puerto === 8787 ? cabeceraAutorizacion() : undefined;
+  // [por que] El token solo va al manager: sondear sirve a todos los puertos y no debe filtrarlo a otros servicios.
+  const conAuth = puerto === PUERTO_API ? cabeceraAutorizacion() : undefined;
   const intentar = (host) =>
     new Promise((resolveP) => {
       const req = http.get(

@@ -11,19 +11,20 @@
  * aunque falle un check. Exit 0 = todo pasa. */
 import { execFile, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rutaConfigPrivada } from '../shared/rutas.mjs';
+import { NOMBRE_MANAGER, RAIZ_REPO, raizTemporales, rutaConfigPrivada } from '../shared/rutas.mjs';
 import { cabeceraAutorizacion } from './token.mjs';
+import { URL_API } from '../shared/puertos.mjs';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const DOCTOR = join(DIR, 'doctor.mjs');
 const REGISTRO = rutaConfigPrivada('registro.json');
-const API = 'http://127.0.0.1:8787';
+const API = URL_API;
 
 function getJson(url, cabeceras) {
   return new Promise((res, rej) => {
@@ -93,13 +94,13 @@ async function main() {
     if (!cond) fallos.push(nombre);
   };
 
-  // [por que] Fuera del try de abajo: un token ausente debe salir tal cual, no como "server 8787 caido".
+  // [por que] Fuera del try de abajo: un token ausente debe salir tal cual, no como "server caido".
   const cabeceras = cabeceraAutorizacion();
   let snapshot;
   try {
     snapshot = await getJson(`${API}/api/workspace`, cabeceras);
   } catch (e) {
-    console.error(`FAIL snapshot: server 8787 caido o sin respuesta (${String(e)})`);
+    console.error(`FAIL snapshot: server ${API} caido o sin respuesta (${String(e)})`);
     return 1;
   }
   const nSnap = snapshot?.proyectos?.length ?? 0;
@@ -180,29 +181,44 @@ async function main() {
 
     /* Regresion 06AA-1: una entrada podrida (exe ausente, el caso real que
      * dejo al mando ciego) jamas bloquea el global. Caja negra con el
-     * registro real: se rompe el boton de glory-pulse (backup+restore en
-     * finally) y el doctor debe seguir clasificando (exit != 1, sin
-     * errorSensor) con pulse en deriva y el resto intacto. */
+     * registro real: se rompe el boton de UN proyecto con boton (backup+restore
+     * en finally) y el doctor debe seguir clasificando (exit != 1, sin
+     * errorSensor) con ese en deriva y el resto intacto.
+     * [por que] Ni el proyecto victima ni el tablero se nombran aqui: la victima
+     * es el primero con boton que no sea el propio tablero (reconocido por su
+     * ruta, no por su nombre) y la ruta podrida sale de `raizTemporales`, que es
+     * donde vive lo temporal en cada plataforma. Con nombres incrustados esta
+     * prueba solo valia para nuestra area. */
     const backupPodrida = readFileSync(REGISTRO, 'utf8');
     let podridaOk = false;
     let detallePodrida = '';
     try {
       const roto = JSON.parse(backupPodrida);
-      const gp = roto.proyectos.find((p) => p.id === 'glory-pulse');
-      gp.boton = [['C:\\tmp\\wm-trampa-noexiste\\pulse.exe']];
-      delete gp.reconstruir;
+      const claveDe = (p) => basename(resolve(RAIZ_REPO, p.ruta));
+      const victima = roto.proyectos.find(
+        (p) =>
+          Array.isArray(p.boton) &&
+          p.boton.length > 0 &&
+          claveDe(p) !== NOMBRE_MANAGER &&
+          existsSync(resolve(RAIZ_REPO, p.ruta)),
+      );
+      if (!victima) throw new Error('no hay proyecto con boton que no sea el tablero');
+      victima.boton = [[join(raizTemporales(), 'wm-trampa-noexiste', 'no-existe.exe')]];
+      delete victima.reconstruir;
       writeFileSync(REGISTRO, JSON.stringify(roto));
       const conPodrida = await correrDoctor(tmp);
-      const gpEstado = conPodrida.informe.proyectos.find((p) => p.clave === 'glory-pulse');
-      const wmEstado = conPodrida.informe.proyectos.find((p) => p.clave === 'workspace-manager');
-      const wmBase = base.informe.proyectos.find((p) => p.clave === 'workspace-manager')?.estado;
+      const vEstado = conPodrida.informe.proyectos.find((p) => p.clave === claveDe(victima));
+      const wmEstado = conPodrida.informe.proyectos.find((p) => p.clave === NOMBRE_MANAGER);
+      const wmBase = base.informe.proyectos.find((p) => p.clave === NOMBRE_MANAGER)?.estado;
       podridaOk =
         conPodrida.codigo !== 1 &&
         !conPodrida.informe.errorSensor &&
-        gpEstado?.estado === 'deriva' &&
-        /exe inexistente|fuera de allowlist/.test(gpEstado?.motivo ?? '') &&
+        vEstado?.estado === 'deriva' &&
+        /exe inexistente|fuera de allowlist/.test(vEstado?.motivo ?? '') &&
         wmEstado?.estado === wmBase;
-      detallePodrida = `exit ${conPodrida.codigo}, pulse=${gpEstado?.estado} (${gpEstado?.motivo ?? '?'}) wm=${wmEstado?.estado}`;
+      detallePodrida = `exit ${conPodrida.codigo}, ${claveDe(victima)}=${vEstado?.estado} (${vEstado?.motivo ?? '?'}) tablero=${wmEstado?.estado}`;
+    } catch (e) {
+      detallePodrida = String(e);
     } finally {
       writeFileSync(REGISTRO, backupPodrida);
     }

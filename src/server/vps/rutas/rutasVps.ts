@@ -6,9 +6,10 @@
  * true si atendio. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { json } from '../../http.js';
+import { RAIZ_AREA } from '../../../shared/rutas.js';
+import { papelDeArea } from '../../../shared/area.js';
 import type { VpsAviso, VpsConfig, VpsDetalle, VpsPieza, VpsSitio } from '../../../shared/types.js';
 import { agenteProd, enriquecerConSitios, type InfoSitio } from '../agente.js';
 import { historialProd } from '../historial.js';
@@ -17,6 +18,7 @@ import {
   dbStatsJson,
   diagnoseJson,
   eventosJson,
+  dondeBuscarBinario,
   inspectJson,
   listarSitios,
   logs,
@@ -44,11 +46,14 @@ const MAPA_SITIOS_MS = 600_000;
  * campos: los secretos del archivo jamas salen de aqui. La ruta se resuelve
  * desde este archivo (no desde cwd: el backend puede arrancar en otra
  * carpeta y la semilla fallaba en silencio). */
-const RAIZ_REPO = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 function sembrarMapaSettings(): void {
+  /* [por que] El gestor de despliegues es configuracion nuestra: su carpeta
+   * sale de `config/area.json`, no de un literal. Sin papel declarado esta
+   * semilla no existe y queda solo la variable de entorno (que ya gana). */
+  const despliegue = papelDeArea('despliegue');
   const candidatos = [
     (process.env.COOLIFY_MANAGER_CONFIG ?? '').trim(),
-    join(RAIZ_REPO, '..', 'coolify-manager-rs', 'config', 'settings.json'),
+    despliegue ? join(RAIZ_AREA, despliegue, 'config', 'settings.json') : '',
   ].filter((r) => r && existsSync(r));
   for (const ruta of candidatos) {
     try {
@@ -189,7 +194,7 @@ export async function manejarRutasVps(
 
   if (ruta === '/api/vps/sitios') {
     if (!rutaBinario()) {
-      json(res, 503, { error: 'sin-binario', ayuda: 'COOLIFY_MANAGER_BIN o C:\\Users\\Owner\\bin' });
+      json(res, 503, { error: 'sin-binario', ayuda: dondeBuscarBinario() });
       return true;
     }
     const [base, detalle] = await Promise.all([

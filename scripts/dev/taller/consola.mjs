@@ -9,11 +9,12 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cabeceraAutorizacion } from '../token.mjs';
-const API = process.env.WM_API ?? 'http://127.0.0.1:8787';
+import { URL_API } from '../../shared/puertos.mjs';
+const API = URL_API;
 
 function ayuda() {
   console.log(`uso: consola [--forzar] [--categoria <cat>] [--proyecto <clave>] [--json]
-  sin backend 8787: rehusa (exit 1), no inventa numeros`);
+  sin backend (${URL_API}): rehusa (exit 1), no inventa numeros`);
 }
 
 export async function problemas(argv) {
@@ -29,13 +30,13 @@ export async function problemas(argv) {
   const soloProyecto = iProy >= 0 ? args[iProy + 1] : undefined;
   const comoJson = args.includes('--json');
 
-  // [por que] Fuera del try: un token ausente debe salir tal cual, no como "backend 8787 sin respuesta".
+  // [por que] Fuera del try: un token ausente debe salir tal cual, no como "backend sin respuesta".
   const cabeceras = cabeceraAutorizacion();
   let resp;
   try {
     resp = await fetch(`${API}/api/consola/problemas${forzar ? '?forzar=1' : ''}`, { headers: cabeceras });
   } catch (e) {
-    console.error(`consola: backend 8787 sin respuesta (${e?.message ?? e})`);
+    console.error(`consola: backend ${URL_API} sin respuesta (${e?.message ?? e})`);
     return 1;
   }
   if (!resp.ok) {

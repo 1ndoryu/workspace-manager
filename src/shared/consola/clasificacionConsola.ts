@@ -201,7 +201,9 @@ export function problemasDevDe(
   devError: string | null,
 ): Problema | null {
   const entradas: Entrada[] = [];
-  const esMando = p.id === 'workspace-manager';
+  /* [por que] `esMando` lo marca el servidor por ruta: este modulo es
+   * compartido con el cliente y no puede mirar el sistema de archivos. */
+  const esMando = p.esMando === true;
   if (devError && esMando) {
     entradas.push({ categoria: 'dev', motivo: `dev: vigilancia no disponible: ${devError}`, seriedad: 'error' });
   }

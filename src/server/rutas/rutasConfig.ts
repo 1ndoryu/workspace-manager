@@ -6,6 +6,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { campoStr, json, leerBody } from '../http.js';
 import { RAIZ_AREA } from '../../shared/rutas.js';
+import { avisoSinPapel, papelDeArea } from '../../shared/area.js';
 import { snapshotArea } from '../snapshot.js';
 import { cambiarIgnorado, cambiarSinGate, guardarConfigScan, leerConfigArea } from '../configArea.js';
 import { actualizarSnapshot } from '../cache.js';
@@ -74,8 +75,16 @@ export async function manejarRutasConfig(
     const body = (await leerBody(req)) as { op?: unknown; clave?: unknown };
     const op = body.op;
     const clave = campoStr(body, 'clave', '');
-    if ((op !== 'eximir' && op !== 'quitar') || clave !== 'glory-sentinel') {
-      json(res, 400, { error: 'solo se puede eximir la clave real glory-sentinel' });
+    /* [por que] El centinela es configuracion nuestra (`config/area.json`), no
+     * un nombre del producto. Sin papel declarado se rechaza todo: la guarda
+     * falla cerrada y dice como declararlo. */
+    const centinela = papelDeArea('sentinel');
+    if (!centinela) {
+      json(res, 503, { error: avisoSinPapel('sentinel') });
+      return true;
+    }
+    if ((op !== 'eximir' && op !== 'quitar') || clave !== centinela) {
+      json(res, 400, { error: `solo se puede eximir la clave real ${centinela}` });
       return true;
     }
     try {

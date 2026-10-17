@@ -1,7 +1,11 @@
 /* Texto canonico del router que se propaga a los consumidores de familia A. */
 
+import path from 'node:path';
+import { MANAGER } from './ajustes.mjs';
+
 /* Texto EXACTO del router. Vive aquí y solo aquí: es lo que se propaga a todos
  * los consumidores, así que no puede divergir por copia-pega. */
+
 export function textoRouter({ archivo, prefijo }) {
   return `#!/usr/bin/env node
 /* ${archivo} (router) — NO contiene lógica del gate: delega en el adapter único
@@ -14,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ADAPTER = '${archivo}';
-const RELATIVO = path.join('workspace-manager', 'scripts', 'quality', ADAPTER);
+const RELATIVO = path.join(${JSON.stringify(path.basename(MANAGER))}, 'scripts', 'quality', ADAPTER);
 import { RAIZ_AREA as AREA_POR_DEFECTO } from '../shared/rutas.mjs';
 
 /* Resuelve la raíz del área sin depender de una ruta absoluta frágil: variable

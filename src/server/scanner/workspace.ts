@@ -9,6 +9,7 @@ import { estadoGate, diagnosticarGate } from './gate.js';
 import { resumenRoadmap } from './roadmap.js';
 import { resumenAgents, agentesGlobales } from './agents.js';
 import { leerConfigArea } from '../configArea.js';
+import { RAIZ_REPO } from '../../shared/rutas.js';
 import type { EstadoGate, Proyecto, SnapshotWorkspace } from '../../shared/types.js';
 
 /* Carpetas que nunca se tratan como proyecto */
@@ -144,6 +145,11 @@ function proyectoCompleto(
     esGit: true,
     tipo,
     padre: padre ?? undefined,
+    /* [por que] Quien es el tablero se decide por RUTA, no por nombre: el id de
+     * la carpeta es cosa de nuestra config (puede llamarse de otra forma, o ser
+     * la réplica de la 89). Lo consume la clasificación compartida, que no
+     * puede mirar rutas por sí misma (no tiene Node). */
+    esMando: normalize(ruta).toLowerCase() === normalize(RAIZ_REPO).toLowerCase(),
     git: estadoGit(ruta) ?? undefined,
     gate: gateReal,
     gateProblemas: diagnosticarGate(ruta),

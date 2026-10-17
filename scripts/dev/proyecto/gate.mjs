@@ -4,7 +4,7 @@
  *   comandos <id>        imprime el contrato de comandos del proyecto
  * [por que] Sustituye los dos pasos manuales de AGENTS.md §6 (GET al empezar,
  * POST al cerrar y comparar a ojo) y evita releer package.json en cada tarea.
- * El análisis lo hace el backend (8787) y lo reutiliza si el árbol de trabajo no
+ * El análisis lo hace el backend y lo reutiliza si el árbol de trabajo no
  * cambió desde el último del gate (huella, 13AA-3); --forzar lo salta; el snapshot vive en data/gate-inicio/,
  * ignorado por Git (data/*). Los parsers y formateadores son puros y se exportan
  * para test; la red y el disco quedan en `gate` y `comandos`. */
@@ -13,9 +13,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rutaConfigPrivada } from '../../shared/rutas.mjs';
 import { cabeceraAutorizacion } from '../token.mjs';
+import { URL_API } from '../../shared/puertos.mjs';
 
 export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const API = process.env.WM_API ?? 'http://127.0.0.1:8787';
+const API = URL_API;
 export const CLAVES_COMANDOS = ['gate', 'test-archivo', 'typecheck', 'build'];
 const USO = `uso:
   gate <id> --inicio     guarda la línea base de hallazgos antes de la tarea

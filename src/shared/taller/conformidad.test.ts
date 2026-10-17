@@ -31,6 +31,7 @@ const T89_CONFORME: EstadoTaller89 = {
 
 const CONFORME: EntradaConformidad = {
   t89: T89_CONFORME,
+  nombreMando: 'workspace-manager',
   publico: {
     hosts: [{
       host: 'mn-dev.wandori.us',
@@ -222,6 +223,19 @@ describe('conformidad del taller: local (L1, L2, L3, A10)', () => {
       ] },
     });
     assert.ok(!propio.some((h) => h.id === 'L1'));
+  });
+
+  it('L1: reconoce el vite del tablero aunque su carpeta se llame de otra forma', () => {
+    /* El nombre no está incrustado: lo dice la entrada. Un clon con otro nombre
+     * de carpeta (o la réplica de la 89) se tomaba por un vite ajeno. */
+    const clon = evaluarConformidad({
+      ...CONFORME,
+      nombreMando: 'mi-tablero',
+      local: { ...CONFORME.local, procesos: [
+        { pid: 11, nombre: 'node.exe', cmd: 'node C:\\area\\mi-tablero\\node_modules\\vite\\bin\\vite.js' },
+      ] },
+    });
+    assert.ok(!clon.some((h) => h.id === 'L1'));
   });
 
   it('L1: varios opencode-delegate duplicados', () => {

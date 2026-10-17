@@ -36,7 +36,7 @@
       "nextest",
       "run"
     ],
-    "pgDumpLocal": "C:/Program Files/PostgreSQL/18/bin/pg_dump.exe"
+    "pgDumpLocal": "<RUTA_PG_DUMP>"
   },
   "proyectos": {
     "proyecto-1": {

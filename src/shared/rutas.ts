@@ -10,13 +10,20 @@
  * subir dos niveles desde `shared/` da la raíz del repo. */
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 
 /** Raíz del repo de workspace-manager (donde está `package.json`). */
 export const RAIZ_REPO = join(AQUI, '..', '..');
+
+/* Nombre del propio tablero: el de su carpeta.
+ * [por qué] Tres sitios decidían con el literal `'workspace-manager'` (¿este
+ * proyecto es el tablero?, ¿este proceso vite es suyo?). Un clon con otro
+ * nombre de carpeta —o la réplica de la 89, que se llama como el id— dejaba de
+ * reconocerse. Se deriva, y `WS_NOMBRE` lo pisa si hiciera falta. */
+export const NOMBRE_MANAGER = process.env.WS_NOMBRE || basename(RAIZ_REPO);
 
 /* [por que] El área es el directorio que contiene los proyectos; por defecto
  * el repo cuelga de ella. Quien clone el manager suelto pone WS_AREA_ROOT. */

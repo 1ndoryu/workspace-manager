@@ -13,7 +13,8 @@ import { rutaConfigPrivada } from '../../shared/rutas.mjs';
 
 /* Tablero y opencode-propio: nunca se cuentan como procesos propios del proyecto
  * (AGENTS §5 y §9.2). */
-export const PUERTOS_PROTEGIDOS = [5174, 5175, 8787];
+import { PUERTOS_PROTEGIDOS } from '../../shared/puertos.mjs';
+export { PUERTOS_PROTEGIDOS };
 
 const ok = (nombre, detalle) => ({ nombre, ok: true, detalle });
 const fallo = (nombre, detalle, accion, lineas = []) => ({ nombre, ok: false, detalle, accion, lineas });

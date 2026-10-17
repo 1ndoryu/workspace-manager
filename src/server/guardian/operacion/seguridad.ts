@@ -6,9 +6,11 @@
  * curl) también se rechaza: la pestaña siempre lo envía. */
 import type { IncomingHttpHeaders } from 'node:http';
 
-/* Front de Vite (5175), backend (8787) y preview (4173). Puertos explícitos: el
- * puerto 5174 es de opencode-propio y nunca figura aquí. */
-export const PUERTOS_TABLERO: readonly number[] = [5175, 8787, 4173];
+/* Puertos del tablero: front, backend y preview. La lista vive en
+ * `shared/puertos.ts` (dueño único del dato); el puerto de opencode-propio no
+ * figura ahí a propósito, porque no es del tablero. */
+import { PUERTOS_TABLERO } from '../../../shared/puertos.js';
+export { PUERTOS_TABLERO };
 
 /* [por que] <nombre>.localhost (p. ej. workspace.localhost, dominio del registro) entra
  * porque el navegador lo resuelve solo a loopback y ningun DNS remoto puede redirigirlo:

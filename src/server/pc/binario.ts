@@ -16,16 +16,27 @@ import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
-import { RAIZ_AREA } from '../../shared/rutas.js';
+import { RAIZ_AREA, RAIZ_REPO } from '../../shared/rutas.js';
+import { avisoSinPapel, papelDeArea } from '../../shared/area.js';
 
 const execFileAsync = promisify(execFile);
 
-export const DIR_LIMPIADOR = join(RAIZ_AREA, 'limpiador-pc');
+/* El limpiador es un proyecto NUESTRO (otro repo del area), asi que su nombre
+ * sale de la config (`config/area.json`). [por que] Estaba incrustado: en un
+ * area con otro limpiador —o sin ninguno— esta pestaña apuntaba a la nada. */
+const ROL_LIMPIADOR = papelDeArea('limpiador');
+/* Sin papel declarado no hay fuente que compilar: se deja en null y los puntos
+ * de entrada lo dicen. Nunca se resuelve a una ruta relativa, que seria peor
+ * que no tenerla (leeria un Cargo.toml del cwd). */
+const DIR_LIMPIADOR = ROL_LIMPIADOR ? join(RAIZ_AREA, ROL_LIMPIADOR) : null;
+/* [por que] `data/` es de ESTE repo, asi que se pide desde RAIZ_REPO y no como
+ * `<area>/workspace-manager/data`: el nombre del proyecto estaba incrustado y
+ * la ruta solo valia si el area era la carpeta padre del repo. */
 export const BIN_PC =
-  process.env.LIMPIADOR_BIN || join(RAIZ_AREA, 'workspace-manager', 'data', 'bin', 'limpiador-pc.exe');
+  process.env.LIMPIADOR_BIN || join(RAIZ_REPO, 'data', 'bin', `${ROL_LIMPIADOR ?? 'limpiador'}.exe`);
 /* Huella de la fuente que produjo el binario actual. Si falta (binario de antes
  * de este flujo) `actualizado` es false y se reconstruye una vez. */
-const HUELLA_PC = join(dirname(BIN_PC), 'limpiador-pc.huella.json');
+const HUELLA_PC = join(dirname(BIN_PC), `${ROL_LIMPIADOR ?? 'limpiador'}.huella.json`);
 /* Tiempo maximo del build remoto: incluye envio de fuente + cargo-xwin en la 89. */
 const TIMEOUT_MS = 600000;
 
@@ -39,6 +50,7 @@ export interface EstadoBinario {
 
 /* Version declarada en limpiador-pc/Cargo.toml. null si no se puede leer. */
 export function versionFuente(): string | null {
+  if (!DIR_LIMPIADOR) return null;
   try {
     const texto = readFileSync(join(DIR_LIMPIADOR, 'Cargo.toml'), 'utf8');
     const m = texto.match(/^version\s*=\s*"([^"]+)"/m);
@@ -65,6 +77,7 @@ async function versionBinaria(bin: string): Promise<string | null> {
 
 /* Ficheros que definen el binario: manifiesto, lock y todo el codigo Rust. */
 function archivosFuente(): string[] {
+  if (!DIR_LIMPIADOR) return [];
   const salida: string[] = [];
   const recorrer = (dir: string): void => {
     let entradas;
@@ -89,6 +102,7 @@ function archivosFuente(): string[] {
  * normalizar, cualquier operacion de git disparaba una recompilacion entera.
  * null si la fuente no es legible (entonces no se puede afirmar que este al dia). */
 export function huellaFuente(): string | null {
+  if (!DIR_LIMPIADOR) return null;
   try {
     const h = createHash('sha256');
     const ficheros = [
@@ -147,6 +161,7 @@ export async function estadoBinario(): Promise<EstadoBinario> {
 export function reconstruirBinario(): Promise<string> {
   if (vueloReconstruccion) return vueloReconstruccion;
   vueloReconstruccion = (async () => {
+    if (!DIR_LIMPIADOR) throw new Error(avisoSinPapel('limpiador'));
     const guion = join(DIR_LIMPIADOR, 'scripts', 'build-windows.mjs');
     /* Se ejecuta con el node actual, no con `node` del PATH: el server puede
      * arrancar sin el PATH del usuario. */
@@ -157,7 +172,7 @@ export function reconstruirBinario(): Promise<string> {
       maxBuffer: 32 * 1024 * 1024,
     });
     const huella = huellaFuente();
-    if (huella === null) throw new Error('no se pudo calcular la huella de limpiador-pc tras compilar');
+    if (huella === null) throw new Error(`no se pudo calcular la huella de ${ROL_LIMPIADOR} tras compilar`);
     writeFileSync(HUELLA_PC, `${JSON.stringify({ huella, version: versionFuente() }, null, 2)}\n`);
     return BIN_PC;
   })();

@@ -5,6 +5,8 @@ import { execFile } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+import { raizTemporales } from '../../shared/rutas.mjs';
+
 import { filtrarSqlParaPg16, leerUrlBdLocal } from './entorno.mjs';
 import { marcaTiempo } from './estado.mjs';
 import { escribirArchivoRemoto, sshRemoto } from './ssh.mjs';
@@ -37,7 +39,9 @@ export function diferenciasConteos(local, remoto, tablas) {
 }
 
 
-const DIR_DUMPS_LOCALES = 'C:/tmp/backups-bd';
+/* [por que] La raiz sale de raizTemporales(): el literal 'C:/tmp' era relativo
+ * al cwd en Linux, y ademas duplicaba la regla que ya vive en un solo sitio. */
+const DIR_DUMPS_LOCALES = join(raizTemporales(), 'backups-bd');
 
 const COPIAS_PREVIAS_BD = 3;
 

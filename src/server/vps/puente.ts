@@ -11,11 +11,24 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { raizTemporales } from '../plataforma/temporales.js';
 
 const BIN_DURADERO = join(homedir(), 'bin', 'coolify-manager.exe');
-const BIN_LEGACY = 'C:\\tmp\\bin\\coolify-manager.exe';
+/* [por que] La raiz de temporales sale de su unico dueno (raizTemporales, que
+ * ya resuelve Windows vs Linux y el override WM_TMP) en vez de escribirse a
+ * mano: era el segundo sitio que sabia donde vive C:\tmp. */
+const BIN_LEGACY = join(raizTemporales(), 'bin', 'coolify-manager.exe');
 const TIMEOUT_MS = 90_000;
 const MAX_SALIDA = 512 * 1024;
+
+/* Ubicaciones que se prueban, en orden, para el mensaje de ayuda de la API.
+ * [por que] El texto lo lee quien tiene que arreglar el fallo; escrito a mano
+ * divergia de lo que el codigo mira de verdad (llegaba a nombrar la carpeta
+ * personal del dueno del laptop). Derivado de las mismas constantes que usa
+ * rutaBinario(), no puede mentir. */
+export function dondeBuscarBinario(): string {
+  return `COOLIFY_MANAGER_BIN o ${BIN_DURADERO} o ${BIN_LEGACY}`;
+}
 
 /* Nombres de sitio aceptados (dueño único; rutasVps lo reutiliza).
  * [por que] F0 midió la regex duplicada en puente y rutasVps; una sola

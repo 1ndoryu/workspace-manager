@@ -1,0 +1,10 @@
+{
+  "$formato": 1,
+  "$nota": "Papeles del area: que proyecto hace cada cosa que el manager no puede adivinar. Copia este fichero a config/area.json y pon los nombres de tus proyectos. Todos los campos son opcionales: un papel ausente (o el fichero entero) solo desactiva su funcion, con un aviso que lo dice.",
+  "sentinel": "mi-motor-de-calidad",
+  "despliegue": "mi-gestor-de-despliegues",
+  "limpiador": "mi-limpiador",
+  "bump": {
+    "excluidos": ["proyecto-que-no-propaga-pins"]
+  }
+}

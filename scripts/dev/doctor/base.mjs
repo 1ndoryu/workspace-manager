@@ -1,14 +1,17 @@
 /* Constantes y rutas del doctor: la base que comparten sus modulos. */
 
-import { rutaConfigPrivada } from '../../shared/rutas.mjs';
+import { RAIZ_AREA, RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.mjs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PUERTOS_PROTEGIDOS as PUERTOS_TABLERO_PROTEGIDOS } from '../../shared/puertos.mjs';
+
+/* [por que] RAIZ_REPO se reexporta desde `shared/rutas.mjs` (su dueño) en vez de
+ * volver a derivarla aqui: era una segunda derivacion del mismo dato. */
+export { RAIZ_AREA, RAIZ_REPO };
 
 /* [por que] La carpeta de este modulo es scripts/dev/doctor; DIR_DEV es la de los
  * comandos (scripts/dev), que es lo que esperan sus consumidores. */
 export const DIR_DEV = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-
-export const RAIZ_REPO = resolve(DIR_DEV, '..', '..');
 
 export const RUTA_REGISTRO = rutaConfigPrivada('registro.json');
 
@@ -20,7 +23,7 @@ export const TIMEOUT_SENSOR_MS = 25_000;
 
 export const MAX_PIDS_CONSULTA = 20;
 
-export const PUERTOS_PROTEGIDOS = new Set([8787, 5174, 5175]);
+export const PUERTOS_PROTEGIDOS = new Set(PUERTOS_TABLERO_PROTEGIDOS);
 
 export const MOTIVOS_ENUM = new Set([
   'solo-docs',
