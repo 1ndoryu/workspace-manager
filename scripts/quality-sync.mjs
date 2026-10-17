@@ -19,7 +19,12 @@
  * server deriva las env. No muta nada: reporta y sale con codigo de error para
  * poder colgarlo de CI/guard.
  *
- * Uso:  pnpm sync:quality            (recorre los 6 consumidores del gate)
+ * Los consumidores NO van en el codigo: son configuracion del area y viven en
+ * `config/quality-consumidores.json` (privada, con ejemplo versionado). Sin ese
+ * archivo el script informa y sale en verde, que es lo que le toca a un clone
+ * recien hecho.
+ *
+ * Uso:  pnpm sync:quality            (recorre los consumidores declarados)
  *       pnpm sync:quality --json      (salida JSON en stdout)
  *
  * Exit codes:
@@ -30,60 +35,29 @@
  *      no provisto)
  *   2  error de entorno/data (no se pudo leer algo, area no hallada) */
 import { readFileSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 /* Raiz del area (misma fuente del server: WS_AREA_ROOT o el default real). */
-import { RAIZ_AREA } from './shared/rutas.mjs';
+import { RAIZ_AREA, rutaConfigPrivada } from './shared/rutas.mjs';
 const CHECKOUT = join(RAIZ_AREA, '.quality-tools');
 
-/* Consumidores del gate (mismos del plan §3.3). Rutas reales del area; ONG
- * AGAPE vive bajo TRABAJOS CLIENTES. Los proyectos sin gate (Glory-Laminal,
- * ONG AGAPE) se crean en F4, asi que hoy pueden carecer de quality-tools.json:
- * se reportan como pendiente-F4, no como desync. */
-const CONSUMIDORES = [
-  { nombre: 'Glory-Laminal', ruta: 'Glory-Laminal', fase: 'F4' },
-  { nombre: 'gloryapi', ruta: 'gloryapi', fase: 'F3' },
-  { nombre: 'PROYECTO TASKS', ruta: 'PROYECTO TASKS', fase: 'F3' },
-  { nombre: 'WANDORIUS', ruta: 'WANDORIUS', fase: 'F2' },
-  { nombre: 'RESTAURANTE', ruta: 'RESTAURANTE', fase: 'F2' },
-  { nombre: 'ONG AGAPE', ruta: join('TRABAJOS CLIENTES', 'ONG AGAPE'), fase: 'F4' },
-  /* Gate ampliado (308A-1 extension, 2026-08-31): todos los proyectos del area
-   * con gate declarado, excepto glory-sentinel (exento por ser el runtime). */
-  { nombre: 'coolify-manager-rs', ruta: 'coolify-manager-rs', fase: 'F1' },
-  { nombre: 'freebuff-bridge', ruta: 'freebuff-bridge', fase: 'F1' },
-  { nombre: 'GLORYINSPECTOR', ruta: 'GLORYINSPECTOR', fase: 'F1' },
-  { nombre: 'GLORYPORT', ruta: 'GLORYPORT', fase: 'F1' },
-  { nombre: 'workspace-manager', ruta: 'workspace-manager', fase: 'F1' },
-  /* NAKOMI onboard 2026-09-25: bootstrap del gate moderno (sentinel 0.7.13 +
-   * varsense 2.2.4, checkout compartido del área); rama primaria main (nakomi-studio). */
-  { nombre: 'NAKOMI', ruta: 'NAKOMI', fase: 'F1' },
-  /* limpiador-pc onboard 2026-09-28 (289A-4/289A-5): gate declarado desde el
-   * init pero nunca registrado; solo sentinel (sin varsense), checkout
-   * compartido del área. */
-  { nombre: 'limpiador-pc', ruta: 'limpiador-pc', fase: 'F1' },
-  /* glory-agent onboard 2026-10-01 (F10): gate declarado (sentinel+varsense,
-   * checkout compartido del área) pero nunca registrado; pins 0.7.15/2.2.5
-   * con deriva de releases. */
-  { nombre: 'glory-agent', ruta: 'glory-agent', fase: 'F1' },
-  /* MN-Inmobiliaria: gate declarado (sentinel+varsense, checkout compartido del
-   * área) y registrado en el tablero, pero faltaba aquí: el bump no lo propagaba. */
-  { nombre: 'MN-Inmobiliaria', ruta: 'MN-Inmobiliaria', fase: 'F1' },
-  /* plugins-opencode: su pin se fijó a mano (d401ded, 0.7.23) y el bump no lo
-   * propagaba; se registra para que el bump lo alinee con el pin del área. */
-  { nombre: 'plugins-opencode', ruta: 'plugins-opencode', fase: 'F1' },
-  /* KAMPLES: gate declarado (sentinel+varsense, checkout compartido del área) y
-   * pins al día (8c2b65d / caffa80), pero no estaba aquí: su quality-tools.json
-   * se editaba a mano y el bump nunca lo actualizaba (16A-4). */
-  { nombre: 'KAMPLES', ruta: 'KAMPLES', fase: 'F1' },
-  /* glory-pulse, glory-lab y glory-harness: gate declarado desde su alta pero
-   * nunca registrados, así que su deriva era invisible (16A-4). glory-lab apunta
-   * al checkout compartido; glory-pulse y glory-harness, al del arnés
-   * (`../.quality-tools-harness/*`), que se valida contra su propio HEAD. */
-  { nombre: 'glory-pulse', ruta: 'glory-pulse', fase: 'F1' },
-  { nombre: 'glory-lab', ruta: 'glory-lab', fase: 'F1' },
-  { nombre: 'glory-harness', ruta: 'glory-harness', fase: 'F1' },
-];
+/* Consumidores del gate: QUE proyectos del area reciben el pin. [por que] Es
+ * configuracion nuestra, no del producto: la lista de nuestros proyectos no
+ * puede ir en el repo que se publica. Vive en la config privada
+ * (`config/quality-consumidores.json`), con ejemplo versionado. Sin ella el
+ * script no falla: informa de que no hay consumidores declarados y sale en
+ * verde, porque un clone recien hecho no tiene ninguno que validar. */
+function leerConsumidores() {
+  const ruta = rutaConfigPrivada('quality-consumidores.json');
+  if (!existsSync(ruta)) return null;
+  const data = JSON.parse(readFileSync(ruta, 'utf8'));
+  const lista = Array.isArray(data?.consumidores) ? data.consumidores : null;
+  if (!lista) throw new Error(`'quality-consumidores.json' sin array 'consumidores' en ${ruta}`);
+  /* Normaliza la ruta a separadores del sistema: en la config se escribe con
+   * '/' (es portable) y `join` de Windows no acepta mezcla de ambos. */
+  return lista.map((c) => ({ ...c, ruta: c.ruta.split('/').join(sep) }));
+}
 
 /* Herramientas del checkout compartido y su subcarpeta. */
 const HERRAMIENTAS = {
@@ -199,9 +173,27 @@ function compararTool(manifest, dirRepo, tool, headCompartido) {
 
 function main() {
   const useJson = process.argv.includes('--json');
-  const reporte = { area: RAIZ_AREA, checkout: CHECKOUT, consumidores: [] };
+  const consumidores = leerConsumidores();
+  const reporte = {
+    area: RAIZ_AREA,
+    checkout: CHECKOUT,
+    consumidores: [],
+    ...(consumidores ? {} : { sinConsumidores: true }),
+  };
   let problemas = 0;
   const sinDirectorio = [];
+
+  /* Sin config de consumidores no hay nada que validar: se informa y se sale en
+   * verde. Un clone del repo no trae la lista (es configuracion del area), asi
+   * que fallar aqui seria fallar por no tener nuestros datos. */
+  if (!consumidores) {
+    if (useJson) console.log(JSON.stringify(reporte, null, 2));
+    else {
+      console.log(`sin consumidores declarados: no hay ${rutaConfigPrivada('quality-consumidores.json')}`);
+      console.log('Copialo de config/ejemplos/quality-consumidores.example.json y pon tus proyectos.');
+    }
+    return 0;
+  }
 
   /* HEAD y limpieza de cada herramienta del checkout compartido. */
   const cabeceras = {};
@@ -234,7 +226,7 @@ function main() {
   }
 
   /* Recorre consumidores. */
-  for (const c of CONSUMIDORES) {
+  for (const c of consumidores) {
     const dir = join(RAIZ_AREA, c.ruta);
     const entry = { nombre: c.nombre, fase: c.fase, ruta: c.ruta, problemas: [] };
 
