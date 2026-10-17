@@ -47,12 +47,25 @@ html {
     /* Separacion con los paneles de abajo, igual que la consola abajo del
      * contenido (12px de la zona del divisor). */
     margin-bottom: var(--v2-spaceSm);
+    /* [por que] Ancla la fila de medida del nav (NavBar.css), que vive fuera
+     * de la pantalla y no debe resolverse contra el viewport. */
+    position: relative;
 }
 
 .v2NavCentral {
     flex: 1;
     display: flex;
     gap: var(--v2-spaceSm);
+    /* [por que] Sin esto el `min-width: auto` de un item flex impide bajar del
+     * ancho del contenido: el grupo central no encogeria y empujaria los
+     * toggles fuera en vez de recortar destinos. */
+    min-width: 0;
+}
+
+/* [por que] Los destinos no encogen: el recorte lo decide useRecorteNav por
+ * medida, no el navegador a ojo. */
+.v2NavCentral > * {
+    flex: none;
 }
 
 .v2NavVisible {

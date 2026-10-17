@@ -1,0 +1,49 @@
+/* Nav del shell v2: SOLO layout contextual. [por que] css-especificacion-
+ * diseno-local prohibe especificacion visual local: los botones son .botonV2
+ * (Button.css) y la superficie del desplegable es la receta canonica
+ * .v2Superficie (v2.css), compuestas en el TSX. */
+
+/* Contenedor del boton de sobra y de su lista anclada.
+ * [por que] Sin position: relative la lista se ancla a .v2Nav, no al boton:
+ * a 320 px el boton queda tan a la izquierda que la lista (141 px) se salia
+ * por el borde. Contra el nav crece siempre hacia dentro. */
+.v2NavSobra {
+    display: inline-flex;
+    /* [por que] Al final del grupo central: si el boton de sobra fuera
+     * detras del ultimo destino visible, cambiaria de sitio con cada
+     * recorte y el puntero no lo encontraria dos veces en el mismo lugar. */
+    margin-left: auto;
+}
+
+.v2NavSobraLista {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 4px);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Fila de medida: los mismos destinos, fuera de flujo y sin pintar.
+ * [por que] Los botones visibles encogen al recortarse, asi que no sirven
+ * para saber cuanto mide cada etiqueta; esta copia nunca se recorta. Va
+ * anclada a .v2Nav (position: relative) y fuera de la pantalla, donde la
+ * recorta el overflow del marco. El gap repite el de .v2NavCentral
+ * (--v2-spaceSm): si no, la medida no valdria. */
+.v2NavMedidor {
+    position: absolute;
+    left: -10000px;
+    top: 0;
+    visibility: hidden;
+    pointer-events: none;
+    display: flex;
+    gap: var(--v2-spaceSm);
+    /* Sin esto el ancho lo acotaria el bloque contenedor y los botones
+     * encogerian, que es justo lo que hay que medir. */
+    width: max-content;
+}
+
+.v2NavMedidorSobra {
+    display: inline-flex;
+}
