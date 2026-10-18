@@ -21,11 +21,10 @@ export interface DoctorSentinel {
   aviso?: string;
 }
 
-/* Corre el doctor donde el modo diga, con el portátil como red. [por que] La VPS del
- * taller no es un requisito duro: si el proyecto está dado de alta allí pero el doctor
- * remoto no arranca (sin taller.json, sin sesión Mutagen, sin red, sin runtime), se hace
- * en local y lo dice en `aviso`. Mismo patrón que `analizarConModo`. El punto de
- * inyección existe para poder probar las dos ramas sin una VPS delante. */
+/* Corre el doctor donde el modo diga. [por que] Un proyecto de taller no se diagnostica
+ * en el portátil: si la 89 no responde, `salida` queda en null y `aviso` dice el motivo
+ * (AGENTS §1: la laptop no ejecuta proyectos). Mismo criterio que `analizarConModo`. El
+ * punto de inyección existe para poder probar las ramas sin una VPS delante. */
 export async function doctorConModo(
   clave: string,
   ruta: string,
@@ -44,28 +43,32 @@ export async function doctorConModo(
   if (modo !== 'taller') return local(ruta);
 
   /* Sin taller.json no hay VPS: es una configuración válida (un clon recién hecho no
-   * lo trae), no un fallo. Se dice —el proyecto pidió el taller y no lo hay— pero sin
-   * soltar la ruta de un fichero que falta, que se lee como avería. */
+   * lo trae), no un fallo. Se dice sin soltar la ruta de un fichero que falta. */
   if (leerTallerSiExiste() === null) {
-    return local(ruta, 'hecho en local, no hay taller configurado');
+    return sinDiagnostico('no hay taller configurado');
   }
 
   let cfg: ConfigRemota;
   try {
     cfg = leerConfigRemota();
   } catch (err) {
-    return local(ruta, `hecho en local, el taller está mal configurado (${mensaje(err)})`);
+    return sinDiagnostico(`el taller está mal configurado (${mensaje(err)})`);
   }
 
   try {
     const salida = await (inyectado.remoto ?? correrDoctorRemoto)(clave, cfg, ruta);
     return { salida, modo: 'taller' };
   } catch (err) {
-    return local(ruta, `hecho en local, el taller no respondió (${mensaje(err)})`);
+    return sinDiagnostico(`el taller no respondió (${mensaje(err)})`);
   }
 }
 
-async function local(ruta: string, aviso?: string): Promise<DoctorSentinel> {
+/* El doctor de un proyecto de taller no tiene salida en el portátil: queda null con el motivo. */
+function sinDiagnostico(aviso: string): DoctorSentinel {
+  return { salida: null, modo: 'taller', aviso };
+}
+
+async function local(ruta: string): Promise<DoctorSentinel> {
   const salida = await correrDoctorLocal(ruta);
-  return { salida, modo: 'local', ...(aviso ? { aviso } : {}) };
+  return { salida, modo: 'local' };
 }

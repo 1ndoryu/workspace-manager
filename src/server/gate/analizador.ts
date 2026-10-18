@@ -95,19 +95,13 @@ async function analizarEnLocal(p: Proyecto): Promise<AnalisisSentinel> {
   return montarAnalisis(p, res, resVs);
 }
 
-/* Análisis del proyecto donde su modo diga, con el portátil como red. [por que] La
- * VPS del taller no es un requisito duro: si el proyecto está dado de alta allí pero
- * el análisis remoto no arranca (sin taller.json, sin sesión Mutagen, sin red, sin
- * runtime), el análisis se hace en el portátil igualmente y lo dice en `aviso`. Antes
- * quedaba en 'error' y el proyecto se quedaba sin análisis por un fallo de la 89. Solo
- * se reintenta en local cuando el análisis remoto NO produjo nada (estado 'error'): si
- * sentinel fue bien y solo falló varsense, ya hay resultado y repetirlo no aporta. */
+/* Análisis del proyecto donde su modo diga. [por que] Un proyecto de taller se analiza
+ * en la 89 y, si esta no responde, queda en 'error' con su motivo. No hay reintento en
+ * el portátil: ese reintento era carga pesada en la laptop (AGENTS §1), y el fallo se ve
+ * en el tablero en lugar de esconderse en un análisis local. */
 async function analizarConModo(p: Proyecto): Promise<AnalisisSentinel> {
   if (modoAnalisis(p.clave) !== 'taller') return analizarEnLocal(p);
-  const remoto = await analizarEnTaller(p);
-  if (remoto.estado !== 'error') return remoto;
-  const local = await analizarEnLocal(p);
-  return { ...local, aviso: `hecho en local, el taller no respondió (${remoto.error ?? 'sin motivo'})` };
+  return analizarEnTaller(p);
 }
 
 /* [por que] S3.7: el taller analiza su réplica del proyecto. Antes se vacía la cola de

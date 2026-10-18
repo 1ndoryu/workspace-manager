@@ -47,7 +47,7 @@ describe('doctor: modo local', () => {
 
 });
 
-describe('doctor: el portátil como red', () => {
+describe('doctor: el taller sin respaldo local', () => {
   let raiz: string;
 
   before(() => {
@@ -59,19 +59,16 @@ describe('doctor: el portátil como red', () => {
     rmSync(raiz, { recursive: true, force: true });
   });
 
-  /* [por que] Frente 5: la VPS no es un requisito duro. Si el doctor remoto no arranca
-   * (aquí se simula con un runner que falla), el resultado sale del portátil y `aviso`
-   * dice por qué. Sin ese aviso la degradación sería silenciosa, que es justo lo que no
-   * queremos. El testigo es que el diagnóstico local SÍ aparece. */
-  it('si el taller no responde, corre en local y lo dice', async () => {
+  /* [por que] Un proyecto de taller no se diagnostica en el portátil (AGENTS §1). Si el
+   * doctor remoto no arranca, no hay salida local: `salida` queda null, `modo` sigue
+   * siendo 'taller' y `aviso` dice por qué. Y el doctor local no se ejecuta. */
+  it('si el taller no responde, no corre en local y lo dice', async () => {
     const p = proyectoConDoctorFalso(raiz, JSON.stringify({ policy: { status: 'red' } }));
     const r = await doctorConModo('clave-de-prueba', p, {
       modo: 'taller',
       remoto: async () => { throw new Error('sin sesión Mutagen'); },
     });
-    assert.equal(r.modo, 'local');
-    assert.equal(r.aviso, 'hecho en local, el taller no respondió (sin sesión Mutagen)');
-    assert.ok(r.salida?.includes('"status":"red"'), `salida: ${r.salida}`);
+    assert.deepEqual(r, { salida: null, modo: 'taller', aviso: 'el taller no respondió (sin sesión Mutagen)' });
   });
 
   /* [por que] Cuando el taller contesta, el diagnóstico es suyo y el portátil no se
