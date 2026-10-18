@@ -114,19 +114,25 @@ function planesActivos(ruta: string): PlanActivo[] {
   } catch {
     return [];
   }
+  const roadmap = leerArchivo(join(ruta, 'roadmap.md')) ?? '';
   /* [por que] README.md es el índice de la carpeta, no un plan: no entra en la comprobación. */
   return nombres
     .filter((n) => n.endsWith('.md') && n !== 'README.md')
     .map((archivo) => ({
       archivo,
       modificadoMs: statSync(join(dir, archivo)).mtimeMs,
-      abiertas: contarCasillasAbiertas(leerArchivo(join(dir, archivo)) ?? ''),
+      abiertas: abiertasDelPlan(leerArchivo(join(dir, archivo)) ?? '', roadmap, archivo),
     }));
 }
 
-/* Casillas de tarea sin marcar (`- [ ]`, `* [ ]`) en un plan. */
-function contarCasillasAbiertas(texto: string): number {
-  return texto.match(/^\s*[-*]\s\[ \]/gm)?.length ?? 0;
+/* Trabajo abierto de un plan: sus casillas sin marcar (`- [ ]`, `* [ ]`) y, si el roadmap lo
+ * enlaza, al menos una más. [por que] El roadmap solo lista trabajo abierto (protocolo §9):
+ * un plan enlazado desde él sigue activo aunque use pasos numerados (F4.1, F4.2) en vez de
+ * casillas. Contarlo como cerrado daba un «ciérralo» falso. */
+export function abiertasDelPlan(texto: string, roadmap: string, archivo: string): number {
+  const casillas = texto.match(/^\s*[-*]\s\[ \]/gm)?.length ?? 0;
+  const enRoadmap = roadmap.includes(`planes/${archivo}`);
+  return casillas + (enRoadmap ? 1 : 0);
 }
 
 /* Enlaces .md de roadmap.md que apuntan a ficheros inexistentes. */
