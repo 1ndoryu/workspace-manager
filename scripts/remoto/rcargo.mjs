@@ -227,6 +227,12 @@ export function asegurarSesion({ config, proyecto, rutaLocal, rutas, dryRun = fa
   return correr(mutagen, ['sync', 'flush', sesion], { dryRun, cwd }).status === 0 ? 0 : 1;
 }
 
+// [por que] Mutagen corre en el laptop (Windows). Si rcargo se lanza desde la propia 89, el árbol
+// ya es la réplica y no hay binario de sync: `spawnSync` fallaba con ENOENT en la ruta de Windows.
+export function esVps(plataforma = process.platform) {
+  return plataforma !== 'win32';
+}
+
 // Asegura la sesión de Mutagen, fuerza el envío pendiente y ejecuta cargo en la VPS.
 export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
   const rutas = rutasRemotas(config, proyecto, rama);
@@ -247,8 +253,10 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
     }
   }
 
-  const sync = asegurarSesion({ config, proyecto, rutaLocal: cwd, rutas, dryRun, cwd });
-  if (sync !== 0) return sync;
+  if (!esVps()) {
+    const sync = asegurarSesion({ config, proyecto, rutaLocal: cwd, rutas, dryRun, cwd });
+    if (sync !== 0) return sync;
+  }
 
   const remoto = construirComandoRemoto(config, rutas, args, nombreBd, preparar);
   return correr(BIN_SSH, argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;

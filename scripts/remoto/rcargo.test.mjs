@@ -15,6 +15,7 @@ import {
   urlBaseRemota,
   comandoBaseRemota,
   comandoPrepararRama,
+  esVps,
 } from './rcargo.mjs';
 import { rutaConfigPrivada } from '../shared/rutas.mjs';
 
@@ -199,4 +200,10 @@ test('comando remoto: la base de rama se prepara antes de cargo, y solo con `pre
   // Sin `preparar` (la base de trabajo de `main`) no se toca nada.
   const sin = construirComandoRemoto(config, rutas, ['test'], 'p_main')[2];
   assert.ok(!sin.includes('pg_dump'));
+});
+
+// [por que] Mutagen solo existe en el laptop: en la 89 (Linux) el árbol ya es la réplica.
+test('esVps: Windows es el laptop, cualquier otra plataforma es la 89', () => {
+  assert.equal(esVps('win32'), false);
+  assert.equal(esVps('linux'), true);
 });
