@@ -122,7 +122,10 @@ export function validarEntrada(e) {
   }
   // [por que] El binario absoluto no necesita args (longitud 1 vale); el resto
   // exige exe + args para que el `up` sepa que lanzar sin suposiciones.
-  if (!Array.isArray(e.boton) || e.boton.length === 0 || e.boton.some((a) => !Array.isArray(a) || a.some((t) => typeof t !== 'string' || t.length === 0) || (a.length < 2 && !(/^[a-z]:[\\/]/i.test(a[0]) && a[0].toLowerCase().endsWith('.exe'))))) {
+  // [por que] Un proyecto «sin servicio de red» (p. ej. app de escritorio que
+  // no arranca con `up`) no tiene botón: boton vacío es su forma correcta.
+  const sinServicio = /^sin servicio de red/.test(e.tipoLauncher ?? '');
+  if (!Array.isArray(e.boton) || (e.boton.length === 0 && !sinServicio) || e.boton.some((a) => !Array.isArray(a) || a.some((t) => typeof t !== 'string' || t.length === 0) || (a.length < 2 && !(/^[a-z]:[\\/]/i.test(a[0]) && a[0].toLowerCase().endsWith('.exe'))))) {
     mal(`registro: '${e.id}' boton debe ser array de argv (arrays de >=2 strings)`);
     return;
   }
@@ -281,7 +284,8 @@ export function validarEntrada(e) {
   // [por que] Dominio .localhost = URL con nombre por proyecto sin tocar
   // hosts ni pedir administrador (el navegador lo resuelve a loopback).
   // Formato cerrado: solo <slug>.localhost; nada publico, nada configurable.
-  if ('dominio' in e && (typeof e.dominio !== 'string' || !/^[a-z0-9-]{1,40}\.localhost$/.test(e.dominio))) {
+  // [por que] `dominio: null` es válido en un proyecto sin servicio de red.
+  if ('dominio' in e && e.dominio !== null && (typeof e.dominio !== 'string' || !/^[a-z0-9-]{1,40}\.localhost$/.test(e.dominio))) {
     mal(`registro: '${e.id}' dominio debe ser <slug>.localhost`);
     return;
   }
