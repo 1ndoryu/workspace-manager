@@ -48,7 +48,9 @@ test('rutaRemota: une base y clave; rechaza claves no seguras', () => {
   const cfg = configRemotaDe(CFG_OK);
   assert.equal(rutaRemota(cfg, 'sistema-legado'), '/home/usuario/taller/sistema-legado');
   assert.equal(rutaRemota({ ...cfg, dirRemotoBase: '/home/usuario/taller/' }, 'sistema-legado'), '/home/usuario/taller/sistema-legado');
-  assert.throws(() => rutaRemota(cfg, 'a b'), /no válida/);
+  assert.equal(rutaRemota(cfg, 'PROYECTO TASKS'), '/home/usuario/taller/PROYECTO TASKS');
+  assert.throws(() => rutaRemota(cfg, 'a;b'), /no válida/);
+  assert.throws(() => rutaRemota(cfg, '..'), /no válida/);
   assert.throws(() => rutaRemota(cfg, '../x'), /no válida/);
 });
 
@@ -57,7 +59,8 @@ test('rutaRuntimeRemota: el runtime vive fuera de la réplica, que se vacía al 
   const r = rutaRuntimeRemota(cfg, 'juego-arcade', 'sentinel');
   assert.equal(r, '/home/usuario/taller/_quality-tools/juego-arcade/sentinel');
   assert.ok(!r.startsWith(`${rutaRemota(cfg, 'juego-arcade')}/`), 'no puede colgar de la réplica');
-  assert.throws(() => rutaRuntimeRemota(cfg, 'a b', 'sentinel'), /no válida/);
+  assert.equal(rutaRuntimeRemota(cfg, 'PROYECTO TASKS', 'varsense'), '/home/usuario/taller/_quality-tools/PROYECTO TASKS/varsense');
+  assert.throws(() => rutaRuntimeRemota(cfg, 'a;b', 'sentinel'), /no válida/);
 });
 
 test('comandoDeps: reinstala solo si el lock cambió, y falla en claro si npm ci falla', () => {

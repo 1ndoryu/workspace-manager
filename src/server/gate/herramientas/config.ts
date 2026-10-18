@@ -110,10 +110,12 @@ export function modoAnalisis(clave: string): ModoAnalisis {
   return modoAnalisisEn(JSON.parse(readFileSync(RUTA_REGISTRO, 'utf8')), clave, leerTallerSiExiste());
 }
 
-/* Ruta remota del proyecto: <dirRemotoBase>/<clave>. La clave tampoco puede traer
- * espacios ni metacaracteres (mismo criterio que la ruta base). */
+/* Ruta remota del proyecto: <dirRemotoBase>/<clave>. La clave no puede traer barras ni
+ * metacaracteres. [por que] Se admiten espacios (carpetas como «PROYECTO TASKS» existen
+ * en la 89); las rutas van siempre entrecomilladas con `comillas` y el nombre de la
+ * sesión Mutagen pasa por `slugSesion`, así que no hay riesgo de inyección. */
 export function rutaRemota(cfg: ConfigRemota, clave: string): string {
-  if (!/^[A-Za-z0-9._-]+$/.test(clave)) throw new Error(`clave '${clave}' no válida para una ruta remota`);
+  if (!/^[A-Za-z0-9._ -]+$/.test(clave) || /^\.+$/.test(clave)) throw new Error(`clave '${clave}' no válida para una ruta remota`);
   return `${cfg.dirRemotoBase.replace(/\/+$/, '')}/${clave}`;
 }
 
