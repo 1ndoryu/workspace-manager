@@ -455,13 +455,63 @@ la caché de vulnerabilidades vivía solo en memoria, así que cada reinicio del
 entradas del tablero **en silencio**; ahora se persiste como la de Sentinel. Detalle y medidas en
 `Agente/completados/tareas-2026-10-17.md`.
 
-**Pendiente (por aquí se retoma):** el bloque I. Lo primero es **subir el pin de varsense en
-RESTAURANTE** (`quality-tools.json` fija `2.2.9`/`33192580`, anterior a B4 `3375e18`, así que su
-`excludeTokens` se ignora y sus 41 `token-duplicate` siguen ahí), y comprobar los otros 15
-consumidores. Después, la deuda propia de cada proyecto: RESTAURANTE (42 `ruta-post-sin-rate-limit`,
+**Bloque I (2026-10-18):** pin de varsense `3375e18` subido y verificado con `quality-setup` en
+RESTAURANTE (`4b2e668`), KAMPLES (`a2ee173`), GLORYPORT (`0e8ec7b`), Glory-Laminal (`9ab36a2`),
+MN-Inmobiliaria (`2267a60d`), NAKOMI (`d6d9a435`), PROYECTO TASKS (`71485c2`), coolify-manager-rs
+(`36a382d`), glory-agent (`d4fbf0d`) y gloryapi (`9cf3051`, en su rama por defecto `gloryapi`: no
+tiene `main`). Config ajena de MN-Inmobiliaria (`0c45fbe6`) y PROYECTO TASKS (`0d009b0`), de más de 2
+h sin commit, adoptada tras verificarla con el gate. **Pendiente:** WANDORIUS, cuyo `quality-setup`
+falla en la suite de varsense (`npm run test`, el host de VS Code de Electron, exit 1; su ficha
+declara `testScript: "test"` y los demás `smoke:lsp`). Sin evidencia no hay pin: decide la usuaria
+si se cambia el `testScript` o se ejecuta esa suite en la 89. Los cambios de WANDORIUS
+(`quality-tools.json`, lock y submódulo `tools/varsense`) siguen sin commit. Los consumidores
+sentinel-only (glory-pulse, limpiador-pc, plugins-opencode y glory-lab) tienen su pin sin commit.
+
+**Pendiente:** la deuda propia de cada proyecto: RESTAURANTE (42 `ruta-post-sin-rate-limit`,
 43 `limite-lineas`, 17 planes sin cerrar), KAMPLES (53 `sqlx-query*-sin-macro`, 16 `god-object-rs`)
 y las 53 `vulnerabilidad` de 7 proyectos (`rustls` y `zip`: un `cargo update` por proyecto, vía la
 89, devolviendo el `Cargo.lock` al portátil; es `16AA-11`).
+
+### M · Cómputo pesado fuera de la laptop (encargo de la usuaria, 2026-10-18)
+
+La laptop no ejecuta proyectos (AGENTS §1). Este frente revisa **todos** los comandos pesados que
+hoy corren en la laptop y los mueve a la VPS 89, para que den el mismo resultado allí y la laptop
+quede sin esa carga. Pendiente de inventario: la lista de comandos y su carga se levanta antes de
+mover nada. Criterio: mismo binario, misma config y mismo resultado que en la laptop; lo pesado
+va con `cm-heavy`; los secretos no viajan (AGENTS §2); lo que no pueda igualarse se anota con el
+motivo, no se deja en silencio.
+
+**Inventario (2026-10-18, investigador, sin verificar aún cada fila):**
+
+| Comando | Dónde se dispara | ¿Ya en 89? | Carga | Acción propuesta |
+|---|---|---|---|---|
+| `quality-setup` (compila y testea sentinel/varsense en `tools/*`) | `scripts/quality/quality-setup.mjs:220,:224`, `npm run quality:setup` | No (reusa certificación por commit) | Alta | Ejecutar en 89 vía `cm-heavy` |
+| Gate de proyectos (`task-check`, `gate-check`) | scripts de cada repo, lanzados a mano o por agente | No | Alta | Ejecutar en 89 (etapas aún no verificadas) |
+| `run-with-db.mjs` (tests y cargo) | `MN-Inmobiliaria/scripts/run-with-db.mjs:279`, registro.json | No: no consulta el modo (`run-cargo.mjs:20` sí) | Alta (cargo) / media | Hacerlo consultar el modo remoto como `run-cargo` |
+| Reconstrucción del exe de `glory-pulse` | `scripts/dev/doctor/sistema/rust.mjs:274`, al `Arranque up pulse` | No | Alta | Cross-compilar en 89 (`cargo-xwin`) y traer el `.exe` |
+| Build de `limpiador-pc` | `src/server/pc/binario.ts:168` | No | Media-alta | Igual que glory-pulse |
+| `npm run build` y `build:server` | `package.json:14,:19` | No | Baja-media | Mover con el resto de builds |
+| `analyze-blocks.mjs` | `scripts/quality/auditoria/analyze-blocks.mjs:156` | No | Media | Ejecutar en 89 |
+| `pg_dump` y restauración de BD | `scripts/dev/remoto/bd.mjs:109` | Parcial | Media | El origen de la BD es la laptop por diseño: se queda, solo el volcado pesado si aplica |
+| `npm ci` local | no localizado en el repo del manager | Remoto sí (`ciclo.mjs:89`) | Media | Confirmar que no queda ninguno local |
+
+Ya van a la 89: el análisis de Sentinel y VarSense del gate (con reintento local si la 89 falla,
+`analizador.ts:109`, que hay que quitar para que no vuelva la carga) y las auditorías de
+vulnerabilidades en modo taller.
+
+**Progreso (2026-10-18):** el varsense del pin se verificó en la 89 en `3375e18` (`npm ci`,
+`compile` y `smoke:lsp` en verde, bajo `cm-heavy` con `bash -lc`, porque `npm` no está en el PATH
+no interactivo). WANDORIUS fija ahora `testScript: smoke:lsp` (`268ec0f9`), igual que los demás
+consumidores: el `test` original lanza el host Electron, que no arranca aquí.
+
+**Frente M, estado (2026-10-18, tarde):**
+- Hecho: sin reintento local en el análisis del gate (`analizador.ts`) ni en el doctor (`doctor.ts`); un proyecto de taller queda en `error` o con `salida: null` y su motivo (`7652872`). Gate `--cierre`: 0 nuevos, 3 resueltos. Tests del doctor y del gate en verde en la 89.
+- Hecho antes: el build de `limpiador-pc` ya va a la 89 (`build-windows.mjs`); `run-with-db` ya sale en claro sin cargo en el portátil.
+- Pendiente: `glory-pulse` reconstruye su exe con `cargo` en el portátil (`scripts/dev/doctor/sistema/rust.mjs` `asegurarExe`). Hoy falla con el remedio de la 89 porque el portátil no tiene toolchain. Para mover la compilación hace falta registrar `glory-pulse` en `taller.json` (Mutagen) y un script de cross-compile como el de `limpiador-pc`. Sin eso no está cerrado.
+- Pendiente: `npm run build` y `build:server` del manager (`package.json:14,:19`) y `analyze-blocks.mjs`.
+- Pendiente: fallback de auditoría de vulnerabilidades (`vulnerabilidades-remoto.ts:28`, `avisoLocal`): misma política que el gate, aún por cambiar.
+
+**Tablero (2026-10-18, 12:59Z):** 430 problemas, sin cambio en la deuda. Por proyecto: RESTAURANTE 201, KAMPLES 124, glory-harness 46, MN-Inmobiliaria 18, NAKOMI 9, PROYECTO TASKS 7, WANDORIUS 6, gloryapi 6, coolify-manager-rs 2, glory-agent 2, glory-pulse 2, (área) 2, y 1 cada uno en glory-lab, Glory-Laminal, GLORYPORT, limpiador-pc, plugins-opencode.
 
 ### L · Documentación viva: skills, `AGENTS.md` y memorias (encargo de la usuaria, 2026-10-17)
 
