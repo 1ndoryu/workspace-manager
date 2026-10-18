@@ -97,8 +97,17 @@ export function contenidoEnvRemoto(textoEnv, envRemoto, urlBd = null) {
 // claves VITE_* del `.env` que se copia a la 89 nunca llegan a `import.meta.env`: van además a frontend/.env.local,
 // que es donde Vite las busca. Sin esto, la auto-entrada del dev público se queda sin credenciales [15AA-1].
 
-export function contenidoEnvFrontend(contenidoEnv) {
-  const claves = contenidoEnv.split(/\r?\n/).filter((l) => /^\s*(?:export\s+)?VITE_[A-Za-z0-9_]*\s*=/.test(l));
+// [18AA-1] Con `autologinDev` se añade `VITE_DEV_AUTOLOGIN=1`: es la bandera que enciende la
+// auto-entrada del front cuando no hay `import.meta.env.DEV` (modo build). Solo la pide la ficha
+// que la quiere (`build.autologinDev`), y el build de producción no pasa por aquí.
+
+export function contenidoEnvFrontend(contenidoEnv, autologinDev = false) {
+  const claves = contenidoEnv
+    .split(/\r?\n/)
+    .filter((l) => /^\s*(?:export\s+)?VITE_[A-Za-z0-9_]*\s*=/.test(l))
+    // [por que] La bandera la pone este archivo: si el `.env` ya la trajera, saldría dos veces.
+    .filter((l) => !autologinDev || !/^\s*(?:export\s+)?VITE_DEV_AUTOLOGIN\s*=/.test(l));
+  if (autologinDev) claves.push('VITE_DEV_AUTOLOGIN=1');
   return claves.length ? `${claves.join('\n')}\n` : null;
 }
 

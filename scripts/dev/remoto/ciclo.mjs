@@ -33,7 +33,10 @@ export async function construirFrontRemoto(config, id, entrada, rutas) {
   }
   // [por que] Mutagen ignora `.env*`, así que un `frontend/.env.local` escrito por un `up` anterior
   // en dev sobrevive en la 89 y `vite build` lo leería igual: hornearía las credenciales de dev.
-  await sshRemoto(config, `rm -f ${shQuote(`${rutas.dirRemoto}/frontend/.env.local`)}`);
+  // Con `build.autologinDev` eso es justo lo que se busca, así que no se borra (18AA-1).
+  if (entrada.build?.autologinDev !== true) {
+    await sshRemoto(config, `rm -f ${shQuote(`${rutas.dirRemoto}/frontend/.env.local`)}`);
+  }
   for (const argv of pasos) {
     const r = await sshRemoto(config, comandoConstruirFront(rutas, id, argv), TIMEOUT_BUILD_MS);
     if (!r.ok) return { ok: false, resumen: `construirFront fallo, log ${rutas.dirLogs}/construir-front-${id}.log en ${config.host}: ${r.error}` };
@@ -75,9 +78,13 @@ async function prepararRemoto(config, id, entrada, rama, rutas, modo = modoDe(en
     if (!w.ok) return { ok: false, resumen: `.env remoto no se pudo escribir: ${w.error}` };
     // [por que] En build no se escribe el `.env` del front: es justo lo que hornearía las
     // credenciales de dev (`VITE_DEV_EMAIL`/`VITE_DEMO_PASSWORD`) en el bundle. El residuo de un
-    // `up` anterior en dev lo borra `construirFrontRemoto`.
-    if (modo !== 'build') {
-      const front = contenidoEnvFrontend(contenidoEnv);
+    // `up` anterior en dev lo borra `construirFrontRemoto`. La excepción la pide la ficha
+    // (`build.autologinDev`, 18AA-1): ese bundle solo lo sirve el dev público de la 89 —el de
+    // producción se construye por otra vía y no lleva ni las credenciales ni la bandera—, y sin
+    // hornearlas la auto-entrada en modo build no tiene con qué entrar.
+    const autologinDev = entrada.build?.autologinDev === true;
+    if (modo !== 'build' || autologinDev) {
+      const front = contenidoEnvFrontend(contenidoEnv, autologinDev);
       if (front !== null && existsSync(join(ruta, 'frontend'))) {
         const wf = await escribirArchivoRemoto(config, `${rutas.dirRemoto}/frontend/.env.local`, front);
         if (!wf.ok) return { ok: false, resumen: `frontend/.env.local remoto no se pudo escribir: ${wf.error}` };

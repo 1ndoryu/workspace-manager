@@ -144,7 +144,7 @@ export function puertoDeSaludValido(puerto, entrada) {
  * healths y el comando que construye el front. En build el backend sirve `frontend/dist`, así que
  * `construirFront` es obligatorio: sin él el `dist` sería el de la vez anterior y el verde, fingido.
  * Devuelve el motivo del rechazo, o null. */
-const CLAVES_BUILD = ['puertos', 'boton', 'puertosLocales', 'healths', 'construirFront'];
+const CLAVES_BUILD = ['puertos', 'boton', 'puertosLocales', 'healths', 'construirFront', 'autologinDev'];
 
 export function validarBloqueBuild(e) {
   if (e.modo !== undefined && e.modo !== 'dev' && e.modo !== 'build') return `modo '${e.modo}' no valido (dev|build)`;
@@ -180,6 +180,15 @@ export function validarBloqueBuild(e) {
   const pasos = b.construirFront;
   if (!Array.isArray(pasos) || pasos.length === 0 || pasos.some((p) => !Array.isArray(p) || p.length === 0 || p.some((s) => typeof s !== 'string'))) {
     return 'build.construirFront debe ser una lista de comandos (cada uno, una lista de textos)';
+  }
+  if (b.autologinDev !== undefined) {
+    if (typeof b.autologinDev !== 'boolean') return 'build.autologinDev debe ser booleano';
+    // [por que] Sin las credenciales en el `.env` remoto la bandera no enciende nada: el front
+    // sale con `null` y el fallo se ve como un login normal, no como un error. Falla cerrado aquí.
+    if (b.autologinDev) {
+      const sinCredenciales = ['VITE_DEV_EMAIL', 'VITE_DEV_PASSWORD'].filter((k) => !(e.envRemoto ?? []).includes(k));
+      if (sinCredenciales.length) return `build.autologinDev exige ${sinCredenciales.join(' y ')} en envRemoto`;
+    }
   }
   for (const k of Object.keys(b)) {
     if (!CLAVES_BUILD.includes(k)) return `build con clave desconocida '${k}'`;

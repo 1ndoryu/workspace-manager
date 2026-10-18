@@ -405,6 +405,18 @@ test('validarBloqueBuild: exige puertos, un boton por puerto y construirFront', 
   assert.match(validarBloqueBuild(e({ otra: 1 })), /clave desconocida 'otra'/);
 });
 
+// [18AA-1] `autologinDev` hornea las credenciales de dev en el bundle del modo build. Sin las dos
+// claves en `envRemoto` no hay con qué entrar y el fallo se veía como un login normal: falla cerrado.
+test('validarBloqueBuild: autologinDev booleano y con credenciales en envRemoto', () => {
+  const e = (b, envRemoto) => ({ modo: 'build', envRemoto, build: { ...bloqueOk, ...b } });
+  assert.equal(validarBloqueBuild(e({})), null);
+  assert.equal(validarBloqueBuild(e({ autologinDev: false })), null);
+  assert.match(validarBloqueBuild(e({ autologinDev: 'si' })), /autologinDev debe ser booleano/);
+  assert.match(validarBloqueBuild(e({ autologinDev: true })), /exige VITE_DEV_EMAIL y VITE_DEV_PASSWORD en envRemoto/);
+  assert.match(validarBloqueBuild(e({ autologinDev: true }, ['VITE_DEV_EMAIL'])), /exige VITE_DEV_PASSWORD en envRemoto/);
+  assert.equal(validarBloqueBuild(e({ autologinDev: true }, ['VITE_DEV_EMAIL', 'VITE_DEV_PASSWORD'])), null);
+});
+
 test('validarBloqueBuild: healths atados a build.puertos y marcador acotado', () => {
   const e = (healths) => ({ modo: 'build', build: { ...bloqueOk, healths } });
   assert.match(validarBloqueBuild(e([{ puerto: 5199, ruta: '/' }])), /puerto fuera de build.puertos/);

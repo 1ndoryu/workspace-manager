@@ -235,6 +235,14 @@ test('contenidoEnvFrontend: deja solo las claves VITE_* del .env copiado, o nada
   assert.equal(contenidoEnvFrontend('JWT_SECRET=y\n'), null);
 });
 
+// [18AA-1] La bandera que enciende la auto-entrada en modo build: la añade el manager, no el .env.
+test('contenidoEnvFrontend: autologinDev añade la bandera una sola vez', () => {
+  assert.equal(contenidoEnvFrontend('VITE_DEV_EMAIL=a@b\n', true), 'VITE_DEV_EMAIL=a@b\nVITE_DEV_AUTOLOGIN=1\n');
+  // Sin ninguna clave VITE_* del .env la bandera sola basta: el front igualmente intenta entrar.
+  assert.equal(contenidoEnvFrontend('JWT_SECRET=y\n', true), 'VITE_DEV_AUTOLOGIN=1\n');
+  assert.equal(contenidoEnvFrontend('VITE_DEV_AUTOLOGIN=1\nVITE_DEV_EMAIL=a@b\n', true), 'VITE_DEV_EMAIL=a@b\nVITE_DEV_AUTOLOGIN=1\n');
+});
+
 test('comandoPrecompilar: build bajo cm-heavy, mismo target que el arranque, log fuera de la réplica', () => {
   const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
   const cmd = comandoPrecompilar(config, rutas, 'P', ['cargo', 'build', '--bin', 'x']);
