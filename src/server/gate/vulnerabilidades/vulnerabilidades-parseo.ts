@@ -161,20 +161,36 @@ const RE_VENCE = /VENCE (\d{4}-\d{2}-\d{2})/;
 export function parsearExcepcionesAudit(toml: string, hoy: string): ExcepcionesAudit {
   const r: ExcepcionesAudit = { vigentes: [], vencidas: [], sinFecha: [] };
   let comentarios: string[] = [];
+  let trasId = false;
   for (const linea of toml.split(/\r?\n/)) {
     const t = linea.trim();
+    /* [por que] Una linea en blanco separa grupos: ningun comentario anterior
+     * presta su VENCE a los ids que siguen. */
+    if (t === '') {
+      comentarios = [];
+      trasId = false;
+      continue;
+    }
     if (t.startsWith('#')) {
+      /* [por que] Un comentario que sigue a un id abre otro grupo. Sin esto el
+       * VENCE del primer id se pierde para los que van debajo de el. */
+      if (trasId) {
+        comentarios = [];
+        trasId = false;
+      }
       comentarios.push(t);
       continue;
     }
     const ids = [...t.matchAll(RE_ID_RUSTSEC)].map((m) => m[1]);
+    if (ids.length > 0) trasId = true;
+    /* [por que] El grupo conserva su comentario: los ids que siguen a un mismo
+     * comentario comparten su VENCE (p. ej. 0367/0368/0369 en KAMPLES). */
     const venc = ids.length > 0 ? RE_VENCE.exec(comentarios.join('\n')) : null;
     for (const id of ids) {
       if (!venc) r.sinFecha.push(id);
       else if (hoy < venc[1]) r.vigentes.push(id);
       else r.vencidas.push(id);
     }
-    comentarios = [];
   }
   return r;
 }

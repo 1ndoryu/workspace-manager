@@ -211,3 +211,33 @@ test('fechaLocal: AAAA-MM-DD con ceros (mes 0-indexado)', () => {
   assert.equal(fechaLocal(new Date(2026, 9, 2)), '2026-10-02');
   assert.equal(fechaLocal(new Date(2026, 10, 12)), '2026-11-12');
 });
+
+/* [por que] Caso real (NAKOMI/KAMPLES/MN, 2026-10-18): un solo comentario VENCE
+ * cubre varios ids seguidos; los ids de debajo no deben contar como sin fecha. */
+test('parsearExcepcionesAudit: varios ids bajo un mismo comentario comparten su VENCE', () => {
+  const toml = [
+    'ignore = [',
+    '    # Motivo zip. Decidido: excepcion de 1 mes (2026-10-18). VENCE 2026-11-18.',
+    '    "RUSTSEC-2026-0367",',
+    '    "RUSTSEC-2026-0368",',
+    '    "RUSTSEC-2026-0369",',
+    ']',
+  ].join('\n');
+  const r = parsearExcepcionesAudit(toml, '2026-10-18');
+  assert.deepEqual(r.vigentes, ['RUSTSEC-2026-0367', 'RUSTSEC-2026-0368', 'RUSTSEC-2026-0369']);
+  assert.deepEqual(r.sinFecha, []);
+});
+
+test('parsearExcepcionesAudit: un comentario nuevo tras un id no hereda el VENCE del grupo anterior', () => {
+  const toml = [
+    'ignore = [',
+    '    # Primero. VENCE 2026-11-13.',
+    '    "RUSTSEC-2023-0071",',
+    '    # Segundo, sin fecha.',
+    '    "RUSTSEC-2024-0370",',
+    ']',
+  ].join('\n');
+  const r = parsearExcepcionesAudit(toml, '2026-10-18');
+  assert.deepEqual(r.vigentes, ['RUSTSEC-2023-0071']);
+  assert.deepEqual(r.sinFecha, ['RUSTSEC-2024-0370']);
+});
