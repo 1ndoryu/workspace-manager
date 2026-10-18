@@ -47,6 +47,7 @@ export {
   paresTunel,
   reenviosTunel,
   tunelDeEntrada,
+  tunelDeListener,
   tunelDeQuien,
   puertoDeSaludValido,
   validarBloqueBuild,

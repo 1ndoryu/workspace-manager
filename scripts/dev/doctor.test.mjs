@@ -32,6 +32,7 @@ import {
   puertoDeSaludValido,
   reenviosTunel,
   tunelDeEntrada,
+  tunelDeListener,
   tunelDeQuien,
   validarBloqueBuild,
   validarIgnoradoSistema,
@@ -529,6 +530,21 @@ test('tunelDeQuien: nombra la ficha del tunel y null si no es de nadie', () => {
   // Los tres tuneles de la lab no son de ninguna ficha: siguen siendo lo que son.
   assert.equal(tunelDeQuien(ssh('ssh -N -L 13103:127.0.0.1:3103 dev89'), [FICHA]), null);
   assert.equal(tunelDeQuien(ssh('ssh -N -L 14190:127.0.0.1:4190 dev89'), [FICHA]), null);
+});
+
+// [por que] netstat atribuye el 3105 a un pid muerto (padre de `ssh -f`): el
+// túnel vivo se reconoce por su reenvío, no por el pid del listener.
+test('tunelDeListener: un listener con pid muerto es el túnel vivo de su ficha', () => {
+  const RESTAURANTE = { id: 'RESTAURANTE', host: 'dev89', puertos: [3105] };
+  const vivos = [ssh('ssh -f -N -L 127.0.0.1:3105:127.0.0.1:3105 dev89')];
+  assert.equal(tunelDeListener(3105, vivos, [RESTAURANTE])?.id, 'RESTAURANTE');
+  // Otro puerto no es ese túnel.
+  assert.equal(tunelDeListener(3110, vivos, [RESTAURANTE, FICHA]), null);
+  // Un túnel con un reenvío de más no es el de la ficha, aunque ocupe el puerto.
+  const extra = [ssh('ssh -N -L 3105:127.0.0.1:3105 -L 9999:127.0.0.1:9999 dev89')];
+  assert.equal(tunelDeListener(3105, extra, [RESTAURANTE]), null);
+  // Sin túneles vivos, nada que atribuir (lo que no es túnel sigue como huérfano).
+  assert.equal(tunelDeListener(3105, [], [RESTAURANTE]), null);
 });
 
 test('paresTunel: `tunelesExtra` añade el puente del gateway (33110 -> 3110 de la 89)', () => {

@@ -130,6 +130,21 @@ export async function procesosDe(pids) {
 }
 
 
+/* Todos los ssh vivos (CreationDate, exe, cmd): los túneles de las fichas remotas.
+ * [por que] Fail-open: si el sensor falla devuelve [] y el listener sigue
+ * visible como huérfano, nunca se oculta por error. */
+export async function procesosSshVivos() {
+  const script = `@(Get-CimInstance Win32_Process -Filter "Name='ssh.exe'" | Select-Object @{n='pid';e={$_.ProcessId}},@{n='creado';e={$_.CreationDate.ToString('o')}},@{n='exe';e={$_.ExecutablePath}},@{n='cmd';e={$_.CommandLine}},@{n='imagen';e={$_.Name}}) | ConvertTo-Json -Compress -Depth 3`;
+  try {
+    const sal = (await correrPs(script)).trim();
+    const j = sal ? JSON.parse(sal) : [];
+    return (Array.isArray(j) ? j : [j]).map((f) => ({ creado: f.creado ?? null, exe: f.exe ?? null, cmd: f.cmd ?? null, imagen: f.imagen ?? null }));
+  } catch {
+    return [];
+  }
+}
+
+
 function normalizarRuta(r) {
   return String(r ?? '').replace(/\//g, '\\').toLowerCase();
 }

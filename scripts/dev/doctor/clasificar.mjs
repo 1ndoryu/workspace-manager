@@ -3,8 +3,8 @@
 import { isAbsolute, resolve } from 'node:path';
 
 import { RAIZ_REPO } from './base.mjs';
-import { datosCimDe, escanearEscucha, normalizarRuta } from './sistema/procesos.mjs';
-import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeQuien } from './sistema/puertos.mjs';
+import { datosCimDe, escanearEscucha, normalizarRuta, procesosSshVivos } from './sistema/procesos.mjs';
+import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeListener, tunelDeQuien } from './sistema/puertos.mjs';
 
 /* Clasifica snapshot x registro x escucha. Por proyecto: exactamente un
  * estado. Huerfanos: listeners sin entrada del registro; se atribuyen por
@@ -58,6 +58,8 @@ export async function clasificar(proyectos, registro, escucha, ignorados = []) {
   }
 
   const huerfanos = [];
+  const entradasReg = [...registro.entradas.values()];
+  let sshVivos = null; // lazy: solo si hay un listener cuyo pid ya no existe
   for (const c of candidatos) {
     if (consumidos.has(`${c.ip}:${c.puerto}:${c.pid}`)) continue;
     const proc = procs.get(c.pid);
@@ -70,7 +72,13 @@ export async function clasificar(proyectos, registro, escucha, ignorados = []) {
     // [por que 16AA-20] Tunel ssh de una ficha remota: ocupa su puerto local a
     // proposito, no es un hueco. Antes salian ocho «(sin proyecto)» —los tres de
     // la lab (13103/13104/14190) y los cinco de las fichas (3105, 3110, 5199).
-    if (tunelDeQuien(proc, registro.entradas.values())) continue;
+    if (tunelDeQuien(proc, entradasReg)) continue;
+    // [por que] pid muerto (netstat lo atribuye al padre de `ssh -f`): el túnel
+    // vivo se reconoce por su reenvío -L hacia una ficha remota declarada.
+    if (!proc) {
+      sshVivos ??= await procesosSshVivos();
+      if (tunelDeListener(c.puerto, sshVivos, entradasReg)) continue;
+    }
     // [por que] El pool incluye los ignorados del area: opencode-propio (ignorado
     // en el tablero) se atribuye y cae en noAplica en vez de salir huerfano mudo.
     const clave = atribuirHuerfano(proc, [...proyectos, ...ignorados]);

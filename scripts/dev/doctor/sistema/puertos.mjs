@@ -114,6 +114,19 @@ export function tunelDeQuien(proc, entradas) {
   return null;
 }
 
+/* Entrada remota dueña del túnel que ocupa `puerto`, buscando entre los ssh
+ * vivos, o null. [por que] netstat puede atribuir el listener a un pid ya
+ * muerto (`ssh -f` se despide y deja al hijo escuchando): el proceso del
+ * listener no existe, así que hay que buscar el túnel por su reenvío. */
+export function tunelDeListener(puerto, sshVivos, entradas) {
+  for (const proc of sshVivos) {
+    if (!reenviosTunel(proc.cmd).some(([local]) => local === puerto)) continue;
+    const e = tunelDeQuien(proc, entradas);
+    if (e) return e;
+  }
+  return null;
+}
+
 /* Marcador de deteccion para un puerto: string unico o posicion i del
  * array (misma alineacion 1:1 que boton). Fuera de rango = primero (no hay
  * healths fuera de puertos: validarEntrada lo impide, esto es red). */
