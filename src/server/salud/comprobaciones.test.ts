@@ -168,9 +168,11 @@ describe('comprobaciones por proyecto', () => {
   it('planes-y-roadmap: info por plan inactivo y por enlace roto', () => {
     const c = buscar(COMPROBACIONES_PROYECTO, 'planes-y-roadmap');
     const viejo = AHORA - 30 * DIA_MS;
-    assert.deepEqual(resultado(c, proyecto({ planesActivos: [{ archivo: 'plan-x.md', modificadoMs: viejo }] })).hallazgos, [
+    assert.deepEqual(resultado(c, proyecto({ planesActivos: [{ archivo: 'plan-x.md', modificadoMs: viejo, abiertas: 0 }] })).hallazgos, [
       { id: 'planes-y-roadmap', severidad: 'info' },
     ]);
+    /* [por que] Con casillas abiertas el plan sigue activo: no hay que cerrarlo. */
+    assert.deepEqual(resultado(c, proyecto({ planesActivos: [{ archivo: 'plan-y.md', modificadoMs: viejo, abiertas: 3 }] })).hallazgos, []);
     assert.deepEqual(resultado(c, proyecto({ enlacesRotos: ['Agente/x.md'] })).hallazgos, [{ id: 'planes-y-roadmap', severidad: 'info' }]);
     assert.deepEqual(resultado(c, proyecto()).hallazgos, []);
   });

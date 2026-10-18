@@ -28,6 +28,9 @@ export interface RamaSuelta {
 export interface PlanActivo {
   archivo: string;
   modificadoMs: number;
+  /* Casillas `- [ ]` sin marcar. [por que] Un plan con trabajo abierto está activo, aunque
+   * lleve días sin tocarse: la alarma por antigüedad solo vale si ya no queda nada abierto. */
+  abiertas: number;
 }
 
 export interface DatosProyecto {

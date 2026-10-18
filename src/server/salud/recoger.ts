@@ -114,9 +114,19 @@ function planesActivos(ruta: string): PlanActivo[] {
   } catch {
     return [];
   }
+  /* [por que] README.md es el índice de la carpeta, no un plan: no entra en la comprobación. */
   return nombres
-    .filter((n) => n.endsWith('.md'))
-    .map((archivo) => ({ archivo, modificadoMs: statSync(join(dir, archivo)).mtimeMs }));
+    .filter((n) => n.endsWith('.md') && n !== 'README.md')
+    .map((archivo) => ({
+      archivo,
+      modificadoMs: statSync(join(dir, archivo)).mtimeMs,
+      abiertas: contarCasillasAbiertas(leerArchivo(join(dir, archivo)) ?? ''),
+    }));
+}
+
+/* Casillas de tarea sin marcar (`- [ ]`, `* [ ]`) en un plan. */
+function contarCasillasAbiertas(texto: string): number {
+  return texto.match(/^\s*[-*]\s\[ \]/gm)?.length ?? 0;
 }
 
 /* Enlaces .md de roadmap.md que apuntan a ficheros inexistentes. */

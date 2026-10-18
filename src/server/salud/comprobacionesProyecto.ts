@@ -201,14 +201,16 @@ export const COMPROBACIONES_PROYECTO: Comprobacion<DatosProyecto>[] = [
     evaluar: (d) => {
       const hallazgos: Hallazgo[] = [];
       const limite = d.ahora - DIAS_PLAN_INACTIVO * DIA_MS;
+      /* [por que] Solo se avisa del plan sin casillas abiertas: con trabajo pendiente (p. ej.
+       * esperando una decisión externa) está activo, y «ciérralo» sería un consejo falso. */
       for (const plan of d.planesActivos) {
-        if (plan.modificadoMs < limite) {
+        if (plan.abiertas === 0 && plan.modificadoMs < limite) {
           const dias = Math.floor((d.ahora - plan.modificadoMs) / DIA_MS);
           hallazgos.push({
             id: 'planes-y-roadmap',
             severidad: 'info',
-            mensaje: `plan ${plan.archivo} sin cambios hace ${dias} días`,
-            accion: 'ciérralo (planes/completados/) o actualiza su próximo paso',
+            mensaje: `plan ${plan.archivo} sin casillas abiertas y sin cambios hace ${dias} días`,
+            accion: 'ciérralo (planes/completados/) si está terminado',
           });
         }
       }
