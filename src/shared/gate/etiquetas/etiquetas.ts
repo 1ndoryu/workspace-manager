@@ -88,6 +88,11 @@ const CATALOGO_BASE: Record<string, InfoSegmento> = {
     descripcion: 'Módulos de logging permitidos.',
     detalle: 'Módulos de logging permitidos a través de la frontera portable, para que el código pueda registrar sin violar los límites.',
   },
+  tooling: {
+    nombre: 'Herramientas',
+    descripcion: 'Carpetas de scripts de herramienta o prueba.',
+    detalle: 'Rutas de scripts de herramienta o prueba (p. ej. /.freebuff/) que pueden usar console sin marcarse como console-production.',
+  },
   gate: {
     nombre: 'Gate',
     descripcion: 'Configuración del comando de cierre (gate).',

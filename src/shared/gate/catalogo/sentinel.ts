@@ -57,6 +57,8 @@ const EN_CONFIG_ANALIZADOR: Alternativas = [['analyzers', '*', 'config']];
         window: strArr(undefined, 'opcional'),
         services: strArr(undefined, 'opcional'),
         loggerModules: strArr(undefined, 'opcional'),
+        /* Carpetas de herramientas (scripts de prueba) fuera de la regla console-production. */
+        tooling: strArr(undefined, 'opcional'),
       },
       necesidad: 'recomendada',
       alternativas: EN_CONFIG_ANALIZADOR,
