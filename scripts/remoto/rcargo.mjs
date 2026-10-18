@@ -8,7 +8,7 @@
 // wrapper del proyecto (scripts/run-cargo.mjs) con modoEfectivo(). Usa ese wrapper.
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exigirConfigPrivada } from '../shared/rutas.mjs';
@@ -233,6 +233,13 @@ export function esVps(plataforma = process.platform) {
   return plataforma !== 'win32';
 }
 
+// [por que] La réplica laptop→89 borra en la 89 cualquier archivo que no exista en el laptop, así que un
+// Cargo.lock generado allí desaparece en ~25 s y cada build resuelve dependencias de nuevo. Se avisa, no se bloquea.
+export function avisoCargoLock(raiz, existe = existsSync) {
+  if (!existe(path.join(raiz, 'Cargo.toml')) || existe(path.join(raiz, 'Cargo.lock'))) return null;
+  return 'rcargo: aviso: hay Cargo.toml sin Cargo.lock en el laptop. La 89 lo borraría al sincronizar; versiona Cargo.lock en el laptop (Agente/documentacion/alta-proyectos-2026-10-11.md).';
+}
+
 // Asegura la sesión de Mutagen, fuerza el envío pendiente y ejecuta cargo en la VPS.
 export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
   const rutas = rutasRemotas(config, proyecto, rama);
@@ -254,6 +261,8 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
   }
 
   if (!esVps()) {
+    const aviso = avisoCargoLock(git(cwd, ['rev-parse', '--show-toplevel']) ?? cwd);
+    if (aviso) console.error(aviso);
     const sync = asegurarSesion({ config, proyecto, rutaLocal: cwd, rutas, dryRun, cwd });
     if (sync !== 0) return sync;
   }

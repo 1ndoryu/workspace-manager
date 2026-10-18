@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
+import path from 'node:path';
 import {
   modoEfectivo,
   quitarFlagsTaller,
@@ -16,6 +17,7 @@ import {
   comandoBaseRemota,
   comandoPrepararRama,
   esVps,
+  avisoCargoLock,
 } from './rcargo.mjs';
 import { rutaConfigPrivada } from '../shared/rutas.mjs';
 
@@ -206,4 +208,12 @@ test('comando remoto: la base de rama se prepara antes de cargo, y solo con `pre
 test('esVps: Windows es el laptop, cualquier otra plataforma es la 89', () => {
   assert.equal(esVps('win32'), false);
   assert.equal(esVps('linux'), true);
+});
+
+// [por que] Sin Cargo.lock local, la 89 lo borra al sincronizar: el aviso debe salir; con el lock, o sin Cargo.toml, no.
+test('aviso de Cargo.lock: Cargo.toml sin lock local; con lock o sin Cargo.toml, nada', () => {
+  const con = (archivos) => (ruta) => archivos.includes(path.basename(ruta));
+  assert.match(avisoCargoLock('/p', con(['Cargo.toml'])), /Cargo\.lock/);
+  assert.equal(avisoCargoLock('/p', con(['Cargo.toml', 'Cargo.lock'])), null);
+  assert.equal(avisoCargoLock('/p', con(['package.json'])), null);
 });
