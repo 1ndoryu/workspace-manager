@@ -33,13 +33,6 @@ export const RAIZ_AREA = process.env.WS_AREA_ROOT || dirname(RAIZ_REPO);
 /** Carpeta de skills del agente (índice en AGENTS §11). */
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || join(homedir(), '.agents', 'skills');
 
-/** Raíz de temporales: lo descartable va aquí, nunca a `%TEMP%` ni dentro de un
- * proyecto (AGENTS §1). `WM_TMP` la mueve. Espejo de `scripts/shared/rutas.mjs`. */
-export function raizTemporales(): string {
-  const declarada = process.env.WM_TMP?.trim();
-  if (declarada) return declarada;
-  return process.platform === 'win32' ? 'C:/tmp' : join(homedir(), 'tmp');
-}
 
 /* Config privada del área: registro de proyectos y ficha del taller. No se
  * versiona (ver `config/ejemplos/`), porque lleva rutas de esta máquina y la
