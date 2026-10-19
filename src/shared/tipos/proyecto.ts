@@ -40,6 +40,21 @@ export interface ResumenAgents {
   skills: string[];
 }
 
+/* Donde corre el servicio de desarrollo del proyecto y en que modo, segun su
+ * ficha en config/registro.json. Ausente si el proyecto no tiene ficha. */
+export interface Ejecucion {
+  donde: 'laptop' | 'vps89';
+  modo: 'dev' | 'build' | null;
+}
+
+/* Despliegue de produccion vinculado a un sitio de Coolify (VPS 66). */
+export interface Despliegue {
+  proveedor: 'coolify';
+  vps: string;
+  sitio: string;
+  dominio: string;
+}
+
 /* Identidad estable de un proyecto (quien es y donde esta). Subinterface de
  * Proyecto: ISP cohesiva sin cambiar el contrato (Proyecto la extiende). */
 export interface IdentidadProyecto {
@@ -55,6 +70,9 @@ export interface IdentidadProyecto {
   padre?: string;
   /** Este proyecto es el propio tablero (se decide por ruta, no por nombre). */
   esMando?: boolean;
+  /* Vinculos del registro: donde corre el dev y su despliegue en Coolify. */
+  ejecucion?: Ejecucion;
+  despliegue?: Despliegue;
 }
 
 /* Estado observable de un proyecto (gate, git, resumenes). Subinterface de

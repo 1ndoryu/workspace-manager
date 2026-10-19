@@ -9,6 +9,7 @@ import { estadoGate, diagnosticarGate } from './gate.js';
 import { resumenRoadmap } from './roadmap.js';
 import { resumenAgents, agentesGlobales } from './agents.js';
 import { leerConfigArea } from '../configArea.js';
+import { anotarRegistro, leerRegistroOpcional } from '../registro.js';
 import { RAIZ_REPO } from '../plataforma/rutas.js';
 import type { EstadoGate, Proyecto, SnapshotWorkspace } from '../../shared/types.js';
 
@@ -137,16 +138,18 @@ export async function escanearWorkspace(opts: OpcionesEscaneo): Promise<Snapshot
     .filter((p) => !ignoradoSet.has(p.clave));
 
   visibles.sort((a, b) => a.id.localeCompare(b.id));
+  /* Vinculos del registro (ejecucion y Coolify) antes del resumen, que los usa. */
+  const conRegistro = anotarRegistro(visibles, leerRegistroOpcional());
 
   const agentes = agentesGlobales(opts.raiz, opts.carpetaSkills);
 
   return {
     escaneadoEn: new Date().toISOString(),
     raiz: opts.raiz,
-    proyectos: visibles,
+    proyectos: conRegistro,
     agentes,
     config,
-    resumen: resumenDe(visibles),
+    resumen: resumenDe(conRegistro),
   };
 }
 

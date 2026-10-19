@@ -127,6 +127,15 @@
     pointer-events: none;
 }
 
+/* Anillo hairline monocromo: despliegue en Coolify. Sin color, para no
+ * competir con el punto verde (que solo marca lo que esta vivo). */
+.mapaV2AnilloCoolify {
+    fill: none;
+    stroke: var(--v2-texto);
+    stroke-width: 0.8;
+    pointer-events: none;
+}
+
 /* Tooltip monocromo: caja negra con borde y texto blanco. La posicion la
  * publica el componente como CSS vars (sigue al cursor) para no tapar los
  * paneles laterales, sin estilos inline reales. */

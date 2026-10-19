@@ -140,6 +140,17 @@ export function MapaV2() {
         onPointerUp={terminarArrastre}
         onPointerCancel={terminarArrastre}
       >
+        {/* Halo para lo que esta vivo (isoglow: "lo encendido brilla"). Un solo
+         * filtro compartido por el punto verde; sin el, el punto queda plano. */}
+        <defs>
+          <filter id="mapaV2Brillo" x="-150%" y="-150%" width="400%" height="400%">
+            <feGaussianBlur stdDeviation="2.2" result="halo" />
+            <feMerge>
+              <feMergeNode in="halo" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         {/* Cuadricula iso de separacion, dibujada detras de las cajas.
          * Se extiende EXT celdas mas alla del contenido en cada direccion
          * (extension simetrica => centrado garantizado). */}
@@ -190,12 +201,22 @@ export function MapaV2() {
               <polygon points={paredDer} className="mapaV2ParedDer" />
               <polygon points={paredIzq} className="mapaV2ParedIzq" />
               <polygon points={techo} className="mapaV2Piso" />
+              {p.despliegue ? (
+                /* Anillo hueco: el proyecto tiene despliegue en Coolify (VPS 66). */
+                <circle
+                  cx={posicionGrid(col, fila).x}
+                  cy={posicionGrid(col, fila).y - TILE.altoPared}
+                  r={6}
+                  className="mapaV2AnilloCoolify"
+                />
+              ) : null}
               {enMarcha.has(p.clave) ? (
                 <circle
                   cx={posicionGrid(col, fila).x}
                   cy={posicionGrid(col, fila).y - TILE.altoPared}
                   r={3.2}
                   className="mapaV2PuntoVerde"
+                  filter="url(#mapaV2Brillo)"
                 >
                   <title>en marcha (dev bajo-mando)</title>
                 </circle>
@@ -255,6 +276,19 @@ export function MapaV2() {
           }
         >
           <div className="mapaV2TooltipTitulo">{hover.id}</div>
+          {hover.ejecucion && (
+            <div className="mapaV2TooltipDatos">
+              <div>
+                corre: {hover.ejecucion.donde === 'vps89' ? 'VPS 89' : 'laptop'} · modo {hover.ejecucion.modo ?? 'sin declarar'}
+              </div>
+            </div>
+          )}
+          {hover.despliegue && (
+            <div className="mapaV2TooltipDatos">
+              <div>coolify: {hover.despliegue.sitio} (VPS {hover.despliegue.vps})</div>
+              <div>{hover.despliegue.dominio}</div>
+            </div>
+          )}
           {hover.esGit && hover.git ? (
             <div className="mapaV2TooltipDatos">
               <div>rama: {hover.git.rama}</div>
