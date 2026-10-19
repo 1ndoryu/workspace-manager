@@ -6,8 +6,11 @@
  * configuración válida (un clon recién hecho no lo trae), no un error. */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { RAIZ_REPO } from '../../../shared/rutas.js';
 
-const RAIZ_WM = join(import.meta.dirname, '..', '..', '..', '..');
+/* [por que] RAIZ_REPO y no `import.meta.dirname`: esa propiedad no existe en todos los Node
+ * (el de la 89 por fnm en algunos entornos la deja indefinida) y tumbaba al importar. */
+const RAIZ_WM = RAIZ_REPO;
 const RUTA_TALLER = join(RAIZ_WM, 'config', 'taller.json');
 const RUTA_REGISTRO = join(RAIZ_WM, 'config', 'registro.json');
 
