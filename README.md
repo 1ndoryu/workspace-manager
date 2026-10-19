@@ -159,10 +159,12 @@ El manager distingue dos papeles, y esa separación es el eje del diseño:
   ejecutar. Lo pesado.
 
 Sin `config/taller.json`, o con el taller apagado, todo lo local sigue
-funcionando: mapa, repos, documentos, tareas, config, y los análisis corren en
-la propia máquina. Lo que se degrada es lo que necesita el servidor —arrancar
-proyectos allí, sincronizar árboles, compilar— y el manager lo dice en la
-interfaz en vez de fallar en silencio.
+funcionando: mapa, repos, documentos, tareas, config, y el análisis de los
+proyectos que corren en el portátil. Los proyectos de taller (`analisisEn:
+taller` en el registro, o `modoPorDefecto: remoto`) **no se analizan en el
+portátil**: su análisis, su doctor y su arranque quedan con el motivo
+(`sin taller configurado`, `el taller no respondió`) en vez de caer en silencio
+en la máquina local. Es a propósito: el portátil edita, y lo pesado va a la 89.
 
 Para activarlo basta con rellenar `config/taller.json`: de ahí salen el host, el
 directorio base y **dónde se analiza** cada proyecto (`modoPorDefecto`, `remoto`
@@ -210,8 +212,8 @@ TypeScript.
 
 Sentinel y VarSense son proyectos aparte. `quality-tools.json` declara de dónde
 se clonan y en qué commit; `npm run quality:setup` los provisiona en
-`.quality-tools/`. Si no están, el manager funciona igual: simplemente no hay
-hallazgos que mostrar.
+`.quality-tools/`. Si no están, el manager funciona igual, pero el análisis de
+ese proyecto aparece como **error de datos con su motivo**, nunca como limpio.
 
 ## Licencia
 
