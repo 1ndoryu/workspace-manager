@@ -68,10 +68,10 @@ export function dondeBuscarBinario(): string {
  * el listado (¿VPS inalcanzable?)»: un sintoma que no tenia nada que ver con la
  * VPS. Un solo dueno para el dato, y la variable gana (es la anulacion explicita).
  * Sin papel declarado queda solo la variable. */
-export function rutaConfigDespliegue(): string | null {
+export function rutaConfigDespliegue(entorno: NodeJS.ProcessEnv = process.env): string | null {
   const papel = papelDeArea('despliegue');
   const candidatos = [
-    (process.env.COOLIFY_MANAGER_CONFIG ?? '').trim(),
+    (entorno.COOLIFY_MANAGER_CONFIG ?? '').trim(),
     papel ? join(RAIZ_AREA, papel, 'config', 'settings.json') : '',
   ];
   for (const ruta of candidatos) {
@@ -85,8 +85,8 @@ export function rutaConfigDespliegue(): string | null {
  * definición evita que diverjan. */
 export const NOMBRE_OK = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
-export function rutaBinario(): string | null {
-  const porEnv = (process.env.COOLIFY_MANAGER_BIN ?? '').trim();
+export function rutaBinario(entorno: NodeJS.ProcessEnv = process.env): string | null {
+  const porEnv = (entorno.COOLIFY_MANAGER_BIN ?? '').trim();
   if (porEnv && existsSync(porEnv)) return porEnv;
   for (const ruta of rutasBinDespliegue()) {
     if (existsSync(ruta)) return ruta;

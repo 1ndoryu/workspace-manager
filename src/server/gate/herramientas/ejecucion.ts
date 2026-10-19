@@ -9,7 +9,7 @@ import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { RAIZ_VERSIONS, checkoutSentinel, cliSentinelParaProyecto, versionRuntime, versionSentinel } from './proveedor.js';
+import { raizVersiones, checkoutSentinel, cliSentinelParaProyecto, versionRuntime, versionSentinel } from './proveedor.js';
 import type { ResolucionCli } from './proveedor.js';
 /* Raíz del área (misma fuente del server): la caché de análisis vive bajo
  * <area>/data/cache/analisis.json, como la config del workspace. */
@@ -54,16 +54,16 @@ export interface ResultadoSpawn {
  * varsense}) justo ANTES de lanzar sentinel por proyecto, para que cada
  * invocación apunte al checkout compartido. Nunca pisa una env que el usuario
  * ya haya definido: el override manual gana. */
-export function entornoGate(rutaProyecto?: string): NodeJS.ProcessEnv {
+export function entornoGate(rutaProyecto?: string, entorno: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   /* [por que] 039A-4: si el proyecto declara su propio `provisionPath`, el
    * análisis debe correr contra ESE checkout (es el que ejecuta su gate), no
    * contra el compartido. El override manual del usuario sigue ganando. */
-  if (process.env.GLORY_SENTINEL_SOURCE_PATH === undefined) {
+  if (entorno.GLORY_SENTINEL_SOURCE_PATH === undefined) {
     const propio = rutaProyecto ? cliSentinelParaProyecto(rutaProyecto) : null;
     env.GLORY_SENTINEL_SOURCE_PATH = propio?.base ?? join(RAIZ_AREA, '.quality-tools', 'sentinel');
   }
-  if (process.env.GLORY_VARSENSE_SOURCE_PATH === undefined) {
+  if (entorno.GLORY_VARSENSE_SOURCE_PATH === undefined) {
     env.GLORY_VARSENSE_SOURCE_PATH = join(RAIZ_AREA, '.quality-tools', 'varsense');
   }
   return env;
@@ -88,8 +88,8 @@ export function hashArtefacto(ruta: string): string {
  * (<area>/.quality-tools/varsense). [por que] 308A-1 centraliza el runtime;
  * el override de env (GLORY_VARSENSE_SOURCE_PATH) gana, igual que en
  * `entornoGate`. Devuelve null si no está provisionado. */
-export function checkoutVarsense(): string | null {
-  const base = process.env.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'varsense');
+export function checkoutVarsense(entorno: NodeJS.ProcessEnv = process.env): string | null {
+  const base = entorno.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'varsense');
   const cli = join(base, 'dist', 'cli', 'index.js');
   return existsSync(cli) ? base : null;
 }
@@ -148,9 +148,9 @@ export function cliRuntime(rutaProyecto?: string): ResolucionCli | null {
   }
   const v = versionRuntime();
   if (!v) return null;
-  const cli = join(RAIZ_VERSIONS, v, 'out', 'cli', 'index.js');
+  const cli = join(raizVersiones(), v, 'out', 'cli', 'index.js');
   if (!existsSync(cli)) return null;
-  return { base: join(RAIZ_VERSIONS, v), cli, version: v, commit: null };
+  return { base: join(raizVersiones(), v), cli, version: v, commit: null };
 }
 
 /* Parseo tolerante del reporte JSON: solo es un reporte válido si hay un

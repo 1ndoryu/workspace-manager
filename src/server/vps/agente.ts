@@ -322,12 +322,14 @@ function leerTokenLocal(): string {
   }
 }
 
-export function agenteProd(): {
+/* El entorno llega como parámetro [por que] para probar sin tocar variables reales; el
+ * singleton `prod` se fija con la primera llamada (en producción siempre es process.env). */
+export function agenteProd(entorno: NodeJS.ProcessEnv = process.env): {
   snapshot: () => Promise<VpsAgenteRespuesta>;
   detalleSitio: (uuid: string) => Promise<VpsAgenteDetalleRespuesta>;
 } | null {
-  const base = (process.env['PULSE_URL'] ?? '').trim() || 'http://127.0.0.1:3000';
-  const token = (process.env['PULSE_TOKEN'] ?? '').trim() || leerTokenLocal();
+  const base = (entorno['PULSE_URL'] ?? '').trim() || 'http://127.0.0.1:3000';
+  const token = (entorno['PULSE_TOKEN'] ?? '').trim() || leerTokenLocal();
   if (token.length < 32) return null;
   if (!prod) prod = crearAgente({ baseUrl: base, token });
   return prod;

@@ -114,13 +114,14 @@ let cache: { en: number; reporte: ReporteSincronizacion } | null = null;
 
 export async function correrSincronizacion(
   forzar = false,
+  entorno: NodeJS.ProcessEnv = process.env,
 ): Promise<ReporteSincronizacion> {
   if (!forzar && cache && Date.now() - cache.en < CACHE_MS) return cache.reporte;
   const script = rutaScript();
   const hijo = spawn(process.execPath, [script, '--json'], {
     cwd: RAIZ_REPO,
     windowsHide: true,
-    env: { ...process.env },
+    env: { ...entorno },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const chunks: Buffer[] = [];
@@ -157,12 +158,12 @@ export async function correrSincronizacion(
  * [por que] Mismo patron que correrSincronizacion: el script sale con 1 ante
  * desalineamiento real (hoy 7/17 filas varsense), asi que se lee stdout hasta
  * 'close' sin depender del codigo. Solo lanza si el stdout no es JSON. */
-export async function correrAlineacion(): Promise<ReporteAlineacion> {
+export async function correrAlineacion(entorno: NodeJS.ProcessEnv = process.env): Promise<ReporteAlineacion> {
   const script = join(RAIZ_REPO, 'scripts', 'quality', 'auditoria', 'verificar-alineacion.mjs');
   const hijo = spawn(process.execPath, [script, '--json'], {
     cwd: RAIZ_REPO,
     windowsHide: true,
-    env: { ...process.env },
+    env: { ...entorno },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const chunks: Buffer[] = [];

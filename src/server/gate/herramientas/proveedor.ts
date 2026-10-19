@@ -22,12 +22,12 @@ import { ESQUEMA_VARSENSE } from '../../../shared/gate/catalogo/varsense.js';
 import { serializarEsquema } from '../../../shared/gate/modelo/serial.js';
 import { RAIZ_AREA } from '../../plataforma/rutas.js';
 
-/* Raíz de las versiones instaladas de GlorySentinel (AppData local). */
-export const RAIZ_VERSIONS = join(
-  process.env.LOCALAPPDATA || join(process.env.APPDATA || '', '..'),
-  'GlorySentinel',
-  'versions',
-);
+/* Raíz de las versiones instaladas de GlorySentinel (AppData local). [por que] Función
+ * con el entorno como parámetro (no constante al cargar el módulo): así se prueba con
+ * un entorno falso y el valor sale de quien llama, no de un global. */
+export function raizVersiones(entorno: NodeJS.ProcessEnv = process.env): string {
+  return join(entorno.LOCALAPPDATA || join(entorno.APPDATA || '', '..'), 'GlorySentinel', 'versions');
+}
 
 /* Raíz del área (misma fuente que el resto del server; `WS_AREA_ROOT` gana). */
 
@@ -43,8 +43,8 @@ export const RAIZ_VERSIONS = join(
  * resolvía desde el checkout compartido (fase G); esto elimina la asimetría.
  * El override por env gana y, si no hay checkout provisionado, se cae a las
  * versiones instaladas (nunca se rompe el árbol por ausencia de runtime). */
-export function checkoutSentinel(): string | null {
-  const base = process.env.GLORY_SENTINEL_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'sentinel');
+export function checkoutSentinel(entorno: NodeJS.ProcessEnv = process.env): string | null {
+  const base = entorno.GLORY_SENTINEL_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'sentinel');
   return existsSync(join(base, 'out', 'cli', 'index.js')) ? base : null;
 }
 
@@ -136,8 +136,8 @@ function esPrerelease(v: string): boolean {
 /* Devuelve la version instalada mas alta estable (o null si no hay runtime). */
 export function versionRuntime(): string | null {
   try {
-    if (!existsSync(RAIZ_VERSIONS)) return null;
-    const versiones = readdirSync(RAIZ_VERSIONS)
+    if (!existsSync(raizVersiones())) return null;
+    const versiones = readdirSync(raizVersiones())
       .filter((v) => !esPrerelease(v) && /^\d+(\.\d+)*$/.test(v))
       .sort(semverSort);
     return versiones[versiones.length - 1] ?? null;
@@ -205,7 +205,7 @@ function localizarOut(): { ruta: string; mtime: number } | null {
   const base = checkoutSentinel();
   if (base) candidatas.push(join(base, 'out'));
   const version = versionRuntime();
-  if (version) candidatas.push(join(RAIZ_VERSIONS, version, 'out'));
+  if (version) candidatas.push(join(raizVersiones(), version, 'out'));
   for (const rutaOut of candidatas) {
     const archivo = join(rutaOut, 'config', 'ruleRegistry.js');
     if (!existsSync(archivo)) continue;
@@ -302,9 +302,9 @@ registrarProveedor({
 /* Version real de varsense del checkout compartido (misma resolucion que
  * `entornoGate` del analizador: env override gana, sino <area>/.quality-tools/
  * varsense). null si no esta provisionado. */
-export function versionVarsense(): string | null {
+export function versionVarsense(entorno: NodeJS.ProcessEnv = process.env): string | null {
   try {
-    const base = process.env.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'varsense');
+    const base = entorno.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'varsense');
     const pkg = join(base, 'package.json');
     if (!existsSync(pkg)) return null;
     const data = JSON.parse(readFileSync(pkg, 'utf8')) as { version?: unknown };
