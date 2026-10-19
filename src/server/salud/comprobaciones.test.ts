@@ -95,10 +95,10 @@ describe('comprobaciones por proyecto', () => {
     assert.deepEqual(resultado(c, proyecto()).hallazgos, []);
   });
 
-  it('target-dir: omitida fuera de Rust; avisa sin target-dir y con target-dir compartido', () => {
+  it('target-dir: omitida fuera de Rust; sin target-dir no avisa (la VPS lo fija); avisa con target-dir compartido', () => {
     const c = buscar(COMPROBACIONES_PROYECTO, 'target-dir');
-    assert.notEqual(resultado(c, proyecto({ esRust: false })).omitida, null);
-    assert.equal(resultado(c, proyecto({ targetDir: null })).hallazgos.length, 1);
+assert.notEqual(resultado(c, proyecto({ esRust: false })).omitida, null);
+    assert.equal(resultado(c, proyecto({ targetDir: null })).hallazgos.length, 0);
     assert.equal(resultado(c, proyecto({ targetDirCompartidoCon: ['otro'] })).hallazgos.length, 1);
     assert.deepEqual(resultado(c, proyecto()).hallazgos, []);
   });

@@ -45,14 +45,8 @@ export const COMPROBACIONES_PROYECTO: Comprobacion<DatosProyecto>[] = [
     omitirSi: noRust,
     evaluar: (d) => {
       const hallazgos: Hallazgo[] = [];
-      if (d.targetDir === null) {
-        hallazgos.push({
-          id: 'target-dir',
-          severidad: 'aviso',
-          mensaje: 'sin target-dir en .cargo/config.toml: compila dentro del árbol',
-          accion: 'declara target-dir en .cargo/config.toml o usa scripts/run-cargo.mjs',
-        });
-      }
+      /* [por que] No avisamos por la ausencia de target-dir: en la VPS rcargo.mjs fija CARGO_TARGET_DIR
+       * por checkout, y en el portátil la compilación dentro del árbol ya la mide target-en-arbol. */
       if (d.targetDirCompartidoCon.length > 0) {
         hallazgos.push({
           id: 'target-dir',
