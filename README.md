@@ -35,7 +35,7 @@ arranca igual y solo se degrada la función que lo necesita (ver
 ## Puesta en marcha
 
 ```bash
-git clone <este-repo> workspace-manager
+git clone https://github.com/1ndoryu/workspace-manager.git
 cd workspace-manager
 npm ci
 
@@ -50,6 +50,13 @@ cp config/ejemplos/quality-consumidores.example.json config/quality-consumidores
 npm run server   # backend, por defecto en 127.0.0.1:8787
 npm run dev      # front, por defecto en 127.0.0.1:5175
 ```
+
+Requisitos: Node 24 o superior y Git (cada proyecto del área es un repositorio).
+Sin `config/taller.json`, o con `modoPorDefecto` distinto de `remoto`, todo corre en la
+propia máquina; ver «Modo sin VPS».
+
+Para producción: `npm run build` compila el front; `npm run build:server` compila el
+backend a `dist-server/` y `npm run server:compilado` lo arranca.
 
 Abre `http://127.0.0.1:5175`. El front hace proxy de `/api` al backend e inyecta
 el token de portador en el proxy, así que el navegador nunca lo ve.
