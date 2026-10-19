@@ -2,11 +2,11 @@
 
 ## Método
 
-- Máquina: VPS 89 (`dev89`), workspace `/home/usuario/taller`, 19 proyectos.
+- Máquina: VPS del taller (alias y ruta de su config privada), workspace `<raiz-taller>`, 19 proyectos.
 - Script de medición de solo lectura (no escribe en la réplica): llama a
   `escanearWorkspace` dos veces seguidas en el mismo proceso y luego a `refrescarGit`
   sobre el snapshot ya obtenido, cronometrando cada llamada con `performance.now()`.
-- Ejecución: `npx tsx <script> /home/usuario/taller <repo-workspace-manager>` desde la 89.
+- Ejecución: `npx tsx <script> <raiz-taller> <repo-workspace-manager>` desde la VPS.
 - Una sola medición por caso; los números son orden de magnitud, no una media.
 
 ## Resultados

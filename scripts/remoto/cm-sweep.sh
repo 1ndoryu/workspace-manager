@@ -41,7 +41,9 @@ RAIZ=${CM_TARGET_BASE:-/var/tmp/glory-target}
 CALIDAD=${CM_QUALITY_BASE:-/var/tmp/glory-quality}
 VTMP=${CM_VAR_TMP:-/var/tmp}
 TMPD=${CM_TMP:-/tmp}
-CASA=${CM_SWEEP_CASA:-/home/usuario}
+# [por que] Antes era /home/usuario incrustado: el usuario de una máquina concreta. Por defecto es el
+# HOME del usuario que corre el barrido; `:?` aborta si no hay HOME (fail-closed: esta ruta alimenta NUNCA).
+CASA=${CM_SWEEP_CASA:-${HOME:?sin HOME: define CM_SWEEP_CASA}}
 # Hoja obligatoria de cada raíz: si el último componente no es este, el objetivo no se toca
 # (fail-closed). Es lo que impide que una variable de entorno mal puesta borre un directorio que no
 # es el suyo; va aparte de la ruta para que siga sirviendo al cambiar de servidor.

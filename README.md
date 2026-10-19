@@ -152,7 +152,7 @@ como variable de entorno antes de ejecutar el script.
 | `CM_TARGET_BASE` | `provision-89.sh`, `cm-sweep.sh` | `/var/tmp/glory-target` |
 | `CM_QUALITY_BASE` | `cm-sweep.sh` | `/var/tmp/glory-quality` |
 | `CM_SCCACHE_DIR` | `provision-89.sh` | `/var/cache/sccache` |
-| `CM_SWEEP_CASA` | `cm-sweep.sh` | `/home/usuario` |
+| `CM_SWEEP_CASA` | `cm-sweep.sh` | `$HOME` del usuario que barre |
 
 Los nombres `glory-target` y `glory-quality` son contrato con Sentinel y con los scripts del
 taller: los comparten el manager, `provision-89.sh` y `cm-sweep.sh`. Se mantienen a propósito,
