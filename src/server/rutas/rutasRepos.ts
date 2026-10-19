@@ -25,7 +25,7 @@ export async function manejarRutasRepos(
       return true;
     }
     const clave = url.searchParams.get('clave') ?? '';
-    const { snapshot } = snapshotArea(false);
+    const { snapshot } = await snapshotArea(false);
     const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
     if (!proyecto || !proyecto.esGit) {
       json(res, 404, { error: 'Proyecto no encontrado o no es git', clave });
@@ -42,7 +42,7 @@ export async function manejarRutasRepos(
       return true;
     }
     const clave = url.searchParams.get('clave') ?? '';
-    const { snapshot } = snapshotArea(false);
+    const { snapshot } = await snapshotArea(false);
     const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
     if (!proyecto || !proyecto.esGit) {
       json(res, 404, { error: 'Proyecto no encontrado o no es git', clave });

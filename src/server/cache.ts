@@ -38,17 +38,23 @@ export function rutaCache(raiz: string): string {
 
 /* Snapshot en memoria del ultimo escaneo: permite mutarlo (ignorar/quitar)
  * sin re-escandear, y sirve de cache caliente para el siguiente GET. [por
- * que] El escaneo con git es lento (~2,4 s medidos con 20 repos, tras bajar a
+ * que] El escaneo con git es lento (8 s en frío con 21 repos en serie; ahora en
+ * paralelo, ver REPOS_EN_PARALELO en scanner/workspace.ts), tras bajar a
  * dos procesos git por repo en el 17AA-2); alternar un ignorado no cambia
  * git/gate/roadmap, solo la visibilidad, asi que se muta este snapshot. */
 let snapshotMemoria: SnapshotWorkspace | null = null;
 
+/* Escaneo en curso compartido. [por que] El escaneo es asíncrono: dos peticiones con la
+ * memoria vacía lanzarían dos escaneos y escribirían la caché dos veces. Quien llega
+ * mientras corre espera el mismo. */
+let escaneoEnCurso: Promise<CacheResultado> | null = null;
+
 /** Devuelve el snapshot: usa cache si existe, si no escanea y cachea. */
-export function obtenerSnapshot(
+export async function obtenerSnapshot(
   raiz: string,
-  escanear: () => SnapshotWorkspace,
+  escanear: () => Promise<SnapshotWorkspace>,
   forzar: boolean,
-): CacheResultado {
+): Promise<CacheResultado> {
   const cache = rutaCache(raiz);
   if (!forzar) {
     /* Cache caliente en memoria primero: evita re-leer/parsear el JSON y
@@ -60,10 +66,19 @@ export function obtenerSnapshot(
       return { snapshot: existente, desdeCache: true };
     }
   }
-  const snapshot = escanear();
-  snapshotMemoria = snapshot;
-  escribirCache(cache, snapshot);
-  return { snapshot, desdeCache: false };
+  /* [por que] `finally` (asíncrono) libera el escaneo compartido aunque falle; no se
+   * usa try/finally dentro de la función async porque ahí la liberación podía correr
+   * antes de guardar la promesa. */
+  escaneoEnCurso ??= escanear()
+    .then((snapshot) => {
+      snapshotMemoria = snapshot;
+      escribirCache(cache, snapshot);
+      return { snapshot, desdeCache: false };
+    })
+    .finally(() => {
+      escaneoEnCurso = null;
+    });
+  return escaneoEnCurso;
 }
 
 /* Actualiza el snapshot cacheado (memoria + disco) con el snapshot mutado

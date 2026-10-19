@@ -60,7 +60,7 @@ async function cuerpoPost(c: Contexto): Promise<Record<string, unknown> | null> 
 export async function editarPolitica(c: Contexto): Promise<void> {
   const cuerpo = await cuerpoPost(c);
   if (!cuerpo) return;
-  const proyecto = proyectoElegible(c.deps, cuerpo.clave);
+  const proyecto = await proyectoElegible(c.deps, cuerpo.clave);
   const hashPrevio = textoRequerido(cuerpo.hashPrevio, 'hashPrevio');
   const cambio = validarCambio(cuerpo.cambio);
   const contexto = cambio.aplicarPlantilla ? contextoPlantilla(c.deps, proyecto.clave) : undefined;
@@ -74,7 +74,7 @@ export async function editarPolitica(c: Contexto): Promise<void> {
 export async function editarTopes(c: Contexto): Promise<void> {
   const cuerpo = await cuerpoPost(c);
   if (!cuerpo) return;
-  const proyecto = proyectoElegible(c.deps, cuerpo.clave);
+  const proyecto = await proyectoElegible(c.deps, cuerpo.clave);
   const previo = hashesTopesDe(cuerpo.hashes);
   const cambio = validarCambioTopes(cuerpo.cambio);
 
@@ -120,7 +120,7 @@ export async function editarTopes(c: Contexto): Promise<void> {
 export async function editarLote(c: Contexto): Promise<void> {
   const cuerpo = await cuerpoPost(c);
   if (!cuerpo) return;
-  const entradas = entradasLote(c.deps, cuerpo.entradas);
+  const entradas = await entradasLote(c.deps, cuerpo.entradas);
   const confirmar = confirmarDe(cuerpo);
   /* [por que] guardarLote escribe o no escribe nada (todo o nada); la vista previa
    * calcula cada entrada sin tocar ningún fichero. */
@@ -160,7 +160,7 @@ export async function editarPlantilla(c: Contexto): Promise<void> {
 export async function probarRuta(c: Contexto): Promise<void> {
   const cuerpo = await cuerpoPost(c);
   if (!cuerpo) return;
-  const proyecto = proyectoElegible(c.deps, cuerpo.clave);
+  const proyecto = await proyectoElegible(c.deps, cuerpo.clave);
   const ejecutable = textoRequerido(cuerpo.ejecutable, 'ejecutable');
   if (!Array.isArray(cuerpo.args)) throw new ErrorValidacion('args debe ser una lista de textos');
   /* [por que] Sin política válida no hay registro que comprobar: se rechaza en vez de

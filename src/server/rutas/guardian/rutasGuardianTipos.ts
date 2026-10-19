@@ -12,8 +12,9 @@ import type { ejecutarMantenimiento } from '../../guardian/operacion/mantenimien
 export interface DependenciasGuardian {
   /* Carpeta de la config privada: aquí vive guard-plantillas.json (D7 a). */
   dirConfig: string;
-  proyectos: () => Proyecto[];
-  proyectoPorClave: (clave: string) => Proyecto | null;
+  /* Async: el snapshot se lee con git (puede escanear el área). */
+  proyectos: () => Promise<Proyecto[]>;
+  proyectoPorClave: (clave: string) => Promise<Proyecto | null>;
   leerActividad: typeof leerActividad;
   probarComando: typeof probarComando;
   ejecutarMantenimiento: typeof ejecutarMantenimiento;

@@ -35,12 +35,12 @@ import {
   probarRuta,
 } from './rutasGuardianEscritura.js';
 
-const proyectosActuales = (): Proyecto[] => snapshotArea(false).snapshot.proyectos;
+const proyectosActuales = async (): Promise<Proyecto[]> => (await snapshotArea(false)).snapshot.proyectos;
 
 export const dependenciasReales: DependenciasGuardian = {
   dirConfig: dirConfigPrivada(),
   proyectos: proyectosActuales,
-  proyectoPorClave: (clave) => proyectosActuales().find((p) => p.clave === clave) ?? null,
+  proyectoPorClave: async (clave) => (await proyectosActuales()).find((p) => p.clave === clave) ?? null,
   leerActividad,
   probarComando,
   ejecutarMantenimiento,
@@ -118,7 +118,7 @@ function estadoElegible(clave: string, ruta: string) {
 
 async function estadoProyecto({ res, url, deps }: Contexto): Promise<void> {
   const clave = url.searchParams.get('clave') ?? '';
-  const proyecto = deps.proyectoPorClave(clave);
+  const proyecto = await deps.proyectoPorClave(clave);
   if (!proyecto) {
     json(res, 404, { error: 'Proyecto no encontrado', clave });
     return;
@@ -151,7 +151,7 @@ function diferenciasDe(clave: string, listas: EstadoListas, plantilla: LecturaPl
  * «Comandos» necesita además `sinShim` y las diferencias con la plantilla; la
  * plantilla se lee una sola vez para todo el barrido. */
 async function estadoArea({ res, deps }: Contexto): Promise<void> {
-  const proyectos = deps.proyectos();
+  const proyectos = await deps.proyectos();
   const plantilla = leerPlantilla(deps.dirConfig);
   json(res, 200, {
     total: proyectos.length,

@@ -4,7 +4,7 @@
  * solo agrupan: dentro puede haber un repo de verdad -> se baja un nivel. */
 import { readdirSync } from 'node:fs';
 import { join, normalize, relative, sep } from 'node:path';
-import { detectarGit, estadoGit } from './git.js';
+import { detectarGit, estadoGitAsync } from './git.js';
 import { estadoGate, diagnosticarGate } from './gate.js';
 import { resumenRoadmap } from './roadmap.js';
 import { resumenAgents, agentesGlobales } from './agents.js';
@@ -57,9 +57,37 @@ export function resumenDe(proyectos: Proyecto[]): SnapshotWorkspace['resumen'] {
   };
 }
 
+/* Repos a leer con git. Se recogen primero (sin git) y luego se leen en paralelo. */
+interface RepoPendiente {
+  ruta: string;
+  id: string;
+  tipo: 'repo' | 'worktree';
+  padre: string | null;
+}
+
+/* [por que] Cuantos git corren a la vez al escanear. El coste es espera de E/S
+ * (Windows + OneDrive, ~230 ms por `status`), no CPU: unos pocos en paralelo
+ * solapan la espera sin saturar el disco. */
+const REPOS_EN_PARALELO = 4;
+
+/* Ejecuta `fn` sobre cada elemento con como mucho `limite` promesas a la vez. Mantiene el orden. */
+async function mapLimitado<T, R>(items: T[], limite: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+  const salida: R[] = new Array(items.length);
+  let siguiente = 0;
+  const trabajador = async (): Promise<void> => {
+    while (siguiente < items.length) {
+      const i = siguiente++;
+      salida[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limite, items.length) }, trabajador));
+  return salida;
+}
+
 /** Escanea la raiz y devuelve el snapshot completo del workspace. */
-export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
-  const proyectos: Proyecto[] = [];
+export async function escanearWorkspace(opts: OpcionesEscaneo): Promise<SnapshotWorkspace> {
+  const carpetas: Proyecto[] = [];
+  const repos: RepoPendiente[] = [];
   const entradas = leerEntradas(opts.raiz);
 
   const config = leerConfigArea(opts.raiz);
@@ -74,7 +102,7 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
     const info = detectarGit(ruta);
 
     if (info.esRepo) {
-      proyectos.push(proyectoCompleto(opts.raiz, ruta, nombre, info.esWorktree ? 'worktree' : 'repo', info.padre, sinGate, varsenseOpcional));
+      repos.push({ ruta, id: nombre, tipo: info.esWorktree ? 'worktree' : 'repo', padre: info.padre });
     } else if (recursivas.has(nombre)) {
       /* bajar un nivel: dentro de una carpeta que solo agrupa puede haber repos */
       const internos = leerEntradas(ruta);
@@ -83,15 +111,20 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
         if (ignoradas.has(interno)) continue;
         const infoInterno = detectarGit(rutaInterna);
         if (infoInterno.esRepo) {
-          proyectos.push(proyectoCompleto(opts.raiz, rutaInterna, interno, infoInterno.esWorktree ? 'worktree' : 'repo', infoInterno.padre, sinGate, varsenseOpcional));
+          repos.push({ ruta: rutaInterna, id: interno, tipo: infoInterno.esWorktree ? 'worktree' : 'repo', padre: infoInterno.padre });
         } else {
-          proyectos.push({ id: interno, clave: claveDe(rutaInterna, opts.raiz), ruta: rutaInterna, esGit: false, tipo: 'carpeta', padre: nombre });
+          carpetas.push({ id: interno, clave: claveDe(rutaInterna, opts.raiz), ruta: rutaInterna, esGit: false, tipo: 'carpeta', padre: nombre });
         }
       }
     } else {
-      proyectos.push({ id: nombre, clave: claveDe(ruta, opts.raiz), ruta, esGit: false, tipo: 'carpeta' });
+      carpetas.push({ id: nombre, clave: claveDe(ruta, opts.raiz), ruta, esGit: false, tipo: 'carpeta' });
     }
   }
+
+  /* El orden de llegada no importa: la lista se ordena por id más abajo. */
+  const deRepos = await mapLimitado(repos, REPOS_EN_PARALELO, (r) =>
+    proyectoCompleto(opts.raiz, r.ruta, r.id, r.tipo, r.padre, sinGate, varsenseOpcional));
+  const proyectos: Proyecto[] = [...carpetas, ...deRepos];
 
   /* Clave en los proyectos git y filtro de ignorados. [por que] La config
    * persistente define que proyectos se ignoran (p. ej. 3D/01); se quitan del
@@ -116,7 +149,7 @@ export function escanearWorkspace(opts: OpcionesEscaneo): SnapshotWorkspace {
 }
 
 /** Construye un proyecto completo con git + gate + roadmap + agents. */
-function proyectoCompleto(
+async function proyectoCompleto(
   raiz: string,
   ruta: string,
   id: string,
@@ -124,7 +157,7 @@ function proyectoCompleto(
   padre: string | null,
   sinGate: Set<string> = new Set(),
   varsenseOpcional: Set<string> = new Set(),
-): Proyecto {
+): Promise<Proyecto> {
   const clave = claveDe(ruta, raiz);
   const gate = estadoGate(ruta);
   /* [por que] Excepcion explicita del gate (plan 308A-1): el papel `sentinel`
@@ -152,7 +185,7 @@ function proyectoCompleto(
      * la réplica de la 89). Lo consume la clasificación compartida, que no
      * puede mirar rutas por sí misma (no tiene Node). */
     esMando: normalize(ruta).toLowerCase() === normalize(RAIZ_REPO).toLowerCase(),
-    git: estadoGit(ruta) ?? undefined,
+    git: await estadoGitAsync(ruta),
     gate: gateReal,
     gateProblemas: diagnosticarGate(ruta),
     roadmap: resumenRoadmap(ruta),

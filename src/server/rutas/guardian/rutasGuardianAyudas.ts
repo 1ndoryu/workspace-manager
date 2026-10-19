@@ -55,9 +55,9 @@ export function hashesDeTexto(plan: Pick<PlanTopes, 'nuevo'>): HashesTopes {
 }
 
 /* Proyecto que existe y tiene Guardián. Un fallo aquí es un 422 para la página. */
-export function proyectoElegible(deps: DependenciasGuardian, clave: unknown): Proyecto {
+export async function proyectoElegible(deps: DependenciasGuardian, clave: unknown): Promise<Proyecto> {
   const nombre = textoRequerido(clave, 'clave');
-  const proyecto = deps.proyectoPorClave(nombre);
+  const proyecto = await deps.proyectoPorClave(nombre);
   if (!proyecto) throw new ErrorValidacion(`no existe el proyecto ${nombre}`);
   if (!esElegible(proyecto)) throw new ErrorValidacion(`${nombre} no tiene Guardián: su puerta no es sentinel`);
   return proyecto;
@@ -74,27 +74,30 @@ export function contextoPlantilla(
   return { plantilla: lectura.plantilla, stacks: lectura.plantilla.stackDeProyecto[clave] ?? [] };
 }
 
-export function entradasLote(deps: DependenciasGuardian, valor: unknown): EdicionLote[] {
+/* Secuencial a propósito: el orden de llegada decide qué entrada es «duplicada». */
+export async function entradasLote(deps: DependenciasGuardian, valor: unknown): Promise<EdicionLote[]> {
   if (!Array.isArray(valor)) throw new ErrorValidacion('entradas debe ser una lista');
   if (valor.length < 1 || valor.length > MAX_LOTE) {
     throw new ErrorValidacion(`entradas: entre 1 y ${MAX_LOTE} proyectos`);
   }
   const vistas = new Set<string>();
-  return valor.map((entrada: unknown) => {
+  const salida: EdicionLote[] = [];
+  for (const entrada of valor as unknown[]) {
     if (!esObjeto(entrada)) throw new ErrorValidacion('cada entrada debe ser un objeto');
-    const proyecto = proyectoElegible(deps, entrada.clave);
+    const proyecto = await proyectoElegible(deps, entrada.clave);
     /* [por que] Dos cambios al mismo fichero en un lote se pisarían: se rechaza. */
     if (vistas.has(proyecto.clave)) throw new ErrorValidacion(`${proyecto.clave} aparece dos veces en el lote`);
     vistas.add(proyecto.clave);
     const cambio = validarCambio(entrada.cambio);
-    return {
+    salida.push({
       clave: proyecto.clave,
       raiz: proyecto.ruta,
       hashPrevio: textoRequerido(entrada.hashPrevio, 'hashPrevio'),
       cambio,
       contexto: cambio.aplicarPlantilla ? contextoPlantilla(deps, proyecto.clave) : undefined,
-    };
-  });
+    });
+  }
+  return salida;
 }
 
 export function vistaPreviaLote(entradas: EdicionLote[]): ResultadoLote {

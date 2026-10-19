@@ -46,7 +46,7 @@ export async function manejarRutasConsola(
   /* [por que] snapshotArea(true) invalida la memoria del server (igual que
    * analizarTodo): si no, un commit reciente seguiría mostrando el HEAD
    * viejo en las entradas sinCommit/sinPush. */
-  const { snapshot } = snapshotArea(forzar);
+  const { snapshot } = await snapshotArea(forzar);
   const analisis: AnalisisSentinel[] = forzar
     ? await analizarTodo(snapshot.proyectos, true)
     : leerTodas();

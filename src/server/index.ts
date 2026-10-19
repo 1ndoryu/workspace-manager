@@ -5,6 +5,7 @@ import { createServer, type ServerResponse } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { json } from './http.js';
+import { RAIZ_REPO } from '../shared/rutas.js';
 /* [por que] `snapshotArea` vive en snapshot.ts desde que se extrajo alli por
  * limite de lineas; tener aqui una copia era una segunda fuente de verdad del
  * mismo escaneo (y arrastraba estos imports). */
@@ -35,7 +36,7 @@ export const PUERTO = PUERTO_API;
 
 /* [por que] resolver DIST relativo al script y no al cwd: el servidor puede
  * arrancarse desde cualquier directorio (p. ej. scripts o el wrapper). */
-const DIST = join(import.meta.dirname, '..', '..', 'dist');
+const DIST = join(RAIZ_REPO, 'dist');
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -53,7 +54,7 @@ const MIME: Record<string, string> = {
  * `snapshotArea(false)` sirve cache sin escanear (la columna nueva aparece
  * tras el siguiente escaneo). */
 const manejarTareas = crearManejadorTareas({
-  leerWm: () => snapshotArea(false).snapshot.proyectos.map((p) => ({clave: p.clave, nombre: p.id})),
+  leerWm: async () => (await snapshotArea(false)).snapshot.proyectos.map((p) => ({clave: p.clave, nombre: p.id})),
 });
 
 /* Sirve archivos estaticos del build (dist) o del index.html. */
@@ -88,7 +89,7 @@ export interface OpcionesServidor {
 export function crearServidor(opciones: OpcionesServidor = {}) {
   const token = opciones.token ?? obtenerToken();
   const archivoAuditoria = opciones.auditoria === undefined
-    ? rutaAuditoriaPorDefecto(join(import.meta.dirname, '..', '..'))
+    ? rutaAuditoriaPorDefecto(RAIZ_REPO)
     : opciones.auditoria;
 
   return createServer(async (req, res) => {
@@ -123,12 +124,12 @@ export function crearServidor(opciones: OpcionesServidor = {}) {
         }
         if (ruta === '/api/workspace') {
           const forzar = url.searchParams.get('forzar') === '1';
-          const { snapshot, desdeCache } = snapshotArea(forzar);
+          const { snapshot, desdeCache } = await snapshotArea(forzar);
           json(res, 200, { ...snapshot, desdeCache });
           return;
         }
         if (ruta === '/api/proyectos') {
-          const { snapshot } = snapshotArea(false);
+          const { snapshot } = await snapshotArea(false);
           json(res, 200, snapshot.proyectos);
           return;
         }

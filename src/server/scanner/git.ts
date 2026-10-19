@@ -1,7 +1,7 @@
 /* Escaner Git: lee estado de un repositorio usando solo `git` CLI + filesystem.
  * [por que] Sin libgit2 ni binarios nativos: funciona en cualquier entorno y es
  * el mismo enfoque ligero del resto del proyecto. */
-import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
+import { execFile, execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { BIN_GIT } from '../../shared/binarios.js';
@@ -49,6 +49,17 @@ export function git(ruta: string, args: string[]): string | null {
   }
 }
 
+/* Igual que `git`, pero sin bloquear el event loop: el escaneo del workspace lo usa
+ * para leer varios repos a la vez. [por que] `execFileSync` esperaba a cada git en
+ * serie (21 repos ≈ 8 s en frío, medido); con esto el coste se solapa. */
+export function gitAsync(ruta: string, args: string[]): Promise<string | null> {
+  return new Promise((resolver) => {
+    execFile(BIN_GIT, args, opcionesGit(ruta), (err, salida) => {
+      resolver(err ? null : String(salida).trimEnd());
+    });
+  });
+}
+
 /** Rama primaria declarada por el proyecto (AGENTS.md / sentinel.config.json), nunca inferir 'main'. */
 export function ramaPrimariaDeclarada(ruta: string): string {
   const config = join(ruta, 'sentinel.config.json');
@@ -71,7 +82,7 @@ export function ramaPrimariaDeclarada(ruta: string): string {
  * (~43 ms en el portatil, medido en el escaneo raiz): el dato esta en un
  * fichero de texto. Lo que la lectura directa no puede resolver se le deja a
  * git (ver el guardia de `include`/`url` mas abajo). */
-function leerRemotoOrigin(ruta: string): string | null {
+function leerRemotoDirecto(ruta: string): string | null | undefined {
   const gitdir = gitdirDe(ruta);
   if (!gitdir) return null;
   let config: string;
@@ -81,8 +92,9 @@ function leerRemotoOrigin(ruta: string): string | null {
     return null;
   }
   /* [por que] `include` trae mas config y `url.<base>.insteadOf` reescribe la URL:
-   * en esos dos casos la lectura directa no ve lo que git responderia. */
-  if (/^\s*\[(include|url)\b/m.test(config)) return git(ruta, ['remote', 'get-url', 'origin']);
+   * en esos dos casos la lectura directa no ve lo que git responderia. Se devuelve
+   * `undefined` para que quien llama pregunte a git (sincrona o asincronamente). */
+  if (/^\s*\[(include|url)\b/m.test(config)) return undefined;
   const seccion = config.match(/\[remote\s+"origin"\]\s*([\s\S]*?)(?=\n\s*\[|$)/);
   if (!seccion) return null;
   const url = seccion[1].match(/^\s*url\s*=\s*(.+)$/m);
@@ -113,13 +125,34 @@ function leerCabeceraStatus(cabecera: string): { rama: string; ahead: number; be
   };
 }
 
-/** Estado completo de un repo: rama, remoto, dirty, ahead/behind, submodulos, ultimo commit. */
-export function estadoGit(ruta: string): EstadoGit | null {
+const ARGS_STATUS = ['status', '--porcelain', '--branch'];
+const ARGS_LOG = ['log', '-1', '--format=%H%x09%ci%x09%s'];
+const ARGS_REMOTO = ['remote', 'get-url', 'origin'];
+
+/** Estado completo de un repo (sincrono). El escaneo del workspace usa `estadoGitAsync`. */
+export function estadoGit(ruta: string): EstadoGit {
+  const status = git(ruta, ARGS_STATUS) ?? '';
+  const log = git(ruta, ARGS_LOG);
+  const directo = leerRemotoDirecto(ruta);
+  return construirEstadoGit(ruta, status, log, directo !== undefined ? directo : git(ruta, ARGS_REMOTO));
+}
+
+/** Igual que `estadoGit` pero sin bloquear: los git de varios repos pueden correr a la vez.
+ * [por que] Mismo resultado; solo cambia que la espera no congela el event loop. */
+export async function estadoGitAsync(ruta: string): Promise<EstadoGit> {
+  const status = (await gitAsync(ruta, ARGS_STATUS)) ?? '';
+  const log = await gitAsync(ruta, ARGS_LOG);
+  const directo = leerRemotoDirecto(ruta);
+  const remoto = directo !== undefined ? directo : await gitAsync(ruta, ARGS_REMOTO);
+  return construirEstadoGit(ruta, status, log, remoto);
+}
+
+/* Arma el estado con la salida de git ya leida. No lanza procesos propios. */
+function construirEstadoGit(ruta: string, status: string, ultimoCommit: string | null, remoto: string | null): EstadoGit {
   /* [por que] `git rev-parse --abbrev-ref HEAD` devuelve "HEAD" tanto en detached
    * como en repo vacio (unborn, sin commits). La cabecera de `status --branch`
    * los distingue (`## HEAD (no branch)`, `## No commits yet on <rama>`), asi que
    * no hace falta preguntarlo aparte. */
-  const status = git(ruta, ['status', '--porcelain', '--branch']) ?? '';
   const lineas = status.split('\n');
   const cabecera = lineas[0]?.startsWith('## ') ? lineas[0] : null;
   const info = cabecera
@@ -134,7 +167,6 @@ export function estadoGit(ruta: string): EstadoGit | null {
   const dirty = cuerpo.length > 0;
 
   const submodulos = leerSubmodulos(ruta);
-  const ultimoCommit = git(ruta, ['log', '-1', '--format=%H%x09%ci%x09%s']);
   let commit: EstadoGit['ultimoCommit'] = null;
   if (ultimoCommit) {
     const [hash, fecha, ...resto] = ultimoCommit.split('\t');
@@ -143,7 +175,7 @@ export function estadoGit(ruta: string): EstadoGit | null {
 
   return {
     rama: info.rama,
-    remoto: leerRemotoOrigin(ruta),
+    remoto,
     ramaPrimaria: ramaPrimariaDeclarada(ruta),
     dirty,
     ahead: info.ahead,
