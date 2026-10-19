@@ -3,6 +3,7 @@
  * lectura de disco y Git en cada petición.
  * [por que] `forzar` salta el caché pero no se une a un vuelo en curso: ya es fresco. */
 import { dirConfigPrivada, RAIZ_AREA } from '../plataforma/rutas.js';
+import { papelDeArea } from '../plataforma/area.js';
 import { snapshotArea } from '../snapshot.js';
 import { leerPlantilla } from '../guardian/configuracion/plantilla.js';
 import { CLAVE_AREA, type Hallazgo, type Omitida, type ResultadoSalud } from '../../shared/salud/salud.js';
@@ -74,6 +75,7 @@ export function saludProyectos(forzar = false): Promise<Map<string, ResultadoSal
         ahora,
         pinArea: leerPinArea(entorno.raizRepo),
         plantilla: leerPlantilla(dirConfigPrivada()),
+        runtimeSentinel: papelDeArea('sentinel'),
       });
       const calculadoEn = new Date(ahora).toISOString();
       return new Map(datos.map((d) => [d.clave, ejecutar('proyecto', d.clave, COMPROBACIONES_PROYECTO, d, calculadoEn)]));

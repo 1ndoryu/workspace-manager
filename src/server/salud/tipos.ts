@@ -54,6 +54,9 @@ export interface DatosProyecto {
   sentinelLock: string | null;
   /* Versión de Sentinel fijada en quality-tools.json; null si no hay pin. */
   sentinelPin: string | null;
+  /* Es el runtime de Sentinel (papel `sentinel` de config/area.json). [por que] Su
+   * propio repo es la fuente: no consume un lock de Sentinel, así que no se compara. */
+  esRuntimeSentinel: boolean;
   guard: EstadoGuard;
   /* Ramas locales y remotas no integradas en main. */
   ramas: RamaSuelta[];

@@ -146,6 +146,9 @@ export const COMPROBACIONES_PROYECTO: Comprobacion<DatosProyecto>[] = [
   {
     id: 'sentinel-desfasado',
     omitirSi: (d) => {
+      // [por que] El runtime de Sentinel es la fuente, no un consumidor: su versión la
+      // vigila `sentinel-runtime` (comprobacionesArea), no un lock propio.
+      if (d.esRuntimeSentinel) return 'es el runtime de Sentinel: no consume su propio lock';
       if (!d.esElegible) return 'sin Sentinel: su puerta no es sentinel';
       return d.sentinelPin === null ? 'sin versión fijada en quality-tools.json' : null;
     },

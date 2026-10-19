@@ -162,7 +162,7 @@ function toolchainFrontend(ruta: string): { vite: string | null; typescript: str
  * cruzando proyectos. */
 export function recogerProyectos(
   proyectos: Proyecto[],
-  ctx: { ahora: number; pinArea: string | null; plantilla: LecturaPlantilla },
+  ctx: { ahora: number; pinArea: string | null; plantilla: LecturaPlantilla; runtimeSentinel: string | null },
 ): DatosProyecto[] {
   const targetDirPor = new Map(proyectos.map((p) => [p.clave, targetDirDe(p.ruta)] as const));
   const claves = new Map<string, string[]>();
@@ -184,6 +184,7 @@ export function recogerProyectos(
       tieneProfileDev: esRust && /^\s*\[profile\.dev\]/m.test(leerArchivo(join(p.ruta, 'Cargo.toml')) ?? ''),
       sentinelLock: versionSentinelLock(p.ruta),
       sentinelPin: ctx.pinArea,
+      esRuntimeSentinel: p.clave === ctx.runtimeSentinel,
       guard: estadoGuard(p.ruta, p.clave, ctx.plantilla),
       ramas: ramasSueltas(p.ruta),
       instruccionesProhibidas: DOCS_PROHIBIDOS.filter((f) => existsSync(join(p.ruta, f))),

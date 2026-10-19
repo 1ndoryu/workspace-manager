@@ -17,6 +17,7 @@ function proyecto(extra: Partial<DatosProyecto> = {}): DatosProyecto {
     clave: 'proyecto',
     ahora: AHORA,
     esElegible: true,
+    esRuntimeSentinel: false,
     esRust: true,
     compilacionEnArbol: [],
     targetDir: 'C:/tmp/proyecto-target/proyecto',
@@ -139,6 +140,8 @@ assert.notEqual(resultado(c, proyecto({ esRust: false })).omitida, null);
     assert.notEqual(resultado(c, proyecto({ sentinelPin: null })).omitida, null);
     assert.deepEqual(resultado(c, proyecto({ sentinelLock: '0.7.13' })).hallazgos, [{ id: 'sentinel-desfasado', severidad: 'aviso' }]);
     assert.deepEqual(resultado(c, proyecto()).hallazgos, []);
+    // El runtime de Sentinel no tiene lock propio: no es un desfase.
+    assert.notEqual(resultado(c, proyecto({ esRuntimeSentinel: true, sentinelLock: null })).omitida, null);
   });
 
   it('ramas-sueltas: aviso con ramas viejas no integradas; ignora main y ramas recientes', () => {
