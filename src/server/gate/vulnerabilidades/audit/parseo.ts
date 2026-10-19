@@ -2,8 +2,8 @@
  * los crates. [por que] Vive aparte de vulnerabilidades.ts: sin efectos (ni
  * CLI ni disco) para poder probarlo solo, y para no pasar del limite de 300
  * lineas por archivo. */
-import type { AnalisisVulnerabilidades, HallazgoVulnerabilidad } from '../../../shared/types.js';
-import { bandaDeclarada, severidadDeAviso } from './cvss.js';
+import type { AnalisisVulnerabilidades, HallazgoVulnerabilidad } from '../../../../shared/types.js';
+import { bandaDeclarada, severidadDeAviso } from '../cvss.js';
 
 /* Gestor que produjo el audit. Mismo conjunto que LockDetectado.gestor. */
 export type Gestor = 'npm' | 'pnpm' | 'cargo';

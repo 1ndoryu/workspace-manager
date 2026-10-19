@@ -1,14 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { agregarAnalisis } from './vulnerabilidades.js';
+import { agregarAnalisis } from './audit/agregado.js';
 import {
   esNoAlcanzable,
   fechaLocal,
   nombrePaqueteValido,
   parsearAudit,
   parsearExcepcionesAudit,
-} from './vulnerabilidades-parseo.js';
+} from './audit/parseo.js';
 import type { AnalisisVulnerabilidades } from '../../../shared/types.js';
 
 const R = 'C:/proy';

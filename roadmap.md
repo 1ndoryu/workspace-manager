@@ -51,8 +51,9 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
   `Agente/documentacion/calidad/deteccion-mjs-2026-10-19.md`). **SOLID, auditoría real (2026-10-19):**
   ciclo `pc/scan` ↔ `pc/limpieza` **roto** (exclusión mutua en `pc/exclusion.ts`, módulo hoja, con test).
   Almacenes unificados en `gate/almacenPersistido.ts` (con test; commit `8b4b8bf`).
-  Pendiente, sin corregir: `vulnerabilidades.ts` (SRP), `salud/recoger.ts`,
-  `auditoria-remota.ts`. `shared/` ya es puro (ningún módulo de producción con `node:*` ni `process.env`;
+  `vulnerabilidades.ts` partido (orquestación + `gate/vulnerabilidades/audit/`: ejecución, agregado,
+  parseo y remoto; 658 tests verdes en la 89, gate 0 nuevos).
+  Pendiente, sin corregir: `salud/recoger.ts`, `auditoria-remota.ts`. `shared/` ya es puro (ningún módulo de producción con `node:*` ni `process.env`;
   `area`, `binarios`, `puertos` y `rutas` movidos a `server/plataforma/`, 0 importaciones inversas);
   accesibilidad de la UI; limpieza de config privada fuera del repo; restos del frente 9
   (`test-utils.mjs`, `doctor.*.test.mjs`, `cm-sweep.sh`, `provision-89.sh`, `root-taller-89.sh:19,71`,

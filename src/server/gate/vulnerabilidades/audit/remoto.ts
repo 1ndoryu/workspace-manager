@@ -3,9 +3,9 @@
  * fallo al preparar el arbol remoto NO es un fallo del analisis: se cae a local
  * y se dice. Corte de vulnerabilidades.ts (17AA-2): lo local/taller y la
  * ejecucion del audit son dos cosas distintas y estaban en el mismo archivo. */
-import { prepararArbolRemoto } from '../auditoria-remota.js';
-import type { GestorAudit } from '../auditoria-remota.js';
-import { modoAnalisis } from '../herramientas/config.js';
+import { prepararArbolRemoto } from '../../auditoria-remota.js';
+import type { GestorAudit } from '../../auditoria-remota.js';
+import { modoAnalisis } from '../../herramientas/config.js';
 
 /* Deja en la 89 el arbol que necesita este gestor. Devuelve null si se pudo, o el
  * motivo por el que no: el audit cae a local en vez de fallar, que es lo que hace

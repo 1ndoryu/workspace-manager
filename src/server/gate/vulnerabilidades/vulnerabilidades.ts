@@ -16,23 +16,22 @@
  * alcanzan el build (cargo tree -i) no cuentan como hallazgo. Proyectos sin
  * lockfile, o con algun lockfile no auditable, se marcan 'noAuditable'
  * (visibles pero SIN problema), nunca como error.
+ *
+ * Este modulo solo orquesta (cache, vuelos, lockfiles). El resto vive aparte:
+ * cómo se lanza cada CLI en `audit/ejecucion.ts`, la unión de partes
+ * en `audit/agregado.ts` y el parseo en `audit/parseo.ts`.
  */
-import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { compartirVuelo } from '../vuelo.js';
 import { ejecutarAuditRemoto } from '../auditoria-remota.js';
-import type { GestorAudit } from '../auditoria-remota.js';
 import {
   contar,
   esNoAlcanzable,
-  fechaLocal,
   nombrePaqueteValido,
   parsearAudit,
-  parsearExcepcionesAudit,
-} from './vulnerabilidades-parseo.js';
-import type { JsonAudit } from './vulnerabilidades-parseo.js';
-import { avisoLocal, enTaller, prepararRemoto } from './vulnerabilidades-remoto.js';
+} from './audit/parseo.js';
+import type { JsonAudit } from './audit/parseo.js';
+import { avisoLocal, enTaller, prepararRemoto } from './audit/remoto.js';
 import { detectarLockfiles, frescoDe } from './lockfiles.js';
 import {
   guardarVulnerabilidades,
@@ -40,6 +39,9 @@ import {
   vulnerabilidadesFrescas,
 } from './almacen.js';
 import type { LockDetectado } from './lockfiles.js';
+import { agregarAnalisis, sinDatos } from './audit/agregado.js';
+import { cliDeAudit, ejecutar } from './audit/ejecucion.js';
+import type { Corredor } from './audit/ejecucion.js';
 import type {
   AnalisisVulnerabilidades,
   HallazgoVulnerabilidad,
@@ -49,97 +51,6 @@ import type {
 /* Single-flight: si el MISMO proyecto ya se esta auditando, quien lo pide
  * comparte ese vuelo (nunca dos audits del mismo repo a la vez). */
 const enVuelo = new Map<string, Promise<AnalisisVulnerabilidades>>();
-
-/* Resultado crudo de un comando de shell. `codigo` es null si no arranco o
- * excedio el timeout. */
-interface Ejecucion {
-  stdout: string;
-  codigo: number | null;
-}
-
-/* Ejecuta un comando de shell y devuelve stdout y exit code SIN rechazar por
- * exit code: npm/pnpm/cargo audit salen con exit 1 cuando hay vulnerabilidades,
- * y cargo tree sale != 0 si falta un crate. [por que] npm/pnpm son shims .cmd
- * en Windows que Node no puede lanzar con shell:false (EINVAL), asi que va por
- * cmd.exe /d /s /c. El comando lo arma SOLO este modulo (texto estatico o nombre
- * de crate validado con nombrePaqueteValido): no hay input externo en la linea,
- * asi que no hay inyeccion de shell. */
-function ejecutar(comando: string, cwd: string): Promise<Ejecucion> {
-  return new Promise((resolve) => {
-    const hijo = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', comando], {
-      cwd,
-      windowsHide: true,
-      /* [por que] corepack pregunta en consola antes de descargar pnpm; sin
-       * consola esa pregunta colgaria el audit. */
-      env: { ...process.env, COREPACK_ENABLE_DOWNLOAD_PROMPT: '0' },
-    });
-    let out = '';
-    const to = setTimeout(() => {
-      hijo.kill();
-      resolve({ stdout: out, codigo: null });
-    }, 120000);
-    hijo.stdout.on('data', (d: Buffer) => {
-      out += d.toString('utf8');
-    });
-    hijo.on('error', () => {
-      clearTimeout(to);
-      resolve({ stdout: '', codigo: null });
-    });
-    hijo.on('close', (codigo) => {
-      clearTimeout(to);
-      resolve({ stdout: out, codigo });
-    });
-  });
-}
-
-/* pnpm no siempre esta en PATH (en esta maquina no lo esta; corepack si). Se
- * resuelve una vez y se recuerda el exito. Un fallo no se cachea: el siguiente
- * audit reintenta (p. ej. si corepack tardo en descargar pnpm). */
-const VERSION_SEMVER = /^\d+\.\d+\.\d+/;
-let cliPnpmResuelto: string | null = null;
-
-async function resolverCliPnpm(cwd: string): Promise<string | null> {
-  if (cliPnpmResuelto) return cliPnpmResuelto;
-  const directo = await ejecutar('pnpm --version', cwd);
-  if (directo.codigo === 0 && VERSION_SEMVER.test(directo.stdout.trim())) {
-    cliPnpmResuelto = 'pnpm audit --json';
-  } else {
-    const via = await ejecutar('corepack pnpm --version', cwd);
-    if (via.codigo === 0 && VERSION_SEMVER.test(via.stdout.trim())) {
-      cliPnpmResuelto = 'corepack pnpm audit --json';
-    }
-  }
-  return cliPnpmResuelto;
-}
-
-/* Flags `--ignore` de las excepciones vigentes de .cargo/audit.toml. [por que]
- * cargo-audit no aplica ese archivo (verificado en coolify-manager-rs: el
- * advisory RUSTSEC-2023-0071 sale en el JSON). Sin archivo o ilegible: ninguna
- * excepcion, todo cuenta. */
-function flagsIgnorarCargo(cwd: string): string {
-  let texto: string;
-  try {
-    texto = readFileSync(join(cwd, '.cargo', 'audit.toml'), 'utf8');
-  } catch {
-    return '';
-  }
-  const { vigentes } = parsearExcepcionesAudit(texto, fechaLocal(new Date()));
-  return vigentes.map((id) => ` --ignore ${id}`).join('');
-}
-
-/* Comando de audit del gestor. Para pnpm puede no haber CLI: devuelve null.
- * [por que] En la 89 no se sondea nada: el PATH lo fija `ejecutarAuditRemoto` con
- * el node de `taller.json` y pnpm se resuelve por corepack, que si esta. Sondead
- * costaria un ssh extra por audit para una respuesta que ya se conoce. */
-async function cliDeAudit(g: GestorAudit, cwd: string, remoto: boolean): Promise<string | null> {
-  if (g === 'pnpm') return remoto ? 'corepack pnpm audit --json' : resolverCliPnpm(cwd);
-  if (g === 'cargo') return `cargo audit --json${flagsIgnorarCargo(cwd)}`;
-  return 'npm audit --json';
-}
-
-/* Quien ejecuta los comandos del audit: en local, o en la 89 si el proyecto se
- * analiza alli. */
-type Corredor = (comando: string) => Promise<Ejecucion>;
 
 /* Un hallazgo de cargo solo cuenta si el crate alcanza el build. `memo` es de
  * UNA auditoria: varios advisories del mismo crate cuestan un solo cargo tree.
@@ -159,25 +70,6 @@ async function alcanzable(
   const si = !esNoAlcanzable(r.codigo, r.stdout);
   memo.set(paquete, si);
   return si;
-}
-
-/* Parte de un análisis sin datos: sin lockfile, CLI ausente o CLI fallido. */
-function sinDatos(
-  base: Pick<AnalisisVulnerabilidades, 'clave' | 'gestor' | 'lockfile'>,
-  estado: 'noAuditable' | 'error',
-  error: string,
-  aviso?: string,
-): AnalisisVulnerabilidades {
-  return {
-    ...base,
-    estado,
-    analizadoEn: new Date().toISOString(),
-    resumen: { critical: 0, high: 0, moderate: 0, low: 0 },
-    hallazgos: [],
-    noAlcanzables: [],
-    error,
-    ...(aviso ? { aviso } : {}),
-  };
 }
 
 /* Corre audit de UN lockfile y devuelve su parte normalizada. La cache es por
@@ -244,53 +136,6 @@ async function correrAudit(p: Proyecto, lock: LockDetectado, enLa89: boolean): P
     const msg = stdout.trim() === '' ? 'sin salida del CLI' : err instanceof Error ? err.message : 'audit fallo';
     return sinDatos(base, 'error', `audit fallo: ${msg.slice(0, 120)}`, aviso);
   }
-}
-
-const SEVERIDADES = ['critical', 'high', 'moderate', 'low'] as const;
-
-/* Une las partes de un proyecto (una por lockfile) en un solo análisis. Estado,
- * de mayor a menor: conHallazgos > error > noAuditable (si alguna parte no se
- * pudo auditar) > ok. [por que] conHallazgos gana a error: las vulnerabilidades
- * ya obtenidas son reales y no deben esconderse porque otra parte fallara; el
- * fallo queda en `error`. */
-export function agregarAnalisis(
-  clave: string,
-  partes: AnalisisVulnerabilidades[],
-): AnalisisVulnerabilidades {
-  const resumen = { critical: 0, high: 0, moderate: 0, low: 0 };
-  const hallazgos: HallazgoVulnerabilidad[] = [];
-  const noAlcanzables: HallazgoVulnerabilidad[] = [];
-  const avisos: string[] = [];
-  /* Un proyecto con varios lockfile puede degradar en unos y no en otros: el
-   * aviso se deduplica para no repetir la misma frase por cada parte. */
-  const degradados = new Set<string>();
-  for (const p of partes) {
-    for (const s of SEVERIDADES) resumen[s] += p.resumen[s];
-    hallazgos.push(...p.hallazgos);
-    noAlcanzables.push(...(p.noAlcanzables ?? []));
-    if (p.error) avisos.push(`${p.lockfile}: ${p.error}`);
-    if (p.aviso) degradados.add(p.aviso);
-  }
-  const estados = partes.map((p) => p.estado);
-  const estado: AnalisisVulnerabilidades['estado'] = estados.includes('conHallazgos')
-    ? 'conHallazgos'
-    : estados.includes('error')
-      ? 'error'
-      : estados.includes('noAuditable')
-        ? 'noAuditable'
-        : 'ok';
-  return {
-    clave,
-    gestor: partes.find((p) => p.gestor)?.gestor ?? null,
-    lockfile: partes.map((p) => p.lockfile).join(', '),
-    estado,
-    analizadoEn: new Date().toISOString(),
-    resumen,
-    hallazgos: hallazgos.slice(0, 300),
-    noAlcanzables,
-    ...(avisos.length ? { error: avisos.join('; ').slice(0, 300) } : {}),
-    ...(degradados.size ? { aviso: [...degradados].join('; ').slice(0, 300) } : {}),
-  };
 }
 
 /* Audita UN proyecto con cache por cambio real (hash de sus lockfile) y

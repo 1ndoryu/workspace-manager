@@ -8,7 +8,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Proyecto } from '../../../shared/types.js';
 import type { GestorAudit } from '../auditoria-remota.js';
-import { fechaLocal } from './vulnerabilidades-parseo.js';
+import { fechaLocal } from './audit/parseo.js';
 
 /* Carpetas donde puede vivir un lockfile: la raiz y las de primer nivel que no
  * sean vendored ni generadas (esas no son deps del proyecto: tools/,
