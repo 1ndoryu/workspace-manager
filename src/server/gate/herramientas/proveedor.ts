@@ -43,9 +43,32 @@ export function raizVersiones(entorno: NodeJS.ProcessEnv = process.env): string 
  * resolvía desde el checkout compartido (fase G); esto elimina la asimetría.
  * El override por env gana y, si no hay checkout provisionado, se cae a las
  * versiones instaladas (nunca se rompe el árbol por ausencia de runtime). */
+export function baseSentinel(entorno: NodeJS.ProcessEnv = process.env): string {
+  return entorno.GLORY_SENTINEL_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'sentinel');
+}
 export function checkoutSentinel(entorno: NodeJS.ProcessEnv = process.env): string | null {
-  const base = entorno.GLORY_SENTINEL_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'sentinel');
+  const base = baseSentinel(entorno);
   return existsSync(join(base, 'out', 'cli', 'index.js')) ? base : null;
+}
+
+/* Carpeta del checkout que el manifest del proyecto declara (`provisionPath`) y el
+ * pin de versión, si lo hay. null si el proyecto no declara checkout propio.
+ * [por que] Lo usan la resolución local (cliSentinelParaProyecto) y la remota
+ * (fuentesSentinel): las dos deben apuntar al mismo checkout del proyecto. */
+export function provisionPathSentinel(rutaProyecto: string): { ruta: string; pin: string | null } | null {
+  try {
+    const manifest = JSON.parse(readFileSync(join(rutaProyecto, 'quality-tools.json'), 'utf8')) as {
+      tools?: { sentinel?: { provisionPath?: unknown; version?: unknown } };
+    };
+    const decl = manifest.tools?.sentinel;
+    if (typeof decl?.provisionPath !== 'string' || !decl.provisionPath) return null;
+    return {
+      ruta: resolve(rutaProyecto, decl.provisionPath),
+      pin: typeof decl.version === 'string' && decl.version ? decl.version : null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /* Resolución del CLI por PROYECTO desde su `quality-tools.json`: si declara

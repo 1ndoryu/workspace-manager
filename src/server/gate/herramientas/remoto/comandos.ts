@@ -41,11 +41,55 @@ export function comandoDoctor(a: {
   return ['env', ...asignacionesEntorno(a.env), comillas(a.node), comillas(a.cli), 'doctor', '--json', '--workspace', comillas(a.workspace)].join(' ');
 }
 
-/* Comprueba que el CLI está en su sitio, en una sola ida y vuelta. [por que] La
- * versión no se lee de la 89: el runtime lo acaba de copiar el portátil, así que
- * la sabe de origen y ahorra una lectura remota. */
-export function comandoSonda(cli: string): string {
-  return `test -f ${comillas(cli)} && echo ok`;
+/* Decide si el runtime de la 89 está al día: misma huella de fuentes, CLI compilado y
+ * dependencias instaladas. Responde `copiar` si hay que reenviar las fuentes; si no, `ok`.
+ * [por que] Una sola ida y vuelta: con el runtime al día no se transfiere nada. */
+export function comandoEstado(a: { base: string; marca: string; huella: string; cli: string }): string {
+  const sinNodeModules = `[ ! -d ${comillas(`${a.base}/node_modules`)} ]`;
+  const sinCli = `[ ! -f ${comillas(a.cli)} ]`;
+  const sinMarca = `[ "$(cat ${comillas(a.marca)} 2>/dev/null)" != ${comillas(a.huella)} ]`;
+  return `if ${sinMarca} || ${sinCli} || ${sinNodeModules}; then echo copiar; exit 0; fi; echo ok`;
+}
+
+/* Borra lo que se va a reenviar (fuentes y la salida anterior) sin tocar `node_modules`
+ * ni las marcas. [por que] Un fichero borrado en el portátil debe desaparecer también
+ * en la 89; si no, el compilador vería fuentes viejas. */
+export function comandoLimpiar(base: string, rutas: string[]): string {
+  return `rm -rf ${rutas.map((r) => comillas(`${base}/${r}`)).join(' ')}`;
+}
+
+/* Compila el runtime en la 89: `npm ci` solo si cambió el lock (o faltan los módulos),
+ * luego `npm run compile` y, si todo sale bien, la marca de fuentes. [por que] La salida
+ * de npm va a un registro en el propio runtime: en fallo se devuelven sus últimas líneas
+ * por stderr, para que el motivo llegue al tablero y no un «salió con 4» mudo. El PATH
+ * incluye la carpeta de node: el shell no interactivo puede traer otro node por defecto. */
+export function comandoCompilar(a: {
+  base: string;
+  npm: string;
+  nodeDir: string;
+  huella: string;
+  huellaLock: string;
+  marca: string;
+  cli: string;
+}): string {
+  const log = comillas(`${a.base}/.build.log`);
+  const lockMarca = comillas(`${a.base}/.lock-sha`);
+  /* [por que] La marca dice «instalado con devDependencies para este lock». Un `npm ci
+   * --omit=dev` previo (sin tsc) dejaba la marca del lock puesta y la compilación fallaba
+   * con «tsc: not found»: el prefijo `completo-` obliga a reinstalar esas instalaciones. */
+  const marcaLock = `completo-${a.huellaLock}`;
+  const sinModulos = `[ ! -d ${comillas(`${a.base}/node_modules`)} ]`;
+  const lockCambio = `[ "$(cat ${lockMarca} 2>/dev/null)" != ${comillas(marcaLock)} ]`;
+  const instalar =
+    `if ${sinModulos} || ${lockCambio}; then ` +
+    `${comillas(a.npm)} ci --silent --prefix ${comillas(a.base)} >${log} 2>&1 || { tail -n 20 ${log} >&2; exit 3; }; ` +
+    `printf '%s' ${comillas(marcaLock)} > ${lockMarca}; fi`;
+  const compilar =
+    `PATH=${comillas(`${a.nodeDir}:`)}"$PATH" ${comillas(a.npm)} --prefix ${comillas(a.base)} run -s compile >>${log} 2>&1 ` +
+    `|| { tail -n 20 ${log} >&2; exit 4; }`;
+  const salida = `test -f ${comillas(a.cli)} || { echo 'compilación sin salida' >&2; exit 5; }`;
+  const marca = `printf '%s' ${comillas(a.huella)} > ${comillas(a.marca)}`;
+  return [`: > ${log}`, instalar, compilar, salida, marca, 'echo ok'].join('; ');
 }
 
 /* Huella del package-lock: identifica el juego de dependencias. [por que] La versión
@@ -59,52 +103,36 @@ export function huellaLock(ruta: string): string {
   }
 }
 
-/* Huella del runtime que se copia: su `out/` y sus dos ficheros de dependencias.
- * [por que] Por contenido y no por mtime: un checkout sin cambios no debe reenviar
- * 4,5 MB, y un cambio real siempre cambia el hash. */
-export function huellaRuntime(base: string): string {
+/* Huella de las fuentes que se reenvían: contenido de cada entrada (fichero o árbol). Si
+ * una entrada no existe, cuenta como `?` y la huella cambia igual que con un cambio real.
+ * [por que] Por contenido y no por mtime: un checkout sin cambios no debe recompilar
+ * en la 89 ni reenviar fuentes de balde. */
+export function huellaFuentes(base: string, entradas: string[]): string {
   const archivos: string[] = [];
-  listarBajo(base, 'out', archivos);
+  for (const e of entradas) listarEntrada(base, e, archivos);
   const h = createHash('sha256');
-  for (const f of [...archivos.sort(), 'package.json', 'package-lock.json']) {
+  for (const f of archivos.sort()) {
     h.update(`${f}\0`);
     try {
       h.update(readFileSync(join(base, f)));
     } catch {
-      h.update('?'); /* falta: la huella cambia igual que si cambiara el contenido */
+      h.update('?');
     }
   }
   return h.digest('hex').slice(0, 16);
 }
 
-/* Relativas (con `/`) de los ficheros bajo `rel`, recursivo. */
-function listarBajo(base: string, rel: string, salida: string[]): void {
+/* Relativas (con `/`) de los ficheros bajo `rel`, recursivo. Si `rel` no es carpeta
+ * (fichero o ausente), es una hoja: se devuelve tal cual. */
+function listarEntrada(base: string, rel: string, salida: string[]): void {
   let entradas;
   try {
     entradas = readdirSync(join(base, rel), { withFileTypes: true });
   } catch {
-    return; /* no existe: el runtime no tiene `out/` y la huella sale de los otros ficheros */
+    salida.push(rel);
+    return;
   }
-  for (const e of entradas) {
-    const ruta = `${rel}/${e.name}`;
-    if (e.isDirectory()) listarBajo(base, ruta, salida);
-    else if (e.isFile()) salida.push(ruta);
-  }
-}
-
-/* Instala las dependencias del runtime en la 89, solo cuando el lock cambió. [por que]
- * `out/` se copia en cada análisis (4,5 MB) pero `node_modules` son 61 MB: copiarlo
- * cada vez no tiene sentido. El runtime usa 3 dependencias de producción, así que
- * `npm ci --omit=dev` en la 89 es barato y deja el árbol reproducible. Si `npm ci`
- * falla sale con 3: la sonda lo ve como fallo y el análisis remoto queda en 'error'
- * con motivo, en vez de reventar más tarde con un «Cannot find module». */
-export function comandoDeps(npm: string, base: string, huella: string): string {
-  const marca = `${base}/.lock-sha`;
-  return (
-    `if [ "$(cat ${comillas(marca)} 2>/dev/null)" != ${comillas(huella)} ]; then ` +
-    `${comillas(npm)} ci --omit=dev --silent --prefix ${comillas(base)} >/dev/null 2>&1 && ` +
-    `printf '%s' ${comillas(huella)} > ${comillas(marca)} || exit 3; fi; echo ok`
-  );
+  for (const e of entradas) listarEntrada(base, `${rel}/${e.name}`, salida);
 }
 
 /* Recrea las marcas de repos anidados en la réplica. [por que] Viven bajo una ruta que

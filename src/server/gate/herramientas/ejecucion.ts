@@ -9,7 +9,7 @@ import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { raizVersiones, checkoutSentinel, cliSentinelParaProyecto, versionRuntime, versionSentinel } from './proveedor.js';
+import { baseSentinel, raizVersiones, checkoutSentinel, cliSentinelParaProyecto, provisionPathSentinel, versionRuntime, versionSentinel } from './proveedor.js';
 import type { ResolucionCli } from './proveedor.js';
 /* Raíz del área (misma fuente del server): la caché de análisis vive bajo
  * <area>/data/cache/analisis.json, como la config del workspace. */
@@ -88,10 +88,46 @@ export function hashArtefacto(ruta: string): string {
  * (<area>/.quality-tools/varsense). [por que] 308A-1 centraliza el runtime;
  * el override de env (GLORY_VARSENSE_SOURCE_PATH) gana, igual que en
  * `entornoGate`. Devuelve null si no está provisionado. */
+export function baseVarsense(entorno: NodeJS.ProcessEnv = process.env): string {
+  return entorno.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'varsense');
+}
 export function checkoutVarsense(entorno: NodeJS.ProcessEnv = process.env): string | null {
-  const base = entorno.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'varsense');
-  const cli = join(base, 'dist', 'cli', 'index.js');
-  return existsSync(cli) ? base : null;
+  const cli = join(baseVarsense(entorno), 'dist', 'cli', 'index.js');
+  return existsSync(cli) ? baseVarsense(entorno) : null;
+}
+
+/* Fuentes de un runtime, no sus artefactos: la VPS lo compila desde aquí. [por que]
+ * El portátil ya no genera ni envía `out/` o `dist/`: un checkout recién clonado (sin
+ * compilar) basta, porque lo que se copia es el código y su manifest. Devuelve null si
+ * faltan `src/` o `package.json`. */
+export interface FuentesRuntime {
+  base: string;
+  version: string;
+}
+export function fuentesDeRuntime(base: string): FuentesRuntime | null {
+  try {
+    if (!existsSync(join(base, 'src')) || !existsSync(join(base, 'package.json'))) return null;
+    const pkg = JSON.parse(readFileSync(join(base, 'package.json'), 'utf8')) as { version?: unknown };
+    return typeof pkg.version === 'string' ? { base, version: pkg.version } : null;
+  } catch {
+    return null;
+  }
+}
+
+/* Fuentes de sentinel para un proyecto: su checkout propio (`provisionPath`) si lo
+ * declara y el pin coincide con la versión de ese checkout; si no, el compartido.
+ * [por que] Mismo criterio que cliSentinelParaProyecto: el gate del proyecto mide con
+ * el checkout que fija su manifest. */
+export function fuentesSentinel(rutaProyecto?: string): FuentesRuntime | null {
+  const propio = rutaProyecto ? provisionPathSentinel(rutaProyecto) : null;
+  const fuentes = propio ? fuentesDeRuntime(propio.ruta) : null;
+  if (fuentes && (!propio?.pin || propio.pin === fuentes.version)) return fuentes;
+  return fuentesDeRuntime(baseSentinel());
+}
+
+/* Fuentes de varsense del checkout compartido. */
+export function fuentesVarsense(): FuentesRuntime | null {
+  return fuentesDeRuntime(baseVarsense());
 }
 
 /* Versión real de varsense (desde su package.json). null si no hay runtime. */

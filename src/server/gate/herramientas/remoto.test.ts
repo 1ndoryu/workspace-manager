@@ -1,5 +1,5 @@
-/* Tests de las funciones puras de remoto.ts (S3.7): citado, rutas, validación y
- * comandos. Sin SSH ni mutagen: eso se prueba en la ejecución real. */
+/* Tests de las funciones puras de remoto.ts y remoto/comandos.ts: citado, rutas,
+ * validación y comandos. Sin SSH ni mutagen: eso se prueba en la ejecución real. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -8,12 +8,13 @@ import { join } from 'node:path';
 import { RAIZ_REPO } from '../../plataforma/rutas.js';
 import {
   comandoAnalisis,
-  comandoDeps,
+  comandoCompilar,
   comandoDoctor,
+  comandoEstado,
+  comandoLimpiar,
   comandoMarcasRepos,
-  comandoSonda,
+  huellaFuentes,
   huellaLock,
-  huellaRuntime,
 } from './remoto/comandos.js';
 import { reposAnidados } from './remoto.js';
 import { configRemotaDe, hostTaller, modoAnalisisEn, rutaRemota, rutaRuntimeRemota } from './config.js';
@@ -65,11 +66,40 @@ test('rutaRuntimeRemota: el runtime vive fuera de la réplica, que se vacía al 
   assert.throws(() => rutaRuntimeRemota(cfg, 'a;b', 'sentinel'), /no válida/);
 });
 
-test('comandoDeps: reinstala solo si el lock cambió, y falla en claro si npm ci falla', () => {
-  const cmd = comandoDeps('/n/bin/npm', '/srv/taller/_quality-tools/juego-arcade/sentinel', 'abc123');
-  assert.ok(cmd.includes(`!= 'abc123'`), 'compara contra la huella');
-  assert.ok(cmd.includes(`'/n/bin/npm' ci --omit=dev --silent --prefix '/srv/taller/_quality-tools/juego-arcade/sentinel'`));
-  assert.ok(cmd.endsWith('|| exit 3; fi; echo ok'), 'un npm ci fallido sale con 3');
+/* [por que] Estado del runtime en la 89: `copiar` si falta la marca, el CLI o node_modules. */
+test('comandoEstado: pide copiar si la huella no coincide o falta algo, y ok si todo está al día', () => {
+  const cmd = comandoEstado({ base: '/srv/taller/_quality-tools/juego-arcade/sentinel', marca: '/srv/taller/_quality-tools/juego-arcade/sentinel/.fuentes-sha', huella: 'abc123', cli: '/srv/taller/_quality-tools/juego-arcade/sentinel/out/cli/index.js' });
+  assert.ok(cmd.includes(`!= 'abc123'`), 'compara la marca con la huella');
+  assert.ok(cmd.includes(`[ ! -f '/srv/taller/_quality-tools/juego-arcade/sentinel/out/cli/index.js' ]`), 'mira el CLI');
+  assert.ok(cmd.includes(`[ ! -d '/srv/taller/_quality-tools/juego-arcade/sentinel/node_modules' ]`), 'mira node_modules');
+  assert.ok(cmd.endsWith('echo copiar; exit 0; fi; echo ok'));
+});
+
+test('comandoLimpiar: borra solo las rutas indicadas, citadas', () => {
+  assert.equal(comandoLimpiar('/srv/b', ['src', 'out']), "rm -rf '/srv/b/src' '/srv/b/out'");
+  assert.equal(comandoLimpiar('/srv/b', ['a b']), "rm -rf '/srv/b/a b'");
+});
+
+/* [por que] Compila en la 89 con `npm ci` completo solo si cambia el lock; el PATH lleva
+ * el node del runtime; un fallo sale con el log acotado y código distinto por etapa. */
+test('comandoCompilar: npm ci solo si cambia el lock, compila con el node de la 89 y falla en claro', () => {
+  const cmd = comandoCompilar({
+    base: '/srv/taller/_quality-tools/juego-arcade/sentinel',
+    npm: '/srv/casa/.local/bin/npm',
+    nodeDir: '/srv/casa/bin',
+    huella: 'abc123',
+    huellaLock: 'lock999',
+    marca: '/srv/taller/_quality-tools/juego-arcade/sentinel/.fuentes-sha',
+    cli: '/srv/taller/_quality-tools/juego-arcade/sentinel/out/cli/index.js',
+  });
+  assert.ok(cmd.includes(`'/srv/casa/.local/bin/npm' ci --silent --prefix '/srv/taller/_quality-tools/juego-arcade/sentinel'`), 'npm ci completo, sin --omit');
+  assert.ok(!cmd.includes('--omit'), 'compila con devDependencies');
+  assert.ok(cmd.includes(`!= 'completo-lock999'`), 'compara el lock con la marca de instalación completa');
+  assert.ok(!cmd.includes(`!= 'lock999'`), 'una marca de instalación --omit=dev antigua no vale');
+  assert.ok(cmd.includes(`PATH='/srv/casa/bin:'"$PATH"`), 'PATH con el node del runtime');
+  assert.ok(cmd.includes('|| { tail -n 20'), 'un fallo vuelca el final del log');
+  assert.ok(cmd.includes('exit 3') && cmd.includes('exit 4') && cmd.includes('exit 5'), 'cada etapa sale con su código');
+  assert.ok(cmd.endsWith("printf '%s' 'abc123' > '/srv/taller/_quality-tools/juego-arcade/sentinel/.fuentes-sha'; echo ok"), 'la marca se escribe tras compilar');
 });
 
 test('huellaLock: 16 hex del contenido, y "?" si no hay lock', () => {
@@ -79,24 +109,25 @@ test('huellaLock: 16 hex del contenido, y "?" si no hay lock', () => {
   assert.equal(huellaLock('C:/no/existe/package-lock.json'), '?');
 });
 
-/* [por que] La huella decide si se reenvia el runtime (4,5 MB). Debe cambiar con el
- * contenido de out/ o de los manifiestos, y no con el orden de lectura ni con el mtime. */
-test('huellaRuntime: cambia con el contenido de out/ y de los manifiestos, no con el mtime', () => {
-  const base = mkdtempSync(join(tmpdir(), 'wm-runtime-'));
+/* [por que] La huella decide si se reenvían las fuentes y se recompila en la 89. Debe
+ * cambiar con el contenido de las entradas (y de los ficheros anidados), no con el mtime
+ * ni con el orden de lectura. */
+test('huellaFuentes: cambia con el contenido de las entradas, no con el mtime', () => {
+  const base = mkdtempSync(join(tmpdir(), 'wm-fuentes-'));
   try {
-    mkdirSync(join(base, 'out', 'cli'), { recursive: true });
-    writeFileSync(join(base, 'out', 'cli', 'index.js'), 'a');
+    mkdirSync(join(base, 'src', 'cli'), { recursive: true });
+    writeFileSync(join(base, 'src', 'cli', 'index.ts'), 'a');
     writeFileSync(join(base, 'package.json'), '{}');
-    writeFileSync(join(base, 'package-lock.json'), '{}');
-    const primera = huellaRuntime(base);
+    const entradas = ['src', 'package.json'];
+    const primera = huellaFuentes(base, entradas);
     assert.match(primera, /^[0-9a-f]{16}$/);
-    assert.equal(huellaRuntime(base), primera);
-    writeFileSync(join(base, 'out', 'cli', 'index.js'), 'b');
-    assert.notEqual(huellaRuntime(base), primera);
-    writeFileSync(join(base, 'out', 'cli', 'index.js'), 'a');
-    assert.equal(huellaRuntime(base), primera);
-    writeFileSync(join(base, 'package-lock.json'), '{"x":1}');
-    assert.notEqual(huellaRuntime(base), primera);
+    assert.equal(huellaFuentes(base, entradas), primera);
+    writeFileSync(join(base, 'src', 'cli', 'index.ts'), 'b');
+    assert.notEqual(huellaFuentes(base, entradas), primera);
+    writeFileSync(join(base, 'src', 'cli', 'index.ts'), 'a');
+    assert.equal(huellaFuentes(base, entradas), primera);
+    writeFileSync(join(base, 'package.json'), '{"x":1}');
+    assert.notEqual(huellaFuentes(base, entradas), primera);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
@@ -200,10 +231,6 @@ test('comandoDoctor: el doctor no lleva --format, su JSON ya es fijo', () => {
     cmd,
     "env GLORY_SENTINEL_SOURCE_PATH='/srv/taller/R/.quality-tools/sentinel' '/usr/bin/node' '/srv/taller/R/out/cli/index.js' doctor --json --workspace '/srv/taller/R'",
   );
-});
-
-test('comandoSonda: comprueba que el CLI quedó copiado, sin leer la versión remota', () => {
-  assert.equal(comandoSonda('/x/cli.js'), `test -f '/x/cli.js' && echo ok`);
 });
 
 test('reposAnidados: marca de fichero, de directorio y no desciende dentro', () => {
