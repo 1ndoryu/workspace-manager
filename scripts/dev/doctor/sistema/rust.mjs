@@ -253,13 +253,15 @@ async function resolverCargo() {
 }
 
 
-export async function asegurarExe(id, entrada, rutaAbs) {
+export async function asegurarExe(id, entrada, rutaAbs, { local = false } = {}) {
   if (!entrada._exeAusente) return null;
   if (existsSync(resolve(entrada._exeAusente))) {
     entrada._avisoRegistro = null;
     entrada._exeAusente = null;
     return null;
   }
+  // [por que] Rust compila en la VPS. Reconstruir en este equipo solo en la emergencia `--local`.
+  if (!local) return `up ${id}: exe ausente, no se reconstruye en este equipo: ${REMEDIO_RUST}`;
   let cargo;
   try {
     cargo = await resolverCargo();

@@ -7,6 +7,8 @@ import { isAbsolute, resolve } from 'node:path';
 import { RAIZ_REPO, TTL_MS } from './base.mjs';
 import { clasificar, clasificarEntrada, codigoSalida, detectarCompartidos, escuchaRobusta, tabla } from './clasificar.mjs';
 import { envPara } from './ficha/entorno.mjs';
+import { esEntradaRemota } from './sistema/puertos.mjs';
+import { FLAG_LOCAL } from '../../shared/vps.mjs';
 import { contextoEntrada, esperarProbe, lanzar, leerSnapshotServidor, oyenteDelProyecto, veredictoUpSinCobertura } from './lanzar.mjs';
 import { detectarDerivaEnv, duenoDePuerto } from './sistema/puertos.mjs';
 import { leerRegistro } from './ficha/registro.mjs';
@@ -54,6 +56,11 @@ async function arrancarUno(id, args, visitados) {
     return { codigo: 1, resumen: `up ${id}: ${ctx.resumen}` };
   }
   const { entrada, proyecto, rutaAbs, porPuerto, procs } = ctx;
+  // [por que] Una entrada con `host` vive en otra máquina (la VPS): este equipo no la arranca
+  // salvo la emergencia `--local`, que queda explícita en el comando.
+  if (esEntradaRemota(entrada) && !args.includes(FLAG_LOCAL)) {
+    return { codigo: 1, resumen: `up ${id}: entrada remota (host ${entrada.host}): no se arranca en este equipo; usa el flujo remoto o --local solo en emergencia` };
+  }
   if (ctx.sinCobertura) {
     return veredictoUpSinCobertura(id, await clasificarEntrada(proyecto, entrada, porPuerto, procs), ctx.sinCobertura);
   }
@@ -64,7 +71,7 @@ async function arrancarUno(id, args, visitados) {
     if (!entrada._exeAusente) {
       return { codigo: 1, resumen: `up ${id}: rehusado (${entrada._avisoRegistro}): el mando no toca entradas marcadas` };
     }
-    const fallo = await asegurarExe(id, entrada, rutaAbs);
+    const fallo = await asegurarExe(id, entrada, rutaAbs, { local: args.includes(FLAG_LOCAL) });
     if (fallo) return { codigo: 1, resumen: fallo };
   }
   const r = await clasificarEntrada(proyecto, entrada, porPuerto, procs);
