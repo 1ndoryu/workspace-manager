@@ -33,7 +33,37 @@ export function modoEfectivo(argv, config, proyecto, env = process.env) {
 
 // Quita los flags del taller para que no lleguen a cargo.
 export function quitarFlagsTaller(argv) {
-  return argv.filter((a) => !['--local', '--remoto', '--dry-run'].includes(a) && !a.startsWith('--proyecto='));
+  return argv.filter(
+    (a) => !['--local', '--remoto', '--dry-run'].includes(a)
+      && !a.startsWith('--proyecto=')
+      && !a.startsWith('--env=')
+      && !a.startsWith('--prepath='),
+  );
+}
+
+/* Entorno extra para un cargo concreto: `--env=K=V` y `--prepath=<dir>` (repetibles, forma con `=`
+ * para que `quitarFlagsTaller` los reconozca). [por que] Un build cruzado a Windows necesita cosas
+ * que no están ni en el PATH de un ssh no interactivo ni en el entorno del taller: el llvm de
+ * lld-link (`--prepath`), el zip de Swagger UI (`utoipa-swagger-ui` lo baja en build.rs) y RUSTFLAGS.
+ * Sin esto cada proyecto abría su propio `ssh … cargo` fuera de `cm-heavy` y con target propio
+ * (caso real 2026-10-19: PROYECTO TASKS; `cm-sweep` barrió el build a medias). */
+export function entornoExtra(argv) {
+  const pares = [];
+  for (const a of argv) {
+    if (a.startsWith('--env=')) {
+      const par = a.slice('--env='.length);
+      if (!/^[A-Za-z_][A-Za-z0-9_]*=/.test(par)) {
+        throw new Error(`--env espera NOMBRE=valor, no «${par}»`);
+      }
+      // Solo el valor va entrecomillado: `'NOMBRE=valor'` entero sería un comando, no una asignación.
+      const corte = par.indexOf('=');
+      pares.push(`${par.slice(0, corte)}=${shQuote(par.slice(corte + 1))}`);
+    } else if (a.startsWith('--prepath=')) {
+      // Sin comillas alrededor de "$PATH": se quiere la expansión del shell remoto.
+      pares.push(`PATH=${shQuote(a.slice('--prepath='.length))}:"$PATH"`);
+    }
+  }
+  return pares;
 }
 
 export function shQuote(valor) {
@@ -138,11 +168,12 @@ export function comandoPrepararRama(bd, nombre, base, semilla = null) {
 
 // Comando que ssh ejecuta en la VPS. El lock de carga pesada (cm-heavy) va delante de cargo.
 // `preparar` ({base, semilla}) es opcional: solo lo usa la base de rama.
-export function construirComandoRemoto(config, rutas, args, nombreBd = null, preparar = null) {
+export function construirComandoRemoto(config, rutas, args, nombreBd = null, preparar = null, extra = []) {
   const entorno = [
     SIN_RUSTC_WRAPPER,
     ...(nombreBd ? [`DATABASE_URL=${shQuote(urlBaseRemota(config.bd, nombreBd))}`] : []),
     `CARGO_TARGET_DIR=${shQuote(rutas.target)}`,
+    ...extra,
   ].join(' ');
   const interno = [
     `cd ${shQuote(rutas.dirRemoto)}`,
@@ -241,7 +272,7 @@ export function avisoCargoLock(raiz, existe = existsSync) {
 }
 
 // Asegura la sesión de Mutagen, fuerza el envío pendiente y ejecuta cargo en la VPS.
-export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
+export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun, extra = [] }) {
   const rutas = rutasRemotas(config, proyecto, rama);
   // [14AA-1] Antes de sincronizar: si no se puede derivar el nombre, no se lanza nada.
   let nombreBd = null;
@@ -267,7 +298,7 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun }) {
     if (sync !== 0) return sync;
   }
 
-  const remoto = construirComandoRemoto(config, rutas, args, nombreBd, preparar);
+  const remoto = construirComandoRemoto(config, rutas, args, nombreBd, preparar, extra);
   return correr(BIN_SSH, argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;
 }
 
@@ -283,7 +314,14 @@ async function main(argv) {
     console.error('rcargo: falta el subcomando de cargo (p. ej. check, test, build).');
     return 64;
   }
-  return ejecutarRemoto({ config, proyecto, rama: detectarRama(cwd), cwd, args, dryRun });
+  let extra;
+  try {
+    extra = entornoExtra(argv);
+  } catch (e) {
+    console.error(`rcargo: ${e.message}`);
+    return 64;
+  }
+  return ejecutarRemoto({ config, proyecto, rama: detectarRama(cwd), cwd, args, dryRun, extra });
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

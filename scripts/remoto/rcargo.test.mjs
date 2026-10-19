@@ -5,6 +5,7 @@ import path from 'node:path';
 import {
   modoEfectivo,
   quitarFlagsTaller,
+  entornoExtra,
   shQuote,
   slug,
   rutasRemotas,
@@ -59,6 +60,39 @@ test('quitarFlagsTaller deja solo los argumentos de cargo', () => {
     quitarFlagsTaller(['--local', 'test', '--proyecto=sistema-legado', '--', '--nocapture', '--remoto', '--dry-run']),
     ['test', '--', '--nocapture'],
   );
+});
+
+test('quitarFlagsTaller también se lleva el entorno extra', () => {
+  assert.deepEqual(
+    quitarFlagsTaller(['xwin', 'build', '--env=A=b c', '--prepath=/usr/lib/llvm-18/bin']),
+    ['xwin', 'build'],
+  );
+});
+
+test('entornoExtra: --env entrecomilla solo el valor y --prepath va delante del PATH remoto', () => {
+  // El nombre queda fuera de las comillas: si va dentro, bash lee la palabra como un comando.
+  assert.deepEqual(
+    entornoExtra(['build', '--env=SWAGGER_UI_DOWNLOAD_URL=file:///x.zip', '--prepath=/usr/lib/llvm-18/bin']),
+    ["SWAGGER_UI_DOWNLOAD_URL='file:///x.zip'", "PATH='/usr/lib/llvm-18/bin':\"$PATH\""],
+  );
+  assert.deepEqual(
+    entornoExtra(['build', '--env=RUSTFLAGS=-C target-feature=+crt-static']),
+    ["RUSTFLAGS='-C target-feature=+crt-static'"],
+  );
+});
+
+test('entornoExtra: --env sin NOMBRE=valor falla en vez de exportar basura', () => {
+  assert.throws(() => entornoExtra(['build', '--env=RUSTFLAGS']), /NOMBRE=valor/);
+});
+
+test('comando remoto: el entorno extra viaja delante de cm-heavy cargo', () => {
+  const rutas = rutasRemotas(config, 'P', 'main');
+  const extra = entornoExtra(['build', '--env=RUSTFLAGS=-C target-feature=+crt-static']);
+  // La cadena va entrecomillada para el shell remoto: se compara por partes, no por el texto literal.
+  const cadena = construirComandoRemoto(config, rutas, ['build'], null, null, extra)[2];
+  const env = cadena.indexOf('target-feature=+crt-static');
+  const cargo = cadena.indexOf('cm-heavy cargo');
+  assert.ok(env >= 0 && cargo > env, cadena);
 });
 
 test('shQuote escapa comillas simples', () => {
