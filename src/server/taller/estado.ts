@@ -282,13 +282,10 @@ async function leerLocal(): Promise<EstadoLocal> {
 
 async function calcular(): Promise<EstadoTallerCompleto> {
   const registro = leerRegistroConformidad();
-  /* La 89 va primero: sin su lectura no se sabe qué dev está levantado, y solo esos hosts se sondean. */
-  const taller = await leerTaller89();
-  const [publico, local, hist] = await Promise.all([
-    leerPublico(hostsActivos(registro, taller.t89)),
-    leerLocal(),
-    leerHistorial(),
-  ]);
+  /* [por que] Local e historial no dependen de la 89: arrancan a la vez. Antes iban tras ella en serie (≈23 s en frío). */
+  const [taller, local, hist] = await Promise.all([leerTaller89(), leerLocal(), leerHistorial()]);
+  /* Solo el HTTP público espera a la 89: necesita sus hosts activos para sondear solo esos. */
+  const publico = await leerPublico(hostsActivos(registro, taller.t89));
   const entrada: EntradaConformidad = {
     t89: taller.t89,
     motivoSinLectura: taller.motivo,

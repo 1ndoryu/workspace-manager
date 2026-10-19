@@ -27,9 +27,23 @@ import {
   type Entrada,
 } from '../../shared/consola/clasificacionConsola.js';
 import { CLAVE_AREA } from '../../shared/salud/salud.js';
-import type { AnalisisSentinel, AnalisisVulnerabilidades } from '../../shared/types.js';
 import { estadoTaller } from '../taller/estado.js';
 import type { Hallazgo } from '../../shared/taller/conformidad.js';
+
+/* Conformidad del taller remoto (S3): VPS 89, HTTP público y laptop. [por que] Va en la
+ * caché de 60 s de estado.ts (sin SSH por consulta). Si la evaluación lanza, no tumba la
+ * consola: se avisa con T0 en vez de callarlo. */
+async function hallazgosDelTaller(): Promise<Hallazgo[]> {
+  try {
+    return (await estadoTaller()).hallazgos;
+  } catch (err) {
+    return [{
+      id: 'T0', ambito: 'local', severidad: 'advertencia',
+      detalle: `no se pudo evaluar el taller: ${String(err)}`,
+      remedio: 'Revisar config/registro.json y el log del manager.',
+    }];
+  }
+}
 
 export async function manejarRutasConsola(
   req: IncomingMessage,
@@ -47,18 +61,18 @@ export async function manejarRutasConsola(
    * analizarTodo): si no, un commit reciente seguiría mostrando el HEAD
    * viejo en las entradas sinCommit/sinPush. */
   const { snapshot } = await snapshotArea(forzar);
-  const analisis: AnalisisSentinel[] = forzar
-    ? await analizarTodo(snapshot.proyectos, true)
-    : leerTodas();
-  const vulnerabilidades: AnalisisVulnerabilidades[] = forzar
-    ? await auditarTodo(snapshot.proyectos, true)
-    : leerTodasVulnerabilidades();
-  /* [por que] La vigilancia ya trae TTL 60 s + single-flight propios: no se
-   * fuerza aquí; su frescura viaja en `vigencia.devEn`. */
-  const { informe: dev } = await obtenerVigilancia();
-  /* [por que] Salud (F8) tiene caché de 60 s propio; `forzar` lo salta igual que el
-   * re-escaneo. Se lee tras el snapshot: sus comprobaciones usan el mismo. */
-  const [saludPorProyecto, saludDelArea] = await Promise.all([saludProyectos(forzar), saludArea(forzar)]);
+  /* [por que] Tras el snapshot, análisis, auditoría, vigilancia, salud y taller no se
+   * necesitan entre sí: en serie sumaban sus tiempos (≈30 s en frío); en paralelo tarda
+   * lo que tarda el más lento. La vigilancia no se fuerza: trae TTL 60 s y single-flight
+   * propios, y su frescura viaja en `vigencia.devEn`. */
+  const [analisis, vulnerabilidades, { informe: dev }, [saludPorProyecto, saludDelArea], hallazgosTaller] =
+    await Promise.all([
+      forzar ? analizarTodo(snapshot.proyectos, true) : leerTodas(),
+      forzar ? auditarTodo(snapshot.proyectos, true) : leerTodasVulnerabilidades(),
+      obtenerVigilancia(),
+      Promise.all([saludProyectos(forzar), saludArea(forzar)]),
+      hallazgosDelTaller(),
+    ]);
 
   const porAnalisis = new Map(analisis.map((a) => [a.clave, a]));
   const porVuln = new Map(vulnerabilidades.map((v) => [v.clave, v]));
@@ -83,19 +97,6 @@ export async function manejarRutasConsola(
   /* Grupo sintético del área (comprobaciones de disco, runtime, AGENTS.md...). */
   const salArea = problemaSaludArea(saludDelArea);
   if (salArea) poner(CLAVE_AREA, salArea.p.id, salArea.entradas);
-  /* Conformidad del taller remoto (S3): VPS 89, HTTP público y laptop. [por que] Va en la
-   * caché de 60 s de estado.ts (sin SSH por consulta). Si la evaluación lanza, no tumba la
-   * consola: se avisa con T0 en vez de callarlo. */
-  let hallazgosTaller: Hallazgo[];
-  try {
-    hallazgosTaller = (await estadoTaller()).hallazgos;
-  } catch (err) {
-    hallazgosTaller = [{
-      id: 'T0', ambito: 'local', severidad: 'advertencia',
-      detalle: `no se pudo evaluar el taller: ${String(err)}`,
-      remedio: 'Revisar config/registro.json y el log del manager.',
-    }];
-  }
   const taller = problemasTallerDe(hallazgosTaller);
   if (taller) poner(CLAVE_AREA, taller.p.id, taller.entradas);
   /* Grupo sintético de huérfanos sin proyecto (misma regla que el hook:
