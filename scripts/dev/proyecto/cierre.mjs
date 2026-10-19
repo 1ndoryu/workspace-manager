@@ -92,18 +92,61 @@ export function comprobarRamasSueltas(ruta, base) {
 const escaparId = (id) => id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const RE_TAREA = (id) =>
   new RegExp(`^\\s*(?:[-*]\\s+\\[ \\]|\\d+\\.|[-*]\\s+|#{2,4}\\s+)\\s*(?:\`${escaparId(id)}\`|\\*\\*${escaparId(id)}\\b)`);
-/* Marcas de tarea cerrada: la casilla marcada, el tachado y el texto. El visto bueno va como
- * escape Unicode y no como emoji literal: la regla `emoji-en-codigo` de Sentinel lo prohíbe. */
-const RE_HECHA = /\[x\]|~~|\u2705|\bHECH[AO]\b|CERRAD/i;
+/* Marcas de tarea cerrada: la casilla marcada, el tachado y el visto bueno. El visto bueno va
+ * como escape Unicode y no como emoji literal: la regla `emoji-en-codigo` de Sentinel lo prohibe.
+ * [por que] NO se buscan las palabras «hecho»/«cerrado»: en la forma canonica el titulo puede
+ * llevarlas sin que la tarea este cerrada («PENDIENTE DE HECHO EXTERNO», «Criterio de hecho:
+ * ...») y el cierre daba un falso verde. Un falso «abierta» es la direccion segura; un falso
+ * «cerrada» deja cerrar trabajo vivo. */
+const RE_HECHA = /\[x\]|~~|\u2705/;
+
+/* Secciones que son zona de tareas: las mismas que reconoce el parser del tablero
+ * (`src/server/scanner/roadmap/roadmap.ts`, D8). [por que] Fuera de ellas un bullet con ID es
+ * una mención, no una tarea: en «Bloqueos» y «Planes activos» los IDs van como referencia y el
+ * cierre daba un falso «sigue abierta» (22 casos medidos el 2026-10-19). Los `.mjs` sueltos no
+ * pueden importar el `.ts`, así que el gemelo se mantiene a mano (17AA-5). */
+const RE_ZONA_TAREAS =
+  /^(?:siguiente bloque|bloque actual|ahora|(?:tareas? )?pendientes?|backlog|tareas?|por hacer|cola|desarrollo pendiente)/;
+
+/* Lineas que pueden contener una tarea abierta: las de una seccion de tareas, al primer nivel.
+ * [por que] Se normaliza como el parser (`\r?\n` y sin espacios finales): con ficheros CRLF el
+ * `$` de los regex no casaba y el cierre no veia NINGUNA tarea abierta (falso verde medido en
+ * glory-harness-19aa el 2026-10-19). */
+function lineasDeTarea(texto) {
+  const salida = [];
+  let enTareas = false;
+  for (const cruda of texto.split(/\r?\n/)) {
+    const linea = cruda.replace(/\s+$/, '');
+    const h = linea.match(/^(#{2,4})\s+(.+)$/);
+    if (h) {
+      if (h[1].length === 2) {
+        const n = h[2]
+          .replace(/^\s*\d+[.)]\s*/, '')
+          .replace(/[^\p{L}\p{N} ]+/gu, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+        enTareas = RE_ZONA_TAREAS.test(n);
+      }
+      /* Un heading dentro de la zona con el ID es una tarea escrita como heading. */
+      if (enTareas) salida.push(linea);
+      continue;
+    }
+    /* Sub-pasos sangrados de una tarea: no son tareas (igual que el parser). */
+    if (/^\s+\S/.test(linea)) continue;
+    if (enTareas) salida.push(linea);
+  }
+  return salida;
+}
 
 export function comprobarRoadmap(ruta, tarea) {
   if (!tarea) return omitida('roadmap-tarea', 'sin --tarea <ID>');
   const archivo = join(ruta, 'roadmap.md');
   if (!existsSync(archivo)) return omitida('roadmap-tarea', 'sin roadmap.md');
   const re = RE_TAREA(tarea);
-  const abiertas = readFileSync(archivo, 'utf8')
-    .split('\n')
-    .filter((l) => re.test(l) && !RE_HECHA.test(l));
+  const abiertas = lineasDeTarea(readFileSync(archivo, 'utf8')).filter(
+    (l) => re.test(l) && !RE_HECHA.test(l),
+  );
   if (abiertas.length === 0) return ok('roadmap-tarea', `${tarea} no está abierta en roadmap.md`);
   return fallo(
     'roadmap-tarea',

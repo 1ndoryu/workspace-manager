@@ -11,10 +11,15 @@ import { comprobarRoadmap, comprobarProcesos, PUERTOS_PROTEGIDOS } from './cierr
 /* [por que] AGENTS §0.2: los temporales van a la raíz de temporales, nunca a %TEMP%. */
 const BASE_TMP = join(raizTemporales(), 'cierre-tests');
 
+/* Los fixtures van dentro de una sección de tareas salvo que traigan sus propios headings:
+ * fuera de ella (Bloqueos, Planes activos) un bullet con ID es una mención, no una tarea. */
 function dirConRoadmap(texto) {
   mkdirSync(BASE_TMP, { recursive: true });
   const dir = mkdtempSync(join(BASE_TMP, 'd-'));
-  if (texto !== undefined) writeFileSync(join(dir, 'roadmap.md'), texto);
+  if (texto !== undefined) {
+    const cuerpo = /^## /m.test(texto) ? texto : `## Pendientes\n\n${texto}`;
+    writeFileSync(join(dir, 'roadmap.md'), cuerpo);
+  }
   return dir;
 }
 
@@ -51,7 +56,7 @@ test('roadmap: **EN CURSO** también cuenta como abierta', () => {
 });
 
 test('roadmap: un ID que es prefijo de otro no cuenta', () => {
-  const dir = dirConRoadmap('- `11AA-10` **ACTIVA (2026-10-11): otra\n- `11AA-1` HECHA\n');
+  const dir = dirConRoadmap('- `11AA-10` **ACTIVA (2026-10-11): otra\n- depende de `11AA-1` para cerrar\n');
   try {
     const c = comprobarRoadmap(dir, '11AA-1');
     assert.equal(c.ok, true);
@@ -78,6 +83,52 @@ test('roadmap: casilla marcada o tachada no cuenta como abierta', () => {
   try {
     assert.equal(comprobarRoadmap(dir, '19AA-9').ok, true);
     assert.equal(comprobarRoadmap(dir, '19AA-8').ok, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/* Fuera de una sección de tareas el ID va de referencia («ver Bloqueos», un plan activo), no
+ * como tarea abierta: contarlo bloqueaba cierres legítimos (22 casos el 2026-10-19). */
+test('roadmap: un ID en «Bloqueos» o «Planes activos» no es una tarea abierta', () => {
+  const dir = dirConRoadmap(
+    '## Pendientes\n\n- [ ] `19AA-1` — **Viva.**\n\n' +
+      '## Bloqueos\n\n- `19AA-2` — **Bloqueado por la suscripción.**\n\n' +
+      '## Planes activos\n\n- `Agente/planes/plan-x-2026-10-19.md` — `19AA-3` — algo.\n',
+  );
+  try {
+    assert.equal(comprobarRoadmap(dir, '19AA-1').ok, false);
+    assert.equal(comprobarRoadmap(dir, '19AA-2').ok, true);
+    assert.equal(comprobarRoadmap(dir, '19AA-3').ok, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/* Los roadmap del área llevan CRLF y sub-pasos sangrados bajo la tarea. */
+test('roadmap: con CRLF sigue viendo la tarea abierta y no cuenta los sub-pasos', () => {
+  const dir = dirConRoadmap(
+    '## Pendientes\r\n\r\n- [ ] `19AA-1` — **Viva.**\r\n  - `19AA-2` sub-paso sangrado\r\n',
+  );
+  try {
+    assert.equal(comprobarRoadmap(dir, '19AA-1').ok, false);
+    assert.equal(comprobarRoadmap(dir, '19AA-2').ok, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/* Las palabras «hecho»/«cerrado» en el TITULO no cierran nada: en la forma canonica
+ * describen criterios («Criterio de hecho: …») o estados ajenos («PENDIENTE DE HECHO
+ * EXTERNO»). Contarlas daba un falso verde que dejaba cerrar trabajo vivo. */
+test('roadmap: las palabras «hecho» y «cerrado» en el titulo no cierran la tarea', () => {
+  const dir = dirConRoadmap(
+    '- [ ] `19AA-10` — **PENDIENTE DE HECHO EXTERNO.**\n' +
+      '- [ ] `19AA-12` — **Criterio de hecho: F1 hecho; F2-F4 abiertos.**\n',
+  );
+  try {
+    assert.equal(comprobarRoadmap(dir, '19AA-10').ok, false);
+    assert.equal(comprobarRoadmap(dir, '19AA-12').ok, false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
