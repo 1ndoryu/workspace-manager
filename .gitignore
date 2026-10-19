@@ -26,3 +26,6 @@ config/*.local.json
 
 # Documentacion local del area (planes, tareas, lecciones): se mantiene fuera del repo publico.
 Agente/
+
+# Roadmap local: no se publica (contiene nombres de proyectos privados)
+/roadmap.md
