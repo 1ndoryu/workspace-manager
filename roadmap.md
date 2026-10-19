@@ -45,6 +45,17 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 
 ## Tareas pendientes (orden de dependencia)
 
+- `18AA-1` — **Gate de calidad: el frontend corre en el laptop (error, AGENTS §1).** `frontend.mjs` del
+  adaptador de calidad ejecuta `npm --prefix frontend run type-check|test:full|build` en el portátil,
+  y `tsc` no existe allí (`npm` falla con «tsc no se reconoce»). Mismo fallo en
+  `WANDORIUS/scripts/quality/adapters/frontend.mjs`. RESTAURANTE ya lo corrige en su adaptador
+  (`scripts/quality/adapters/frontend.mjs`: sync Mutagen + ssh a la 89, reutilizando `rcargo.mjs`).
+  Pendiente: llevar ese mismo patrón a WANDORIUS y a cualquier otro adaptador que llame a `npm`/`node`
+  pesado desde el laptop; revisar también los pasos `sentinel` y `varsense` del gate, que hoy corren
+  en el laptop (se midió: ~12 s y ~4 s). Otros proyectos con `frontend/package.json` (KAMPLES,
+  MN-Inmobiliaria, NAKOMI, PROYECTO TASKS, glory-lab, Glory-Laminal) no tienen `quality.config.json`
+  ni adaptador de gate: confirmar que ningún comando de `Arranque gate` ni de otro script de calidad
+  les ejecuta `tsc` en el laptop.
 - `17AA-5` — **Los gemelos `.ts`/`.mjs` no tienen guarda.** `src/shared/{area,binarios,puertos}.ts`
   y `src/server/plataforma/temporales.ts` se duplican a mano en `scripts/shared/*.mjs` porque un
   `.mjs` suelto no puede importar TypeScript, y nada comprueba que digan lo mismo: añadir
