@@ -67,8 +67,10 @@ interface RepoPendiente {
 
 /* [por que] Cuantos git corren a la vez al escanear. El coste es espera de E/S
  * (Windows + OneDrive, ~230 ms por `status`), no CPU: unos pocos en paralelo
- * solapan la espera sin saturar el disco. */
-const REPOS_EN_PARALELO = 4;
+ * solapan la espera sin saturar el disco. Medido el 2026-10-19 (21 proyectos, portátil,
+ * mediana de 3): 1 → 5,1 s; 4 → 2,2 s; 6 → 2,7 s. Por eso queda en 4. Se puede
+ * cambiar con WS_REPOS_PARALELO para volver a medir; un valor no válido cae a 4. */
+const REPOS_EN_PARALELO = Math.max(1, Number(process.env.WS_REPOS_PARALELO) || 4);
 
 /* Ejecuta `fn` sobre cada elemento con como mucho `limite` promesas a la vez. Mantiene el orden. */
 async function mapLimitado<T, R>(items: T[], limite: number, fn: (x: T) => Promise<R>): Promise<R[]> {
