@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, openSync, closeSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, openSync, closeSync, readFileSync, readlinkSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,50 +55,74 @@ function dir(d, nombre) {
   return r;
 }
 
-/* Una corrida en dry-run. `suelo=99` fuerza el nivel 2 (sin umbrales: cualquier candidato vale) y
+/* Entorno de una corrida. `suelo=99` fuerza el nivel 2 (sin umbrales: cualquier candidato vale) y
  * `objetivo=99` con `suelo=1` fuerza el nivel 1, que es el único que respeta umbrales en dry-run
  * —las pasadas sin umbrales y la poda agresiva están detrás de `! DRY`—. */
-function correr(d, { suelo = 99, objetivo = 25, extra = {} } = {}) {
+function entorno(d, { suelo = 99, objetivo = 25, extra = {} } = {}) {
+  return {
+    ...process.env,
+    // El mapa de «en uso» cae en $TMPDIR: fuera de las raíces que se limpian saldría vacío y el
+    // script, fail-closed, no borraría nada (y el control positivo fallaría sin decir por qué).
+    TMPDIR: d.tmp,
+    CM_SWEEP_LOG: d.log,
+    CM_SWEEP_ESTADO: d.estado,
+    CM_SWEEP_LOCK: d.lock,
+    CM_TARGET_BASE: d.target,
+    CM_QUALITY_BASE: d.calidad,
+    CM_VAR_TMP: d.varTmp,
+    CM_TMP: d.tmp,
+    CM_SWEEP_CASA: d.casa,
+    CM_SWEEP_SUELO_GB: String(suelo),
+    CM_SWEEP_OBJETIVO_GB: String(objetivo),
+    ...extra,
+  };
+}
+
+function correr(d, opts = {}) {
   execFileSync('bash', [SCRIPT, '--dry-run'], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     timeout: 120_000,
-    env: {
-      ...process.env,
-      // El mapa de «en uso» cae en $TMPDIR: fuera de las raíces que se limpian saldría vacío y el
-      // script, fail-closed, no borraría nada (y el control positivo fallaría sin decir por qué).
-      TMPDIR: d.tmp,
-      CM_SWEEP_LOG: d.log,
-      CM_SWEEP_ESTADO: d.estado,
-      CM_SWEEP_LOCK: d.lock,
-      CM_TARGET_BASE: d.target,
-      CM_QUALITY_BASE: d.calidad,
-      CM_VAR_TMP: d.varTmp,
-      CM_TMP: d.tmp,
-      CM_SWEEP_CASA: d.casa,
-      CM_SWEEP_SUELO_GB: String(suelo),
-      CM_SWEEP_OBJETIVO_GB: String(objetivo),
-      ...extra,
-    },
+    env: entorno(d, opts),
   });
   return readFileSync(d.log, 'utf8');
 }
 
+/* Corrida en segundo plano, para mirar el log mientras corre. Devuelve el proceso y el log de
+ * ahora mismo (el fichero puede no existir todavía: un fallo ahí es «aún no hay nada»). */
+function correrEnFondo(d, opts = {}) {
+  const p = spawn('bash', [SCRIPT, '--dry-run'], { stdio: 'ignore', env: entorno(d, opts) });
+  const log = () => { try { return readFileSync(d.log, 'utf8'); } catch { return ''; } };
+  return { p, log, fin: new Promise((res) => p.on('exit', (codigo) => res(codigo))) };
+}
+
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+const esperarA = async (cond, topeMs = 10_000) => {
+  for (let t = 0; t < topeMs; t += 25) {
+    if (cond()) return true;
+    await esperar(25);
+  }
+  return false;
+};
+
 const borraria = (log, ruta) => log.includes(`dry-run: borraría ${ruta} `);
 const seNiega = (log, ruta, motivo) => log.includes(`no se toca ${ruta}: ${motivo}`);
+
+/* ¿Existe ya el proceso y su cwd es el que le pedimos? `/proc/<pid>/cwd` es un enlace, así que se
+ * lee con readlink: `readFileSync` daría EISDIR y la espera no confirmaría nada. */
+const cwdListo = (pid, ruta) => {
+  try {
+    return readlinkSync(`/proc/${pid}/cwd`) === ruta;
+  } catch {
+    return false;
+  }
+};
 
 /* Proceso vivo con el cwd dentro de la ruta. Se espera a que exista de verdad antes de limpiar. */
 async function conProcesoEn(ruta, cuerpo) {
   const p = spawn('sleep', ['30'], { cwd: ruta, stdio: 'ignore' });
   try {
-    for (let i = 0; i < 50; i++) {
-      try {
-        if (readFileSync(`/proc/${p.pid}/cwd`).length >= 0) break;
-      } catch {
-        await new Promise((r) => setTimeout(r, 20));
-      }
-    }
-    await new Promise((r) => setTimeout(r, 50));
+    await esperarA(() => cwdListo(p.pid, ruta));
     return await cuerpo();
   } finally {
     p.kill('SIGKILL');
@@ -206,6 +230,36 @@ test('nivel 1: respeta el umbral de 2 h en /var/tmp', { skip: OMITIR }, () => {
     assert.ok(log.includes('inicio: nivel 1,'), `no corrió en nivel 1; log:\n${log}`);
     assert.ok(borraria(log, viejo), `no borró el viejo; log:\n${log}`);
     assert.ok(!borraria(log, nuevo), 'borró algo tocado hace un momento');
+  } finally {
+    rmSync(d.raiz, { recursive: true, force: true });
+  }
+});
+
+/* El mapa de «en uso» se construye al empezar y una corrida dura minutos: lo que arranca en medio
+ * —un build cruzado, que no pasa por cm-heavy— no estaba en él. El señuelo va al ÚLTIMO objetivo
+ * (cachés de casa) y el ruido de /var/tmp, que es el primero, da margen para que la corrida siga
+ * viva cuando el proceso arranque. */
+test('señuelo: un proceso que arranca a mitad de la corrida también se protege', { skip: OMITIR }, async () => {
+  const d = caja();
+  try {
+    for (let i = 0; i < 1200; i++) mkdirSync(path.join(d.varTmp, `ruido-${i}`));
+    const decoy = path.join(d.casa, '.cache', 'en-marcha');
+    mkdirSync(decoy, { recursive: true });
+    writeFileSync(path.join(decoy, 'f.txt'), 'x');
+    // Releer /proc cada segundo: sin el refresco el señuelo no está en el mapa y se lo llevaría.
+    const { log, fin } = correrEnFondo(d, { extra: { CM_SWEEP_REFRESCO_S: '1' } });
+    assert.ok(await esperarA(() => log().includes(`dry-run: borraría ${d.varTmp}/`)),
+      `la corrida no llegó al primer objetivo; log:\n${log()}`);
+    const p = spawn('sleep', ['30'], { cwd: decoy, stdio: 'ignore' });
+    try {
+      assert.ok(await esperarA(() => cwdListo(p.pid, decoy)), 'el señuelo no llegó a existir');
+      await fin;
+      const l = log();
+      assert.ok(seNiega(l, decoy, 'lo usa un proceso'), `no lo protegió; log:\n${l}`);
+      assert.ok(!borraria(l, decoy), 'lo dio por borrable');
+    } finally {
+      p.kill('SIGKILL');
+    }
   } finally {
     rmSync(d.raiz, { recursive: true, force: true });
   }

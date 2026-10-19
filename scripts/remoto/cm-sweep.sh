@@ -167,13 +167,19 @@ ultima() { find "$1" -printf '%T@\n' 2>/dev/null | sort -rn | head -1 | cut -d. 
 # queda en una búsqueda en memoria.
 declare -A EN_USO=() CON_DATOS=() TIENE_GIT=()
 MAPA_OK=0
+MAPA_TS=0
 GIT_OK=1
 MAPA=$(mktemp -t cm-sweep-mapa.XXXXXX)
 trap 'rm -f "$MAPA"' EXIT
+# Cada cuánto se relee /proc mientras se borra sin umbrales. Una corrida dura minutos y lo que
+# arranca en medio —un build cruzado que no pasa por cm-heavy— no está en el mapa del principio.
+REFRESCO_S=${CM_SWEEP_REFRESCO_S:-5}
 
 # --- En uso (D1) -------------------------------------------------------------
-# El mapa se construye una vez por corrida y solo con las raíces que limpiamos: son unas decenas de
-# líneas en vez de decenas de miles.
+# El mapa se construye al empezar y se refresca antes de cada pasada sin umbrales y, si la pasada
+# se alarga, cada REFRESCO_S segundos. Solo con las raíces que limpiamos: son unas decenas de
+# líneas en vez de decenas de miles. El mapa solo crece: una ruta vista una vez sigue protegida
+# (protección de más, nunca de menos).
 construir_mapa_en_uso() {
   # `%l` da el destino del enlace: un find en vez de miles de readlink (uno por descriptor).
   { find /proc/[0-9]*/cwd /proc/[0-9]*/exe -maxdepth 0 -printf '%l\n' 2>/dev/null
@@ -184,12 +190,24 @@ construir_mapa_en_uso() {
   # un disco limpio. Siempre tiene al menos el temporal de esta propia corrida.
   if [[ -s "$MAPA" ]]; then
     MAPA_OK=1
+    MAPA_TS=$(date +%s)
     while IFS= read -r p; do
       while [[ "$p" == */* ]]; do EN_USO["$p"]=1; p=${p%/*}; done
     done < "$MAPA"
+  elif (( MAPA_OK )); then
+    # Un refresco vacío no tira lo ya sabido: se conserva el mapa anterior y se sigue.
+    log "aviso: refresco del mapa vacío; se conserva el anterior"
   else
     log "aviso: mapa de procesos vacío; no se borrará nada en esta corrida"
   fi
+}
+
+# Se llama antes de cada borrado sin umbrales (AMPLIO). Fuera de ahí el umbral de antigüedad ya
+# protege lo recién tocado y no se paga el escaneo.
+refrescar_mapa_si_toca() {
+  (( AMPLIO )) || return 0
+  (( $(date +%s) - MAPA_TS >= REFRESCO_S )) && construir_mapa_en_uso
+  return 0
 }
 
 # ¿Algo (cwd, ejecutable o fichero abierto) apunta a $1 o dentro de $1? Fail-closed: sin mapa, sí.
@@ -262,6 +280,7 @@ borrar() {
   [[ -e "$r" || -L "$r" ]] || return 0
   (( GIT_OK )) || return 1
   es_nunca "$r" && { log "no se toca $r: ruta protegida"; return 1; }
+  refrescar_mapa_si_toca # sin umbrales, el mapa del principio puede ser de hace minutos
   en_uso_por_proceso "$r" && { log "no se toca $r: lo usa un proceso"; return 1; }
   [[ -n "${CON_DATOS[$r]:-}" ]] && { log "no se toca $r: contiene datos ($(datos_de "$r"))"; return 1; }
   [[ -n "${TIENE_GIT[$r]:-}" ]] && { log "no se toca $r: git con cambios sin commitear"; return 1; }
@@ -565,6 +584,8 @@ podar_docker "$BUILDX_GB"
 if (( ! DRY )) && (( NIVEL < 2 )) && (( $(libre_gb) < OBJETIVO_GB )); then
   log "objetivo: $(libre_gb) GB < $OBJETIVO_GB GB; segunda pasada sin umbrales"
   H_VTMP=0; H_TMP=0; H_CASA=0; AMPLIO=1
+  # Sin umbrales, todo candidato vale: se relee /proc aquí, que es cuando el mapa ya puede ser viejo.
+  construir_mapa_en_uso
   limpiar_vtmp
   limpiar_tmp
   limpiar_casa
@@ -583,6 +604,8 @@ libre=$(libre_gb)
 if (( ! DRY )) && (( libre < SUELO_GB )); then
   log "suelo: $libre GB libres < $SUELO_GB GB; poda agresiva"
   H_TARGET=0
+  # Es el borrado más destructivo de la corrida y llega al final: el mapa se relee justo antes.
+  construir_mapa_en_uso
   limpiar_targets 0
   antes=$(cache_buildx)
   docker buildx prune -af >/dev/null 2>&1
