@@ -2,7 +2,7 @@
  * [por que] La consola debe reportar los hallazgos reales que `sentinel
  * analyze` detecta en cada repo SIN consumir recursos. Para eso este modulo:
  *  - corre `sentinel analyze --workspace <ruta> --format json` (una sola vez por
- *    cambio real), nunca dentro del escaneo raiz (~2.4 s) que vive aparte;
+ *    cambio real), nunca dentro del escaneo raiz (que vive aparte y es asincrono);
  *  - cachea por frescura = branch + HEAD + version de sentinel: si el repo no
  *    cambio y sentinel no cambio, se sirve cacheado sin volver a spawn;
  *  - es elegibilidad por puerta ('sentinel'), salta carpetas/cargo;

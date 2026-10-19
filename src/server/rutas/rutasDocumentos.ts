@@ -22,7 +22,7 @@ export async function manejarRutasDocumentos(
      * resuelve desde el snapshot por nombre (nunca se acepta un path
      * del cliente): evita traversal fuera de la carpeta de skills. */
     const nombre = decodeURIComponent(ruta.slice('/api/skills/'.length));
-    const { snapshot } = snapshotArea(false);
+    const { snapshot } = await snapshotArea(false);
     const skill = snapshot.agentes.skills.find(s => s.nombre === nombre);
     if (!skill) {
       json(res, 404, { error: 'Skill no encontrada', nombre });
@@ -52,7 +52,7 @@ export async function manejarRutasDocumentos(
          * falla (p. ej. un repo con un git lock). Se reporta solo en
          * el log del servidor. */
         try {
-          snapshotArea(true);
+          await snapshotArea(true);
         } catch (err) {
           logger.warn('re-escaneo tras guardar [skills] fallo:', err);
         }
@@ -69,7 +69,7 @@ export async function manejarRutasDocumentos(
     /* GET: contenido de AGENTS.md (proyecto por id o 'raiz'). */
     if (req.method === 'GET') {
       const id = url.searchParams.get('id') ?? '';
-      const { snapshot } = snapshotArea(false);
+      const { snapshot } = await snapshotArea(false);
       const proyecto = snapshot.proyectos.find(p => p.id === id);
       const rutaAgents =
         id === 'raiz'
@@ -100,7 +100,7 @@ export async function manejarRutasDocumentos(
         json(res, 400, { error: 'Contenido invalido' });
         return true;
       }
-      const { snapshot } = snapshotArea(false);
+      const { snapshot } = await snapshotArea(false);
       const proyecto = snapshot.proyectos.find(p => p.id === id);
       const rutaAgents =
         id === 'raiz'
@@ -118,7 +118,7 @@ export async function manejarRutasDocumentos(
          * si falla, la escritura igual es exitosa y se responde 200;
          * solo se loguea, sin convertir el guardado en un error. */
         try {
-          snapshotArea(true);
+          await snapshotArea(true);
         } catch (err) {
           logger.warn('re-escaneo tras guardar [agentes] fallo:', err);
         }

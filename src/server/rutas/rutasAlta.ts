@@ -23,7 +23,7 @@ export async function manejarRutasAlta(
     json(res, 400, { error: 'Falta la clave del proyecto' });
     return true;
   }
-  const { snapshot } = snapshotArea(false);
+  const { snapshot } = await snapshotArea(false);
   const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
   if (!proyecto) {
     json(res, 404, { error: 'Proyecto no encontrado', clave });

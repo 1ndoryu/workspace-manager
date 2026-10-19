@@ -8,8 +8,10 @@
 set -u
 
 export PATH="$HOME/.local/bin:/usr/bin:/bin"
-RAIZ="${WM_RAIZ:-$HOME/taller/workspace-manager}"
-AREA="${WS_AREA_ROOT:-$HOME/taller}"
+# Por defecto, la raíz del propio repo: scripts/remoto/ está dos niveles dentro.
+RAIZ="${WM_RAIZ:-$(cd "$(dirname "$0")/../.." && pwd)}"
+# Obligatoria por entorno: la crontab debe declararla (cron no hereda el entorno de la usuaria).
+AREA="${WS_AREA_ROOT:?define WS_AREA_ROOT (raíz del área de trabajo en esta máquina)}"
 PUERTO="${WS_PORT:-8787}"
 DIR_ESTADO="$HOME/.workspace-manager"
 PIDFILE="$DIR_ESTADO/server.pid"

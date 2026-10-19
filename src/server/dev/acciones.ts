@@ -11,10 +11,10 @@ import { execFile } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { rutaConfigPrivada } from '../../shared/rutas.js';
+import { RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.js';
 import { snapshotArea } from '../snapshot.js';
 
-const DIR_DEV = join(import.meta.dirname, '..', '..', '..', 'scripts', 'dev');
+const DIR_DEV = join(RAIZ_REPO, 'scripts', 'dev');
 export const DEV_MJS = join(DIR_DEV, 'dev.mjs');
 const RUTA_REGISTRO = rutaConfigPrivada('registro.json');
 
@@ -58,7 +58,7 @@ export async function ejecutarAccionDev(
     /* Snapshot vigente a temporal (snapshotArea ya es la sutura usada por
      * vigilancia F0b): las acciones con sensor nunca deciden a ciegas;
      * logs/open lo ignoran (solo registro) pero se sirve igual. */
-    const { snapshot } = snapshotArea(false);
+    const { snapshot } = await snapshotArea(false);
     const tmp = join(dir, 'snapshot.json');
     writeFileSync(tmp, JSON.stringify(snapshot));
     const argv =

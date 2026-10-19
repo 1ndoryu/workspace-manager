@@ -2,7 +2,7 @@
 # Lote root de la VPS 89 (plan taller remoto: F8 WireGuard y F5 Docker).
 # Lo ejecuta la usuaria a mano, con su contraseña de sudo; el agente no la conoce:
 #   sudo bash ~/taller/workspace-manager/scripts/remoto/root-taller-89.sh
-# Con el peer del laptop, delante de sudo: PEER_PUB=<clave pública del laptop> (y opcional PEER_IP, WG_IP_SERVIDOR).
+# Delante de sudo: PEER_PUB=<clave pública del laptop> (opcional) y, obligatorias, PEER_IP y WG_IP_SERVIDOR.
 # [por que] Idempotente y sin destrucción: no borra imágenes, volúmenes ni claves existentes;
 # no activa ufw (si está inactivo, avisa y no añade reglas) y no cierra el 22 público (eso es F8, después).
 set -euo pipefail
@@ -10,12 +10,14 @@ export DEBIAN_FRONTEND=noninteractive
 
 # Usuario del taller dueño de ~/taller. No va incrustado: se deduce de quien
 # invoca sudo, que es justo quien tiene el directorio. OPERADOR lo pisa.
-OPERADOR="${OPERADOR:-${SUDO_USER:-dev}}"
+OPERADOR="${OPERADOR:-${SUDO_USER:-}}"
+: "${OPERADOR:?define OPERADOR (usuario dueño de ~/taller)}"
 DIR_WG=/etc/wireguard
 IFAZ=wg0
 PUERTO_WG=51820
-IP_SERVIDOR="${WG_IP_SERVIDOR:-192.0.2.1/24}"
-IP_PEER="${PEER_IP:-192.0.2.2}"
+# Direcciones de la VPN: obligatorias por entorno, sin valor de nuestra red incrustado.
+IP_SERVIDOR="${WG_IP_SERVIDOR:?define WG_IP_SERVIDOR (IP/prefijo de wg0 en este servidor)}"
+IP_PEER="${PEER_IP:?define PEER_IP (IP del laptop dentro de la VPN)}"
 LOG=/home/$OPERADOR/taller/_logs/root-taller-89.log
 
 [ "$(id -u)" -eq 0 ] || { echo "Ejecutar con sudo." >&2; exit 1; }

@@ -227,7 +227,8 @@ function nombreRegla(id: string, reglas: ReglaCatalogo[]): string {
 function categoriaNombre(c: string): string {
   const mapa: Record<string, string> = {
     'react-patrones': 'React',
-    'glory-schema': 'Glory',
+    /* Id técnico de sentinel (contrato del catálogo); la etiqueta es genérica. */
+    'glory-schema': 'Esquema',
     'estructura-nomenclatura': 'Estructura',
     'wordpress-php': 'WordPress/PHP',
     'patrones-prohibidos': 'Prohibidos',

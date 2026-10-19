@@ -15,10 +15,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { InformeDev } from '../../shared/dev.js';
 import { snapshotArea } from '../snapshot.js';
+import { RAIZ_REPO } from '../../shared/rutas.js';
 
-/* Doctor relativo a este archivo (src/server/dev/ -> raiz del repo), no al
- * cwd: el servidor puede arrancarse desde cualquier directorio. */
-const DOCTOR = join(import.meta.dirname, '..', '..', '..', 'scripts', 'dev', 'doctor.mjs');
+/* Doctor relativo a la raiz del repo, no al cwd: el servidor puede arrancarse
+ * desde cualquier directorio. */
+const DOCTOR = join(RAIZ_REPO, 'scripts', 'dev', 'doctor.mjs');
 
 /* TTL 60s (decision del spike F0: scan async con frescura visible en vez de
  * bloquear cada GET; el coste real del doctor es ~23 s, ver TIMEOUT_DOCTOR_MS). */
@@ -79,7 +80,7 @@ export async function obtenerVigilancia(): Promise<{
   }
   if (inflight) return inflight;
   inflight = (async () => {
-    const { snapshot } = snapshotArea(false);
+    const { snapshot } = await snapshotArea(false);
     const dir = mkdtempSync(join(tmpdir(), 'wm-dev-'));
     try {
       const tmp = join(dir, 'snapshot.json');

@@ -39,10 +39,10 @@ export async function manejarRutasConfig(
       const configNueva = cambiarIgnorado(RAIZ_AREA, clave, op === 'ignorar');
       /* Mutacion en memoria del snapshot cacheado: ignorar/quitar solo
        * cambia la visibilidad (no git/gate/roadmap), asi que NO se
-       * re-escanea (escaneo completo ~2.6s). [por que] El usuario pidio
+       * re-escanea (el escaneo completo es caro: git por repo). [por que] El usuario pidio
        * que el cambio se refleje en tiempo real; re-escandear aqui y
        * luego otra vez en el cliente duplicaba la latencia. */
-      const base = snapshotArea(false);
+      const base = await snapshotArea(false);
       const ignoradoSet = new Set(configNueva.ignorados);
       const proyectos = base.snapshot.proyectos
         .map((p) => ({ ...p, clave: claveDe(p.ruta, RAIZ_AREA) }))
@@ -90,7 +90,7 @@ export async function manejarRutasConfig(
     }
     try {
       const configNueva = cambiarSinGate(RAIZ_AREA, clave, op === 'eximir');
-      const base = snapshotArea(false);
+      const base = await snapshotArea(false);
       const mutado: SnapshotWorkspace = { ...base.snapshot, config: configNueva };
       actualizarSnapshot(mutado);
       json(res, 200, { ok: true, config: configNueva, snapshot: mutado });
@@ -119,7 +119,7 @@ export async function manejarRutasConfig(
     };
     const config = guardarConfigScan(RAIZ_AREA, scan);
     /* Aplica la config nueva al snapshot cacheado sin re-escandear. */
-    const base = snapshotArea(false);
+    const base = await snapshotArea(false);
     const mutado: SnapshotWorkspace = { ...base.snapshot, config };
     actualizarSnapshot(mutado);
     json(res, 200, { ok: true, config });

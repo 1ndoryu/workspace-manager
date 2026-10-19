@@ -26,8 +26,8 @@ export interface DepsRutasTareas {
   puente?: PuenteTareas;
   leerCuerpo?: (req: IncomingMessage) => Promise<unknown>;
   /* Repos WM en orden de snapshot, ya sin ignorados (produccion: lo sirve
-   * index.ts desde `snapshotArea(false)`; tests: lista fija). */
-  leerWm?: () => EntradaWm[];
+   * index.ts desde `snapshotArea(false)`; tests: lista fija). Puede ser async. */
+  leerWm?: () => EntradaWm[] | Promise<EntradaWm[]>;
 }
 
 function esErrorKanban(e: unknown): e is ErrorKanban {
@@ -90,7 +90,7 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
     if (ruta === '/api/tareas/proyectos' && req.method === 'GET') {
       try {
         const proyectos = await sincronizarColumnas({
-          wm: leerWm(),
+          wm: await leerWm(),
           task: await puente.proyectos(),
           crear: (legacyId, entrada) => puente.crearProyecto(legacyId, entrada.nombre, entrada.clave),
         });

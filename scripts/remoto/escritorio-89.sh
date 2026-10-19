@@ -28,7 +28,7 @@ fi
 PUERTO_LOCAL=6090
 PUERTO_REMOTO=6080
 URL="http://localhost:$PUERTO_LOCAL"
-SOCK=/c/tmp/escritorio-89.sock
+SOCK="${WM_TMP:-/c/tmp}/escritorio-89.sock"
 
 respuesta() { curl -s -o /dev/null --max-time 3 "$URL"; }
 vivo() { ssh -O check -o ControlPath="$SOCK" "$ALIAS" >/dev/null 2>&1; }

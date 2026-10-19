@@ -19,7 +19,6 @@ import {crearHttpNativo} from './transporte-tareas.js';
 import {pedirProyectosPuente} from './proyectos-puente.js';
 import {mapearErrorTarea, type ParcheTarea, type ProyectoPuente} from './tarea-unitaria.js';
 
-export const BASE_DEFECTO_TAREAS = 'http://127.0.0.1:4190';
 const RUTA_LOGIN = '/api/auth/login';
 const COOKIE_SESION = 'session_id';
 const COOKIE_CSRF = 'csrf_token';
@@ -35,9 +34,11 @@ export interface ConfigPuente {
   enfriamientoMs: number;
 }
 
+/* Sin TASKS_BASE_URL la base queda vacía: el puente se declara «sin-base» en vez de
+ * asumir un puerto de otra máquina. */
 export function leerConfigPuente(env: Record<string, string | undefined> = process.env): ConfigPuente {
   return {
-    base: (env.TASKS_BASE_URL ?? '').trim() || BASE_DEFECTO_TAREAS,
+    base: (env.TASKS_BASE_URL ?? '').trim(),
     email: (env.TASKS_EMAIL ?? '').trim(),
     password: (env.TASKS_PASSWORD ?? '').trim(),
     timeoutMs: 10_000,
@@ -268,6 +269,9 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
   }
 
   async function operar<T>(trabajo: () => Promise<T>): Promise<T> {
+    if (config.base === '') {
+      throw {codigo: 'red', mensaje: 'sin-base (TASKS_BASE_URL)'} satisfies ErrorKanban;
+    }
     if (!conCredenciales()) {
       throw {codigo: 'red', mensaje: 'sin-credenciales (TASKS_EMAIL/TASKS_PASSWORD)'} satisfies ErrorKanban;
     }
@@ -299,6 +303,9 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
 
   return {
     estado(): EstadoPuente {
+      if (config.base === '') {
+        return {disponible: false, motivo: 'sin-base (TASKS_BASE_URL)', base: '', conCredenciales: conCredenciales()};
+      }
       if (!conCredenciales()) {
         return {disponible: false, motivo: 'sin-credenciales (TASKS_EMAIL/TASKS_PASSWORD)', base: config.base, conCredenciales: false};
       }

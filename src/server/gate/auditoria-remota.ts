@@ -39,7 +39,9 @@ import { comillas } from './herramientas/ssh.js';
 /* Los tres gestores que el audit sabe leer (ver detectarLockfiles). */
 export type GestorAudit = 'npm' | 'pnpm' | 'cargo';
 
-const REMOTO_BASE = '/var/tmp/wm-audit';
+/* Carpeta temporal en la máquina remota (Linux). Por entorno para no fijar la
+ * de nuestro taller; el default es genérico y vale para cualquier /tmp de Linux. */
+const REMOTO_BASE = process.env.WM_AUDIT_REMOTO?.trim() || '/tmp/wm-audit';
 const TIMEOUT_MS = 120_000;
 const SSH_OPTS = ['-n', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15'];
 /* Sin `-n`: ese flag deja la entrada estandar en /dev/null y el tar que viaja

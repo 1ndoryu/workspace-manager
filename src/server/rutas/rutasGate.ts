@@ -25,9 +25,11 @@ import type { AnalisisSentinel, AnalisisVulnerabilidades, HallazgoSentinel } fro
 /* Proyecto para el gate sin re-escanear el área entera (~14 s con git de todos
  * los proyectos): la huella del árbol lee HEAD y los cambios por su cuenta, así
  * que basta el snapshot en memoria. Solo se re-escanea si el proyecto no está. */
-function proyectoParaGate(clave: string) {
-  const buscar = (forzar: boolean) => snapshotArea(forzar).snapshot.proyectos.find((p) => p.clave === clave);
-  return buscar(false) ?? buscar(true);
+async function proyectoParaGate(clave: string) {
+  const buscar = async (forzar: boolean) =>
+    (await snapshotArea(forzar)).snapshot.proyectos.find((p) => p.clave === clave);
+  /* [por que] `await` en cada lado: con `??` directo, una promesa nunca es nula y no se re-escanearía. */
+  return (await buscar(false)) ?? buscar(true);
 }
 
 export async function manejarRutasGate(
@@ -43,7 +45,7 @@ export async function manejarRutasGate(
    * está en whitelist (anti-traversal). */
   if (ruta === '/api/proyecto/gate') {
     const clave = url.searchParams.get('clave') ?? '';
-    const { snapshot } = snapshotArea(false);
+    const { snapshot } = await snapshotArea(false);
     const proyecto = snapshot.proyectos.find((p) => p.clave === clave);
     if (!proyecto) {
       json(res, 404, { error: 'Proyecto no encontrado', clave });
@@ -95,7 +97,7 @@ export async function manejarRutasGate(
       try {
         writeFileSync(rutaArchivo, contenido, 'utf8');
         try {
-          snapshotArea(true);
+          await snapshotArea(true);
         } catch (err) {
           logger.warn('re-escaneo tras guardar [gate] fallo:', err);
         }
@@ -118,7 +120,7 @@ export async function manejarRutasGate(
   }
   if (ruta === '/api/proyectos/doctor') {
     const id = url.searchParams.get('id') ?? '';
-    const { snapshot } = snapshotArea(false);
+    const { snapshot } = await snapshotArea(false);
     const proyecto = snapshot.proyectos.find(p => p.id === id || p.ruta.endsWith(id));
     if (!proyecto) {
       json(res, 404, { error: 'Proyecto no encontrado', id });
@@ -194,7 +196,8 @@ export async function manejarRutasGate(
   }
   /* Análisis real de sentinel por proyecto (plan analisis-sentinel-consola
    * A0/A1). [por que] El cliente es 'tonto' y este módulo es el dueño de
-   * la ejecución: nunca corre dentro del escaneo raíz (~2.6 s). La caché
+   * la ejecución: nunca corre dentro del escaneo raíz (que es asíncrono y
+   * aparte). La caché
    * por frescura (branch+HEAD+version) evita revert spawns sin cambios. */
   if (ruta === '/api/gate/analizar' || ruta === '/api/gate/analizar-todo') {
     if (req.method !== 'POST') {
@@ -207,7 +210,7 @@ export async function manejarRutasGate(
      * invalida mientras esté vivo: aunque el usuario commitee, el HEAD
      * sigue siendo el viejo, la frescura no cambia y la caché de
      * análisis se sirve sin re-ejecutar. forzar=true fuerza git real. */
-    const escanear = () => snapshotArea(true).snapshot;
+    const escanear = async () => (await snapshotArea(true)).snapshot;
     /* Un proyecto: body { clave, forzar?, arbol? }. Solo si es elegible (sentinel). */
     if (ruta === '/api/gate/analizar') {
       const body = (await leerBody(req)) as { clave?: unknown; forzar?: unknown; arbol?: unknown };
@@ -215,7 +218,7 @@ export async function manejarRutasGate(
       const forzar = body.forzar === true;
       /* arbol=true: análisis del gate (cuenta el árbol de trabajo, caché por huella). */
       const arbol = body.arbol === true;
-      const proyecto = arbol ? proyectoParaGate(clave) : escanear().proyectos.find((p) => p.clave === clave);
+      const proyecto = arbol ? await proyectoParaGate(clave) : (await escanear()).proyectos.find((p) => p.clave === clave);
       if (!proyecto) {
         json(res, 404, { error: 'Proyecto no encontrado', clave });
         return true;
@@ -238,7 +241,7 @@ export async function manejarRutasGate(
      * de git (sin push/sin commit) del snapshot viejo del arranque. */
     const body = (await leerBody(req)) as { forzar?: unknown };
     const forzar = body.forzar === true;
-    const snapshot = escanear();
+    const snapshot = await escanear();
     const analisis = await analizarTodo(snapshot.proyectos, forzar);
     json(res, 200, {
       escaneadoEn: new Date().toISOString(),
@@ -267,7 +270,7 @@ export async function manejarRutasGate(
       json(res, 400, { error: 'base debe ser una lista de hallazgos', clave });
       return true;
     }
-    const proyecto = proyectoParaGate(clave);
+    const proyecto = await proyectoParaGate(clave);
     if (!proyecto) {
       json(res, 404, { error: 'Proyecto no encontrado', clave });
       return true;
@@ -324,7 +327,7 @@ export async function manejarRutasGate(
       json(res, 405, { error: 'Metodo no permitido' });
       return true;
     }
-    const { snapshot } = snapshotArea(true);
+    const { snapshot } = await snapshotArea(true);
     if (ruta === '/api/gate/vulnerabilidades') {
       const body = (await leerBody(req)) as { clave?: unknown; forzar?: unknown };
       const clave = campoStr(body, 'clave', '');

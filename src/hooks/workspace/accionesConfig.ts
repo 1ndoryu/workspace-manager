@@ -25,7 +25,7 @@ export function crearAccionesConfig(set: Set): AccionesConfig {
         /* [por que] El server devuelve el snapshot ya mutado (ignorar/quitar
          * solo cambia visibilidad, no requiere re-escaneo completo). Se aplica
          * directo: la UI se actualiza al instante sin esperar el escaneo git
-         * (~2.6s) que antes se hacia dos veces (server + cliente). */
+         * que antes se hacia dos veces (server + cliente). */
         if (data.snapshot) set({ snapshot: data.snapshot, desdeCache: false });
       } catch (err) {
         const detalle = (err as { response?: { data?: { detalle?: string } } })?.response?.data?.detalle;
