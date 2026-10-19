@@ -76,6 +76,7 @@ export function leerConfigRemota(entorno: NodeJS.ProcessEnv = process.env): Conf
 export interface TallerAnalisis {
   host?: unknown;
   modoPorDefecto?: unknown;
+  proyectos?: unknown;
 }
 
 /* Lee taller.json, o null si no existe o no es JSON. [por que] Sin taller el manager
@@ -95,6 +96,19 @@ export function leerTallerSiExiste(): TallerAnalisis | null {
 export function hostTaller(t: TallerAnalisis | null = leerTallerSiExiste()): string | null {
   const host = t?.host;
   return typeof host === 'string' && host.trim() ? host.trim() : null;
+}
+
+/* BD de trabajo del taller: la `basedatos` del primer proyecto con `bdDesdeLocal` (copia
+ * de trabajo, D-taller). [por que] Antes el nombre estaba escrito en la sonda de la 89; ahora
+ * sale de la config privada. Solo se acepta un identificador simple: va a una consulta SQL. */
+export function bdTrabajoDe(t: TallerAnalisis | null = leerTallerSiExiste()): string | null {
+  const proyectos = t?.proyectos;
+  if (!proyectos || typeof proyectos !== 'object') return null;
+  for (const p of Object.values(proyectos as Record<string, { basedatos?: unknown; bdDesdeLocal?: unknown }>)) {
+    const bd = p?.basedatos;
+    if (p?.bdDesdeLocal !== undefined && typeof bd === 'string' && /^[A-Za-z0-9_]+$/.test(bd)) return bd;
+  }
+  return null;
 }
 
 /* Modo de análisis de un proyecto. [por que] Antes solo miraba `analisisEn` del

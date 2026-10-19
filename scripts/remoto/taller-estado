@@ -107,11 +107,19 @@ if [ -n "$CF_MODO" ]; then CF_MODO_J=$(json_str "$CF_MODO"); else CF_MODO_J=null
 CF_VIVA=false
 pgrep -u "$USUARIO" -x cloudflared >/dev/null 2>&1 && CF_VIVA=true
 
-# Copia de trabajo de la BD (solo existencia; la edad no se mide aquí).
-BD_EXISTE=false
-if timeout 1 psql -tAc "select 1 from pg_database where datname='glory_backend_inmobiliaria'" postgres 2>/dev/null | grep -qx 1; then
-  BD_EXISTE=true
-fi
+# Copia de trabajo de la BD (solo existencia; la edad no se mide aquí). Nombre por entorno
+# (TALLER_BD_TRABAJO, lo pone el manager desde taller.json). Sin nombre válido: null = no se comprueba.
+BD_EXISTE=null
+BD_TRABAJO=${TALLER_BD_TRABAJO:-}
+case "$BD_TRABAJO" in
+  ''|*[!A-Za-z0-9_]*) ;;
+  *)
+    BD_EXISTE=false
+    if timeout 1 psql -tAc "select 1 from pg_database where datname='$BD_TRABAJO'" postgres 2>/dev/null | grep -qx 1; then
+      BD_EXISTE=true
+    fi
+    ;;
+esac
 
 # Daemon del manager en la 89 (transitorio hasta S3.6).
 DAEMON=false

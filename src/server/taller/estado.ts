@@ -20,7 +20,7 @@ import { leerRegistroConformidad } from './registroConformidad.js';
 import { NOMBRE_MANAGER } from '../plataforma/rutas.js';
 import { BIN_SSH } from '../plataforma/binarios.js';
 import { esNumero, esObjeto } from '../../shared/guardas.js';
-import { hostTaller, leerConfigRemota } from '../gate/herramientas/config.js';
+import { bdTrabajoDe, hostTaller, leerConfigRemota } from '../gate/herramientas/config.js';
 
 /* Alias SSH del taller. [por que] Antes era la constante 'dev89' incrustada: el alias
  * de la máquina de una persona, que en otro entorno no existe. Lo declara taller.json
@@ -80,7 +80,8 @@ async function leerTaller89(): Promise<{ t89: EstadoTaller89 | null; motivo?: st
     '-o', 'ConnectTimeout=10',
     '-o', 'ServerAliveInterval=30',
     host,
-    SONDA_TALLER,
+    // [por que] El nombre de la BD de trabajo es del proyecto, no del código: llega por entorno.
+    'env', `TALLER_BD_TRABAJO=${bdTrabajoDe() ?? ''}`, SONDA_TALLER,
   ], TIMEOUT_SSH_MS);
   if (r.error) return { t89: null, motivo: r.error };
   let crudo: unknown;

@@ -133,6 +133,7 @@ const REGLAS_89: Regla89[] = [
     id: 'A9', severidad: 'advertencia',
     remedio: 'Refrescar la copia de la BD de trabajo con Arranque up (--bd).',
     falla: (t) => {
+      if (t.bdTrabajo.existe === null) return null;
       if (!t.bdTrabajo.existe) return 'BD de trabajo ausente';
       if (t.bdTrabajo.edadHoras !== null && t.bdTrabajo.edadHoras > MAX_HORAS_BD) return `BD de trabajo con ${t.bdTrabajo.edadHoras} h`;
       return null;

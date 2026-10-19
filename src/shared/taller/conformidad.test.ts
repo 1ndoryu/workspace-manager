@@ -142,6 +142,10 @@ describe('conformidad del taller: sonda de la 89', () => {
     assert.ok(ids(con({ bdTrabajo: { existe: true, edadHoras: 48 } })).includes('A9'));
   });
 
+  it('A9: sin BD de trabajo declarada (existe null) no se evalúa', () => {
+    assert.ok(!ids(con({ bdTrabajo: { existe: null, edadHoras: null } })).includes('A9'));
+  });
+
   it('A11: daemon del manager de la 89 vivo', () => {
     assert.ok(ids(con({ managerDaemonVivo: true })).includes('A11'));
   });

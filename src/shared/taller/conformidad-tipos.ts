@@ -35,7 +35,8 @@ export interface EstadoTaller89 {
   buildsFueraDeCmHeavy: { pid: number; cmd: string }[];
   secretos: { ruta: string; modo: string }[];
   cloudflared: { version: string | null; tokenModo: string | null; viva: boolean };
-  bdTrabajo: { existe: boolean; edadHoras: number | null };
+  /* `existe: null` = el taller no declara BD de trabajo: no se evalúa (A9 no aplica). */
+  bdTrabajo: { existe: boolean | null; edadHoras: number | null };
   managerDaemonVivo: boolean;
 }
 
