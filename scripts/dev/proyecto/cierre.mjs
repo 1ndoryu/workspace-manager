@@ -81,24 +81,34 @@ export function comprobarRamasSueltas(ruta, base) {
   );
 }
 
-/* La tarea se indica con --tarea: si su línea de roadmap.md sigue abierta
- * (**ACTIVA o **EN CURSO), el cierre no está listo. Sin --tarea se omite: el
- * roadmap del proyecto puede tener otras tareas abiertas ajenas a esta sesión.
- * [por que] Buscar el ID entre comillas invertidas evita que 11AA-1 coincida con 11AA-10. */
-const MARCAS_ABIERTAS = ['**ACTIVA', '**EN CURSO'];
+/* La tarea se indica con --tarea: si sigue como tarea abierta en roadmap.md, el
+ * cierre no está listo. Sin --tarea se omite: el roadmap del proyecto puede tener
+ * otras tareas abiertas ajenas a esta sesión.
+ * [por que] Se mira solo la LINEA DE TAREA, no cualquier mención: la forma canonica
+ * (D8) es `- [ ] \`ID\` — **Titulo.**`, y las formas viejas (ID al principio de un
+ * bullet o de un heading) siguen reconociéndose para no dar un falso verde —MN
+ * escribe el ID en negrita (nota 19AA-3 del roadmap)—. Una mención en prosa
+ * («depende de \`17AA-2\`») o un enlace a un plan no cuenta. */
+const escaparId = (id) => id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const RE_TAREA = (id) =>
+  new RegExp(`^\\s*(?:[-*]\\s+\\[ \\]|\\d+\\.|[-*]\\s+|#{2,4}\\s+)\\s*(?:\`${escaparId(id)}\`|\\*\\*${escaparId(id)}\\b)`);
+/* Marcas de tarea cerrada: la casilla marcada, el tachado y el texto. El visto bueno va como
+ * escape Unicode y no como emoji literal: la regla `emoji-en-codigo` de Sentinel lo prohíbe. */
+const RE_HECHA = /\[x\]|~~|\u2705|\bHECH[AO]\b|CERRAD/i;
 
 export function comprobarRoadmap(ruta, tarea) {
   if (!tarea) return omitida('roadmap-tarea', 'sin --tarea <ID>');
   const archivo = join(ruta, 'roadmap.md');
   if (!existsSync(archivo)) return omitida('roadmap-tarea', 'sin roadmap.md');
-  const lineas = readFileSync(archivo, 'utf8').split('\n').filter((l) => l.includes(`\`${tarea}\``));
-  if (lineas.length === 0) return ok('roadmap-tarea', `${tarea} no aparece en roadmap.md`);
-  const abiertas = lineas.filter((l) => MARCAS_ABIERTAS.some((m) => l.includes(m)));
-  if (abiertas.length === 0) return ok('roadmap-tarea', `${tarea} sin marca abierta`);
+  const re = RE_TAREA(tarea);
+  const abiertas = readFileSync(archivo, 'utf8')
+    .split('\n')
+    .filter((l) => re.test(l) && !RE_HECHA.test(l));
+  if (abiertas.length === 0) return ok('roadmap-tarea', `${tarea} no está abierta en roadmap.md`);
   return fallo(
     'roadmap-tarea',
     `${tarea} sigue abierta en roadmap.md`,
-    'quítala del roadmap al cerrar y regístrala en Agente/completados (AGENTS §7.2)',
+    'quítala del roadmap al cerrar y regístrala en Agente/completados (AGENTS §9)',
     abiertas.map((l) => l.trim().slice(0, 120)),
   );
 }

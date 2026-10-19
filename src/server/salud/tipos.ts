@@ -4,6 +4,7 @@
  * construidos a mano (positivo y negativo), sin fixtures de disco. */
 import type { Hallazgo } from '../../shared/salud/salud.js';
 import type { Listas, ModoGuard } from '../guardian/configuracion/politica.js';
+import type { AnalisisRoadmap } from '../scanner/roadmap/roadmap.js';
 
 export interface Comprobacion<D> {
   id: string;
@@ -63,6 +64,9 @@ export interface DatosProyecto {
   /* AGENTS.md / CLAUDE.md en la raíz del proyecto. */
   instruccionesProhibidas: string[];
   planesActivos: PlanActivo[];
+  /* Analisis de roadmap.md con la forma del protocolo (D8): lineas, lineas con pinta de
+   * tarea mal formadas, secciones canonicas ausentes y planes que declara activos. */
+  roadmap: AnalisisRoadmap;
   /* Rutas de .md citadas en roadmap.md que no existen. */
   enlacesRotos: string[];
   /* Rango declarado de Vite y TypeScript en frontend/package.json; null si no hay frontend. */

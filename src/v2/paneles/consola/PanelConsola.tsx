@@ -58,6 +58,7 @@ export function PanelConsola() {
     setFiltro,
     visibles,
     contar,
+    pendientes,
     seleccionadoId,
     seleccionar,
     abrirMenuContextual,
@@ -96,6 +97,10 @@ export function PanelConsola() {
     <aside className="panelConsola" aria-label="Consola de problemas">
       <header className="panelConsolaCabecera">
         <span className="panelConsolaTitulo">problemas ({contar('todos')})</span>
+        {/* Trabajo abierto del area (D8): no son defectos, por eso no suman arriba. */}
+        <span className="panelConsolaTitulo" title="Tareas pendientes declaradas en los roadmap.md">
+          pendientes ({pendientes})
+        </span>
         <Button cuadrado pequeno onClick={plegarTodo} title="Plegar todos los grupos">
           −
         </Button>

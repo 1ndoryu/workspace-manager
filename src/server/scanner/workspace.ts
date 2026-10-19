@@ -6,7 +6,7 @@ import { readdirSync } from 'node:fs';
 import { join, normalize, relative, sep } from 'node:path';
 import { detectarGit, estadoGitAsync } from './git.js';
 import { estadoGate, diagnosticarGate } from './gate.js';
-import { resumenRoadmap } from './roadmap.js';
+import { resumenRoadmap } from './roadmap/roadmap.js';
 import { resumenAgents, agentesGlobales } from './agents.js';
 import { leerConfigArea } from '../configArea.js';
 import { anotarRegistro, leerRegistroOpcional } from '../registro.js';

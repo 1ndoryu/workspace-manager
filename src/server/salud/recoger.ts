@@ -9,6 +9,7 @@ import { basename, join, parse } from 'node:path';
 import type { Proyecto } from '../../shared/types.js';
 import { leerArchivo } from '../http.js';
 import { leerSentinelLock } from '../scanner/gate.js';
+import { analizarRoadmap } from '../scanner/roadmap/roadmap.js';
 import { git } from '../scanner/git.js';
 import { diferenciasPlantilla, leerPolitica } from '../guardian/configuracion/politica.js';
 import type { LecturaPlantilla } from '../guardian/configuracion/plantilla.js';
@@ -104,7 +105,7 @@ function ramasSueltas(ruta: string): RamaSuelta[] {
   return ramas;
 }
 
-function planesActivos(ruta: string): PlanActivo[] {
+function planesActivos(ruta: string, declarados: string[]): PlanActivo[] {
   const dir = join(ruta, 'Agente', 'planes');
   let nombres: string[];
   try {
@@ -112,31 +113,27 @@ function planesActivos(ruta: string): PlanActivo[] {
   } catch {
     return [];
   }
-  const roadmap = leerArchivo(join(ruta, 'roadmap.md')) ?? '';
   /* [por que] README.md es el índice de la carpeta, no un plan: no entra en la comprobación. */
   return nombres
     .filter((n) => n.endsWith('.md') && n !== 'README.md')
     .map((archivo) => ({
       archivo,
       modificadoMs: statSync(join(dir, archivo)).mtimeMs,
-      abiertas: abiertasDelPlan(leerArchivo(join(dir, archivo)) ?? '', roadmap, archivo),
+      abiertas: abiertasDelPlan(leerArchivo(join(dir, archivo)) ?? '', declarados, archivo),
     }));
 }
 
 /* Trabajo abierto de un plan: sus casillas sin marcar (`- [ ]`, `* [ ]`) y, si el roadmap lo
- * enlaza, al menos una más. [por que] El roadmap solo lista trabajo abierto (protocolo §9):
- * un plan enlazado desde él sigue activo aunque use pasos numerados (F4.1, F4.2) en vez de
- * casillas. Contarlo como cerrado daba un «ciérralo» falso. */
-export function abiertasDelPlan(texto: string, roadmap: string, archivo: string): number {
+ * declara en «Planes activos», al menos una más. [por que] El roadmap solo lista trabajo
+ * abierto (D8): un plan declarado sigue activo aunque use pasos numerados (F4.1, F4.2) en vez
+ * de casillas. Contarlo como cerrado daba un «ciérralo» falso. */
+export function abiertasDelPlan(texto: string, declarados: string[], archivo: string): number {
   const casillas = texto.match(/^\s*[-*]\s\[ \]/gm)?.length ?? 0;
-  const enRoadmap = roadmap.includes(`planes/${archivo}`);
-  return casillas + (enRoadmap ? 1 : 0);
+  return casillas + (declarados.includes(archivo) ? 1 : 0);
 }
 
 /* Enlaces .md de roadmap.md que apuntan a ficheros inexistentes. */
-function enlacesRotos(ruta: string): string[] {
-  const texto = leerArchivo(join(ruta, 'roadmap.md'));
-  if (texto === null) return [];
+function enlacesRotos(ruta: string, texto: string): string[] {
   const rotos = new Set<string>();
   for (const m of texto.matchAll(/\]\((?!https?:|#)([^)\s]+?\.md)\)/g)) {
     if (!existsSync(join(ruta, m[1]))) rotos.add(m[1]);
@@ -172,6 +169,10 @@ export function recogerProyectos(
   return proyectos.map((p) => {
     const td = targetDirPor.get(p.clave) ?? null;
     const esRust = existsSync(join(p.ruta, 'Cargo.toml'));
+    /* [por que] roadmap.md se lee una vez y alimenta el analisis del protocolo y los
+     * enlaces rotos: antes lo leia cada funcion por su cuenta. */
+    const roadmapTexto = leerArchivo(join(p.ruta, 'roadmap.md')) ?? '';
+    const roadmap = analizarRoadmap(roadmapTexto);
     return {
       clave: p.clave,
       ahora: ctx.ahora,
@@ -188,8 +189,9 @@ export function recogerProyectos(
       guard: estadoGuard(p.ruta, p.clave, ctx.plantilla),
       ramas: ramasSueltas(p.ruta),
       instruccionesProhibidas: DOCS_PROHIBIDOS.filter((f) => existsSync(join(p.ruta, f))),
-      planesActivos: planesActivos(p.ruta),
-      enlacesRotos: enlacesRotos(p.ruta),
+      planesActivos: planesActivos(p.ruta, roadmap.planes),
+      roadmap,
+      enlacesRotos: enlacesRotos(p.ruta, roadmapTexto),
       toolchainFrontend: toolchainFrontend(p.ruta),
     };
   });

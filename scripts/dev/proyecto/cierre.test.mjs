@@ -55,7 +55,50 @@ test('roadmap: un ID que es prefijo de otro no cuenta', () => {
   try {
     const c = comprobarRoadmap(dir, '11AA-1');
     assert.equal(c.ok, true);
-    assert.match(c.detalle, /sin marca abierta/);
+    assert.match(c.detalle, /no está abierta/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/* Forma canonica del protocolo (D8): `- [ ] \`ID\` — **Titulo.**`. */
+test('roadmap: la tarea canonica sin marcar falla', () => {
+  const dir = dirConRoadmap('- [ ] `19AA-9` — **Algo pendiente.**\n');
+  try {
+    const c = comprobarRoadmap(dir, '19AA-9');
+    assert.equal(c.ok, false);
+    assert.match(c.lineas[0], /19AA-9/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('roadmap: casilla marcada o tachada no cuenta como abierta', () => {
+  const dir = dirConRoadmap('- [x] `19AA-9` — **Ya hecha.**\n- [ ] ~~`19AA-8` — **Anulada.**~~\n');
+  try {
+    assert.equal(comprobarRoadmap(dir, '19AA-9').ok, true);
+    assert.equal(comprobarRoadmap(dir, '19AA-8').ok, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/* 19AA-3: MN escribe el ID en negrita (`- **18AA-7 — …**`) y el chequeo daba falso verde. */
+test('roadmap: el ID en negrita al principio del bullet sigue contando como abierta', () => {
+  const dir = dirConRoadmap('## Pendientes\n\n- **18AA-7 — Algo.** Cuerpo.\n');
+  try {
+    assert.equal(comprobarRoadmap(dir, '18AA-7').ok, false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('roadmap: una mención en prosa o un enlace a un plan no cuenta como tarea', () => {
+  const dir = dirConRoadmap(
+    '- [ ] `19AA-1` — **Otra cosa.** Depende de `19AA-9` para no medir mal.\n- `Agente/planes/plan-x-2026-10-19.md` — `19AA-9` (este encargo).\n',
+  );
+  try {
+    assert.equal(comprobarRoadmap(dir, '19AA-9').ok, true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -68,7 +111,7 @@ test('roadmap ausente o tarea no listada: pasa', () => {
     assert.match(comprobarRoadmap(sinArchivo, '11AA-1').detalle, /omitida/);
     const c = comprobarRoadmap(sinTarea, '11AA-1');
     assert.equal(c.ok, true);
-    assert.match(c.detalle, /no aparece/);
+    assert.match(c.detalle, /no está abierta/);
   } finally {
     rmSync(sinArchivo, { recursive: true, force: true });
     rmSync(sinTarea, { recursive: true, force: true });

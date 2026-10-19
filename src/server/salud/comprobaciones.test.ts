@@ -7,10 +7,18 @@ import { COMPROBACIONES_AREA, esVersionAnterior } from './comprobacionesArea.js'
 import { COMPROBACIONES_PROYECTO } from './comprobacionesProyecto.js';
 import { ejecutar, limpiarCacheSalud, obtenerSalud } from './runner.js';
 import type { Comprobacion, DatosArea, DatosProyecto } from './tipos.js';
+import type { AnalisisRoadmap } from '../scanner/roadmap/roadmap.js';
 
 const DIA_MS = 86_400_000;
 const AHORA = Date.UTC(2026, 9, 11);
 const LISTAS_VACIAS = {} as Listas;
+
+/* Roadmap en regla (D8): con secciones, sin problemas de forma y sin planes declarados.
+ * [por que] El defecto de los datos tiene que ser el caso bueno: si no, cada caso de otra
+ * comprobación arrastraría avisos de `roadmap-protocolo` y las cuentas no cuadrarían. */
+function roadmapOk(extra: Partial<AnalisisRoadmap> = {}): AnalisisRoadmap {
+  return { tareas: [], problemas: [], lineas: 20, faltantes: [], noCanonicas: [], planes: [], ids: [], ...extra };
+}
 
 function proyecto(extra: Partial<DatosProyecto> = {}): DatosProyecto {
   return {
@@ -30,6 +38,7 @@ function proyecto(extra: Partial<DatosProyecto> = {}): DatosProyecto {
     ramas: [],
     instruccionesProhibidas: [],
     planesActivos: [],
+    roadmap: roadmapOk(),
     enlacesRotos: [],
     toolchainFrontend: null,
     ...extra,
@@ -176,9 +185,47 @@ assert.notEqual(resultado(c, proyecto({ esRust: false })).omitida, null);
     assert.deepEqual(resultado(c, proyecto({ planesActivos: [{ archivo: 'plan-x.md', modificadoMs: viejo, abiertas: 0 }] })).hallazgos, [
       { id: 'planes-y-roadmap', severidad: 'info' },
     ]);
-    /* [por que] Con casillas abiertas el plan sigue activo: no hay que cerrarlo. */
-    assert.deepEqual(resultado(c, proyecto({ planesActivos: [{ archivo: 'plan-y.md', modificadoMs: viejo, abiertas: 3 }] })).hallazgos, []);
+    /* [por que] Con casillas abiertas y declarado en «Planes activos» el plan sigue activo:
+     * no hay que cerrarlo. */
+    assert.deepEqual(
+      resultado(c, proyecto({
+        planesActivos: [{ archivo: 'plan-y.md', modificadoMs: viejo, abiertas: 3 }],
+        roadmap: roadmapOk({ planes: ['plan-y.md'] }),
+      })).hallazgos,
+      [],
+    );
+    /* [por que] Con trabajo abierto que el roadmap no declara, el plan es invisible desde la
+     * cola: se avisa (info, no cuenta en `problemas (N)`). */
+    assert.deepEqual(resultado(c, proyecto({ planesActivos: [{ archivo: 'plan-y.md', modificadoMs: viejo, abiertas: 3 }] })).hallazgos, [
+      { id: 'planes-y-roadmap', severidad: 'info' },
+    ]);
     assert.deepEqual(resultado(c, proyecto({ enlacesRotos: ['Agente/x.md'] })).hallazgos, [{ id: 'planes-y-roadmap', severidad: 'info' }]);
+    assert.deepEqual(resultado(c, proyecto()).hallazgos, []);
+  });
+
+  it('roadmap-protocolo: aviso sin roadmap, por forma, por tope y por secciones', () => {
+    const c = buscar(COMPROBACIONES_PROYECTO, 'roadmap-protocolo');
+    const malas: AnalisisRoadmap['problemas'] = [
+      { linea: 5, texto: '- [ ] sin ID', motivo: 'casilla sin ID en la forma del protocolo' },
+      { linea: 9, texto: '- **18AA-7 — Algo.**', motivo: 'tarea sin casilla' },
+      { linea: 14, texto: '- [ ] sin ID otra vez', motivo: 'casilla sin ID en la forma del protocolo' },
+    ];
+    assert.deepEqual(resultado(c, proyecto({ roadmap: roadmapOk({ lineas: 0 }) })).hallazgos, [
+      { id: 'roadmap-protocolo', severidad: 'aviso' },
+    ]);
+    /* [por que] Se agrupa por motivo: una entrada por linea inundaria la consola. */
+    assert.deepEqual(resultado(c, proyecto({ roadmap: roadmapOk({ problemas: malas }) })).hallazgos, [
+      { id: 'roadmap-protocolo', severidad: 'aviso' },
+      { id: 'roadmap-protocolo', severidad: 'aviso' },
+    ]);
+    assert.deepEqual(resultado(c, proyecto({ roadmap: roadmapOk({ lineas: 401 }) })).hallazgos, [
+      { id: 'roadmap-protocolo', severidad: 'aviso' },
+    ]);
+    assert.equal(resultado(c, proyecto({ roadmap: roadmapOk({ lineas: 400 }) })).hallazgos.length, 0);
+    assert.equal(
+      resultado(c, proyecto({ roadmap: roadmapOk({ faltantes: ['Pendientes'], noCanonicas: ['Hecho'] }) })).hallazgos.length,
+      2,
+    );
     assert.deepEqual(resultado(c, proyecto()).hallazgos, []);
   });
 

@@ -4,6 +4,7 @@
 import type { Hallazgo } from '../../shared/salud/salud.js';
 import { SIN_SHIM } from '../guardian/configuracion/politica.js';
 import { esVersionAnterior } from './comprobacionesArea.js';
+import { TOPE_LINEAS_ROADMAP } from '../scanner/roadmap/roadmap.js';
 import type { Comprobacion, DatosProyecto } from './tipos.js';
 
 const DIA_MS = 86_400_000;
@@ -199,6 +200,69 @@ export const COMPROBACIONES_PROYECTO: Comprobacion<DatosProyecto>[] = [
           ],
   },
   {
+    /* Forma del roadmap segun el protocolo (D8 de AGENTS-detalle.md). [por que] El tablero
+     * solo ve trabajo abierto si las tareas tienen la forma canonica: sin esta comprobacion,
+     * un roadmap con las tareas en negrita o en tabla parecia vacio. */
+    id: 'roadmap-protocolo',
+    evaluar: (d) => {
+      const hallazgos: Hallazgo[] = [];
+      const accion = 'escríbelas como «- [ ] `ID` — **Título.**» (D8 de AGENTS-detalle.md)';
+      if (d.roadmap.lineas === 0) {
+        return [
+          {
+            id: 'roadmap-protocolo',
+            severidad: 'aviso',
+            mensaje: 'sin roadmap.md: el trabajo abierto del proyecto no se ve',
+            accion: 'créalo con las secciones fijas (D8 de AGENTS-detalle.md)',
+          },
+        ];
+      }
+      /* [por que] Se agrupa por motivo: un roadmap sin migrar tiene decenas de lineas fuera
+       * de forma y una entrada por linea inundaria la consola. */
+      const porMotivo = new Map<string, number[]>();
+      for (const pr of d.roadmap.problemas) {
+        porMotivo.set(pr.motivo, [...(porMotivo.get(pr.motivo) ?? []), pr.linea]);
+      }
+      for (const [motivo, lineas] of porMotivo) {
+        const sitios = lineas
+          .slice(0, 5)
+          .map((n) => `roadmap.md:${n}`)
+          .join(', ');
+        hallazgos.push({
+          id: 'roadmap-protocolo',
+          severidad: 'aviso',
+          mensaje: `${lineas.length} ${motivo}: ${sitios}${lineas.length > 5 ? ' …' : ''}`,
+          accion,
+        });
+      }
+      if (d.roadmap.lineas > TOPE_LINEAS_ROADMAP) {
+        hallazgos.push({
+          id: 'roadmap-protocolo',
+          severidad: 'aviso',
+          mensaje: `roadmap.md con ${d.roadmap.lineas} líneas (tope ${TOPE_LINEAS_ROADMAP}): demasiado abierto`,
+          accion: 'archiva lo cerrado en Agente/completados/roadmap-historico-YYYY-MM-DD.md',
+        });
+      }
+      if (d.roadmap.faltantes.length > 0) {
+        hallazgos.push({
+          id: 'roadmap-protocolo',
+          severidad: 'aviso',
+          mensaje: `roadmap.md sin las secciones: ${lista(d.roadmap.faltantes)}`,
+          accion: 'añádelas en su orden (D8: siguiente bloque, pendientes, bloqueos, planes activos)',
+        });
+      }
+      if (d.roadmap.noCanonicas.length > 0) {
+        hallazgos.push({
+          id: 'roadmap-protocolo',
+          severidad: 'aviso',
+          mensaje: `roadmap.md con secciones fuera del protocolo: ${lista(d.roadmap.noCanonicas.slice(0, 4))}`,
+          accion: 'deja solo las secciones fijas; lo cerrado va a Agente/completados/',
+        });
+      }
+      return hallazgos;
+    },
+  },
+  {
     id: 'planes-y-roadmap',
     evaluar: (d) => {
       const hallazgos: Hallazgo[] = [];
@@ -213,6 +277,14 @@ export const COMPROBACIONES_PROYECTO: Comprobacion<DatosProyecto>[] = [
             severidad: 'info',
             mensaje: `plan ${plan.archivo} sin casillas abiertas y sin cambios hace ${dias} días`,
             accion: 'ciérralo (planes/completados/) si está terminado',
+          });
+        } else if (plan.abiertas > 0 && !d.roadmap.planes.includes(plan.archivo)) {
+          /* Trabajo en vuelo que el roadmap no declara: invisible desde la cola. */
+          hallazgos.push({
+            id: 'planes-y-roadmap',
+            severidad: 'info',
+            mensaje: `plan ${plan.archivo} con trabajo abierto y sin declarar en «Planes activos»`,
+            accion: 'decláralo en la sección «Planes activos» del roadmap o ciérralo si terminó',
           });
         }
       }

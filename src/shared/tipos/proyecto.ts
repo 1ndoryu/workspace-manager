@@ -28,10 +28,20 @@ export interface EstadoGate {
 }
 
 export interface ResumenRoadmap {
+  /* Tareas pendientes en la forma del protocolo (D8). */
   pendientes: number;
+  /* Planes activos que el roadmap declara. */
   activos: number;
   ids: string[];
   resumen: string;
+  /* Lineas del documento, para el tope de 400 (D8). */
+  lineas: number;
+  /* Lineas con pinta de tarea que no cumplen la forma del protocolo. */
+  problemas: number;
+  /* Secciones canonicas ausentes. */
+  faltantes: string[];
+  /* Rutas de plan declaradas en «Planes activos». */
+  planes: string[];
 }
 
 export interface ResumenAgents {
