@@ -35,6 +35,11 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
   const ignoradosSistema = crudo.ignoradosSistema ?? [];
   if (!Array.isArray(ignoradosSistema)) throw new Error('registro: ignoradosSistema no es array');
   ignoradosSistema.forEach((s, i) => validarIgnoradoSistema(s, `ignoradosSistema[${i}]`));
+  // [por que] Apps propias ejecutadas fuera de la carpeta del area (p. ej. C:\tmp):
+  // mismo formato y mismo fallo cerrado que ignoradosSistema, pero no son de terceros.
+  const externosPropios = crudo.externosPropios ?? [];
+  if (!Array.isArray(externosPropios)) throw new Error('registro: externosPropios no es array');
+  externosPropios.forEach((s, i) => validarIgnoradoSistema(s, `externosPropios[${i}]`));
   // [por que] Dos proyectos no pueden reclamar el mismo puerto (puertos o
   // auxiliares): sin esto el choque solo aparecia al arrancar (glory-pulse y
   // KAMPLES compartian 3000). Aviso en la entrada posterior, no error global
@@ -72,7 +77,7 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
     if (idsVps.has(v.id)) throw new Error(`registro: vps id duplicado '${v.id}'`);
     idsVps.add(v.id);
   }
-  return { version: 1, entradas, noAplica, ignoradosSistema, vps };
+  return { version: 1, entradas, noAplica, ignoradosSistema, externosPropios, vps };
 }
 
 
@@ -102,7 +107,9 @@ export function validarIgnoradoSistema(s, ctx) {
   for (const k of Object.keys(s)) {
     if (!['exe', 'imagen', 'pid', 'puerto', 'servicio', 'cmdContiene', 'motivo'].includes(k)) throw new Error(`registro: ${ctx} clave desconocida '${k}'`);
   }
-  const tieneExe = typeof s.exe === 'string' && isAbsolute(s.exe);
+  // [por que] isAbsolute depende del SO: en Linux (la 89) no reconoce C:\... y el
+  // registro de Windows fallaba alli. Se acepta ruta absoluta de cualquiera de los dos.
+  const tieneExe = typeof s.exe === 'string' && (isAbsolute(s.exe) || /^[a-zA-Z]:[\\/]/.test(s.exe));
   // [por que] imagen = nombre de ejecutable sin ruta (p. ej. TpvNet.exe): para
   // terceros cuyo exe no es legible sin elevar. Sin separadores: nunca una ruta.
   const tieneImagen = typeof s.imagen === 'string' && /^[^\\/:*?"<>|]{3,80}\.exe$/i.test(s.imagen);

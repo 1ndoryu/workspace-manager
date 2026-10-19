@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { rutaConfigPrivada } from '../shared/rutas.mjs';
+import { rutaConfigPrivada, raizTemporales } from '../shared/rutas.mjs';
 
 /* [por que] Tres tests de este fichero validan la config privada REAL (la que
  * declara MN-Inmobiliaria, BDP-Net y las VPS). Esa config no se versiona, asi
@@ -162,7 +162,7 @@ test('auxiliarDe: script declarado (puerto + marcador en el cmd) es del proyecto
 });
 
 test('leerRegistro: auxiliares con puerto de puertos quedan como aviso de registro', () => {
-  const dir = mkdtempSync(join('C:/tmp', 'wm-registro-test-'));
+  const dir = mkdtempSync(join(raizTemporales(), 'wm-registro-test-'));
   const ruta = join(dir, 'registro.json');
   try {
     const registro = {
@@ -187,7 +187,7 @@ test('leerRegistro: auxiliares con puerto de puertos quedan como aviso de regist
 });
 
 test('leerRegistro: dos proyectos que reclaman el mismo puerto dejan aviso en el posterior', () => {
-  const dir = mkdtempSync(join('C:/tmp', 'wm-registro-test-'));
+  const dir = mkdtempSync(join(raizTemporales(), 'wm-registro-test-'));
   const ruta = join(dir, 'registro.json');
   try {
     const registro = {
@@ -239,7 +239,7 @@ test('validarVps: rechaza lectura con alias SSH, completo sin alias, modo ajeno 
 });
 
 test('leerRegistro: vps duplicado o no array falla cerrado; ausente es lista vacia', () => {
-  const dir = mkdtempSync(join('C:/tmp', 'wm-registro-test-'));
+  const dir = mkdtempSync(join(raizTemporales(), 'wm-registro-test-'));
   const ruta = join(dir, 'registro.json');
   try {
     writeFileSync(ruta, JSON.stringify({ version: 1, proyectos: [] }));
@@ -272,8 +272,8 @@ test('esSistemaIgnorado: cmdContiene acota un exe generico (bun del app, no otro
 
 /* Fixture de target/ en C:\tmp (AGENTS 0.2: temporales fuera de %TEMP%). */
 function fixtureTarget(bytesPorFichero, n) {
-  mkdirSync('C:/tmp', { recursive: true });
-  const raiz = mkdtempSync(join('C:/tmp', 'wm-doctor-test-'));
+  mkdirSync(raizTemporales(), { recursive: true });
+  const raiz = mkdtempSync(join(raizTemporales(), 'wm-doctor-test-'));
   const target = join(raiz, 'target');
   mkdirSync(join(target, 'debug'), { recursive: true });
   for (let i = 0; i < n; i++) writeFileSync(join(target, 'debug', `f${i}.bin`), Buffer.alloc(bytesPorFichero));
@@ -334,7 +334,7 @@ test('accionParaPuerto: nunca mata, y nombra el siguiente paso por caso', () => 
 });
 
 test('detectarDerivaEnv: PORT no declarado avisa; PORT declarado como auxiliar no', () => {
-  const raiz = mkdtempSync(join('C:/tmp', 'wm-deriva-test-'));
+  const raiz = mkdtempSync(join(raizTemporales(), 'wm-deriva-test-'));
   try {
     const kamples = join(raiz, 'kamples');
     const pulse = join(raiz, 'pulse');
@@ -571,7 +571,7 @@ test('paresTunel: `tunelesExtra` añade el puente del gateway (33110 -> 3110 de 
 });
 
 test('leerRegistro: un auxiliar sobre un puerto que el mando solo sirve en dev es valido en build', () => {
-  const dir = mkdtempSync(join('C:/tmp', 'wm-registro-test-'));
+  const dir = mkdtempSync(join(raizTemporales(), 'wm-registro-test-'));
   const ruta = join(dir, 'registro.json');
   try {
     const base = {
@@ -633,4 +633,17 @@ test('validarIgnoradoSistema: puerto exige rango y es excluyente con exe/pid/ima
   assert.throws(() => validarIgnoradoSistema({ puerto: 8790, pid: 4, motivo: 'los dos' }, 't'), /exactamente uno/);
   assert.throws(() => validarIgnoradoSistema({ puerto: 8790, imagen: 'algo.exe', motivo: 'los dos' }, 't'), /exactamente uno/);
   assert.doesNotThrow(() => validarIgnoradoSistema({ puerto: 8790, motivo: 'gateway local de Claude Desktop' }, 't'));
+});
+
+test('leerRegistro: externosPropios acepta un exe de Windows aunque el test corra en Linux', () => {
+  const dir = mkdtempSync(join(raizTemporales(), 'wm-registro-test-'));
+  try {
+    const ruta = join(dir, 'registro.json');
+    writeFileSync(ruta, JSON.stringify({ version: 1, proyectos: [], externosPropios: [{ exe: 'C:\\tmp\\glory-web\\glory-web-app.exe', motivo: 'app propia' }] }));
+    assert.equal(leerRegistro(ruta).externosPropios.length, 1);
+    writeFileSync(ruta, JSON.stringify({ version: 1, proyectos: [], externosPropios: [{ motivo: 'sin identidad' }] }));
+    assert.throws(() => leerRegistro(ruta), /externosPropios\[0\]/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

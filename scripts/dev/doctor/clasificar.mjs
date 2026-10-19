@@ -12,7 +12,9 @@ import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esDelProyecto, esEntrada
 export async function clasificar(proyectos, registro, escucha, ignorados = []) {
   const pids = [...new Set(escucha.map((e) => e.pid))];
   // [por que] Solo se consulta CIM por servicios si el registro declara alguno.
-  const ignoradosSis = registro.ignoradosSistema ?? [];
+  // [por que] Apps propias fuera del area se tratan como exenciones declaradas: no
+  // son huecos ni deriva, y no hace falta matarlas para que el tablero quede limpio.
+  const ignoradosSis = [...(registro.ignoradosSistema ?? []), ...(registro.externosPropios ?? [])];
   const { procs, servicios } = await datosCimDe(pids, { servicios: ignoradosSis.some((s) => s.servicio) });
   const areaNorm = normalizarRuta(RAIZ_REPO);
 
