@@ -7,7 +7,7 @@ import { parsearListado, pieza, recortar, resumirAuditoria, sanearJson } from '.
 
 const LISTADO = [
   'NOMBRE  DOMINIO  TARGET  STACK UUID  ESTADO',
-  'pulse  pulse.wandori.us  vps  abc123  running:healthy',
+  'pulse  pulse.ejemplo.test  vps  abc123  running:healthy',
   'tienda  tienda.example.com  vps  def456  running',
   'Minecraft Bedrock',
   'socket-proxy  -  infra  -  ',

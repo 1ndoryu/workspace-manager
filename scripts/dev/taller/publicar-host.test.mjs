@@ -26,63 +26,63 @@ test('validarPuerto exige entero entre 1024 y 65535', () => {
 });
 
 test('planificarIngress inserta la regla antes del catch-all', () => {
-  const r = planificarIngress([{ hostname: 'a-dev.wandori.us', service: 'http://127.0.0.1:3000' }, CATCH], 'mn-dev.wandori.us', 5199);
+  const r = planificarIngress([{ hostname: 'a-dev.ejemplo.test', service: 'http://127.0.0.1:3000' }, CATCH], 'mn-dev.ejemplo.test', 5199);
   assert.equal(r.accion, 'crear');
   assert.deepEqual(r.ingress, [
-    { hostname: 'a-dev.wandori.us', service: 'http://127.0.0.1:3000' },
-    { hostname: 'mn-dev.wandori.us', service: 'http://127.0.0.1:5199' },
+    { hostname: 'a-dev.ejemplo.test', service: 'http://127.0.0.1:3000' },
+    { hostname: 'mn-dev.ejemplo.test', service: 'http://127.0.0.1:5199' },
     CATCH,
   ]);
 });
 
 test('planificarIngress no cambia nada si la regla ya existe igual', () => {
-  const ing = [{ hostname: 'mn-dev.wandori.us', service: 'http://127.0.0.1:5199' }, CATCH];
-  assert.deepEqual(planificarIngress(ing, 'mn-dev.wandori.us', 5199), { accion: 'ya', ingress: ing });
+  const ing = [{ hostname: 'mn-dev.ejemplo.test', service: 'http://127.0.0.1:5199' }, CATCH];
+  assert.deepEqual(planificarIngress(ing, 'mn-dev.ejemplo.test', 5199), { accion: 'ya', ingress: ing });
 });
 
 test('planificarIngress rechaza un host ya apuntando a otro destino', () => {
-  const ing = [{ hostname: 'mn-dev.wandori.us', service: 'http://127.0.0.1:3000' }, CATCH];
-  assert.throws(() => planificarIngress(ing, 'mn-dev.wandori.us', 5199), /ya apunta/);
+  const ing = [{ hostname: 'mn-dev.ejemplo.test', service: 'http://127.0.0.1:3000' }, CATCH];
+  assert.throws(() => planificarIngress(ing, 'mn-dev.ejemplo.test', 5199), /ya apunta/);
 });
 
 test('planificarIngress con --repuntar cambia el destino y deja el resto igual', () => {
   const ing = [
-    { hostname: 'a-dev.wandori.us', service: 'http://127.0.0.1:3000' },
-    { hostname: 'mn-dev.wandori.us', service: 'http://127.0.0.1:5199' },
+    { hostname: 'a-dev.ejemplo.test', service: 'http://127.0.0.1:3000' },
+    { hostname: 'mn-dev.ejemplo.test', service: 'http://127.0.0.1:5199' },
     CATCH,
   ];
-  const r = planificarIngress(ing, 'mn-dev.wandori.us', 3110, { repuntar: true });
+  const r = planificarIngress(ing, 'mn-dev.ejemplo.test', 3110, { repuntar: true });
   assert.equal(r.accion, 'repuntar');
   assert.equal(r.de, 'http://127.0.0.1:5199');
   assert.deepEqual(r.ingress, [
-    { hostname: 'a-dev.wandori.us', service: 'http://127.0.0.1:3000' },
-    { hostname: 'mn-dev.wandori.us', service: 'http://127.0.0.1:3110' },
+    { hostname: 'a-dev.ejemplo.test', service: 'http://127.0.0.1:3000' },
+    { hostname: 'mn-dev.ejemplo.test', service: 'http://127.0.0.1:3110' },
     CATCH,
   ]);
   // Mismo destino y --repuntar: sigue siendo «nada que hacer», no un repunte inútil.
-  assert.equal(planificarIngress(ing, 'mn-dev.wandori.us', 5199, { repuntar: true }).accion, 'ya');
+  assert.equal(planificarIngress(ing, 'mn-dev.ejemplo.test', 5199, { repuntar: true }).accion, 'ya');
   // Un host nuevo con --repuntar se crea igual que sin la bandera.
-  assert.equal(planificarIngress(ing, 'b-dev.wandori.us', 5300, { repuntar: true }).accion, 'crear');
+  assert.equal(planificarIngress(ing, 'b-dev.ejemplo.test', 5300, { repuntar: true }).accion, 'crear');
 });
 
 test('planificarIngress no reescribe reglas sin hostname ajenas al catch-all', () => {
-  assert.throws(() => planificarIngress([{ service: 'http://x:1' }, CATCH], 'a-dev.wandori.us', 5199), /no las reescribo/);
+  assert.throws(() => planificarIngress([{ service: 'http://x:1' }, CATCH], 'a-dev.ejemplo.test', 5199), /no las reescribo/);
 });
 
 test('planificarDns crea, no toca lo correcto y rechaza lo distinto', () => {
   const destino = 'id.cfargotunnel.com';
-  assert.deepEqual(planificarDns([], 'a-dev.wandori.us', destino), { accion: 'crear' });
+  assert.deepEqual(planificarDns([], 'a-dev.ejemplo.test', destino), { accion: 'crear' });
   const ok = [{ type: 'CNAME', content: destino, proxied: true }];
-  assert.deepEqual(planificarDns(ok, 'a-dev.wandori.us', destino), { accion: 'ya' });
-  assert.throws(() => planificarDns([{ type: 'A', content: '1.2.3.4', proxied: false }], 'a-dev.wandori.us', destino), /no lo sobrescribo/);
-  assert.throws(() => planificarDns([{ type: 'CNAME', content: destino, proxied: false }], 'a-dev.wandori.us', destino), /no lo sobrescribo/);
+  assert.deepEqual(planificarDns(ok, 'a-dev.ejemplo.test', destino), { accion: 'ya' });
+  assert.throws(() => planificarDns([{ type: 'A', content: '1.2.3.4', proxied: false }], 'a-dev.ejemplo.test', destino), /no lo sobrescribo/);
+  assert.throws(() => planificarDns([{ type: 'CNAME', content: destino, proxied: false }], 'a-dev.ejemplo.test', destino), /no lo sobrescribo/);
 });
 
 test('planificarAccess detecta app existente y rechaza tipos ajenos', () => {
-  assert.deepEqual(planificarAccess([], 'a-dev.wandori.us'), { accion: 'crear' });
-  const apps = [{ domain: 'a-dev.wandori.us', type: 'self_hosted' }];
-  assert.equal(planificarAccess(apps, 'a-dev.wandori.us').accion, 'ya');
-  assert.throws(() => planificarAccess([{ domain: 'a-dev.wandori.us', type: 'saas' }], 'a-dev.wandori.us'), /tipo saas/);
+  assert.deepEqual(planificarAccess([], 'a-dev.ejemplo.test'), { accion: 'crear' });
+  const apps = [{ domain: 'a-dev.ejemplo.test', type: 'self_hosted' }];
+  assert.equal(planificarAccess(apps, 'a-dev.ejemplo.test').accion, 'ya');
+  assert.throws(() => planificarAccess([{ domain: 'a-dev.ejemplo.test', type: 'saas' }], 'a-dev.ejemplo.test'), /tipo saas/);
 });
 
 test('actualizarRegistro añade host y puerto solo al proyecto indicado y es idempotente', () => {
@@ -90,30 +90,30 @@ test('actualizarRegistro añade host y puerto solo al proyecto indicado y es ide
     '{', '  "proyectos": [',
     '    { "id": "otro", "hostsPublicos": [], "puertosPublicos": [] },',
     '    { "id": "sitio-api",',
-    '      "hostsPublicos": ["mn-dev.wandori.us"],',
+    '      "hostsPublicos": ["mn-dev.ejemplo.test"],',
     '      "puertosPublicos": [5199] }',
     '  ]', '}',
   ].join('\n');
-  const nuevo = actualizarRegistro(texto, 'sitio-api', 'a-dev.wandori.us', 5300);
-  assert.match(nuevo, /"hostsPublicos": \["mn-dev.wandori.us", "a-dev.wandori.us"\]/);
+  const nuevo = actualizarRegistro(texto, 'sitio-api', 'a-dev.ejemplo.test', 5300);
+  assert.match(nuevo, /"hostsPublicos": \["mn-dev.ejemplo.test", "a-dev.ejemplo.test"\]/);
   assert.match(nuevo, /"puertosPublicos": \[5199, 5300\]/);
   assert.match(nuevo, /"id": "otro", "hostsPublicos": \[\], "puertosPublicos": \[\]/);
-  assert.equal(actualizarRegistro(nuevo, 'sitio-api', 'a-dev.wandori.us', 5300), nuevo);
+  assert.equal(actualizarRegistro(nuevo, 'sitio-api', 'a-dev.ejemplo.test', 5300), nuevo);
 });
 
 test('actualizarRegistro cambia el puerto del host ya declarado, sin duplicarlo', () => {
   const texto = [
     '{', '  "proyectos": [',
     '    { "id": "sitio-api",',
-    '      "hostsPublicos": ["mn-dev.wandori.us", "otro-dev.wandori.us"],',
+    '      "hostsPublicos": ["mn-dev.ejemplo.test", "otro-dev.ejemplo.test"],',
     '      "puertosPublicos": [5199, 5300] }',
     '  ]', '}',
   ].join('\n');
   // Pasar la ficha a modo build: el mismo host sirve en otro puerto local.
-  const nuevo = actualizarRegistro(texto, 'sitio-api', 'mn-dev.wandori.us', 3110);
-  assert.match(nuevo, /"hostsPublicos": \["mn-dev\.wandori\.us", "otro-dev\.wandori\.us"\]/);
+  const nuevo = actualizarRegistro(texto, 'sitio-api', 'mn-dev.ejemplo.test', 3110);
+  assert.match(nuevo, /"hostsPublicos": \["mn-dev\.ejemplo.test", "otro-dev\.ejemplo.test"\]/);
   assert.match(nuevo, /"puertosPublicos": \[3110, 5300\]/);
-  assert.equal(actualizarRegistro(nuevo, 'sitio-api', 'mn-dev.wandori.us', 3110), nuevo);
+  assert.equal(actualizarRegistro(nuevo, 'sitio-api', 'mn-dev.ejemplo.test', 3110), nuevo);
 });
 
 test('actualizarRegistro conserva el formato multilínea al cambiar el puerto', () => {
@@ -121,19 +121,19 @@ test('actualizarRegistro conserva el formato multilínea al cambiar el puerto', 
     '{', '  "proyectos": [',
     '    { "id": "sitio-api",',
     '      "hostsPublicos": [',
-    '        "mn-dev.wandori.us"',
+    '        "mn-dev.ejemplo.test"',
     '      ],',
     '      "puertosPublicos": [',
     '        5199',
     '      ] }',
     '  ]', '}',
   ].join('\n');
-  const nuevo = actualizarRegistro(texto, 'sitio-api', 'mn-dev.wandori.us', 3110);
+  const nuevo = actualizarRegistro(texto, 'sitio-api', 'mn-dev.ejemplo.test', 3110);
   assert.match(nuevo, /"puertosPublicos": \[\n        3110\n      \]/);
-  assert.match(nuevo, /"hostsPublicos": \[\n        "mn-dev\.wandori\.us"\n      \]/);
+  assert.match(nuevo, /"hostsPublicos": \[\n        "mn-dev\.ejemplo.test"\n      \]/);
 });
 
 test('actualizarRegistro falla si el proyecto no existe o le faltan los campos', () => {
-  assert.throws(() => actualizarRegistro('{"proyectos":[]}', 'nope', 'a-dev.wandori.us', 5300), /no está en registro/);
-  assert.throws(() => actualizarRegistro('{"proyectos":[{ "id": "x" }]}', 'x', 'a-dev.wandori.us', 5300), /falta "hostsPublicos"/);
+  assert.throws(() => actualizarRegistro('{"proyectos":[]}', 'nope', 'a-dev.ejemplo.test', 5300), /no está en registro/);
+  assert.throws(() => actualizarRegistro('{"proyectos":[{ "id": "x" }]}', 'x', 'a-dev.ejemplo.test', 5300), /falta "hostsPublicos"/);
 });

@@ -78,7 +78,7 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 - `14AA-1` — **TRASLADADO (2026-10-14).** Plan cerrado, archivado en el área:
   `Agente/planes/completados/plan-taller-remoto-vps89-2026-10-14.md`.
 - `14AA-4` — **PARCIAL (2026-10-15): dev público de MN** por Cloudflare Tunnel + Access
-  (`mn-dev.wandori.us`). Falta el resto de proyectos publicables.
+  (`mn-dev.ejemplo.test`). Falta el resto de proyectos publicables.
 - `11AA-6` — **PENDIENTE DE HECHO EXTERNO (2026-10-11): NAKOMI, build TS de `main`.**
 - `11AA-1` — **CÓDIGO INTEGRADO (2026-10-11)**: regla `html-nativo-en-vez-de-componente` y
   `aria-expanded` (`7a1668f` en glory-sentinel). Falta propagar el pin.

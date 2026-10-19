@@ -35,9 +35,9 @@ const CONFORME: EntradaConformidad = {
   nombreMando: 'workspace-manager',
   publico: {
     hosts: [{
-      host: 'mn-dev.wandori.us',
+      host: 'mn-dev.ejemplo.test',
       status: 302,
-      location: 'https://wandori.cloudflareaccess.com/cdn-cgi/access/login/mn-dev.wandori.us',
+      location: 'https://equipo.cloudflareaccess.com/cdn-cgi/access/login/mn-dev.ejemplo.test',
       error: null,
     }],
   },
@@ -48,8 +48,8 @@ const CONFORME: EntradaConformidad = {
   },
   registro: {
     sesionesDev: ['dev-mn'],
-    hostsPublicos: ['mn-dev.wandori.us'],
-    sesionesDevPorHost: { 'mn-dev.wandori.us': ['dev-mn'] },
+    hostsPublicos: ['mn-dev.ejemplo.test'],
+    sesionesDevPorHost: { 'mn-dev.ejemplo.test': ['dev-mn'] },
     puertosLocalesPublicos: [5199],
     sitiosRust: [{ id: 'rust-x', buildMode: 'builder' }],
     ajenos: ['app-ajena'],
@@ -160,7 +160,7 @@ describe('conformidad del taller: público (P0, P1, P2)', () => {
   it('P1: hostname que sirve la app sin Access', () => {
     const r = evaluarConformidad({
       ...CONFORME,
-      publico: { hosts: [{ host: 'mn-dev.wandori.us', status: 200, location: null, error: null }] },
+      publico: { hosts: [{ host: 'mn-dev.ejemplo.test', status: 200, location: null, error: null }] },
     });
     assert.ok(r.some((h) => h.id === 'P1' && h.severidad === 'error'));
   });
@@ -168,7 +168,7 @@ describe('conformidad del taller: público (P0, P1, P2)', () => {
   it('P1: hostname sin redirección a Access', () => {
     const r = evaluarConformidad({
       ...CONFORME,
-      publico: { hosts: [{ host: 'mn-dev.wandori.us', status: null, location: null, error: 'timeout' }] },
+      publico: { hosts: [{ host: 'mn-dev.ejemplo.test', status: null, location: null, error: 'timeout' }] },
     });
     assert.ok(r.some((h) => h.id === 'P1' && /timeout/.test(h.detalle)));
   });
@@ -195,7 +195,7 @@ describe('conformidad del taller: público (P0, P1, P2)', () => {
 
   it('P1/P2: un host sin sesiones conocidas sigue exigiéndose', () => {
     const sinSesion = { ...CONFORME.registro, sesionesDevPorHost: {} };
-    assert.deepEqual(hostsActivos(sinSesion, T89_CONFORME), ['mn-dev.wandori.us']);
+    assert.deepEqual(hostsActivos(sinSesion, T89_CONFORME), ['mn-dev.ejemplo.test']);
   });
 
   it('P2: sin hostnames públicos no se exige conector', () => {
