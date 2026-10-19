@@ -50,7 +50,9 @@ const cacheActiva = !argv.includes('--no-cache') && process.env.GLORY_CERT_DISAB
 
 function run(cmd, args, cwd, label) {
   // En Windows `npm` es un shim (npm.cmd): spawnSync solo lo ejecuta con shell.
-  const result = spawnSync([cmd, ...args].join(' '), { cwd, stdio: 'inherit', windowsHide: true, shell: true });
+  // [por qué] Con ruta absoluta puede haber espacios (Program Files): va entre comillas.
+  const cmdTexto = /\s/.test(cmd) ? `"${cmd}"` : cmd;
+  const result = spawnSync([cmdTexto, ...args].join(' '), { cwd, stdio: 'inherit', windowsHide: true, shell: true });
   if (result.error) {
     process.stderr.write(`[quality:setup] no se pudo ejecutar ${label}: ${result.error.message}\n`);
     process.exit(2);

@@ -73,7 +73,7 @@ void describe('sincronizar-proyectos', () => {
       generarIdLibre(llenos, 1_700_000_000_000);
       assert.fail('debió fallar sin hueco');
     } catch (e) {
-      assert.equal((e as {mensaje: string}).mensaje, 'sin-ids-libres para proyecto TASKS');
+      assert.equal((e as {mensaje: string}).mensaje, 'sin-ids-libres para el proyecto del tablero de tareas');
     }
   });
 
