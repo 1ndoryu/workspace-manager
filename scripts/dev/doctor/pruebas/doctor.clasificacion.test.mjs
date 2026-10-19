@@ -138,7 +138,7 @@ test('atribuirHuerfano: editor-propio-dev no se atribuye a editor-propio (fronte
 test('atribuirHuerfano: el marcador del puerto reclama un proceso fuera de la carpeta (PROYECTO TASKS 4190)', () => {
   const entrada = { puertos: [4190, 4191], expectedCmdline: ['glory-backend', '4191'] };
   const pool = [{ clave: 'PROYECTO TASKS', ruta: `${AREA}\\PROYECTO TASKS`, entrada }];
-  const proc = { exe: 'C:\\Users\\usuario\\Apps\\PROYECTO-TASKS\\glory-backend.exe', cmd: 'glory-backend.exe --port 4190' };
+  const proc = { exe: 'D:\\apps-ejemplo\\fuera\\glory-backend.exe', cmd: 'glory-backend.exe --port 4190' };
   assert.equal(atribuirHuerfano(proc, pool, 4190), 'PROYECTO TASKS');
   // En 4191 el marcador es '4191': este proceso no lo lleva ni está bajo la ruta, así que no es del proyecto.
   assert.equal(atribuirHuerfano(proc, pool, 4191), null);
