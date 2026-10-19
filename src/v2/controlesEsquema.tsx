@@ -13,17 +13,20 @@ export function Control({
   opcion,
   onChange,
   readOnly,
+  nombre,
 }: {
   value: ValorJson;
   opcion: OpcionValor;
   onChange: (v: ValorJson) => void;
   readOnly?: boolean;
+  /* Ruta legible del campo (p. ej. `gate.puerta`): nombre accesible de cada control. */
+  nombre?: string;
 }) {
   if (opcion.tipo === 'stringArray') {
     const valores = Array.isArray(value) && value.every((v) => typeof v === 'string')
       ? (value as string[])
       : [];
-    return <TagLista valores={valores} onCambiar={onChange} readOnly={readOnly} />;
+    return <TagLista valores={valores} onCambiar={onChange} readOnly={readOnly} nombre={nombre} />;
   }
   if (opcion.tipo === 'enum') {
     return <ControlEnum value={typeof value === 'string' ? value : ''} valores={opcion.valores ?? []} onChange={onChange} readOnly={readOnly} />;
@@ -43,6 +46,7 @@ export function Control({
       <input
         type="number"
         className="fjInput fjInput--num"
+        aria-label={nombre}
         value={typeof value === 'number' ? String(value) : ''}
         onChange={(e) => {
           const n = Number(e.target.value);
@@ -57,6 +61,7 @@ export function Control({
     <input
       type="text"
       className="fjInput"
+      aria-label={nombre}
       value={value === null ? '' : String(value)}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -87,10 +92,13 @@ export function TagLista({
   valores,
   onCambiar,
   readOnly,
+  nombre,
 }: {
   valores: string[];
   onCambiar: (v: ValorJson) => void;
   readOnly?: boolean;
+  /* Nombre accesible de la lista: sin él, los campos solo tienen placeholder. */
+  nombre?: string;
 }) {
   const [nuevo, setNuevo] = useState('');
   function agregar() {
@@ -133,6 +141,7 @@ export function TagLista({
             value={nuevo}
             onChange={(e) => setNuevo(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && agregar()}
+            aria-label={nombre ? `agregar a ${nombre}` : 'agregar valor'}
             placeholder="agregar valor…"
           />
           <Button className="fjBoton" onClick={agregar}>

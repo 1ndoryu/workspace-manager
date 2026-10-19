@@ -155,7 +155,7 @@ function Fila({
         <EtiquetaDeRuta ruta={fila.ruta} />
       </span>
       <span className="fjControl">
-        <Control value={fila.valor} opcion={fila.opcion} onChange={(v) => setEn(fila.ruta, v)} readOnly={readOnly} />
+        <Control value={fila.valor} opcion={fila.opcion} onChange={(v) => setEn(fila.ruta, v)} readOnly={readOnly} nombre={fila.ruta.join('.')} />
       </span>
     </div>
   );
