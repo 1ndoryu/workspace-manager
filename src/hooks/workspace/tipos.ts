@@ -14,7 +14,7 @@ import type { InformeDev } from '../../shared/dev.js';
 import type { ReglaCatalogo } from '../../shared/gate/catalogo/reglas.js';
 import type { NodoEsquema } from '../../shared/gate/modelo/esquema.js';
 import type { TipoGate } from '../../shared/gate/proveedores.js';
-import type { ReporteSincronizacion } from '../../server/gate/sincronizacion.js';
+import type { ReporteSincronizacion } from '../../shared/gate/sincronizacion.js';
 import type { ResultadoSalud } from '../../shared/salud/salud.js';
 
 /* Informe vivo: el InformeDev del doctor mas la frescura del cache server.

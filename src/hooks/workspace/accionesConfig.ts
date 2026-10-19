@@ -8,7 +8,7 @@ import type {
   ConfigWorkspace,
   SnapshotWorkspace,
 } from '../../shared/types.js';
-import type { ReporteSincronizacion } from '../../server/gate/sincronizacion.js';
+import type { ReporteSincronizacion } from '../../shared/gate/sincronizacion.js';
 import type { AccionesConfig, EstadoWorkspace } from './tipos.js';
 import { logger } from '../../shared/logger.js';
 

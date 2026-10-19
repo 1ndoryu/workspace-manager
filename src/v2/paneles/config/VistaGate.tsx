@@ -6,7 +6,7 @@
  * detalle (hashes, motivo) solo se abre al clicar un rojo. */
 import { useState } from 'react';
 import type { DatosPanelConfig } from './usePanelConfig.js';
-import type { ReporteSincronizacion } from '../../../server/gate/sincronizacion.js';
+import type { ReporteSincronizacion } from '../../../shared/gate/sincronizacion.js';
 
 /* Acorta un hash para display, igual que corto() de los scripts. */
 function corto(h: string | null): string {
