@@ -108,7 +108,7 @@
           "dev",
           "--",
           "--port",
-          "5199",
+          "5201",
           "--strictPort"
         ],
         [
@@ -118,31 +118,31 @@
         ]
       ],
       "puertos": [
-        3110,
-        5199,
-        3102
+        3101,
+        5201,
+        3103
       ],
       "procesosAceptados": {
         "puertos": [
-          3110,
-          5199,
-          3102
+          3101,
+          5201,
+          3103
         ],
         "motivo": "dev mantenido a proposito en el portatil; declararlo evita que el doctor lo tome por un proceso suelto"
       },
       "healths": [
         {
-          "puerto": 3110,
+          "puerto": 3101,
           "ruta": "/api/health",
           "esperaJson": true
         },
         {
-          "puerto": 5199,
+          "puerto": 5201,
           "ruta": "/",
           "esperaJson": false
         },
         {
-          "puerto": 3102,
+          "puerto": 3103,
           "ruta": "/health",
           "esperaJson": true
         },
@@ -160,7 +160,7 @@
         "gateway"
       ],
       "env": {
-        "PORT": "3110"
+        "PORT": "3101"
       },
       "host": "<ALIAS_SSH>",
       "envRemoto": [
@@ -188,14 +188,14 @@
         "gateway"
       ],
       "puertosRemotos": [
-        3110,
-        5199,
+        3101,
+        5201,
         20241
       ],
       "tunelesExtra": [
         [
-          33110,
-          3110
+          33101,
+          3101
         ]
       ],
       "tunelSsh": false,
@@ -203,7 +203,7 @@
         "web-dev.<DOMINIO_BASE>"
       ],
       "puertosPublicos": [
-        3110
+        3101
       ],
       "buildMode": "builder",
       "botonRemoto": [
@@ -226,7 +226,7 @@
           "dev",
           "--",
           "--port",
-          "5199",
+          "5201",
           "--strictPort",
           "--host",
           "127.0.0.1"
@@ -244,7 +244,7 @@
           "motivo": "server:mejora (frontend/server/mejora.mjs), arranque manual fuera del mando"
         },
         {
-          "puerto": 3102,
+          "puerto": 3103,
           "marcador": "--gateway-mn",
           "motivo": "gateway de mensajeria: vive en el portatil (tiene las sesiones); lo mantiene el guardian de Inicio"
         }
@@ -259,7 +259,7 @@
       "modo": "build",
       "build": {
         "puertos": [
-          3110,
+          3101,
           20241
         ],
         "boton": [
@@ -289,7 +289,7 @@
         ],
         "healths": [
           {
-            "puerto": 3110,
+            "puerto": 3101,
             "ruta": "/",
             "marcador": "<title>Proyecto Web"
           },
