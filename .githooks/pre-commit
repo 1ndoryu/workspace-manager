@@ -1,0 +1,6 @@
+#!/bin/sh
+# Detector de datos personales antes de comitear (19AA-12). Solo escanea el texto
+# que entra en el commit (staged): es rápido y no sustituye al gate de calidad.
+# [por que] Un dato personal ya commiteado exige reescribir la historia para quitarlo.
+# Activar en cada clon: git config core.hooksPath .githooks
+exec node scripts/dev/privacidad.mjs

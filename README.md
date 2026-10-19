@@ -258,6 +258,28 @@ se clonan y en qué commit; `npm run quality:setup` los provisiona en
 `.quality-tools/`. Si no están, el manager funciona igual, pero el análisis de
 ese proyecto aparece como **error de datos con su motivo**, nunca como limpio.
 
+## Datos personales
+
+`scripts/dev/privacidad.mjs` busca rutas de usuario, IPs, tokens y los términos
+privados de cada área antes de comitear. Los términos privados (hosts, nombres de
+máquina) van en `config/privacidad.local.json`, que no se versiona; sin ese fichero
+el detector sigue con las reglas genéricas. Una línea con `privacidad:ignorar` es una
+excepción explícita y visible.
+
+```bash
+npm run privacidad
+```
+
+Para que corra en cada commit, activa el hook versionado en `.githooks/` (una vez por clon):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`npm run privacidad:historial` revisa también el historial. Un dato que ya está en un
+commit no se quita sin reescribir la historia, así que esa limpieza va aparte y con copia
+de seguridad.
+
 ## Licencia
 
 GPL-3.0. El texto completo está en [LICENSE](LICENSE).

@@ -1,0 +1,2 @@
+# El hook de shell necesita LF aunque core.autocrlf sea true en Windows.
+.githooks/* text eol=lf
