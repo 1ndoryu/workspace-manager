@@ -131,8 +131,12 @@ export function validarIgnoradoSistema(s, ctx) {
       throw new Error(`registro: ${ctx} cmdContiene requiere exe y texto de 3-200 caracteres`);
     }
   }
-  if (typeof s.motivo !== 'string' || s.motivo.length < 3 || s.motivo.length > 120) {
-    throw new Error(`registro: ${ctx} sin motivo (3-120 caracteres)`);
+  // [por que] El mensaje dice cuál es el fallo: falta, o su longitud está fuera de rango.
+  if (typeof s.motivo !== 'string') {
+    throw new Error(`registro: ${ctx} falta el motivo (texto de 3-120 caracteres)`);
+  }
+  if (s.motivo.length < 3 || s.motivo.length > 120) {
+    throw new Error(`registro: ${ctx} motivo de ${s.motivo.length} caracteres; debe tener 3-120`);
   }
 }
 
