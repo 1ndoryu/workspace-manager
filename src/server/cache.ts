@@ -49,21 +49,36 @@ let snapshotMemoria: SnapshotWorkspace | null = null;
  * mientras corre espera el mismo. */
 let escaneoEnCurso: Promise<CacheResultado> | null = null;
 
-/** Devuelve el snapshot: usa cache si existe, si no escanea y cachea. */
+/* Vigencia del estado git dentro del snapshot servido desde cache. [por que] Pasado
+ * este plazo se relee solo git (barato) y no el escaneo entero. Corto a propósito:
+ * el tablero debe reflejar un commit o un cambio casi al instante. */
+const VIGENCIA_GIT_MS = 30_000;
+
+function gitCaducado(snapshot: SnapshotWorkspace): boolean {
+  return Date.now() - Date.parse(snapshot.gitEn ?? snapshot.escaneadoEn) >= VIGENCIA_GIT_MS;
+}
+
+/** Devuelve el snapshot: usa cache si existe, si no escanea y cachea.
+ * Con cache, si el estado git tiene más de VIGENCIA_GIT_MS, lo relee antes de servirlo. */
 export async function obtenerSnapshot(
   raiz: string,
   escanear: () => Promise<SnapshotWorkspace>,
   forzar: boolean,
+  refrescarGit: (snapshot: SnapshotWorkspace) => Promise<SnapshotWorkspace>,
 ): Promise<CacheResultado> {
   const cache = rutaCache(raiz);
   if (!forzar) {
     /* Cache caliente en memoria primero: evita re-leer/parsear el JSON y
      * permite servir mutaciones recientes sin re-escaneo. */
-    if (snapshotMemoria) return { snapshot: snapshotMemoria, desdeCache: true };
-    const existente = leerCache(cache);
-    if (existente) {
-      snapshotMemoria = existente;
-      return { snapshot: existente, desdeCache: true };
+    const vigente = snapshotMemoria ?? leerCache(cache);
+    if (vigente) {
+      if (!gitCaducado(vigente)) {
+        snapshotMemoria = vigente;
+        return { snapshot: vigente, desdeCache: true };
+      }
+      const refrescado = await refrescarGit(vigente);
+      actualizarSnapshot(refrescado);
+      return { snapshot: refrescado, desdeCache: true };
     }
   }
   /* [por que] `finally` (asíncrono) libera el escaneo compartido aunque falle; no se

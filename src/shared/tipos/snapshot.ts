@@ -21,6 +21,9 @@ export interface AgentesInfo {
 /* Cabecera del snapshot: cuando se escaneo y cual es la raiz del area. */
 export interface CabeceraSnapshot {
   escaneadoEn: string;
+  /* Ultima lectura del estado git (ISO). Ausente = la del escaneo. Se refresca sola
+   * sin re-escanear: git cambia con cada commit y no puede quedarse congelado. */
+  gitEn?: string;
   /* Raiz del area: permite al cliente convertir rutas absolutas de proyectos
    * en rutas relativas para el navegador de archivos. */
   raiz: string;

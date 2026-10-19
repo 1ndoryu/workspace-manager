@@ -195,6 +195,17 @@ async function proyectoCompleto(
   };
 }
 
+/** Vuelve a leer solo el estado git de los repos de un snapshot ya escaneado.
+ * [por que] El snapshot cacheado se sirve sin re-escanear, y el estado git (sucio,
+ * ahead) se quedaba congelado en el momento del escaneo: el tablero daba «16 sin
+ * commitear» con el repo ya limpio. Releer solo git es mucho más barato que el
+ * escaneo completo (gate, roadmap, agentes), así que basta con esto. */
+export async function refrescarGit(snapshot: SnapshotWorkspace): Promise<SnapshotWorkspace> {
+  const proyectos = await mapLimitado(snapshot.proyectos, REPOS_EN_PARALELO, async (p) =>
+    p.esGit ? { ...p, git: await estadoGitAsync(p.ruta) } : p);
+  return { ...snapshot, proyectos, resumen: resumenDe(proyectos), gitEn: new Date().toISOString() };
+}
+
 function leerEntradas(ruta: string): string[] {
   try {
     return readdirSync(ruta, { withFileTypes: true })
