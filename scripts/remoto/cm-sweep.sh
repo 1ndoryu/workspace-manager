@@ -460,8 +460,9 @@ limpiar_vtmp() {
     # Ni los temporales privados de systemd (los usa un servicio vivo), ni cloud-init, ni lo
     # nuestro. Los ocultos son sockets y locks, como en /tmp.
     case "$b" in .*|systemd-private-*|snap-private-tmp|cloud-init|cm-heavy*|cm-sweep*) continue ;; esac
-    # El único con umbral propio: `antiguo` ya lo detecta y se comprueba a mano.
-    case "$b" in coolify-manager-rs) h=$H_CARO ;; *) h=$H_VTMP ;; esac
+    # Proyectos con umbral propio (lista separada por espacios; por defecto, coolify-manager-rs):
+    # `antiguo` ya lo detecta y se comprueba a mano.
+    case " ${CM_SWEEP_PROYECTOS_CAROS:-coolify-manager-rs} " in *" $b "*) h=$H_CARO ;; *) h=$H_VTMP ;; esac
     antiguo "$x" "$h" || continue
     borrar "$x" "scratch de /var/tmp sin uso desde ${h} h"
   done

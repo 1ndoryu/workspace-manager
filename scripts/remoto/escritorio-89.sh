@@ -25,8 +25,9 @@ else
 fi
 [ -n "$ALIAS" ] || { echo "escritorio-89: $FICHA no declara 'host'; define WM_HOST" >&2; exit 3; }
 
-PUERTO_LOCAL=6090
-PUERTO_REMOTO=6080
+# Puertos por entorno: por defecto 6090/6080; cambiar solo si chocan en la laptop o en la 89.
+PUERTO_LOCAL=${WM_ESCRITORIO_PUERTO:-6090}
+PUERTO_REMOTO=${WM_ESCRITORIO_PUERTO_REMOTO:-6080}
 URL="http://localhost:$PUERTO_LOCAL"
 SOCK="${WM_TMP:-/c/tmp}/escritorio-89.sock"
 

@@ -38,7 +38,8 @@ if [ "$(git -C "$REPO_LOCAL" rev-parse HEAD)" != "$(git -C "$REPO_LOCAL" rev-par
 fi
 URL=$(git -C "$REPO_LOCAL" remote get-url origin)
 NOMBRE=$(basename "$URL" .git)
-DIR="/root/build/$NOMBRE"
+# Carpeta de builds en la VPS; por defecto /root/build, sobrescribible por entorno.
+DIR="${WM_BUILD_DIR:-/root/build}/$NOMBRE"
 
 # El clon de la VPS es desechable: se alinea siempre con origin. Usa sccache y 2 jobs para no saturar la VPS.
 ssh -o BatchMode=yes "$VPS" bash -s -- "$URL" "$RAMA" "$DIR" "$@" <<'REMOTO'
