@@ -53,7 +53,13 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
   Almacenes unificados en `gate/almacenPersistido.ts` (con test; commit `8b4b8bf`).
   `vulnerabilidades.ts` partido (orquestación + `gate/vulnerabilidades/audit/`: ejecución, agregado,
   parseo y remoto; 658 tests verdes en la 89, gate 0 nuevos).
-  Pendiente, sin corregir: `salud/recoger.ts`, `auditoria-remota.ts`. `shared/` ya es puro (ningún módulo de producción con `node:*` ni `process.env`;
+  `salud/recoger.ts` recibe su entorno por inyección (`bd095e5`, `salud/entorno.ts`; tsc 0, salud 28/28 en la 89).
+  `gate/auditoria-remota.ts` hecho: la carpeta temporal llega por config (`WM_AUDIT_REMOTO` se lee al
+  componer `leerConfigRemota`, ya no al cargar el módulo); `tar` en `herramientas/tar.ts` con el entorno
+  por parámetro; ssh y envío en `herramientas/ssh.ts` (tsc 0, suite 471/471 en la 89, gate 0 nuevos).
+  Deuda: `sshTexto`/`enviarArbol` duplican parte de `ssh()` y `copiarEntradas()` en `herramientas/ssh.ts`;
+  `prepararArbolRemoto` sigue leyendo `leerConfigArea(RAIZ_AREA)` directamente.
+  `shared/` ya es puro (ningún módulo de producción con `node:*` ni `process.env`;
   `area`, `binarios`, `puertos` y `rutas` movidos a `server/plataforma/`, 0 importaciones inversas);
   accesibilidad de la UI; limpieza de config privada fuera del repo; restos del frente 9
   (`test-utils.mjs`, `doctor.*.test.mjs`, `cm-sweep.sh`, `provision-89.sh`, `root-taller-89.sh:19,71`,
