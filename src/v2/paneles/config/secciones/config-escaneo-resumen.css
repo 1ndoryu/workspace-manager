@@ -1,0 +1,71 @@
+/* Resumen del escaneo, avisos, separador y badges de severidad de vulnerabilidades.
+ * [por que] Cola de la seccion escaneo; va al final para respetar la cascada original. */
+.scanCfgResumen {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    flex-wrap: wrap;
+    border: 1px solid var(--v2-borde);
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+/* Dentro del cuadro del resumen los badges no llevan recuadro propio:
+ * el contenedor ya los agrupa; solo se distingue la variante por color. */
+.scanCfgResumen .scanCfgBadge {
+    border: none;
+    padding: 0;
+}
+
+.scanCfgBadge {
+    font-size: var(--v2-textXs);
+    padding: 2px 8px;
+    border: 1px solid var(--v2-borde);
+}
+
+.scanCfgBadge--error {
+    border-color: var(--v2-invertido);
+    color: var(--v2-texto);
+}
+
+.scanCfgBadge--warn {
+    color: var(--v2-texto);
+}
+
+.scanCfgAviso {
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    opacity: 0.9;
+    padding: var(--v2-spaceSm);
+    border-left: 2px solid var(--v2-borde);
+}
+
+/* Separador de seccion dentro de la vista 'scan' (analisis vs vulnerabil-idades).
+ * [por que] La separacion entre hijos la gobierna el gap del contenedor
+ * (.scanCfg), igual que en el resto de bloques; aqui solo se dibuja la linea
+ * superior con su padding interno, sin margin extra que rompa la coherencia. */
+.scanCfgSeparador {
+    padding-top: var(--v2-spaceMd);
+    border-top: 1px solid var(--v2-borde);
+    font-size: var(--v2-textXs);
+    text-transform: none;
+    color: var(--v2-texto);
+}
+
+/* Badges de severidad de vulnerabilidades (critical/high/moderate/low).
+ * Color fotbordes para no asumir la paleta; recuerda al esquema de audit. */
+.scanCfgBadge--crit {
+    border-color: var(--v2-invertido);
+    border-style: double;
+    color: var(--v2-texto);
+}
+.scanCfgBadge--high {
+    border-color: var(--v2-invertido);
+    color: var(--v2-texto);
+}
+.scanCfgBadge--mod {
+    color: var(--v2-texto);
+}
+.scanCfgBadge--low {
+    color: var(--v2-texto);
+    opacity: 0.8;
+}

@@ -1,0 +1,84 @@
+/* Formulario JSON (EditorJson): opciones planas, switch, input y tags.
+ * [por que] Hoja propia para que el editor genérico no comparta fichero con
+ * el editor por esquema. */
+/* Formulario JSON (EditorJson.tsx): opciones PLANAS, cada una separada.
+ * Se aplana todo el JSON en una lista de filas: una opción por fila, con su
+ * ruta como etiqueta (p.ej. `sentinel › config › portableBoundaries › dom ›
+ * enabled`), el control debajo (switch, input o tags). Sin secciones ni
+ * objetos anidados. [por que] El usuario pidio que las opciones NO esten
+ * anidadas y que cada una este separada; las versiones con secciones se
+ * veian raras o dejaban hueco. Generico (ninguna clave hardcodeada). */
+.fjPlano {
+  display: flex; flex-direction: column; min-width: 0;
+  /* Fuente más chica que la base (13px) y padding para que las opciones
+   * respiren. [por que] El editor de reglas es denso: se baja la fuente a
+   * 11px y se separan las filas para que no se vea abarrotado. */
+  font-size: var(--v2-textSm);
+  padding: 2px 0 10px;
+}
+.fjFila {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--v2-borde);
+}
+.fjFila:last-child { border-bottom: none; }
+.fjEtiqueta {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: var(--v2-font); color: var(--v2-texto); letter-spacing: .02em;
+  overflow: hidden; margin-bottom: 8px;
+}
+.fjControl { display: flex; align-items: center; min-width: 0; width: 100%; }
+/* [por que] El control de tags debe ocupar todo el ancho de la fila para
+ * que el texto no se corte: sin esto el span flex se encoge al contenido. */
+.fjControl > .fjTags { width: 100%; }
+.fjVacio { font-size: var(--v2-font); color: var(--v2-texto); opacity: .55; font-style: italic; }
+/* Switch (booleano). Monocromo: OFF = contorno negro con palo negro; ON =
+ * relleno negro con palo blanco. [por que] Antes el borde usaba
+ * --v2-invertido (blanco) y el palo --v2-oscuro (variable inexistente):
+ * el switch quedaba invisible sobre fondo blanco en ambos estados. */
+.fjSwitch {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+  border: 1px solid var(--v2-borde); border-radius: var(--v2-radioPildora);
+  background: transparent; cursor: pointer; padding: 0;
+}
+.fjSwitchPalo {
+  position: absolute; top: 3px; left: 3px; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--v2-borde); transition: left .12s ease;
+}
+.fjSwitch--on { background: var(--v2-borde); }
+.fjSwitch--on .fjSwitchPalo { left: 21px; background: var(--v2-fondo); }
+.fjInput {
+  font-family: inherit; font-size: var(--v2-font); color: var(--v2-texto);
+  background: transparent; border: 1px solid var(--v2-borde); padding: 3px 8px;
+  border-radius: var(--v2-radioChico); width: 100%; min-width: 0; line-height: 1.4; box-sizing: border-box;
+}
+.fjInput:focus { outline: 1px solid var(--v2-invertido); }
+.fjInput--num { width: 90px; }
+/* Tags editables para una lista de valores simples (una columna). */
+.fjTags { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; min-width: 0; }
+.fjTagsLista { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* [por que] El tag ocupa el 100% del ancho disponible para que el texto no
+ * se corte: antes se encogia al contenido y el input se truncaba. */
+.fjTag {
+  display: flex; align-items: center; gap: 2px; width: 100%; min-width: 0;
+  border: 1px solid var(--v2-invertido); border-radius: var(--v2-radioChico);
+  background: transparent; box-sizing: border-box;
+}
+.fjTag .fjTagInput { flex: 1 1 auto; }
+.fjTagInput {
+  font-family: inherit; font-size: var(--v2-font); color: var(--v2-texto);
+  background: transparent; border: none; padding: 2px 4px; min-width: 0; flex: 1 1 auto;
+  box-sizing: border-box; width: 100%;
+}
+/* [por que] El focus no debe pintar el fondo de negro (se ve como si el
+ * input estuviera lleno); solo se marca el contorno en negro. */
+.fjTagInput:focus { outline: 1px solid var(--v2-borde); background: transparent; }
+.fjTagQuitar {
+  font-family: inherit; font-size: var(--v2-textMd); width: 18px; height: 18px; line-height: 1;
+  border: none; background: transparent; color: var(--v2-texto); cursor: pointer;
+  border-radius: var(--v2-radioMini); flex-shrink: 0;
+}
+/* Fila para agregar valores. */
+.fjAgregar { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.fjAgregar .fjInput--nuevo { flex: 0 1 220px; }
+/* .fjBoton se movio a Button.css (compuesto .botonV2.fjBoton). */

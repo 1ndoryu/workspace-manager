@@ -1,0 +1,61 @@
+/* Escaneo real de sentinel por proyecto (tarjeta de auto-escaneo y boton).
+ * [por que] Seccion de escaneo del panel config, separada de la vista de gate. */
+/* Escaneo real de sentinel por proyecto (config. escaneo del panel config).
+ * [por que] Mismo lenguaje visual del resto del panel docs: monocromo,
+ * wireframe, pequeno; una tarjeta que agrupa el auto-escaneo y el boton. */
+.scanCfg {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceSm);
+    margin: var(--v2-spaceMd);
+    padding: var(--v2-spaceMd);
+    border: 1px solid var(--v2-borde);
+    background: var(--v2-fondo);
+}
+
+.scanCfgFila {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+    font-size: var(--v2-textXs);
+}
+
+.scanCfgEtiqueta {
+    color: var(--v2-texto);
+}
+
+.scanCfgCheck {
+    accent-color: currentColor;
+    cursor: pointer;
+}
+
+.scanCfgIntervalo {
+    color: var(--v2-texto);
+    opacity: 0.72;
+}
+
+.scanCfgNum {
+    width: 64px;
+    font: inherit;
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+    padding: 2px 6px;
+}
+
+.scanCfgAcciones {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceSm);
+}
+
+.scanCfgMeta {
+    font-size: var(--v2-textXs);
+    color: var(--v2-texto);
+    opacity: 0.72;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
