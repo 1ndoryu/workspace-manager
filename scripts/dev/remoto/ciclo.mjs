@@ -5,7 +5,7 @@ import { entradaEfectiva, modoDe, puertosRemotosDe } from '../doctor.mjs';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { sincronizarBd } from './bd.mjs';
+import { sincronizarBd } from './bd/sincronizar.mjs';
 import { comandoConstruirFront, comandoNpmCi, comandoPrecompilar, comandoRemotoUp, rutaLogNpmCi } from './comandos.mjs';
 import { contenidoEnvFrontend, contenidoEnvRemoto, entornoRemoto, validarHostRemoto } from './entorno.mjs';
 import { escribirEstado, leerEstado, rutaEstado } from './estado.mjs';

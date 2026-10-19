@@ -18,7 +18,7 @@
  *   tunel.mjs     tunel SSH: args, marcador, identidad y ciclo de vida
  *   entorno.mjs   validacion de la ficha y generacion de los .env
  *   ficha.mjs     puertos, healths y estado real de una entrada en la VPS
- *   bd.mjs        sincronizacion de la base de datos (dumps, conteos, desvio)
+ *   bd/sincronizar.mjs  sincronizacion de la base de datos (dumps, conteos, desvio)
  *   ciclo.mjs     preparar, up, status, stop y logs
  *   indice.mjs    decidir si un id va a la VPS y despachar el subcomando
  */
@@ -39,7 +39,7 @@ export { contenidoEnvFrontend, contenidoEnvRemoto, filtrarSqlParaPg16, leerUrlBd
 
 export { localesTodos, puertosTodos } from './remoto/ficha.mjs';
 
-export { desvioConLaptop, desviosDeConteos, diferenciasConteos, parsearConteos, sincronizarBd } from './remoto/bd.mjs';
+export { desvioConLaptop, desviosDeConteos, diferenciasConteos, parsearConteos, sincronizarBd } from './remoto/bd/sincronizar.mjs';
 
 export { construirFrontRemoto } from './remoto/ciclo.mjs';
 

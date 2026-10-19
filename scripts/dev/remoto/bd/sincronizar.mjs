@@ -1,15 +1,15 @@
 /* Sincronizacion de la base de datos al taller: dumps, conteos y desvio. */
 
-import { shQuote } from '../../remoto/rcargo.mjs';
+import { shQuote } from '../../../remoto/rcargo.mjs';
 import { execFile } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { raizTemporales } from '../../shared/rutas.mjs';
+import { raizTemporales } from '../../../shared/rutas.mjs';
 
-import { filtrarSqlParaPg16, leerUrlBdLocal } from './entorno.mjs';
-import { marcaTiempo } from './estado.mjs';
-import { escribirArchivoRemoto, sshRemoto } from './ssh.mjs';
+import { filtrarSqlParaPg16, leerUrlBdLocal } from '../entorno.mjs';
+import { marcaTiempo } from '../estado.mjs';
+import { escribirArchivoRemoto, sshRemoto } from '../ssh.mjs';
 
 function ejecutarLocal(binario, args, env, timeoutMs) {
   return new Promise((resolveP) => {
