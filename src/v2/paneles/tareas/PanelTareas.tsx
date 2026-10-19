@@ -17,10 +17,13 @@ import './tareas.css';
 /* Dashboard del permanente TASKS: el frente no tiene URL por tarea ni por
  * proyecto (main.tsx solo declara /, /arbitraje/, /privacidad/, /terminos/,
  * /prueba/), asi que "abrir en TASKS" abre el dashboard en pestana nueva, no un
- * deep-link inventado. [por qué] El puerto (4191 por defecto) lo fija quien
- * despliega el tablero con VITE_TAREAS_TABLERO_URL; el front no lee process.env. */
+ * deep-link inventado.
+ * [por qué] El enlace bueno lo dice el propio puente (`estado.base`, que sale de
+ * TASKS_BASE_URL y en el portatil apunta al puerto del tunel a la 89); el valor
+ * fijo solo es el respaldo para cuando el puente no responde. Fijarlo a mano era
+ * un enlace muerto: 4191 es el puerto de dev, y en build el servicio es 4190. */
 export const URL_TABLERO_TAREAS: string =
-  import.meta.env.VITE_TAREAS_TABLERO_URL || 'http://127.0.0.1:4191/';
+  import.meta.env.VITE_TAREAS_TABLERO_URL || 'http://127.0.0.1:14190/';
 
 export function PanelTareas() {
   const t = usePanelTareas();
@@ -56,6 +59,10 @@ export function PanelTareas() {
     );
   }
 
+  // [por que] Se resuelve fuera del map: `t.estado` ya paso los guardas de arriba,
+  // pero dentro del callback el tipo vuelve a ser anulable.
+  const urlTareas = t.estado.base ?? URL_TABLERO_TAREAS;
+
   return (
     <div className="tareasContenedor">
       {t.error && <div className="tareasError" role="alert">{t.error}</div>}
@@ -68,7 +75,7 @@ export function PanelTareas() {
               tareas={t.tareas[col.legacyId] ?? null}
               cargando={t.cargando}
               moviendo={t.moviendo}
-              urlTareas={URL_TABLERO_TAREAS}
+              urlTareas={urlTareas}
               onSoltar={(origen, legacyId, antesDe) => void t.soltar(origen, col.legacyId, legacyId, antesDe)}
               onEditar={(legacyId, parche) => void t.editar(col.legacyId, legacyId, parche)}
               onEliminar={(legacyId) => void t.eliminar(col.legacyId, legacyId)}

@@ -5,6 +5,7 @@
  * motivo, 429 cuota, 404 proyecto) para pintarlo tal cual. */
 import axios from 'axios';
 import {
+  baseDeEstado,
   columnasDeRespuesta,
   tareaDePuente,
   tareasDeRespuesta,
@@ -32,6 +33,7 @@ export async function estadoTareas(): Promise<TareasEstado> {
       configurado: data.configurado === true,
       disponible: data.disponible === true,
       motivo: typeof data.motivo === 'string' ? data.motivo : null,
+      base: baseDeEstado(data.base),
     };
   } catch (err) {
     throw mensajeFallo('estado de tareas', err);

@@ -200,7 +200,7 @@ describe('niveles (07AA-15, espejo TASKS)', () => {
 });
 
 describe('cacheTareas (08AA-8)', () => {
-  const ESTADO = { configurado: true, disponible: true, motivo: null };
+  const ESTADO = { configurado: true, disponible: true, motivo: null, base: 'http://127.0.0.1:14190' };
   const COLS = [{ clave: 'servicio-api', nombre: 'servicio-api', legacyId: 9001 }];
   const TAREAS = { 9001: [TAREA] };
 
@@ -210,6 +210,11 @@ describe('cacheTareas (08AA-8)', () => {
     assert.deepEqual(got?.columnas, COLS);
     assert.deepEqual(got?.tareas, TAREAS);
     assert.equal(got?.estado.disponible, true);
+    assert.equal(got?.estado.base, 'http://127.0.0.1:14190');
+  });
+  it('una cache vieja (sin base) se restaura sin enlace, no se descarta', () => {
+    const vieja = { guardadoEn: 1, estado: { configurado: true, disponible: true, motivo: null }, columnas: [], tareas: {} };
+    assert.equal(restaurarCacheTareas(vieja)?.estado.base, null);
   });
   it('clonar filtra tareas invalidas sin romper la foto', () => {
     const foto = clonarCacheTareas(ESTADO, COLS, { 9001: [TAREA, { legacyId: 'x' } as unknown as TareaTab] });

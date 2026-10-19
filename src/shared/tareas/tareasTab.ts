@@ -35,11 +35,20 @@ export interface TareasReordenarRespuesta {
   actualizadas: unknown;
 }
 
-/* GET /api/tareas/estado: el puente dice si puede operar y por que no. */
+/* GET /api/tareas/estado: el puente dice si puede operar y por que no.
+ * [por que] `base` es la URL donde responde TASKS (TASKS_BASE_URL, en el
+ * portatil el puerto del tunel a la 89): es el unico enlace bueno que tenemos
+ * para "abrir en TASKS", asi que viaja hasta la tab en vez de fijarlo a mano. */
 export interface TareasEstado {
   configurado: boolean;
   disponible: boolean;
   motivo: string | null;
+  base: string | null;
+}
+
+/* Normaliza la base que manda el puente ('' = sin-base, no vale como enlace). */
+export function baseDeEstado(v: unknown): string | null {
+  return typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
 }
 
 export function esTareaTab(v: unknown): v is TareaTab {
@@ -239,6 +248,7 @@ export function clonarCacheTareas(
       configurado: estado.configurado === true,
       disponible: estado.disponible === true,
       motivo: typeof estado.motivo === 'string' ? estado.motivo : null,
+      base: baseDeEstado(estado.base),
     },
     columnas: columnas.filter(esColumnaTab).map((c) => ({ clave: c.clave, nombre: c.nombre, legacyId: c.legacyId })),
     tareas: copia,
@@ -265,6 +275,9 @@ export function restaurarCacheTareas(v: unknown): CacheTareasTab | null {
       configurado: e.configurado as boolean,
       disponible: e.disponible as boolean,
       motivo: typeof e.motivo === 'string' ? (e.motivo as string) : null,
+      // [por que] Las caches guardadas antes de existir `base` se restauran sin
+      // enlace, no se descartan: la tab cae al valor por defecto.
+      base: baseDeEstado(e.base),
     },
     columnas: (c.columnas as ColumnaTab[]).map((col) => ({ clave: col.clave, nombre: col.nombre, legacyId: col.legacyId })),
     tareas,
