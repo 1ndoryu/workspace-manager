@@ -27,11 +27,13 @@
  * harness usa el checkout compartido `.quality-tools/varsense` que es el que el
  * analizador del servidor (8787) ejecuta, para reproducir el agregado vivo.
  */
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { hostname } from 'node:os';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RAIZ_AREA, RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.mjs';
+import { RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.mjs';
+import { cargarTaller, decidirDonde } from '../../shared/vps.mjs';
+import { correrEnVps, correrLocal } from './varsense-ejecucion.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -45,10 +47,6 @@ function reposDelRegistro() {
   return new Map(reg.proyectos.map((p) => [p.id, resolve(RAIZ_REPO, p.ruta)]));
 }
 
-const VARSENSE_CLI = join(
-  RAIZ_AREA,
-  '.quality-tools/varsense/dist/cli/index.js',
-);
 /* Registro de excepciones verificadas. [por que] Es configuracion nuestra (que
  * hallazgos ya aceptamos y por que), no del producto: vive en la config privada
  * y sin ella el veredicto sale sin cobertura, que es un resultado valido. */
@@ -127,15 +125,20 @@ function main() {
   const repos = reposDelRegistro();
   if (!arg || !repos.has(arg)) {
     console.error(
-      `Uso: node scripts/quality/auditoria/analyze-blocks.mjs <proyecto> [--json] [--detalle ruleId]\n` +
+      `Uso: node scripts/quality/auditoria/analyze-blocks.mjs <proyecto> [--json] [--detalle ruleId] [--local]\n` +
         `Proyectos: ${[...repos.keys()].join(', ')}`,
     );
     process.exit(2);
   }
-  if (!existsSync(VARSENSE_CLI)) {
-    console.error(`Falta el CLI varsense pinneado en ${VARSENSE_CLI}`);
-    process.exit(1);
+  const taller = cargarTaller();
+  let destino;
+  try {
+    destino = decidirDonde(process.argv, taller, hostname());
+  } catch (e) {
+    console.error(e.message);
+    process.exit(2);
   }
+  if (destino.aviso) console.error(destino.aviso);
   const repo = repos.get(arg);
   if (!existsSync(repo)) {
     console.error(`No existe el repo ${repo}`);
@@ -151,17 +154,7 @@ function main() {
   // El CLI puede salir con status != 0 cuando hay errores (p. ej. el
   // variableNoDefinida del WIP) aunque el JSON de salida sea válido; el reporte
   // es lo que importa, no el exit code.
-  let out;
-  try {
-    out = execFileSync(
-      process.execPath,
-      [VARSENSE_CLI, 'all', '--workspace', repo, '--format', 'json'],
-      { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
-    );
-  } catch (e) {
-    out = e.stdout;
-    if (!out) throw e;
-  }
+  const { out, repoEjecucion } = destino.donde === 'remoto' ? correrEnVps(arg, repo, taller) : correrLocal(repo);
   const res = JSON.parse(out);
 
   const reglas = new Map();
@@ -170,7 +163,7 @@ function main() {
   const crudos = [];
 
   for (const entry of res.entries || []) {
-    const key = entry.ruta.startsWith(repo) ? entry.ruta.slice(repo.length + 1) : entry.ruta;
+    const key = entry.ruta.startsWith(repoEjecucion) ? entry.ruta.slice(repoEjecucion.length + 1) : entry.ruta;
     const arch = archivos.get(key) || { total: 0, porRegla: new Map() };
     for (const f of entry.findings || []) {
       const sev = severidadKey(f.severity);
