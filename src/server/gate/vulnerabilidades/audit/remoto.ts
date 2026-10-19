@@ -1,7 +1,7 @@
-/* Donde corre el audit de dependencias: en la VPS 89 si el proyecto se analiza
- * alli, en el portatil si no. [por que] El manager funciona sin VPS, asi que un
- * fallo al preparar el arbol remoto NO es un fallo del analisis: se cae a local
- * y se dice. Corte de vulnerabilidades.ts (17AA-2): lo local/taller y la
+/* Donde corre el audit de dependencias: en la VPS 89 si el proyecto es del taller,
+ * en el portatil si no. [por que] Un fallo al preparar el arbol remoto queda en error
+ * con su motivo y NO cae a local: auditar en el portatil un proyecto del taller es
+ * carga pesada (AGENTS §1). Corte de vulnerabilidades.ts (17AA-2): lo local/taller y la
  * ejecucion del audit son dos cosas distintas y estaban en el mismo archivo. */
 import { prepararArbolRemoto } from '../../auditoria-remota.js';
 import type { GestorAudit } from '../../auditoria-remota.js';

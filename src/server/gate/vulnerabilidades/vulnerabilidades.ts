@@ -9,8 +9,9 @@
  *   pnpm-lock.yaml  -> pnpm audit --json (o corepack pnpm si pnpm no esta en PATH)
  *   package-lock.json -> npm audit --json
  *   Cargo.lock      -> cargo audit --json
- * Los tres corren en la VPS 89 si el proyecto se analiza alli (ver
- * auditoria-remota.ts) y en el portatil si no: el manager funciona sin VPS.
+ * Los tres corren en la VPS 89 si el proyecto es del taller (ver
+ * auditoria-remota.ts) y en el portatil si no. Sin taller configurado, un proyecto
+ * del taller da error con su motivo; el resto del manager funciona sin VPS.
  * Un proyecto puede tener varios lockfile (WANDORIUS: raiz, frontend/,
  * glory-rs/): se auditan todos y se agregan. Los crates de Cargo.lock que no
  * alcanzan el build (cargo tree -i) no cuentan como hallazgo. Proyectos sin
@@ -86,7 +87,8 @@ async function correrAudit(p: Proyecto, lock: LockDetectado, enLa89: boolean): P
    * VarSense. Solo viaja lo que el gestor necesita para resolver su lockfile. Si el
    * envio falla, queda en 'error' con su motivo y NO se reintenta en local: auditar
    * en el portatil es carga pesada (AGENTS §1), igual que en `analizador.ts`. Sin
-   * taller configurado el audit corre en local, que es el modo sin VPS. */
+   * taller configurado un proyecto del taller tampoco baja al portatil: el error dice
+   * el motivo («sin taller configurado»). Sin marca de taller el audit es local. */
   const falloRemoto = enLa89 ? await prepararRemoto(p.ruta, lock.gestor) : null;
   if (falloRemoto !== null) {
     return sinDatos(base, 'error', `audit en el taller no arrancó: ${falloRemoto.slice(0, 120)}`);

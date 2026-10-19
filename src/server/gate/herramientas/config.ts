@@ -63,7 +63,11 @@ export function configRemotaDe(t: {
 /* El entorno se lee aquí, al componer la configuración, no al cargar el módulo. */
 export function leerConfigRemota(entorno: NodeJS.ProcessEnv = process.env): ConfigRemota {
   const tmpAudit = entorno.WM_AUDIT_REMOTO?.trim() || TMP_AUDIT_DEFECTO;
-  return configRemotaDe(JSON.parse(readFileSync(RUTA_TALLER, 'utf8')), tmpAudit);
+  /* [por que] Sin taller.json el error dice el motivo, no el ENOENT de la ruta: es el texto
+   * que ven el análisis y la auditoría de un proyecto del taller. */
+  const taller = leerTallerSiExiste();
+  if (!taller) throw new Error('sin taller configurado (falta config/taller.json o no es JSON válido)');
+  return configRemotaDe(taller, tmpAudit);
 }
 
 /* Parte de taller.json que decide DÓNDE se analiza: el host del taller y si es el modo
@@ -98,8 +102,8 @@ export function hostTaller(t: TallerAnalisis | null = leerTallerSiExiste()): str
  * el análisis es trabajo pesado y el reparto del área lo manda a la 89. Ahora, si hay
  * taller y el proyecto corre en él, el análisis va a la 89. `analisisEn` del registro
  * sigue mandando en los dos sentidos (`"dev89"` y `"local"`), para poder forzar uno
- * concreto. Sin taller —o con el proyecto fuera de él— local: el manager funciona
- * igual sin VPS.
+ * concreto. Un proyecto del taller con el taller apagado NO baja al portátil: ver abajo.
+ * Un proyecto sin marca de taller es local con o sin taller.
  * [por que `host` y no el bloque `proyectos` de taller.json] Ese bloque declara la BD
  * del taller, no el alta: un proyecto puede correr allí sin base de datos. RESTAURANTE
  * era justo eso — `host: "dev89"` en el registro y sin entrada en `proyectos`— y se
@@ -112,13 +116,20 @@ export function modoAnalisisEn(
 ): ModoAnalisis {
   const entrada = registro.proyectos?.find((x) => x.id === clave);
   if (entrada?.analisisEn === 'local') return 'local';
-  /* [por que] Sin taller.json no hay 89 a la que mandar nada: el alias y `analisisEn: "taller"`
-   * degradan a local (el manager funciona sin VPS). Antes `"taller"` pedía la 89 aun sin
-   * configurar y el análisis quedaba en error, mientras `host` sin taller ya caía en local. */
-  if (!taller) return 'local';
+  /* [por que] Sin taller.json no hay 89, pero el proyecto sigue siendo del taller: queda en
+   * 'taller' y su análisis, doctor y auditoría dicen «sin taller configurado» con el motivo.
+   * Bajarlo a local lo metía en el portátil, que no ejecuta proyectos del taller (AGENTS §1).
+   * El manager sin VPS sigue entero: los proyectos sin marca son locales. */
+  if (!taller) return declaraTaller(entrada) ? 'taller' : 'local';
   if (typeof entrada?.analisisEn === 'string' && pideTaller(entrada.analisisEn, taller)) return 'taller';
   if (taller?.modoPorDefecto !== 'remoto') return 'local';
   return typeof entrada?.host === 'string' && entrada.host.trim() ? 'taller' : 'local';
+}
+
+/* Marca de proyecto del taller en el registro: `host` o un `analisisEn` distinto de 'local'. */
+function declaraTaller(entrada: { analisisEn?: unknown; host?: unknown } | undefined): boolean {
+  if (typeof entrada?.host === 'string' && entrada.host.trim()) return true;
+  return typeof entrada?.analisisEn === 'string';
 }
 
 export function modoAnalisis(clave: string): ModoAnalisis {

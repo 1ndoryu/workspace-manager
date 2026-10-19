@@ -149,12 +149,13 @@ test('modoAnalisisEn: el taller solo con analisisEn exacto; por defecto local', 
   assert.equal(modoAnalisisEn({}, 'sistema-legado', taller), 'local');
 });
 
-/* [por que] Sin taller.json, `analisisEn: "taller"` no puede pedir la 89: degrada a local
- * igual que un proyecto con `host`. Antes quedaba en 'taller' y el análisis salía en error. */
-test('modoAnalisisEn: sin taller, analisisEn "taller" degrada a local', () => {
+/* [por que] Sin taller.json el proyecto del taller sigue siendo del taller: queda en 'taller'
+ * y su análisis explica «sin taller configurado». Bajarlo a local lo metía en el portátil
+ * (AGENTS §1). */
+test('modoAnalisisEn: sin taller, analisisEn "taller" sigue en taller con su motivo', () => {
   const registro = { proyectos: [{ id: 'sistema-legado', analisisEn: 'taller' }] };
-  assert.equal(modoAnalisisEn(registro, 'sistema-legado', null), 'local');
-  assert.equal(modoAnalisisEn(registro, 'sistema-legado'), 'local');
+  assert.equal(modoAnalisisEn(registro, 'sistema-legado', null), 'taller');
+  assert.equal(modoAnalisisEn(registro, 'sistema-legado'), 'taller');
 });
 
 /* [por que] El alias del host fue el valor con el que se escribio `analisisEn` antes de
@@ -165,7 +166,7 @@ test('modoAnalisisEn: el alias del taller declarado pide el taller', () => {
   const registro = { proyectos: [{ id: 'juego-arcade', analisisEn: 'dev89' }] };
   assert.equal(modoAnalisisEn(registro, 'juego-arcade', { host: 'dev89' }), 'taller');
   assert.equal(modoAnalisisEn(registro, 'juego-arcade', { host: 'otra-maquina' }), 'local');
-  assert.equal(modoAnalisisEn(registro, 'juego-arcade', null), 'local', 'sin taller no hay alias que interpretar');
+  assert.equal(modoAnalisisEn(registro, 'juego-arcade', null), 'taller', 'sin taller, la marca sigue siendo del taller');
 });
 
 /* Correr en el taller es lo que manda: un proyecto con `host` en el registro se analiza
@@ -188,11 +189,12 @@ test('modoAnalisisEn: el bloque de BD del taller no decide donde se analiza', ()
   assert.equal(modoAnalisisEn(registro, 'SIN-HOST', taller), 'local', 'una BD declarada no basta si no corre alli');
 });
 
-/* Sin taller el manager tiene que seguir entero en local: es el caso de un clon recien
- * hecho, y no es un error. */
-test('modoAnalisisEn: sin taller, local', () => {
-  const registro = { proyectos: [{ id: 'catalogo-web', host: 'dev89' }] };
-  assert.equal(modoAnalisisEn(registro, 'catalogo-web', null), 'local');
+/* Sin taller el manager sigue entero en local para los proyectos sin marca (clon recién
+ * hecho, no es un error). Los del taller no bajan al portátil: quedan en 'taller'. */
+test('modoAnalisisEn: sin taller, sin marca local y con marca del taller no baja al portátil', () => {
+  const registro = { proyectos: [{ id: 'catalogo-web', host: 'dev89' }, { id: 'sitio-api' }] };
+  assert.equal(modoAnalisisEn(registro, 'catalogo-web', null), 'taller', 'host declarado: del taller');
+  assert.equal(modoAnalisisEn(registro, 'sitio-api', null), 'local', 'sin marca: local con o sin taller');
   assert.equal(modoAnalisisEn(registro, 'catalogo-web', { modoPorDefecto: 'local' }), 'local');
   assert.equal(modoAnalisisEn(registro, 'catalogo-web', {}), 'local', 'taller sin modo por defecto declarado');
 });

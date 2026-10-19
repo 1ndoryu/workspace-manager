@@ -4,8 +4,9 @@
  * VarSense ya corren alli, y el audit de dependencias es analisis igual que ellos.
  * Tenerlo en el portatil dejaba la mitad del panel de vulnerabilidades medido en
  * otra maquina que la otra mitad, y ademas auditaba el lockfile del portatil en vez
- * del que se va a construir en la 89. Sin taller —o si el envio falla— el audit cae
- * a local, que es como funcionaba antes: el manager funciona igual sin VPS.
+ * del que se va a construir en la 89. Un proyecto del taller no cae a local: sin taller
+ * configurado o si el envio falla, queda en error con su motivo (AGENTS §1). Un proyecto
+ * sin marca de taller se audita en local, con o sin VPS.
  *
  * El caso de cargo nacio antes y por otro motivo: el portatil se quedo sin toolchain
  * de Rust el 2026-10-16 (AGENTS §1), asi que `cargo audit` y `cargo tree` ya no
