@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { obtenerToken } from './src/server/seguridad/token.js';
-import { PUERTO_API, PUERTO_WEB } from './src/shared/puertos.js';
+import { PUERTO_API, PUERTO_WEB } from './src/server/plataforma/puertos.js';
 
 /* [workspace-manager] Stack identico al proyecto task (PROYECTO TASKS/frontend):
  * Vite + React 18 + TS. Server HTTP propio en src/server/index.ts expone la API;

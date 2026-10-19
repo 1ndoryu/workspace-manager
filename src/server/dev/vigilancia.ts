@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { InformeDev } from '../../shared/dev.js';
 import { snapshotArea } from '../snapshot.js';
-import { RAIZ_REPO } from '../../shared/rutas.js';
+import { RAIZ_REPO } from '../plataforma/rutas.js';
 
 /* Doctor relativo a la raiz del repo, no al cwd: el servidor puede arrancarse
  * desde cualquier directorio. */

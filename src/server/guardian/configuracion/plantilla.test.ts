@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { raizTemporales } from '../../plataforma/temporales.js';
-import { RAIZ_REPO } from '../../../shared/rutas.js';
+import { RAIZ_REPO } from '../../plataforma/rutas.js';
 import { eolDe, hashDe } from '../escritura.js';
 import {
   calcularEdicionPlantilla,

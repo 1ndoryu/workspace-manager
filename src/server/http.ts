@@ -7,7 +7,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, normalize, relative, sep } from 'node:path';
 
-import { RAIZ_AREA } from '../shared/rutas.js';
+import { RAIZ_AREA } from './plataforma/rutas.js';
 
 export function json(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });

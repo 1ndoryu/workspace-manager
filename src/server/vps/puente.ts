@@ -12,8 +12,8 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { papelDeArea, papelesDeArea } from '../../shared/area.js';
-import { RAIZ_AREA } from '../../shared/rutas.js';
+import { papelDeArea, papelesDeArea } from '../plataforma/area.js';
+import { RAIZ_AREA } from '../plataforma/rutas.js';
 import { raizTemporales } from '../plataforma/temporales.js';
 
 /* Nombre base del ejecutable del gestor de despliegues. [por que] Estaba

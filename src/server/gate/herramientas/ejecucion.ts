@@ -13,7 +13,7 @@ import { RAIZ_VERSIONS, checkoutSentinel, cliSentinelParaProyecto, versionRuntim
 import type { ResolucionCli } from './proveedor.js';
 /* Raíz del área (misma fuente del server): la caché de análisis vive bajo
  * <area>/data/cache/analisis.json, como la config del workspace. */
-import { RAIZ_AREA } from '../../../shared/rutas.js';
+import { RAIZ_AREA } from '../../plataforma/rutas.js';
 
 /* Tipos del JSON real que devuelve `sentinel analyze --format json` (varsense
  * `all` comparte la forma: severityCounts + entries con findings). No se

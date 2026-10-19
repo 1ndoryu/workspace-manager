@@ -5,8 +5,8 @@
  * atendio la ruta, false si no es suya. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { campoStr, json, leerBody } from '../http.js';
-import { RAIZ_AREA } from '../../shared/rutas.js';
-import { avisoSinPapel, papelDeArea } from '../../shared/area.js';
+import { RAIZ_AREA } from '../plataforma/rutas.js';
+import { avisoSinPapel, papelDeArea } from '../plataforma/area.js';
 import { snapshotArea } from '../snapshot.js';
 import { cambiarIgnorado, cambiarSinGate, guardarConfigScan, leerConfigArea } from '../configArea.js';
 import { actualizarSnapshot } from '../cache.js';

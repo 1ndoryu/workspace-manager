@@ -7,7 +7,8 @@
  *
  * El repo se deriva de `import.meta.url`, así que vale igual desde `src/`
  * (tsx, tests) y desde `dist-server/` (servidor compilado): en ambos casos
- * subir dos niveles desde `shared/` da la raíz del repo. */
+ * subir tres niveles desde `server/plataforma/` da la raíz del repo. Vive en
+ * `server/` porque lee el entorno y el disco; `shared/` queda solo con lo puro. */
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -16,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 const AQUI = dirname(fileURLToPath(import.meta.url));
 
 /** Raíz del repo de workspace-manager (donde está `package.json`). */
-export const RAIZ_REPO = join(AQUI, '..', '..');
+export const RAIZ_REPO = join(AQUI, '..', '..', '..');
 
 /* Nombre del propio tablero: el de su carpeta.
  * [por qué] Tres sitios decidían con el literal `'workspace-manager'` (¿este

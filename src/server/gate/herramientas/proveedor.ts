@@ -20,7 +20,7 @@ import { proveedorDe, registrarProveedor } from '../../../shared/gate/proveedore
 import { ESQUEMA_SENTINEL } from '../../../shared/gate/catalogo/sentinel.js';
 import { ESQUEMA_VARSENSE } from '../../../shared/gate/catalogo/varsense.js';
 import { serializarEsquema } from '../../../shared/gate/modelo/serial.js';
-import { RAIZ_AREA } from '../../../shared/rutas.js';
+import { RAIZ_AREA } from '../../plataforma/rutas.js';
 
 /* Raíz de las versiones instaladas de GlorySentinel (AppData local). */
 export const RAIZ_VERSIONS = join(

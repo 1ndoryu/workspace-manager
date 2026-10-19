@@ -17,8 +17,8 @@ import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
-import { RAIZ_AREA, RAIZ_REPO } from '../../shared/rutas.js';
-import { avisoSinPapel, papelDeArea } from '../../shared/area.js';
+import { RAIZ_AREA, RAIZ_REPO } from '../plataforma/rutas.js';
+import { avisoSinPapel, papelDeArea } from '../plataforma/area.js';
 
 const execFileAsync = promisify(execFile);
 

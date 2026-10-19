@@ -5,7 +5,7 @@
  * los interpreta cada modulo, que es quien sabe que busca.
  * El fichero es privado y vive fuera del repo (ver config/ejemplos/). */
 import { readFileSync } from 'node:fs';
-import { rutaConfigPrivada } from '../shared/rutas.js';
+import { rutaConfigPrivada } from './plataforma/rutas.js';
 
 /* Forma minima que aqui se usa. El resto del registro (proyectos, vps,
  * ignoradosSistema...) lo interpreta quien lo necesita. */

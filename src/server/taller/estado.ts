@@ -17,8 +17,8 @@ import {
 } from '../../shared/taller/conformidad.js';
 import { hostsActivos } from '../../shared/taller/conformidadPublico.js';
 import { leerRegistroConformidad } from './registroConformidad.js';
-import { NOMBRE_MANAGER } from '../../shared/rutas.js';
-import { BIN_SSH } from '../../shared/binarios.js';
+import { NOMBRE_MANAGER } from '../plataforma/rutas.js';
+import { BIN_SSH } from '../plataforma/binarios.js';
 import { esNumero, esObjeto } from '../../shared/guardas.js';
 import { hostTaller, leerConfigRemota } from '../gate/herramientas/config.js';
 

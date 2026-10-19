@@ -11,7 +11,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { join } from 'node:path';
 import { raizTemporales } from '../../plataforma/temporales.js';
 import { manejarRutasGuardian } from './rutasGuardian.js';
-import { RAIZ_REPO } from '../../../shared/rutas.js';
+import { RAIZ_REPO } from '../../plataforma/rutas.js';
 import type { DependenciasGuardian } from './rutasGuardianTipos.js';
 import { leerActividad } from '../../guardian/operacion/actividad.js';
 import { NOMBRE_PLANTILLA } from '../../guardian/configuracion/plantilla.js';

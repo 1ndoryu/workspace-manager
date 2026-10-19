@@ -5,7 +5,7 @@ import { createServer, type ServerResponse } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { json } from './http.js';
-import { RAIZ_REPO } from '../shared/rutas.js';
+import { RAIZ_REPO } from './plataforma/rutas.js';
 /* [por que] `snapshotArea` vive en snapshot.ts desde que se extrajo alli por
  * limite de lineas; tener aqui una copia era una segunda fuente de verdad del
  * mismo escaneo (y arrastraba estos imports). */
@@ -31,7 +31,7 @@ import { obtenerToken } from './seguridad/token.js';
 import { registrarAuditoria, rutaAuditoriaPorDefecto } from './seguridad/auditoria.js';
 import { logger } from '../shared/logger.js';
 
-import { PUERTO_API } from '../shared/puertos.js';
+import { PUERTO_API } from './plataforma/puertos.js';
 export const PUERTO = PUERTO_API;
 
 /* [por que] resolver DIST relativo al script y no al cwd: el servidor puede

@@ -4,7 +4,7 @@
  * límite de líneas. */
 import { readFileSync } from 'node:fs';
 import type { RegistroConformidad } from '../../shared/taller/conformidad.js';
-import { rutaConfigPrivada } from '../../shared/rutas.js';
+import { rutaConfigPrivada } from '../plataforma/rutas.js';
 import { sesionDev } from '../../shared/taller/sesiones.js';
 import { appsAjenas } from '../registro.js';
 

@@ -3,7 +3,7 @@
  * (carga, persistencia, poda) es la misma que la del almacén de vulnerabilidades y
  * vive en `almacenPersistido.ts`. */
 import { join } from 'node:path';
-import { RAIZ_AREA } from '../../../shared/rutas.js';
+import { RAIZ_AREA } from '../../plataforma/rutas.js';
 import type { AnalisisSentinel } from '../../../shared/types.js';
 import { crearAlmacenPersistido } from '../almacenPersistido.js';
 

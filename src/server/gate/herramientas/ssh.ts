@@ -4,7 +4,7 @@
  * comandos y con la decisión de modo, que son otra cosa. */
 import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { BIN_SSH, BIN_TAR } from '../../../shared/binarios.js';
+import { BIN_SSH, BIN_TAR } from '../../plataforma/binarios.js';
 import type { ConfigRemota } from './config.js';
 
 const execFileAsync = promisify(execFile);

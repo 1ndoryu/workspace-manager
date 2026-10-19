@@ -3,7 +3,7 @@
  * audit y agregar); esto solo sabe guardar y servir. La mecánica (carga, persistencia,
  * poda) vive en `almacenPersistido.ts`, compartida con el almacén de análisis. */
 import { join } from 'node:path';
-import { RAIZ_AREA } from '../../../shared/rutas.js';
+import { RAIZ_AREA } from '../../plataforma/rutas.js';
 import type { AnalisisVulnerabilidades } from '../../../shared/types.js';
 import { crearAlmacenPersistido } from '../almacenPersistido.js';
 

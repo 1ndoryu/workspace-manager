@@ -6,7 +6,7 @@
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json } from '../../http.js';
-import { dirConfigPrivada } from '../../../shared/rutas.js';
+import { dirConfigPrivada } from '../../plataforma/rutas.js';
 import { snapshotArea } from '../../snapshot.js';
 import { esElegible } from '../../gate/analizador.js';
 import type { Proyecto } from '../../../shared/types.js';

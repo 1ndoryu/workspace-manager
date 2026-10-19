@@ -31,8 +31,8 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, delimiter, dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { leerConfigArea } from '../configArea.js';
-import { RAIZ_AREA } from '../../shared/rutas.js';
-import { BIN_SSH, BIN_TAR } from '../../shared/binarios.js';
+import { RAIZ_AREA } from '../plataforma/rutas.js';
+import { BIN_SSH, BIN_TAR } from '../plataforma/binarios.js';
 import { leerConfigRemota } from './herramientas/config.js';
 import { comillas } from './herramientas/ssh.js';
 

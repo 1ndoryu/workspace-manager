@@ -7,9 +7,9 @@
 import type { IncomingHttpHeaders } from 'node:http';
 
 /* Puertos del tablero: front, backend y preview. La lista vive en
- * `shared/puertos.ts` (dueño único del dato); el puerto de opencode-propio no
+ * `server/plataforma/puertos.ts` (dueño único del dato); el puerto de opencode-propio no
  * figura ahí a propósito, porque no es del tablero. */
-import { PUERTOS_TABLERO } from '../../../shared/puertos.js';
+import { PUERTOS_TABLERO } from '../../plataforma/puertos.js';
 export { PUERTOS_TABLERO };
 
 /* [por que] <nombre>.localhost (p. ej. workspace.localhost, dominio del registro) entra

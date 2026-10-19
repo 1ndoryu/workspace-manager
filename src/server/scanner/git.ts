@@ -4,7 +4,7 @@
 import { execFile, execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
-import { BIN_GIT } from '../../shared/binarios.js';
+import { BIN_GIT } from '../plataforma/binarios.js';
 import type { ArchivoLocal, CommitResumen, DetalleRepoSync, EstadoGit, LadoSync } from '../../shared/types.js';
 import { commondirDe, detectarGit, gitdirDe, type InfoGit } from './gitDeteccion.js';
 

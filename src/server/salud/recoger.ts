@@ -7,7 +7,7 @@ import { existsSync, readdirSync, statSync, statfsSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, join, parse } from 'node:path';
-import { CARPETA_SKILLS, RAIZ_AREA, RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.js';
+import { CARPETA_SKILLS, RAIZ_AREA, RAIZ_REPO, rutaConfigPrivada } from '../plataforma/rutas.js';
 import type { Proyecto } from '../../shared/types.js';
 import { leerArchivo } from '../http.js';
 import { leerSentinelLock } from '../scanner/gate.js';

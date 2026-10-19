@@ -192,7 +192,9 @@ npx tsx --test "src/**/*.test.ts"
 ```
 src/
   server/     backend HTTP: rutas, gate, guardián, escáner, salud, tareas, vps
-  shared/     utilidades compartidas entre el backend y los scripts
+              y `plataforma/` (raíces, puertos, binarios y papeles del área: lo que
+              lee el entorno o el disco)
+  shared/     tipos y utilidades puras, sin E/S: lo que puede importar el front
   v2/         front: mapa y paneles (React). Es el que se sirve.
   components/ hooks/ styles/ assets/   front v1, conservado por si hay que revertir
 scripts/
@@ -204,7 +206,7 @@ config/       config privada (no versionada) + ejemplos
 ```
 
 Las dos mitades —backend y scripts— comparten la derivación de rutas en
-`src/shared/rutas.ts` y `scripts/shared/rutas.mjs`. Son el mismo cálculo escrito
+`src/server/plataforma/rutas.ts` y `scripts/shared/rutas.mjs`. Son el mismo cálculo escrito
 dos veces a propósito: Node ejecuta los `.mjs` sueltos y no puede importar
 TypeScript.
 

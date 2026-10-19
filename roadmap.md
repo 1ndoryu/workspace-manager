@@ -52,7 +52,8 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
   ciclo `pc/scan` ↔ `pc/limpieza` **roto** (exclusión mutua en `pc/exclusion.ts`, módulo hoja, con test).
   Almacenes unificados en `gate/almacenPersistido.ts` (con test; commit `8b4b8bf`).
   Pendiente, sin corregir: `vulnerabilidades.ts` (SRP), `salud/recoger.ts`,
-  `auditoria-remota.ts`, `rutasGuardianTipos.ts` (ISP) y las capas de `shared/` sin verificar contra el código;
+  `auditoria-remota.ts`. `shared/` ya es puro (ningún módulo de producción con `node:*` ni `process.env`;
+  `area`, `binarios`, `puertos` y `rutas` movidos a `server/plataforma/`, 0 importaciones inversas);
   accesibilidad de la UI; limpieza de config privada fuera del repo; restos del frente 9
   (`test-utils.mjs`, `doctor.*.test.mjs`, `cm-sweep.sh`, `provision-89.sh`, `root-taller-89.sh:19,71`,
   `comprobacionesProyecto.ts:34,57`, `comprobacionesArea.ts:55`, `pc/ejecucion.ts:55`,
@@ -73,7 +74,7 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
   MN-Inmobiliaria, NAKOMI, PROYECTO TASKS, glory-lab, Glory-Laminal) no tienen `quality.config.json`
   ni adaptador de gate: confirmar que ningún comando de `Arranque gate` ni de otro script de calidad
   les ejecuta `tsc` en el laptop.
-- `17AA-5` — **Los gemelos `.ts`/`.mjs` no tienen guarda.** `src/shared/{area,binarios,puertos}.ts`
+- `17AA-5` — **Los gemelos `.ts`/`.mjs` no tienen guarda.** `src/server/plataforma/{area,binarios,puertos}.ts`
   y `src/server/plataforma/temporales.ts` se duplican a mano en `scripts/shared/*.mjs` porque un
   `.mjs` suelto no puede importar TypeScript, y nada comprueba que digan lo mismo: añadir
   `despliegueBin` fueron dos ediciones manuales. Un test que importe los dos y compare el resultado

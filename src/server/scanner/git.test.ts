@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { join } from 'node:path';
 import test, { after } from 'node:test';
 import { detectarGit, estadoGit, estadoGitAsync } from './git.js';
-import { raizTemporales } from '../../shared/rutas.js';
+import { raizTemporales } from '../plataforma/rutas.js';
 
 const BASE = mkdtempSync(join(raizTemporales(), 'wm-git-test-'));
 after(() => rmSync(BASE, { recursive: true, force: true }));

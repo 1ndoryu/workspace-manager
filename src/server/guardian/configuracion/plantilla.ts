@@ -12,7 +12,7 @@ import { ErrorValidacion, LISTAS_GUARD, validarEntradas, type Listas, type Plant
 
 /* Nombre del fichero dentro de la config privada. [por que] La plantilla lleva la
  * lista de proyectos del area, asi que no puede vivir en el repo: es la misma
- * config privada que el registro y la ficha del taller (ver shared/rutas.ts). */
+ * config privada que el registro y la ficha del taller (ver server/plataforma/rutas.ts). */
 export const NOMBRE_PLANTILLA = 'guard-plantillas.json';
 
 export type LecturaPlantilla =

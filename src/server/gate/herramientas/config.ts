@@ -6,7 +6,7 @@
  * configuración válida (un clon recién hecho no lo trae), no un error. */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RAIZ_REPO } from '../../../shared/rutas.js';
+import { RAIZ_REPO } from '../../plataforma/rutas.js';
 
 /* [por que] RAIZ_REPO y no `import.meta.dirname`: esa propiedad no existe en todos los Node
  * (el de la 89 por fnm en algunos entornos la deja indefinida) y tumbaba al importar. */

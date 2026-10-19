@@ -4,7 +4,7 @@
  * importa de allí el helper `git`. */
 import { execFileSync } from 'node:child_process';
 import { git, MAX_ARCHIVOS_LOCALES, opcionesGit } from './git.js';
-import { BIN_GIT } from '../../shared/binarios.js';
+import { BIN_GIT } from '../plataforma/binarios.js';
 import type { ArchivosRepo, EntradaCambio } from '../../shared/types.js';
 
 /* Limites del lateral de cambios por archivo (299A-4, copiado de

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { RAIZ_REPO } from '../../../shared/rutas.js';
+import { RAIZ_REPO } from '../../plataforma/rutas.js';
 import {
   comandoAnalisis,
   comandoDeps,

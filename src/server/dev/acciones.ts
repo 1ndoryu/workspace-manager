@@ -11,7 +11,7 @@ import { execFile } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.js';
+import { RAIZ_REPO, rutaConfigPrivada } from '../plataforma/rutas.js';
 import { snapshotArea } from '../snapshot.js';
 
 const DIR_DEV = join(RAIZ_REPO, 'scripts', 'dev');

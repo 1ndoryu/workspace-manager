@@ -12,7 +12,7 @@ import { createHash } from 'node:crypto';
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { BIN_GIT } from '../../../shared/binarios.js';
+import { BIN_GIT } from '../../plataforma/binarios.js';
 
 const execFileAsync = promisify(execFile);
 
