@@ -147,7 +147,10 @@ test('la escritura es atómica y no deja ficheros temporales', () => {
 
 /* --- caso 11: ubicación de la caché -------------------------------------- */
 test('la caché vive fuera de todo repo y respeta el override', () => {
-  assert.equal(directorioCertificaciones({ GLORY_CERT_CACHE: 'C:\\tmp\\cert-test' }), 'C:\\tmp\\cert-test');
+  /* El override se prueba con una ruta absoluta del SO donde corre el test (la 89 es Linux,
+   * el portátil Windows): una ruta literal de Windows no es absoluta en Linux. */
+  const override = path.resolve(os.tmpdir(), 'cert-test');
+  assert.equal(directorioCertificaciones({ GLORY_CERT_CACHE: override }), override);
   const windows = directorioCertificaciones({ LOCALAPPDATA: 'C:\\Users\\usuario\\AppData\\Local' });
   assert.match(windows, /GlorySentinel[\\/]certificaciones$/u);
   /* El nombre de la carpeta es el papel `sentinel` del área, así que aquí se pasa

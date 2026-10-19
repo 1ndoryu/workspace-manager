@@ -14,8 +14,9 @@
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
@@ -27,6 +28,25 @@ const CANONICOS = ['quality-setup.mjs', 'lock-generator.mjs'];
  * adapter no vuelva frágil el test. */
 const MARCA_ROUTER = 'router: el adapter resuelve al propio router';
 const MARCA_ADAPTER = "from './certificacion.mjs'";
+
+/* [por que] El dry-run necesita un checkout de referencia de la herramienta. En el
+ * portatil vive en <area>/.quality-tools, en la 89 en otra carpeta (_quality-tools):
+ * el test no puede depender de esa disposicion. Se crea un repo git minimo en el
+ * temporal del SO y se pasa con --source; asi el test corre igual en cualquier equipo. */
+let fuente = null;
+function fuenteSentinel() {
+  if (fuente) return fuente;
+  fuente = fs.mkdtempSync(path.join(os.tmpdir(), 'bump-fuente-'));
+  fs.writeFileSync(path.join(fuente, 'package.json'), JSON.stringify({ name: 'sentinel-referencia', version: '0.0.0-test' }) + '\n');
+  const git = (...args) => spawnSync('git', ['-C', fuente, ...args], { encoding: 'utf8' });
+  git('init', '-q');
+  git('add', 'package.json');
+  git('-c', 'user.name=test', '-c', 'user.email=test@test.invalid', 'commit', '-q', '-m', 'referencia');
+  return fuente;
+}
+after(() => {
+  if (fuente) fs.rmSync(fuente, { recursive: true, force: true });
+});
 
 function bump(args) {
   const resultado = spawnSync(process.execPath, [BUMP, ...args], {
@@ -91,7 +111,7 @@ test('un bump de pin en dry-run no toca ningún archivo', () => {
     }
   }
   const antes = rutas.map(ruta => fs.readFileSync(ruta, 'utf8'));
-  const { status } = bump(['--tool', 'sentinel']);
+  const { status } = bump(['--tool', 'sentinel', '--source', fuenteSentinel()]);
   assert.equal(status, 0, 'el bump de pin en dry-run debe salir 0');
   rutas.forEach((ruta, indice) => {
     assert.equal(fs.readFileSync(ruta, 'utf8'), antes[indice], `${ruta} cambió en un dry-run`);
@@ -111,14 +131,14 @@ test('un bump de pin en dry-run no toca ningún archivo', () => {
  * la tabla que tiene encima.
  */
 test('el resumen del dry-run cuenta lo mismo que la tabla', () => {
-  const { salida: json } = bump(['--tool', 'sentinel', '--json']);
+  const { salida: json } = bump(['--tool', 'sentinel', '--source', fuenteSentinel(), '--json']);
   const inicio = json.indexOf('{');
   const fin = json.lastIndexOf('}');
   assert.ok(inicio >= 0 && fin > inicio, `--json no devolvió JSON:\n${json}`);
   const filas = JSON.parse(json.slice(inicio, fin + 1)).filas;
   const pendientes = filas.filter(fila => fila.pin === 'cambiaría').length;
 
-  const { status, salida } = bump(['--tool', 'sentinel']);
+  const { status, salida } = bump(['--tool', 'sentinel', '--source', fuenteSentinel()]);
   assert.equal(status, 0, 'el bump de pin en dry-run debe salir 0');
   const resumen = salida.split('\n').find(linea => linea.includes('manifiesto(s) por reescribir'));
   assert.ok(resumen, `el dry-run no imprimió el resumen:\n${salida}`);
