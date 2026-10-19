@@ -8,10 +8,9 @@ import type { GestorAudit } from '../../auditoria-remota.js';
 import { modoAnalisis } from '../../herramientas/config.js';
 
 /* Deja en la 89 el arbol que necesita este gestor. Devuelve null si se pudo, o el
- * motivo por el que no: el audit cae a local en vez de fallar, que es lo que hace
- * el manager sin VPS. [por que] Antes devolvia false en silencio, y un audit que
- * corrio en el portatil se mostraba igual que uno de la 89: la degradacion tiene
- * que decirse, no callarse. */
+ * motivo por el que no. [por que] El llamador lo convierte en 'error' con ese
+ * motivo: no hay audit en local de respaldo (AGENTS §1). Devolver false en
+ * silencio mostraria un fallo igual que un resultado. */
 export async function prepararRemoto(rutaProyecto: string, gestor: GestorAudit): Promise<string | null> {
   try {
     await prepararArbolRemoto(rutaProyecto, gestor);
@@ -19,13 +18,6 @@ export async function prepararRemoto(rutaProyecto: string, gestor: GestorAudit):
   } catch (err) {
     return err instanceof Error ? err.message : String(err);
   }
-}
-
-/* Aviso de degradacion, para que el panel distinga un audit de la 89 de uno que
- * se quedo en local. Misma forma que el de `analizador.ts` para Sentinel y
- * VarSense: `aviso`, no `error`, porque hay resultado. */
-export function avisoLocal(fallo: string): string {
-  return `hecho en local, el taller no respondió (${fallo.slice(0, 120)})`;
 }
 
 /* Si el proyecto se analiza en la 89. `modoAnalisis` lee registro.json, que es

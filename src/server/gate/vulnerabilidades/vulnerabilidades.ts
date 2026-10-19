@@ -31,7 +31,7 @@ import {
   parsearAudit,
 } from './audit/parseo.js';
 import type { JsonAudit } from './audit/parseo.js';
-import { avisoLocal, enTaller, prepararRemoto } from './audit/remoto.js';
+import { enTaller, prepararRemoto } from './audit/remoto.js';
 import { detectarLockfiles, frescoDe } from './lockfiles.js';
 import {
   guardarVulnerabilidades,
@@ -82,15 +82,19 @@ async function correrAudit(p: Proyecto, lock: LockDetectado, enLa89: boolean): P
 
   /* [por que] El analisis del taller va a la 89 (AGENTS §7): el audit es analisis,
    * asi que con `modoAnalisis === 'taller'` corre alli, igual que Sentinel y
-   * VarSense. Solo viaja lo que el gestor necesita para resolver su lockfile, y si
-   * el envio no se puede hacer se cae a local: el manager funciona sin VPS. */
+   * VarSense. Solo viaja lo que el gestor necesita para resolver su lockfile. Si el
+   * envio falla, queda en 'error' con su motivo y NO se reintenta en local: auditar
+   * en el portatil es carga pesada (AGENTS §1), igual que en `analizador.ts`. Sin
+   * taller configurado el audit corre en local, que es el modo sin VPS. */
   const falloRemoto = enLa89 ? await prepararRemoto(p.ruta, lock.gestor) : null;
-  const remoto = enLa89 && falloRemoto === null;
-  const aviso = falloRemoto ? avisoLocal(falloRemoto) : undefined;
+  if (falloRemoto !== null) {
+    return sinDatos(base, 'error', `audit en el taller no arrancó: ${falloRemoto.slice(0, 120)}`);
+  }
+  const remoto = enLa89;
 
   const cli = await cliDeAudit(lock.gestor, cwdAudit, remoto);
   if (!cli) {
-    return sinDatos(base, 'noAuditable', 'pnpm no disponible (ni pnpm ni corepack en PATH)', aviso);
+    return sinDatos(base, 'noAuditable', 'pnpm no disponible (ni pnpm ni corepack en PATH)');
   }
 
   const correr: Corredor = remoto
@@ -124,17 +128,16 @@ async function correrAudit(p: Proyecto, lock: LockDetectado, enLa89: boolean): P
       resumen,
       hallazgos: hallazgos.slice(0, 300).map((h) => ({ ...h, origen: lock.lockfile })),
       noAlcanzables: noAlcanzables.map((h) => ({ ...h, origen: lock.lockfile })),
-      ...(aviso ? { aviso } : {}),
     };
   } catch (err) {
     /* [por que] cargo-audit ausente produce stdout vacio o no-JSON. Se marca
      * 'noAuditable' (visible sin problema) como limitacion documentada. */
     if (lock.gestor === 'cargo') {
       const donde = remoto ? 'en la 89' : 'en local';
-      return sinDatos(base, 'noAuditable', `cargo-audit no disponible ${donde} (no instalado o sin salida)`, aviso);
+      return sinDatos(base, 'noAuditable', `cargo-audit no disponible ${donde} (no instalado o sin salida)`);
     }
     const msg = stdout.trim() === '' ? 'sin salida del CLI' : err instanceof Error ? err.message : 'audit fallo';
-    return sinDatos(base, 'error', `audit fallo: ${msg.slice(0, 120)}`, aviso);
+    return sinDatos(base, 'error', `audit fallo: ${msg.slice(0, 120)}`);
   }
 }
 
