@@ -16,9 +16,9 @@ export function LeyendaMapa() {
       ))}
       <li>
         <span className="mapaV2LeyendaLinea mapaV2LeyendaLinea--vivo" />
-        brillo = en marcha
+        brillo = corriendo
       </li>
-      <li>sin línea = sin conexión</li>
+      <li>sin línea = apagado</li>
     </ul>
   );
 }

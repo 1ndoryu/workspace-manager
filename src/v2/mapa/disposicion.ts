@@ -44,8 +44,10 @@ type Destino = IdHub | 'libre';
 /* Orden fijo de reparto: así cada grupo recibe sus celdas más cercanas por turnos. */
 const TURNOS: IdHub[] = ['vps89', 'laptop', 'produccion'];
 
-function destinoDe(p: Proyecto): Destino {
-  if (p.ejecucion) return p.ejecucion.donde;
+/* Solo cuenta donde corre de verdad: ejecución en marcha o despliegue. Lo demás
+ * (apagado) va al bloque aparte, sin enlaces. */
+function destinoDe(p: Proyecto, vivos: ReadonlySet<string>): Destino {
+  if (p.ejecucion && vivos.has(p.clave)) return p.ejecucion.donde;
   return p.despliegue ? 'produccion' : 'libre';
 }
 
@@ -77,10 +79,10 @@ export function disponer(proyectos: Proyecto[], vivos: ReadonlySet<string>): Dis
   const orden = [...proyectos].sort(
     (a, b) => PESO_ESTADO[estadoProyecto(a)] - PESO_ESTADO[estadoProyecto(b)] || a.id.localeCompare(b.id),
   );
-  for (const p of orden) grupos[destinoDe(p)].push(p);
+  for (const p of orden) grupos[destinoDe(p, vivos)].push(p);
 
   const colocados: Colocado[] = [];
-  /* Sin ubicación ni despliegue: bloque aparte, separado del cuadrado de nodos
+  /* Apagados (sin ejecución en marcha ni despliegue): bloque aparte, separado del cuadrado de nodos
    * por dos celdas vacías, para que se lea que no están conectados a nada. */
   const ancho = lado / 2 + 1;
   grupos.libre.forEach((p, i) => {
@@ -106,8 +108,8 @@ export function disponer(proyectos: Proyecto[], vivos: ReadonlySet<string>): Dis
 
   const enlaces: Enlace[] = [];
   for (const c of colocados) {
-    if (c.p.ejecucion) {
-      enlaces.push({ clave: c.p.clave, desde: c, hasta: c.p.ejecucion.donde, tipo: 'ejecucion', vivo: vivos.has(c.p.clave) });
+    if (c.p.ejecucion && vivos.has(c.p.clave)) {
+      enlaces.push({ clave: c.p.clave, desde: c, hasta: c.p.ejecucion.donde, tipo: 'ejecucion', vivo: true });
     }
     if (c.p.despliegue) {
       enlaces.push({ clave: c.p.clave, desde: c, hasta: 'produccion', tipo: 'produccion', vivo: false });
