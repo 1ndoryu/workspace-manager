@@ -45,7 +45,7 @@ interface ColumnaDatos {
   tareas: TareaTab[] | null;
   cargando: boolean;
   moviendo: string | null;
-  urlTareas: string;
+  urlTareas: string | null;
 }
 
 /* Gestos (los ejecuta el hook; aqui solo se cablean al DnD y al menu). */

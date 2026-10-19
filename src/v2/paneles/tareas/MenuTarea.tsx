@@ -60,7 +60,7 @@ export interface PosMenuTarea {
 
 export interface MenuTareaProps {
   tarea: TareaTab;
-  urlTareas: string;
+  urlTareas: string | null;
   pos: PosMenuTarea;
   onCerrar: () => void;
   acciones: AccionesTareaMenu;
@@ -192,19 +192,22 @@ export function MenuTarea(p: MenuTareaProps) {
           <span className="tareasMenuEtiqueta">eliminar</span>
         </Button>
         <div className="tareasMenuPie" role="none">
-          <a
-            className="botonV2 botonV2--pequeno tareasMenuOpcion"
-            role="menuitem"
-            href={p.urlTareas}
-            target="_blank"
-            rel="noreferrer"
-            title="Abrir el dashboard de TASKS en pestaña nueva (el frente no tiene URL por tarea)"
-          >
-            <span className="tareasMenuIcono">
-              <ExternalLink size={12} />
-            </span>
-            <span className="tareasMenuEtiqueta">abrir en TASKS</span>
-          </a>
+          {/* [por qué] Sin URL del tablero (no hay puente ni VITE_TAREAS_TABLERO_URL) no se pinta el enlace. */}
+          {p.urlTareas && (
+            <a
+              className="botonV2 botonV2--pequeno tareasMenuOpcion"
+              role="menuitem"
+              href={p.urlTareas}
+              target="_blank"
+              rel="noreferrer"
+              title="Abrir el dashboard de TASKS en pestaña nueva (el frente no tiene URL por tarea)"
+            >
+              <span className="tareasMenuIcono">
+                <ExternalLink size={12} />
+              </span>
+              <span className="tareasMenuEtiqueta">abrir en TASKS</span>
+            </a>
+          )}
         </div>
       </div>
       {/* (08AA-2) Submenu volador en portal: fuera del `.tareasMenu` para

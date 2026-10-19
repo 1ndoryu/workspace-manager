@@ -50,7 +50,7 @@ export interface TarjetaGestos {
   arrastrable: boolean;
   resaltada: boolean;
   enVuelo: boolean;
-  urlTareas: string;
+  urlTareas: string | null;
   arrastre: ArrastreTarjeta;
   onEditar: (parche: ParcheTareaTab) => void;
   onEliminar: () => void;

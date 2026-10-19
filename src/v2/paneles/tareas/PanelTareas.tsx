@@ -19,11 +19,11 @@ import './tareas.css';
  * /prueba/), asi que "abrir en TASKS" abre el dashboard en pestana nueva, no un
  * deep-link inventado.
  * [por qué] El enlace bueno lo dice el propio puente (`estado.base`, que sale de
- * TASKS_BASE_URL y en el portatil apunta al puerto del tunel a la 89); el valor
- * fijo solo es el respaldo para cuando el puente no responde. Fijarlo a mano era
- * un enlace muerto: 4191 es el puerto de dev, y en build el servicio es 4190. */
-export const URL_TABLERO_TAREAS: string =
-  import.meta.env.VITE_TAREAS_TABLERO_URL || 'http://127.0.0.1:14190/';
+ * TASKS_BASE_URL del taller y en el portátil apunta al túnel a la 89). No hay puerto
+ * fijo en el código: un valor por defecto sería el de un proyecto concreto y, sin el
+ * puente, daría un enlace muerto. Si no hay base ni VITE_TAREAS_TABLERO_URL, el menú
+ * no muestra «abrir en TASKS» (degradado explícito, no un enlace inventado). */
+export const URL_TABLERO_TAREAS: string | null = import.meta.env.VITE_TAREAS_TABLERO_URL || null;
 
 export function PanelTareas() {
   const t = usePanelTareas();
