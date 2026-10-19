@@ -118,6 +118,8 @@ export async function ejecutarMantenimiento(
   delete entorno.GLORY_QUALITY_GATE_TOKEN;
   enCurso = true;
   try {
+    /* [por que] Este comando instala la herramienta Sentinel del portátil (runtime en
+     * %LOCALAPPDATA%); no analiza ni compila proyectos, así que no pasa por la VPS 89 (AGENTS §1). */
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
       [opciones.runtimeJs ?? runtimeJsPorDefecto(), ...argumentos(n)],
