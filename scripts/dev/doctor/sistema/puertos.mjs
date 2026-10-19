@@ -235,16 +235,19 @@ export function enRuta(texto, base) {
 }
 
 
-/* Dueño de un listener huerfano: la ruta mas larga del pool que lo contiene
- * (exe+cmd). null = sin dueño conocido (grupo propio). */
-export function atribuirHuerfano(proc, pool) {
-  const texto = normalizarRuta(`${proc?.exe ?? ''} ${proc?.cmd ?? ''}`);
+/* Dueño de un listener huerfano en `puerto`: el proyecto del pool que lo
+ * reclama (ruta o marcador del puerto, igual que esDelProyecto), con la ruta
+ * mas larga si hay varios. null = sin dueño conocido (grupo propio).
+ * [por que] Solo por ruta, un proceso lanzado fuera de la carpeta (glory-backend
+ * de PROYECTO TASKS en 4190) salia sin dueño: el marcador de su puerto lo reclama. */
+export function atribuirHuerfano(proc, pool, puerto) {
   let clave = null;
-  let mejor = 0;
+  let mejor = -1;
   for (const p of pool) {
-    const base = normalizarRuta(p.ruta);
-    if (base.length > mejor && enRuta(texto, base)) {
-      mejor = base.length;
+    const marcador = p.entrada ? marcadorPuerto(p.entrada, puerto) : undefined;
+    const base = normalizarRuta(p.ruta).length;
+    if (esDelProyecto(proc, p.ruta, marcador) && base > mejor) {
+      mejor = base;
       clave = p.clave;
     }
   }

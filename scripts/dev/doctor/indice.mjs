@@ -221,12 +221,13 @@ export async function main(argv) {
   const snapshotEn = snapshot?.escaneadoEn ?? null;
 
   let escucha = [];
-  if (!errorSensor) ({ escucha, errorSensor } = await escuchaRobusta());
+  let establecidas = [];
+  if (!errorSensor) ({ escucha, establecidas, errorSensor } = await escuchaRobusta());
   const tomadoEn = new Date().toISOString();
   let clasif = { proyectos: [], huerfanos: [] };
   if (!errorSensor) {
     try {
-      clasif = await clasificar(proyectos, registro, escucha, ignoradosArea);
+      clasif = await clasificar(proyectos, registro, escucha, ignoradosArea, establecidas);
     } catch (e) {
       errorSensor = `clasificar: ${e.message}`;
     }

@@ -3,14 +3,29 @@
 import { isAbsolute, resolve } from 'node:path';
 
 import { RAIZ_REPO } from './base.mjs';
-import { datosCimDe, escanearEscucha, normalizarRuta, procesosSshVivos } from './sistema/procesos.mjs';
+import { datosCimDe, escanearSockets, normalizarRuta, procesosSshVivos } from './sistema/procesos.mjs';
 import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeListener, tunelDeQuien } from './sistema/puertos.mjs';
+
+/* Entrada del registro que describe al proyecto `p` (por ruta o por id de aviso). */
+export function entradaDeProyecto(p, registro) {
+  return [...registro.entradas.values()].find(
+    (e) =>
+      (typeof e.ruta === 'string' &&
+        normalizarRuta(isAbsolute(e.ruta) ? e.ruta : resolve(RAIZ_REPO, e.ruta)) === normalizarRuta(p.ruta)) ||
+      (e._avisoRegistro && e.id === p.clave),
+  );
+}
 
 /* Clasifica snapshot x registro x escucha. Por proyecto: exactamente un
  * estado. Huerfanos: listeners sin entrada del registro; se atribuyen por
- * prefijo de ruta (exe+cmd) o quedan con clave null (grupo propio). */
-export async function clasificar(proyectos, registro, escucha, ignorados = []) {
-  const pids = [...new Set(escucha.map((e) => e.pid))];
+ * ruta o marcador del puerto, o quedan con clave null (grupo propio).
+ * `establecidas` (netstat ESTABLISHED) delata las dependencias: un listener
+ * usado por un cliente de un proyecto (p. ej. el tunel de BD) no es huerfano. */
+export async function clasificar(proyectos, registro, escucha, ignorados = [], establecidas = []) {
+  // [por que] Los clientes de un listener también se miran en CIM: su pid dice quién lo usa.
+  const puertosEscucha = new Set(escucha.map((e) => e.puerto));
+  const clientes = establecidas.filter((f) => puertosEscucha.has(f.puertoRemoto));
+  const pids = [...new Set([...escucha.map((e) => e.pid), ...clientes.map((f) => f.pid)])];
   // [por que] Solo se consulta CIM por servicios si el registro declara alguno.
   // [por que] Apps propias fuera del area se tratan como exenciones declaradas: no
   // son huecos ni deriva, y no hace falta matarlas para que el tablero quede limpio.
@@ -36,16 +51,12 @@ export async function clasificar(proyectos, registro, escucha, ignorados = []) {
 
   const resultado = [];
   const consumidos = new Set();
+  // [por que 06AA-1] La entrada marcada puede traer `ruta` rota: entradaDeProyecto
+  // la casa tambien por id==clave para que el aviso salga como deriva atribuida.
+  const delProyecto = proyectos.map((p) => ({ ...p, entrada: entradaDeProyecto(p, registro) }));
+  const pool = [...delProyecto, ...ignorados];
   for (const p of proyectos) {
-    // [por que 06AA-1] La entrada marcada puede traer `ruta` rota: sin guarda
-    // el isAbsolute romperia TODO el --all. Y se casa tambien por id==clave
-    // para que el aviso salga como deriva atribuida, no como sin-boton mudo.
-    const entrada = [...registro.entradas.values()].find(
-      (e) =>
-        (typeof e.ruta === 'string' &&
-          normalizarRuta(isAbsolute(e.ruta) ? e.ruta : resolve(RAIZ_REPO, e.ruta)) === normalizarRuta(p.ruta)) ||
-        (e._avisoRegistro && e.id === p.clave),
-    );
+    const entrada = entradaDeProyecto(p, registro);
     if (!entrada) {
       if (p.clave in registro.noAplica) {
         resultado.push({ clave: p.clave, id: null, estado: 'no-aplica', motivo: registro.noAplica[p.clave] });
@@ -62,8 +73,12 @@ export async function clasificar(proyectos, registro, escucha, ignorados = []) {
   const huerfanos = [];
   const entradasReg = [...registro.entradas.values()];
   let sshVivos = null; // lazy: solo si hay un listener cuyo pid ya no existe
+  // [por que] netstat da dos filas por socket (IPv4 e IPv6) y un proceso con dos
+  // sockets en el mismo puerto no es dos huecos: un hueco = un par puerto+pid.
+  const vistos = new Set();
   for (const c of candidatos) {
     if (consumidos.has(`${c.ip}:${c.puerto}:${c.pid}`)) continue;
+    if (vistos.has(`${c.puerto}:${c.pid}`)) continue;
     const proc = procs.get(c.pid);
     // [por que] Script auxiliar declarado del proyecto (p. ej. mejora.mjs): es
     // del area y no es hueco ni huerfano; fuera de `puertos` no genera deriva.
@@ -81,13 +96,21 @@ export async function clasificar(proyectos, registro, escucha, ignorados = []) {
       sshVivos ??= await procesosSshVivos();
       if (tunelDeListener(c.puerto, sshVivos, entradasReg)) continue;
     }
+    // [por que] Un cliente ESTABLISHED de un proyecto registrado usa este listener
+    // (tunel de BD de PROYECTO TASKS, 15433): es dependencia, no hueco. Solo cuentan
+    // proyectos del registro: un cliente ignorado no debe blanquear un listener ajeno.
+    const dependeDeProyecto = clientes.some(
+      (f) => f.puertoRemoto === c.puerto && f.pid !== c.pid && atribuirHuerfano(procs.get(f.pid), delProyecto, c.puerto),
+    );
+    if (dependeDeProyecto) continue;
     // [por que] El pool incluye los ignorados del area: opencode-propio (ignorado
     // en el tablero) se atribuye y cae en noAplica en vez de salir huerfano mudo.
-    const clave = atribuirHuerfano(proc, [...proyectos, ...ignorados]);
+    const clave = atribuirHuerfano(proc, pool, c.puerto);
     // [por que] gestion-externa (opencode-propio-dev): su listener no es un hueco
     // del area; el mando no lo gestiona ni lo reporta como deriva. Otros motivos
     // de noAplica siguen visibles.
     if (clave && registro.noAplica?.[clave] === 'gestion-externa') continue;
+    vistos.add(`${c.puerto}:${c.pid}`);
     huerfanos.push({
       ip: c.ip,
       puerto: c.puerto,
@@ -271,13 +294,13 @@ export function tabla(informe) {
  * no es defecto del area). Dos fallos = real. */
 export async function escuchaRobusta() {
   try {
-    return { escucha: await escanearEscucha(), errorSensor: null };
+    return { ...(await escanearSockets()), errorSensor: null };
   } catch (e) {
     await new Promise((r) => setTimeout(r, 1000));
     try {
-      return { escucha: await escanearEscucha(), errorSensor: null };
+      return { ...(await escanearSockets()), errorSensor: null };
     } catch (e2) {
-      return { escucha: [], errorSensor: `sensor: ${e.message} / reintento: ${e2.message}` };
+      return { escucha: [], establecidas: [], errorSensor: `sensor: ${e.message} / reintento: ${e2.message}` };
     }
   }
 }

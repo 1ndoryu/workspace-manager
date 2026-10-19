@@ -10,6 +10,7 @@ import {
   parsearNetstat,
   puertoDeSaludValido,
 } from '../../doctor.mjs';
+import { parsearEstablecidas } from '../sistema/procesos.mjs';
 
 const AREA = 'C:\\area';
 
@@ -132,6 +133,28 @@ test('atribuirHuerfano: editor-propio-dev no se atribuye a editor-propio (fronte
   ];
   const proc = { exe: `${AREA}\\editor-propio-dev\\src\\node_modules\\electron.exe`, cmd: '' };
   assert.equal(atribuirHuerfano(proc, pool), 'editor-propio-dev');
+});
+
+test('atribuirHuerfano: el marcador del puerto reclama un proceso fuera de la carpeta (PROYECTO TASKS 4190)', () => {
+  const entrada = { puertos: [4190, 4191], expectedCmdline: ['glory-backend', '4191'] };
+  const pool = [{ clave: 'PROYECTO TASKS', ruta: `${AREA}\\PROYECTO TASKS`, entrada }];
+  const proc = { exe: 'C:\\Users\\usuario\\Apps\\PROYECTO-TASKS\\glory-backend.exe', cmd: 'glory-backend.exe --port 4190' };
+  assert.equal(atribuirHuerfano(proc, pool, 4190), 'PROYECTO TASKS');
+  // En 4191 el marcador es '4191': este proceso no lo lleva ni está bajo la ruta, así que no es del proyecto.
+  assert.equal(atribuirHuerfano(proc, pool, 4191), null);
+  assert.equal(atribuirHuerfano({ exe: 'C:\\otro\\node.exe', cmd: 'node x.js' }, pool, 4190), null);
+});
+
+test('parsearEstablecidas: conexiones ESTABLISHED con el pid del cliente; ignora LISTENING', () => {
+  const sal = [
+    '  TCP    127.0.0.1:15433        0.0.0.0:0              LISTENING       31216',
+    '  TCP    127.0.0.1:50001        127.0.0.1:15433        ESTABLISHED     9276',
+    '  TCP    [::1]:50002            [::1]:15433            ESTABLISHED     9276',
+  ].join('\r\n');
+  assert.deepEqual(parsearEstablecidas(sal), [
+    { puertoRemoto: 15433, pid: 9276 },
+    { puertoRemoto: 15433, pid: 9276 },
+  ]);
 });
 
 test('esSistemaIgnorado: identidad por puerto solo para un proceso ilegible', () => {

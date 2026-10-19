@@ -48,8 +48,14 @@ function correrCmd(exe, args, timeoutMs = TIMEOUT_SENSOR_MS) {
  * al area por proceso (los binds globales de servicios del sistema quedan
  * fuera de alcance declarado). */
 export async function escanearEscucha() {
+  return (await escanearSockets()).escucha;
+}
+
+/* Listeners y conexiones establecidas en UNA sola llamada a netstat. */
+export async function escanearSockets() {
   // [por que] Sin `-p TCP`: en Windows ese filtro omite los listeners IPv6 ([::1]:5176).
-  return parsearNetstat(await correrCmd('netstat.exe', ['-ano']));
+  const sal = await correrCmd('netstat.exe', ['-ano']);
+  return { escucha: parsearNetstat(sal), establecidas: parsearEstablecidas(sal) };
 }
 
 // Puro (testeable): filas `TCP <local> <remoto> LISTENING <pid>` de `netstat -ano`.
@@ -65,6 +71,22 @@ export function parsearNetstat(sal) {
     const puerto = Number(t[1].slice(corte + 1));
     const pid = Number(t[4]);
     if (Number.isInteger(puerto) && Number.isInteger(pid)) filas.push({ ip, puerto, pid });
+  }
+  return filas;
+}
+
+/* Puro (testeable): conexiones ESTABLISHED con el puerto remoto y el pid dueño de
+ * la fila. [por que] En la fila del CLIENTE el puerto remoto es el listener, así
+ * que su pid dice quién lo usa: el túnel de BD de un proyecto no tiene dueño
+ * legible (CIM oculto) pero sí su backend como cliente. */
+export function parsearEstablecidas(sal) {
+  const filas = [];
+  for (const linea of sal.split(/\r?\n/)) {
+    const t = linea.trim().split(/\s+/);
+    if (t.length !== 5 || t[0] !== 'TCP' || t[3] !== 'ESTABLISHED') continue;
+    const puertoRemoto = Number(t[2].slice(t[2].lastIndexOf(':') + 1));
+    const pid = Number(t[4]);
+    if (Number.isInteger(puertoRemoto) && Number.isInteger(pid)) filas.push({ puertoRemoto, pid });
   }
   return filas;
 }
