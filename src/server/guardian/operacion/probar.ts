@@ -135,6 +135,10 @@ export async function probarComando(entrada: EntradaProbar, opciones: OpcionesPr
   delete entorno.GLORY_QUALITY_GATE_LEASE;
   delete entorno.GLORY_QUALITY_GATE_TOKEN;
   entorno.GLORY_GUARD_LOG_DIR = opciones.diarioDir ?? DIARIO_PRUEBAS;
+  /* [por que] Va al portátil y no a la 89 (AGENTS §1, excepción de decisión): el guard decide
+   * con el Guardián que los shims del portátil consultan y con rutas del portátil (`raiz`), así
+   * que la respuesta de la 89 sería de otra instalación. Es una decisión de milisegundos, no un
+   * análisis ni una compilación. Sin Sentinel instalado devuelve estado error con el motivo. */
   const argv = [
     opciones.runtimeJs ?? runtimeJsPorDefecto(),
     'guard',
