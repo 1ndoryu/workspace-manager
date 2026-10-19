@@ -24,7 +24,7 @@ import { rutaConfigPrivada } from '../shared/rutas.mjs';
 /* [por que] `taller.json` no se versiona (ver config/ejemplos/), asi que el test
  * no puede exigirla: en un clon ajeno usa un fixture con la misma forma. Los
  * asserts comparan contra el propio objeto, de modo que el resultado no cambia. */
-const FIXTURE = { modoPorDefecto: 'remoto', proyectos: {} };
+const FIXTURE = { modoPorDefecto: 'remoto', host: 'taller', dirRemotoBase: '/srv/taller', proyectos: {} };
 const config = existsSync(rutaConfigPrivada('taller.json')) ? cargarConfig() : FIXTURE;
 
 // [14AA-1] El default lo fija taller.json. Desde 2026-10-15 es remoto (la 89 compila; local solo con --local).
@@ -73,8 +73,8 @@ test('slug normaliza ramas', () => {
 
 test('rutas remotas: directorio del proyecto y target por rama', () => {
   const r = rutasRemotas(config, 'sistema-legado', 'feature/x');
-  assert.equal(r.dirRemoto, '/home/usuario/taller/sistema-legado');
-  assert.equal(r.dirLogs, '/home/usuario/taller/_logs/sistema-legado');
+  assert.equal(r.dirRemoto, `${config.dirRemotoBase}/sistema-legado`);
+  assert.equal(r.dirLogs, `${config.dirRemotoBase}/_logs/sistema-legado`);
   assert.equal(r.dirLogs.startsWith(r.dirRemoto), false);
   assert.equal(r.target, '/var/tmp/glory-target/sistema-legado_feature-x');
 });
@@ -84,7 +84,7 @@ test('sesión Mutagen: réplica unidireccional con exclusiones', () => {
   assert.ok(args.includes('one-way-replica'));
   assert.ok(args.includes('.git'));
   assert.ok(args.includes('config/settings.json'));
-  assert.equal(args.at(-1), 'dev89:/home/usuario/taller/sistema-legado');
+  assert.equal(args.at(-1), `${config.host}:${config.dirRemotoBase}/sistema-legado`);
 });
 
 // [por que] Orden de la sincronización: el directorio existe antes de crear la sesión, y el envío se fuerza al final.

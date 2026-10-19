@@ -73,7 +73,7 @@ test('tunelEsNuestro: exige ssh, host y el reenvio del puerto', () => {
 });
 
 test('comandoRemotoUp: cargo sin cm-heavy (el candado es solo del build), target propio e idempotente', () => {
-  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+  const rutas = { dirRemoto: '/srv/taller/P', dirLogs: '/srv/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
   const cmd = comandoRemotoUp(config, rutas, 'P', 3001, ['cargo', 'run', '--release']);
   assert.equal(cmd.includes('cm-heavy'), false);
   assert.ok(cmd.includes('/var/tmp/glory-target/P_main'));
@@ -86,7 +86,7 @@ test('comandoRemotoUp: cargo sin cm-heavy (el candado es solo del build), target
 });
 
 test('comandoRemotoUp: env del registro llega al proceso; nombres no válidos se rechazan', () => {
-  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+  const rutas = { dirRemoto: '/srv/taller/P', dirLogs: '/srv/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
   const cmd = comandoRemotoUp(config, rutas, 'P', 3001, ['npm', 'run', 'dev'], { PORT: '3001', VITE_API_TARGET: 'http://127.0.0.1:3001' });
   // Igual que los demás tests de este bloque: el valor va entrecomillado para el shell remoto, así que se comprueban las partes.
   assert.ok(cmd.includes('PORT='));
@@ -98,7 +98,7 @@ test('comandoRemotoUp: env del registro llega al proceso; nombres no válidos se
 });
 
 test('comandoRemotoUp: comando no cargo no pasa por cm-heavy', () => {
-  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+  const rutas = { dirRemoto: '/srv/taller/P', dirLogs: '/srv/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
   const cmd = comandoRemotoUp(config, rutas, 'P', 3001, ['npm', 'run', 'dev']);
   assert.equal(cmd.includes('cm-heavy'), false);
   assert.ok(cmd.includes('fnm/aliases/default/bin'));
@@ -143,7 +143,7 @@ test('pidsEscuchandoLocal: solo escuchas loopback de nuestros puertos, no conexi
 });
 
 test('variablesDistintas: detecta valores distintos o ausentes; ignora el resto del entorno', () => {
-  const environ = 'PATH=/usr/bin\nPORT=5199\nDATABASE_URL=postgres://x\nHOME=/home/usuario\n';
+  const environ = 'PATH=/usr/bin\nPORT=5199\nDATABASE_URL=postgres://x\nHOME=/srv/casa\n';
   assert.deepEqual(variablesDistintas(environ, { PORT: '5199', DATABASE_URL: 'postgres://x' }), []);
   assert.deepEqual(variablesDistintas(environ, { PORT: '3110' }), ['PORT']);
   assert.deepEqual(variablesDistintas(environ, { PORT: '5199', SQLX_OFFLINE: 'true' }), ['SQLX_OFFLINE']);
@@ -161,7 +161,7 @@ test('validarHostRemoto: botonRemoto con un comando por puerto y cargo exige pre
 });
 
 test('puertosLocales: el túnel abre el puerto local y deja el remoto; validación fail-closed', () => {
-  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+  const rutas = { dirRemoto: '/srv/taller/P', dirLogs: '/srv/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
   const conLocales = { ...entrada, puertos: [3110, 5199], puertosLocales: [3210, 5299] };
   const args = argsTunel(config, conLocales);
   assert.ok(args.includes('127.0.0.1:3210:127.0.0.1:3110'));
@@ -244,27 +244,27 @@ test('contenidoEnvFrontend: autologinDev añade la bandera una sola vez', () => 
 });
 
 test('comandoPrecompilar: build bajo cm-heavy, mismo target que el arranque, log fuera de la réplica', () => {
-  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+  const rutas = { dirRemoto: '/srv/taller/P', dirLogs: '/srv/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
   const cmd = comandoPrecompilar(config, rutas, 'P', ['cargo', 'build', '--bin', 'x']);
   assert.match(cmd, /cm-heavy.*cargo/);
   assert.ok(cmd.includes('/var/tmp/glory-target/P_main'));
-  assert.ok(cmd.includes('/home/usuario/taller/_logs/P/precompilar-P.log'));
+  assert.ok(cmd.includes('/srv/taller/_logs/P/precompilar-P.log'));
   // sqlx compila contra .sqlx/ y no contra la base de la 89 (puede estar vacía): SQLX_OFFLINE va antes del build.
   assert.ok(cmd.includes('SQLX_OFFLINE=true'));
   assert.ok(cmd.indexOf('SQLX_OFFLINE=true') < cmd.indexOf('cm-heavy'));
   assert.ok(cmd.indexOf('RUSTC_WRAPPER=') < cmd.indexOf('cm-heavy'));
-  assert.equal(cmd.includes('/home/usuario/taller/P/logs'), false);
+  assert.equal(cmd.includes('/srv/taller/P/logs'), false);
 });
 
 test('comandoNpmCi: marca por sha256 del lock y log por subproyecto fuera de la réplica', () => {
-  const cmd = comandoNpmCi('/home/usuario/taller/P', '/home/usuario/taller/_logs/P', 'frontend', 'P');
+  const cmd = comandoNpmCi('/srv/taller/P', '/srv/taller/_logs/P', 'frontend', 'P');
   assert.ok(cmd.includes('package-lock.json'));
   assert.ok(cmd.includes('npm ci'));
   assert.ok(cmd.includes('node_modules/.taller-lock-sha256'));
-  assert.ok(cmd.includes('/home/usuario/taller/_logs/P/npm-ci-P-frontend.log'));
-  assert.equal(cmd.includes('/home/usuario/taller/P/logs'), false);
+  assert.ok(cmd.includes('/srv/taller/_logs/P/npm-ci-P-frontend.log'));
+  assert.equal(cmd.includes('/srv/taller/P/logs'), false);
   assert.ok(cmd.includes('fnm/aliases/default/bin'));
-  assert.equal(rutaLogNpmCi('/home/usuario/taller/_logs/P', '.', 'P'), '/home/usuario/taller/_logs/P/npm-ci-P-raiz.log');
+  assert.equal(rutaLogNpmCi('/srv/taller/_logs/P', '.', 'P'), '/srv/taller/_logs/P/npm-ci-P-raiz.log');
 });
 
 test('leerUrlBdLocal: acepta loopback y extrae nombre, usuario, host y puerto', () => {
@@ -439,7 +439,7 @@ test('validarHostRemoto: en build valida el bloque build, no el del dev', () => 
 });
 
 test('comandoConstruirFront: sin cm-heavy, sin el env del registro, log fuera de la réplica', () => {
-  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+  const rutas = { dirRemoto: '/srv/taller/P', dirLogs: '/srv/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
   const cmd = comandoConstruirFront(rutas, 'P', ['npm', '--prefix', 'frontend', 'run', 'build']);
   // [por que] ~200 MB y 11,5 s: bajo cm-heavy no se podría reconstruir el front sin 6 GB libres.
   assert.equal(cmd.includes('cm-heavy'), false);
@@ -447,13 +447,13 @@ test('comandoConstruirFront: sin cm-heavy, sin el env del registro, log fuera de
   assert.equal(cmd.includes('SQLX_OFFLINE'), false);
   // `vite build` hornea lo que ve: el env del registro lleva el proxy de dev y no debe llegar.
   assert.equal(cmd.includes('VITE_'), false);
-  assert.ok(cmd.includes('/home/usuario/taller/P'));
-  assert.ok(cmd.includes('/home/usuario/taller/_logs/P/construir-front-P.log'));
-  assert.equal(cmd.includes('/home/usuario/taller/P/logs'), false);
+  assert.ok(cmd.includes('/srv/taller/P'));
+  assert.ok(cmd.includes('/srv/taller/_logs/P/construir-front-P.log'));
+  assert.equal(cmd.includes('/srv/taller/P/logs'), false);
 });
 
 test('construirFrontRemoto: sin build.construirFront aborta antes de tocar la 89', async () => {
-  const rutas = { dirRemoto: '/home/usuario/taller/P', dirLogs: '/home/usuario/taller/_logs/P' };
+  const rutas = { dirRemoto: '/srv/taller/P', dirLogs: '/srv/taller/_logs/P' };
   for (const construirFront of [undefined, []]) {
     const ficha = { ...fichaBuild, build: { ...fichaBuild.build, construirFront } };
     const r = await construirFrontRemoto(config, 'P', ficha, rutas);

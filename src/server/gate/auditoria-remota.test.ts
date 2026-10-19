@@ -61,9 +61,9 @@ test('cada gestor tiene su propio arbol en la 89', () => {
  * cargo, y `posix.dirname` (no `path.dirname`) es lo que evita que en Windows
  * salga con barras invertidas, que el shell de la 89 no entiende. */
 test('el PATH remoto es POSIX y depende del gestor', () => {
-  const node = '/home/usuario/.local/share/fnm/node-versions/v24.21.0/installation/bin/node';
+  const node = '/srv/casa/.local/share/fnm/node-versions/v24.21.0/installation/bin/node';
   assert.equal(pathRemoto('cargo', node), '$HOME/.cargo/bin');
-  assert.equal(pathRemoto('npm', node), '/home/usuario/.local/share/fnm/node-versions/v24.21.0/installation/bin');
+  assert.equal(pathRemoto('npm', node), '/srv/casa/.local/share/fnm/node-versions/v24.21.0/installation/bin');
   assert.equal(pathRemoto('pnpm', node), pathRemoto('npm', node));
   assert.ok(!pathRemoto('npm', node).includes('\\'));
 });

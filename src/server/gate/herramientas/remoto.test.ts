@@ -21,8 +21,8 @@ import { comillas } from './ssh.js';
 
 const CFG_OK = {
   host: 'dev89',
-  dirRemotoBase: '/home/usuario/taller',
-  nodeRemoto: '/home/usuario/.local/share/fnm/node-versions/v24.21.0/installation/bin/node',
+  dirRemotoBase: '/srv/taller',
+  nodeRemoto: '/srv/casa/.local/share/fnm/node-versions/v24.21.0/installation/bin/node',
   sync: { binario: 'C:/herramientas/mutagen/mutagen.exe' },
 };
 
@@ -35,12 +35,12 @@ test('comillas: cita para POSIX y escapa la comilla simple', () => {
 test('configRemotaDe: acepta rutas absolutas simples', () => {
   const cfg = configRemotaDe(CFG_OK);
   assert.equal(cfg.host, 'dev89');
-  assert.equal(cfg.dirRemotoBase, '/home/usuario/taller');
+  assert.equal(cfg.dirRemotoBase, '/srv/taller');
   assert.equal(cfg.mutagen, 'C:/herramientas/mutagen/mutagen.exe');
 });
 
 test('configRemotaDe: rechaza rutas con metacaracteres, relativas o incompletas', () => {
-  assert.throws(() => configRemotaDe({ ...CFG_OK, dirRemotoBase: '/home/usuario/taller; rm -rf /' }), /dirRemotoBase/);
+  assert.throws(() => configRemotaDe({ ...CFG_OK, dirRemotoBase: '/srv/taller; rm -rf /' }), /dirRemotoBase/);
   assert.throws(() => configRemotaDe({ ...CFG_OK, nodeRemoto: 'node' }), /nodeRemoto/);
   assert.throws(() => configRemotaDe({ ...CFG_OK, dirRemotoBase: 'home/dev/taller' }), /dirRemotoBase/);
   assert.throws(() => configRemotaDe({ host: 'dev89' }), /faltan/);
@@ -48,9 +48,9 @@ test('configRemotaDe: rechaza rutas con metacaracteres, relativas o incompletas'
 
 test('rutaRemota: une base y clave; rechaza claves no seguras', () => {
   const cfg = configRemotaDe(CFG_OK);
-  assert.equal(rutaRemota(cfg, 'sistema-legado'), '/home/usuario/taller/sistema-legado');
-  assert.equal(rutaRemota({ ...cfg, dirRemotoBase: '/home/usuario/taller/' }, 'sistema-legado'), '/home/usuario/taller/sistema-legado');
-  assert.equal(rutaRemota(cfg, 'PROYECTO TASKS'), '/home/usuario/taller/PROYECTO TASKS');
+  assert.equal(rutaRemota(cfg, 'sistema-legado'), '/srv/taller/sistema-legado');
+  assert.equal(rutaRemota({ ...cfg, dirRemotoBase: '/srv/taller/' }, 'sistema-legado'), '/srv/taller/sistema-legado');
+  assert.equal(rutaRemota(cfg, 'PROYECTO TASKS'), '/srv/taller/PROYECTO TASKS');
   assert.throws(() => rutaRemota(cfg, 'a;b'), /no válida/);
   assert.throws(() => rutaRemota(cfg, '..'), /no válida/);
   assert.throws(() => rutaRemota(cfg, '../x'), /no válida/);
@@ -59,16 +59,16 @@ test('rutaRemota: une base y clave; rechaza claves no seguras', () => {
 test('rutaRuntimeRemota: el runtime vive fuera de la réplica, que se vacía al sincronizar', () => {
   const cfg = configRemotaDe(CFG_OK);
   const r = rutaRuntimeRemota(cfg, 'juego-arcade', 'sentinel');
-  assert.equal(r, '/home/usuario/taller/_quality-tools/juego-arcade/sentinel');
+  assert.equal(r, '/srv/taller/_quality-tools/juego-arcade/sentinel');
   assert.ok(!r.startsWith(`${rutaRemota(cfg, 'juego-arcade')}/`), 'no puede colgar de la réplica');
-  assert.equal(rutaRuntimeRemota(cfg, 'PROYECTO TASKS', 'varsense'), '/home/usuario/taller/_quality-tools/PROYECTO TASKS/varsense');
+  assert.equal(rutaRuntimeRemota(cfg, 'PROYECTO TASKS', 'varsense'), '/srv/taller/_quality-tools/PROYECTO TASKS/varsense');
   assert.throws(() => rutaRuntimeRemota(cfg, 'a;b', 'sentinel'), /no válida/);
 });
 
 test('comandoDeps: reinstala solo si el lock cambió, y falla en claro si npm ci falla', () => {
-  const cmd = comandoDeps('/n/bin/npm', '/home/usuario/taller/_quality-tools/juego-arcade/sentinel', 'abc123');
+  const cmd = comandoDeps('/n/bin/npm', '/srv/taller/_quality-tools/juego-arcade/sentinel', 'abc123');
   assert.ok(cmd.includes(`!= 'abc123'`), 'compara contra la huella');
-  assert.ok(cmd.includes(`'/n/bin/npm' ci --omit=dev --silent --prefix '/home/usuario/taller/_quality-tools/juego-arcade/sentinel'`));
+  assert.ok(cmd.includes(`'/n/bin/npm' ci --omit=dev --silent --prefix '/srv/taller/_quality-tools/juego-arcade/sentinel'`));
   assert.ok(cmd.endsWith('|| exit 3; fi; echo ok'), 'un npm ci fallido sale con 3');
 });
 
@@ -168,28 +168,28 @@ test('hostTaller: el alias lo declara la config, y sin ella no hay host', () => 
 
 test('comandoAnalisis: entorno citado, CLI, verbo y workspace', () => {
   const cmd = comandoAnalisis({
-    env: { GLORY_SENTINEL_SOURCE_PATH: '/home/usuario/taller/R/.quality-tools/sentinel' },
+    env: { GLORY_SENTINEL_SOURCE_PATH: '/srv/taller/R/.quality-tools/sentinel' },
     node: '/usr/bin/node',
-    cli: '/home/usuario/taller/R/out/cli/index.js',
+    cli: '/srv/taller/R/out/cli/index.js',
     verbo: 'analyze',
-    workspace: '/home/usuario/taller/R',
+    workspace: '/srv/taller/R',
   });
   assert.equal(
     cmd,
-    "env GLORY_SENTINEL_SOURCE_PATH='/home/usuario/taller/R/.quality-tools/sentinel' '/usr/bin/node' '/home/usuario/taller/R/out/cli/index.js' analyze --workspace '/home/usuario/taller/R' --format json",
+    "env GLORY_SENTINEL_SOURCE_PATH='/srv/taller/R/.quality-tools/sentinel' '/usr/bin/node' '/srv/taller/R/out/cli/index.js' analyze --workspace '/srv/taller/R' --format json",
   );
 });
 
 test('comandoDoctor: el doctor no lleva --format, su JSON ya es fijo', () => {
   const cmd = comandoDoctor({
-    env: { GLORY_SENTINEL_SOURCE_PATH: '/home/usuario/taller/R/.quality-tools/sentinel' },
+    env: { GLORY_SENTINEL_SOURCE_PATH: '/srv/taller/R/.quality-tools/sentinel' },
     node: '/usr/bin/node',
-    cli: '/home/usuario/taller/R/out/cli/index.js',
-    workspace: '/home/usuario/taller/R',
+    cli: '/srv/taller/R/out/cli/index.js',
+    workspace: '/srv/taller/R',
   });
   assert.equal(
     cmd,
-    "env GLORY_SENTINEL_SOURCE_PATH='/home/usuario/taller/R/.quality-tools/sentinel' '/usr/bin/node' '/home/usuario/taller/R/out/cli/index.js' doctor --json --workspace '/home/usuario/taller/R'",
+    "env GLORY_SENTINEL_SOURCE_PATH='/srv/taller/R/.quality-tools/sentinel' '/usr/bin/node' '/srv/taller/R/out/cli/index.js' doctor --json --workspace '/srv/taller/R'",
   );
 });
 
@@ -218,14 +218,14 @@ test('reposAnidados: marca de fichero, de directorio y no desciende dentro', () 
 });
 
 test('comandoMarcasRepos: escribe la marca del fichero y crea la del directorio', () => {
-  const cmd = comandoMarcasRepos('/home/usuario/taller/juego-arcade', [
+  const cmd = comandoMarcasRepos('/srv/taller/juego-arcade', [
     { ruta: 'glory-rs', marca: 'gitdir: ../.git/modules/glory-rs' },
     { ruta: 'vendors/completo', marca: null },
   ]);
   assert.equal(
     cmd,
-    "mkdir -p '/home/usuario/taller/juego-arcade/glory-rs' && printf '%s' 'gitdir: ../.git/modules/glory-rs' > '/home/usuario/taller/juego-arcade/glory-rs/.git' && " +
-      "mkdir -p '/home/usuario/taller/juego-arcade/vendors/completo/.git' && echo ok",
+    "mkdir -p '/srv/taller/juego-arcade/glory-rs' && printf '%s' 'gitdir: ../.git/modules/glory-rs' > '/srv/taller/juego-arcade/glory-rs/.git' && " +
+      "mkdir -p '/srv/taller/juego-arcade/vendors/completo/.git' && echo ok",
   );
   assert.equal(comandoMarcasRepos('/x', []), 'echo ok');
 });
