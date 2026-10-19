@@ -1,8 +1,7 @@
 /* Lectura de la ficha de una entrada remota: puertos, healths y estado real en la VPS. */
 
 import { shQuote } from '../../remoto/rcargo.mjs';
-import { RAIZ_REPO, localesDeModo, puertosRemotosDe } from '../doctor.mjs';
-import { isAbsolute, normalize, resolve } from 'node:path';
+import { localesDeModo, puertosRemotosDe } from '../doctor.mjs';
 
 import { comandoSesiones, sesionTmux } from './comandos.mjs';
 import { entornoRemoto } from './entorno.mjs';
@@ -42,10 +41,6 @@ export function pararSesionesPuertos(config, id, puertos) {
   return sshRemoto(config, comando);
 }
 
-
-export function rutaAbsDe(entrada) {
-  return isAbsolute(entrada.ruta) ? normalize(entrada.ruta) : resolve(RAIZ_REPO, entrada.ruta);
-}
 
 // El health del puerto: de ahí salen la ruta y el marcador. En build el `/` lo sirve el backend, así
 // que un 200 puede ser la API y no la SPA; el marcador (p. ej. `<div id="root">`) es lo que las
