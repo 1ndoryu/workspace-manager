@@ -27,7 +27,7 @@
  * definicion): el doctor tambien los necesita para clasificar una ficha con
  * `host`, y definirlos dos veces los desincronizaria. Se reexportan aqui porque
  * los consumidores de este modulo ya los importaban de este archivo. */
-export { esEntradaRemota, entradaEfectiva, MODO_POR_DEFECTO, modoDe } from './doctor.mjs';
+export { esEntradaRemota, entradaEfectiva, MODO_POR_DEFECTO, modoDe, urlsServidas } from './doctor.mjs';
 
 export { comandoConstruirFront, comandoNpmCi, comandoPrecompilar, comandoRemotoUp, comandoSondaRemota, rutaLogNpmCi } from './remoto/comandos.mjs';
 

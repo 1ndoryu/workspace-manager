@@ -28,6 +28,7 @@ import {
   rutaLogNpmCi,
   tunelDePuertosNuestros,
   tunelEsNuestro,
+  urlsServidas,
   validarHostRemoto,
   variablesDistintas,
 } from './remoto.mjs';
@@ -399,6 +400,28 @@ test('localesTodos: los puertos locales de los dos modos, con la regla de puerto
   // catalogo-web: los locales difieren de los remotos y el build trae los suyos.
   assert.deepEqual(localesTodos({ puertos: [3103, 5176], puertosLocales: [13103, 15176], build: { puertos: [3103], puertosLocales: [13103] } }), [13103, 15176]);
   assert.deepEqual(localesTodos({ puertos: [3001] }), [3001]);
+});
+
+test('urlsServidas: en un proyecto remoto imprime el puerto del túnel, no el de la VPS', () => {
+  // PROYECTO TASKS: el dev escucha 4190/4191 en la 89 y aquí llega por 14190/14191. Imprimir el
+  // remoto daba un enlace muerto (medido el 2026-10-19); en modo build manda el bloque `build`.
+  const tareas = {
+    host: 'dev89',
+    modo: 'build',
+    dominio: 'tareas.localhost',
+    puertos: [4190, 4191],
+    puertosLocales: [14190, 14191],
+    build: {
+      puertos: [4190],
+      puertosLocales: [14190],
+      healths: [{ puerto: 4190, ruta: '/' }],
+    },
+  };
+  assert.deepEqual(urlsServidas(tareas), ['http://tareas.localhost:14190/']);
+  // Sin `healths` vale la lista de puertos del modo, y un puerto sin pareja declarada no se toca.
+  assert.deepEqual(urlsServidas({ puertos: [3103], puertosLocales: [13103], healths: [{ puerto: 3103 }, { puerto: 9999 }] }), ['http://127.0.0.1:13103/', 'http://127.0.0.1:9999/']);
+  // Un proyecto del portátil no tiene túnel: el local es el remoto.
+  assert.deepEqual(urlsServidas({ puertos: [8787, 5175], build: undefined }), ['http://127.0.0.1:8787/', 'http://127.0.0.1:5175/']);
 });
 
 test('tunelDePuertosNuestros: reconoce el túnel huérfano del otro modo, no los ajenos', () => {

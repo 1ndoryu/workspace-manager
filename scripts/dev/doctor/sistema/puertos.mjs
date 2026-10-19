@@ -66,6 +66,23 @@ export const puertosRemotosDe = (entrada) => entrada.puertosRemotos ?? entrada.p
 
 export const localesDeModo = (e) => puertosRemotosDe(e).map((p, i) => e.puertosLocales?.[i] ?? p);
 
+/* URLs de un proyecto tal como las alcanza ESTE equipo. [por que] En un proyecto remoto el puerto
+ * que escucha esta en la VPS y aqui solo responde el del tunel (`puertosLocales`): imprimir el
+ * remoto da un enlace muerto (4190 en PROYECTO TASKS, medido el 2026-10-19). Sin `puertosLocales`
+ * el local es el remoto, asi que la misma regla vale para los proyectos del portatil. */
+
+export function urlsServidas(entrada) {
+  const ef = entradaEfectiva(entrada);
+  const healths = ef.healths?.length ? ef.healths : (ef.puertos ?? []).map((puerto) => ({ puerto }));
+  const dominio = ef.dominio ?? '127.0.0.1';
+  const remotos = puertosRemotosDe(ef);
+  const locales = localesDeModo(ef);
+  return healths.map((h) => {
+    const i = remotos.indexOf(h.puerto);
+    return `http://${dominio}:${i >= 0 ? locales[i] : h.puerto}${h.ruta ?? '/'}`;
+  });
+}
+
 
 /* Pares (local, remoto) que la ficha declara para sus túneles, en los dos modos:
  * es exactamente lo que el portátil puede alcanzar de un proyecto remoto.

@@ -44,6 +44,7 @@ export {
   entradaEfectiva,
   puertosRemotosDe,
   localesDeModo,
+  urlsServidas,
   paresTunel,
   reenviosTunel,
   tunelDeEntrada,
