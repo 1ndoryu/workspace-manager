@@ -1,8 +1,9 @@
 /* Clasificacion de cada proyecto (bajo-mando/deriva/sin-boton/parado) y del area. */
 
-import { isAbsolute, resolve } from 'node:path';
+import { basename, isAbsolute, resolve } from 'node:path';
 
 import { RAIZ_REPO } from './base.mjs';
+import { repoPrincipalDeWorktree } from './worktree.mjs';
 import { datosCimDe, escanearSockets, normalizarRuta, procesosSshVivos } from './sistema/procesos.mjs';
 import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeListener, tunelDeQuien } from './sistema/puertos.mjs';
 
@@ -58,7 +59,11 @@ export async function clasificar(proyectos, registro, escucha, ignorados = [], e
   for (const p of proyectos) {
     const entrada = entradaDeProyecto(p, registro);
     if (!entrada) {
-      if (p.clave in registro.noAplica) {
+      // [por que] Un worktree comparte repo y botón con su proyecto: no es un proyecto sin onboarding.
+      const principal = repoPrincipalDeWorktree(p.ruta);
+      if (principal) {
+        resultado.push({ clave: p.clave, id: null, estado: 'no-aplica', motivo: `worktree de ${basename(principal)}` });
+      } else if (p.clave in registro.noAplica) {
         resultado.push({ clave: p.clave, id: null, estado: 'no-aplica', motivo: registro.noAplica[p.clave] });
       } else {
         resultado.push({ clave: p.clave, id: null, estado: 'sin-boton', motivo: 'pendiente-onboarding' });

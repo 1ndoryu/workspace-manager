@@ -52,7 +52,8 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
           id: 'disco-c',
           severidad: 'error',
           mensaje: `disco del área con ${d.discoLibreGb.toFixed(1)} GB libres (mínimo ${DISCO_MINIMO_GB})`,
-          accion: `borra targets sin uso en ${d.rutaTemporales}/glory-target/<rama> y archiva descargas`,
+          /* [por que] Los targets de compilación viven en la VPS (CM_TARGET_BASE): en el portátil solo hay temporales y descargas. */
+          accion: `borra temporales sin uso en ${d.rutaTemporales} y archiva descargas; los targets están en la VPS`,
           doc: 'AGENTS.md',
         },
       ];

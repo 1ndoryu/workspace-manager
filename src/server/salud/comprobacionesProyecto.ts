@@ -34,7 +34,8 @@ export const COMPROBACIONES_PROYECTO: Comprobacion<DatosProyecto>[] = [
               id: 'target-en-arbol',
               severidad: 'error',
               mensaje: `compilación dentro del árbol: ${lista(d.compilacionEnArbol)}`,
-              accion: 'mueve la compilación a C:\\tmp\\glory-target\\<rama> con los wrappers del proyecto y borra la carpeta',
+              /* [por que] Las compilaciones corren en la VPS: la carpeta sale del árbol hacia su target-dir (CM_TARGET_BASE), no hacia el portátil. */
+              accion: 'mueve la compilación fuera del árbol (target-dir de la VPS, CM_TARGET_BASE) con los wrappers del proyecto y borra la carpeta',
               doc: 'AGENTS.md',
             },
           ],
@@ -57,7 +58,8 @@ export const COMPROBACIONES_PROYECTO: Comprobacion<DatosProyecto>[] = [
           id: 'target-dir',
           severidad: 'aviso',
           mensaje: `target-dir compartido con ${lista(d.targetDirCompartidoCon)}: las compilaciones se pisan`,
-          accion: 'dale a cada rama o proyecto su propio target-dir bajo C:\\tmp\\glory-target',
+          /* [por que] Las compilaciones corren en la VPS: la sugerencia no nombra una ruta del portátil. */
+          accion: 'dale a cada checkout su propio target-dir en el equipo que compila (la VPS del taller, con CM_TARGET_BASE)',
         });
       }
       return hallazgos;
