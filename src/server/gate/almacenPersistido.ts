@@ -3,7 +3,7 @@
  * hacían lo mismo con la misma forma: cargar al arrancar, guardar solo lo cacheable,
  * podar las claves que ya no existen y servir por frescura. Solo cambiaban el
  * fichero y la regla de qué merece guardarse; esa regla entra como parámetro. */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 interface EntradaPersistida<T> {
@@ -37,19 +37,27 @@ export function crearAlmacenPersistido<T>(
       const entrada = obj[clave];
       if (entrada?.dato !== undefined && esCacheable(entrada.dato)) cache.set(clave, entrada);
     }
-  } catch {
-    /* sin caché persistido: arranca vacío, no es error. */
+  } catch (err) {
+    /* [por que] Sin fichero es el arranque normal. Cualquier otro fallo (JSON corrupto,
+     * permisos) se avisa: arrancar vacío es seguro, pero no debe pasar en silencio. */
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      process.emitWarning(`${rutaFichero} no se pudo leer; se arranca vacío: ${(err as Error).message}`, 'AlmacenPersistido');
+    }
   }
 
-  /* Best-effort: si no se puede escribir, la caché en memoria sigue valiendo. */
+  /* [por que] Escritura atómica: se escribe a un temporal y se renombra. Un corte a mitad
+   * deja el fichero anterior intacto en vez de un JSON truncado que se perdería al cargar. */
   function persistir(): void {
     try {
       const obj: Record<string, EntradaPersistida<T>> = {};
       for (const [clave, entrada] of cache) obj[clave] = entrada;
       mkdirSync(dirname(rutaFichero), { recursive: true });
-      writeFileSync(rutaFichero, JSON.stringify(obj, null, 2), 'utf8');
-    } catch {
-      /* silencioso: ver arriba. */
+      const temporal = `${rutaFichero}.tmp-${process.pid}`;
+      writeFileSync(temporal, JSON.stringify(obj, null, 2), 'utf8');
+      renameSync(temporal, rutaFichero);
+    } catch (err) {
+      /* Best-effort: la caché en memoria sigue valiendo, pero el fallo se avisa. */
+      process.emitWarning(`${rutaFichero} no se pudo guardar: ${(err as Error).message}`, 'AlmacenPersistido');
     }
   }
 

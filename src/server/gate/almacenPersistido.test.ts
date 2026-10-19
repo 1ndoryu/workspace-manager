@@ -4,9 +4,9 @@
  * directorio temporal propio de cada ejecución. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { crearAlmacenPersistido } from './almacenPersistido.js';
 
 type Dato = { estado: string };
@@ -53,4 +53,18 @@ test('al cargar descarta lo que la regla actual ya no admite y persiste lo guard
 test('sin fichero previo arranca vacío sin error', () => {
   const almacen = crearAlmacenPersistido<Dato>(rutaTemporal(), esCacheable);
   assert.deepEqual(almacen.leerTodas(), []);
+});
+
+test('la escritura es atómica: no deja temporales y un JSON corrupto se avisa, no se traga', async () => {
+  const ruta = rutaTemporal();
+  const almacen = crearAlmacenPersistido<Dato>(ruta, esCacheable);
+  almacen.guardar('a', 'f', { estado: 'ok' });
+  assert.deepEqual(readdirSync(dirname(ruta)).filter((n) => n.includes('.tmp-')), []);
+
+  writeFileSync(ruta, '{ truncado');
+  /* emitWarning avisa de forma asíncrona: se espera al siguiente ciclo para verlo. */
+  const aviso = new Promise<Error>((resolver) => process.once('warning', resolver));
+  const conCorrupto = crearAlmacenPersistido<Dato>(ruta, esCacheable);
+  assert.deepEqual(conCorrupto.leerTodas(), []);
+  assert.match((await aviso).message, /no se pudo leer/);
 });

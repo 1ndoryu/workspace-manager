@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { huellaArbol } from './huella.js';
+import { huellaArbol, huellaSinCambios } from './huella.js';
 import { raizTemporales } from '../../plataforma/temporales.js';
 
 /* AGENTS §0.2: temporales en la raíz de temporales (C:/tmp en Windows), nunca en %TEMP%. */
@@ -63,6 +63,11 @@ describe('huellaArbol', () => {
     utimesSync(join(dir, 'a.txt'), new Date(), new Date(Date.now() + 5000));
     assert.notEqual(await huellaArbol(dir, 'f'), antes);
     git(dir, 'checkout', '--', 'a.txt');
+  });
+
+  it('en un árbol limpio coincide con huellaSinCambios (la clave de las rutas síncronas)', async () => {
+    const head = git(dir, 'rev-parse', 'HEAD').toString().trim();
+    assert.equal(await huellaArbol(dir, 'f'), huellaSinCambios('f', head));
   });
 
   it('fuera de un repo git devuelve null y no lanza', async () => {

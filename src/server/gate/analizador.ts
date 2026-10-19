@@ -20,7 +20,7 @@
  * (JSON de las herramientas -> AnalisisSentinel, fusion sentinel + varsense).
  * Los dos viven ahora en `analisis/`; aqui queda lanzar y decidir donde corre. */
 import { join } from 'node:path';
-import { huellaArbol } from './arbol/huella.js';
+import { huellaArbol, huellaSinCambios } from './arbol/huella.js';
 import { compartirVuelo } from './vuelo.js';
 import type { AnalisisSentinel, Proyecto } from '../../shared/types.js';
 import {
@@ -56,11 +56,22 @@ export { esCacheable, leerAnalisis } from './analisis/almacen.js';
 /* [por que] Lo guardado solo se sirve si su frescura es la actual (ver vigencia.ts). Lo que
  * ya no coincide no se muestra: el proyecto aparece sin analizar hasta el siguiente análisis. */
 export function analisisVigentes(proyectos: Proyecto[]): AnalisisSentinel[] {
-  return separarVigencia(proyectos.filter(esElegible), frescoDe, analisisFresco).vigentes;
+  return separarVigencia(proyectos.filter(esElegible), claveVigente, analisisFresco).vigentes;
 }
 
 export function analisisVigentePara(p: Proyecto): AnalisisSentinel | null {
-  return analisisFresco(p.clave, frescoDe(p));
+  return analisisFresco(p.clave, claveVigente(p));
+}
+
+/* [por que] Las rutas síncronas no pueden leer el árbol (git es asíncrono), así que solo
+ * sirven lo guardado de un proyecto limpio según el último escaneo: su huella es la de
+ * un árbol sin cambios. Con cambios sin commitear devuelve un centinela que ninguna huella
+ * guardada (sha1) puede igualar: el dato queda «sin analizar» en vez de servir un análisis
+ * anterior a esos cambios. El gate y los análisis sí miden el árbol. */
+const SIN_VIGENCIA = '?cambios-sin-commit';
+function claveVigente(p: Proyecto): string {
+  if (p.git?.dirty !== false || !p.git.ultimoCommit) return SIN_VIGENCIA;
+  return huellaSinCambios(frescoDe(p), p.git.ultimoCommit.hash);
 }
 
 /* Solo los proyectos cuyo gate real es sentinel (carpetas/cargo no aplican). */
@@ -149,12 +160,15 @@ async function analizarEnTaller(p: Proyecto): Promise<AnalisisSentinel> {
  * varsense falla, sentinel sigue valiendo y el estado varsense queda en el
  * campo `varsense` (nunca rompe el analisis). */
 const enVuelo = new Map<string, Promise<AnalisisSentinel>>();
-export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisSentinel> {
+export async function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisSentinel> {
   const clave = p.clave;
-  const fresco = frescoDe(p);
-  if (!forzar) {
-    const guardado = analisisFresco(clave, fresco);
-    if (guardado) return Promise.resolve(guardado);
+  /* [por que] La clave guardada incluye el árbol de trabajo (huellaArbol), no solo HEAD: un
+   * cambio sin commitear invalida el análisis. Sin huella (git falla o demasiados cambios)
+   * no se lee ni se guarda caché: se analiza siempre. */
+  const huella = await huellaArbol(p.ruta, frescoDe(p));
+  if (!forzar && huella !== null) {
+    const guardado = analisisFresco(clave, huella);
+    if (guardado) return guardado;
   }
   return compartirVuelo(enVuelo, clave, async (): Promise<AnalisisSentinel> => {
     /* [por que] Cualquier fallo del despacho queda en 'error' (nunca rompe el snapshot). */
@@ -164,7 +178,7 @@ export function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisS
     } catch (err) {
       dato = datoError(clave, mensaje(err));
     }
-    guardarAnalisis(clave, fresco, dato);
+    if (huella !== null) guardarAnalisis(clave, huella, dato);
     return dato;
   });
 }

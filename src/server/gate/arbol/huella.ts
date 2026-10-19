@@ -20,14 +20,20 @@ const execFileAsync = promisify(execFile);
  * huella: se devuelve null y el gate recalcula. */
 const TOPE_ARCHIVOS = 5000;
 
-async function listaGit(ruta: string, args: string[]): Promise<string[]> {
-  const { stdout } = await execFileAsync(BIN_GIT, ['-C', ruta, ...args, '-z'], {
+async function git(ruta: string, args: string[]): Promise<string> {
+  const { stdout } = await execFileAsync(BIN_GIT, ['-C', ruta, ...args], {
     encoding: 'utf8',
     timeout: 15_000,
     maxBuffer: 16 * 1024 * 1024,
     windowsHide: true,
   });
-  return stdout.split('\0').filter((x) => x !== '');
+  return stdout;
+}
+
+/* [por que] `-z` solo vale para listas (diff, ls-files). Con rev-parse git lo imprime
+ * como un argumento más y el HEAD salía como «<hash>\n-z\n». */
+async function listaGit(ruta: string, args: string[]): Promise<string[]> {
+  return (await git(ruta, [...args, '-z'])).split('\0').filter((x) => x !== '');
 }
 
 function firmaArchivo(ruta: string, rel: string): string {
@@ -39,6 +45,22 @@ function firmaArchivo(ruta: string, rel: string): string {
   }
 }
 
+/* [por que] Una sola fórmula para la huella: la usan el análisis (con cambios) y el
+ * tablero (sin cambios, sin tocar git). Si divergieran, el caché limpio nunca casaría. */
+function combinar(fresco: string, head: string, firmas: string[]): string {
+  const h = createHash('sha1');
+  h.update(fresco);
+  h.update(`\nHEAD:${head}`);
+  for (const f of firmas) h.update(`\n${f}`);
+  return h.digest('hex');
+}
+
+/* Huella de un árbol sin cambios (HEAD limpio). Es la que tendría huellaArbol: permite
+ * a las rutas síncronas comparar con lo guardado sin lanzar git. */
+export function huellaSinCambios(fresco: string, head: string): string {
+  return combinar(fresco, head, []);
+}
+
 /* null = no se puede fiar de la huella (git falló o demasiados cambios): el
  * llamador analiza sin caché. Nunca lanza. */
 export async function huellaArbol(ruta: string, fresco: string): Promise<string | null> {
@@ -48,19 +70,15 @@ export async function huellaArbol(ruta: string, fresco: string): Promise<string 
     const [rCambiados, rNuevos, rHead] = await Promise.allSettled([
       listaGit(ruta, ['diff', '--name-only', 'HEAD']),
       listaGit(ruta, ['ls-files', '--others', '--exclude-standard']),
-      listaGit(ruta, ['rev-parse', 'HEAD']),
+      git(ruta, ['rev-parse', 'HEAD']),
     ]);
     if (rCambiados.status === 'rejected' || rNuevos.status === 'rejected' || rHead.status === 'rejected') return null;
     const cambiados = rCambiados.value;
     const nuevos = rNuevos.value;
     const todos = [...new Set([...cambiados, ...nuevos])].sort();
     if (todos.length > TOPE_ARCHIVOS) return null;
-    const h = createHash('sha1');
-    h.update(fresco);
-    h.update(`
-HEAD:${rHead.value.join('')}`);
-    for (const rel of todos) h.update(`\n${firmaArchivo(ruta, rel)}`);
-    return h.digest('hex');
+    /* trim: rev-parse termina en salto de línea, que no es parte del HEAD. */
+    return combinar(fresco, rHead.value.trim(), todos.map((rel) => firmaArchivo(ruta, rel)));
   } catch {
     return null;
   }
