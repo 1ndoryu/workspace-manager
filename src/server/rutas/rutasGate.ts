@@ -15,10 +15,9 @@ import { esquemaGate, reglasGate } from '../gate/herramientas/proveedor.js';
 import { esquemaPorArchivo } from '../../shared/gate/catalogo/esquemas.js';
 import { diagnosticar, rutaEtiqueta, severidadDe } from '../../shared/gate/modelo/esquema.js';
 import { correrSincronizacion } from '../gate/sincronizacion.js';
-import { analizarParaGate, analizarProyecto, analizarTodo, esElegible, leerAnalisis, leerTodas } from '../gate/analizador.js';
+import { analizarParaGate, analizarProyecto, analizarTodo, analisisVigentes, analisisVigentePara, esElegible } from '../gate/analizador.js';
 import { compararHallazgos } from '../gate/hallazgos/comparacion.js';
-import { auditarProyecto, auditarTodo } from '../gate/vulnerabilidades/vulnerabilidades.js';
-import { leerTodasVulnerabilidades, leerVulnerabilidades } from '../gate/vulnerabilidades/almacen.js';
+import { auditarProyecto, auditarTodo, auditoriaVigentePara, auditoriasVigentes } from '../gate/vulnerabilidades/vulnerabilidades.js';
 import { logger } from '../../shared/logger.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades, HallazgoSentinel } from '../../shared/types.js';
 
@@ -305,14 +304,17 @@ export async function manejarRutasGate(
       return true;
     }
     const clave = url.searchParams.get('clave') ?? '';
+    /* [por que] Solo lo vigente (ver vigencia.ts): un dato de otro HEAD no se sirve. */
     if (clave === '') {
-      const analisis = leerTodas();
+      const { snapshot } = await snapshotArea(false);
+      const analisis = analisisVigentes(snapshot.proyectos);
       const porClave: Record<string, AnalisisSentinel> = {};
       for (const a of analisis) porClave[a.clave] = a;
       json(res, 200, { total: analisis.length, analisis: porClave });
       return true;
     }
-    json(res, 200, { clave, analisis: leerAnalisis(clave) });
+    const proyecto = await proyectoParaGate(clave);
+    json(res, 200, { clave, analisis: proyecto ? analisisVigentePara(proyecto) : null });
     return true;
   }
   /* Vulnerabilidades de dependencias por proyecto (plan
@@ -358,14 +360,17 @@ export async function manejarRutasGate(
       return true;
     }
     const clave = url.searchParams.get('clave') ?? '';
+    /* [por que] Solo lo vigente (ver vigencia.ts): una auditoría de otro lockfile no se sirve. */
     if (clave === '') {
-      const vuls = leerTodasVulnerabilidades();
+      const { snapshot } = await snapshotArea(false);
+      const vuls = auditoriasVigentes(snapshot.proyectos);
       const porClave: Record<string, AnalisisVulnerabilidades> = {};
       for (const v of vuls) porClave[v.clave] = v;
       json(res, 200, { total: vuls.length, vulnerabilidades: porClave });
       return true;
     }
-    json(res, 200, { clave, vulnerabilidad: leerVulnerabilidades(clave) });
+    const proyecto = await proyectoParaGate(clave);
+    json(res, 200, { clave, vulnerabilidad: proyecto ? auditoriaVigentePara(proyecto) : null });
     return true;
   }
   return false;

@@ -33,6 +33,7 @@ import {
 import type { JsonAudit } from './audit/parseo.js';
 import { enTaller, prepararRemoto } from './audit/remoto.js';
 import { detectarLockfiles, frescoDe } from './lockfiles.js';
+import { separarVigencia } from '../vigencia.js';
 import {
   guardarVulnerabilidades,
   podarVulnerabilidades,
@@ -185,4 +186,15 @@ export async function auditarTodo(
    * snapshot se podan (misma convencion que el analizador). */
   podarVulnerabilidades(new Set(proyectos.map((p) => p.clave)));
   return detalles;
+}
+
+/* [por que] Mismo criterio que el análisis (ver vigencia.ts): la frescura incluye el hash de
+ * los lockfiles, así que un `npm install` que cambia el lock deja la auditoría anterior fuera. */
+export function auditoriasVigentes(proyectos: Proyecto[]): AnalisisVulnerabilidades[] {
+  const frescoDeProyecto = (p: Proyecto) => frescoDe(p, detectarLockfiles(p.ruta));
+  return separarVigencia(proyectos, frescoDeProyecto, vulnerabilidadesFrescas).vigentes;
+}
+
+export function auditoriaVigentePara(p: Proyecto): AnalisisVulnerabilidades | null {
+  return vulnerabilidadesFrescas(p.clave, frescoDe(p, detectarLockfiles(p.ruta)));
 }

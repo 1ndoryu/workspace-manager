@@ -38,5 +38,4 @@ export const {
   guardar: guardarVulnerabilidades,
   podar: podarVulnerabilidades,
   leer: leerVulnerabilidades,
-  leerTodas: leerTodasVulnerabilidades,
 } = almacen;

@@ -28,9 +28,9 @@ import {
   esCacheable,
   guardarAnalisis,
   leerAnalisis,
-  leerTodas,
   podarAnalisis,
 } from './analisis/almacen.js';
+import { separarVigencia } from './vigencia.js';
 import { datoError, montarAnalisis } from './analisis/reporte.js';
 import {
   checkoutVarsense,
@@ -51,7 +51,17 @@ import type { ConfigRemota } from './herramientas/config.js';
 /* La lectura de lo guardado se reexporta aqui a proposito: este fichero es la
  * puerta del analisis para las rutas, y quien pide resultados no deberia tener
  * que saber en que submodulo viven. */
-export { esCacheable, leerAnalisis, leerTodas } from './analisis/almacen.js';
+export { esCacheable, leerAnalisis } from './analisis/almacen.js';
+
+/* [por que] Lo guardado solo se sirve si su frescura es la actual (ver vigencia.ts). Lo que
+ * ya no coincide no se muestra: el proyecto aparece sin analizar hasta el siguiente análisis. */
+export function analisisVigentes(proyectos: Proyecto[]): AnalisisSentinel[] {
+  return separarVigencia(proyectos.filter(esElegible), frescoDe, analisisFresco).vigentes;
+}
+
+export function analisisVigentePara(p: Proyecto): AnalisisSentinel | null {
+  return analisisFresco(p.clave, frescoDe(p));
+}
 
 /* Solo los proyectos cuyo gate real es sentinel (carpetas/cargo no aplican). */
 export function esElegible(p: Proyecto): boolean {

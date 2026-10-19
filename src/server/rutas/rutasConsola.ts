@@ -9,9 +9,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
-import { analizarTodo, leerTodas } from '../gate/analizador.js';
-import { auditarTodo } from '../gate/vulnerabilidades/vulnerabilidades.js';
-import { leerTodasVulnerabilidades } from '../gate/vulnerabilidades/almacen.js';
+import { analizarTodo, analisisVigentes } from '../gate/analizador.js';
+import { auditarTodo, auditoriasVigentes } from '../gate/vulnerabilidades/vulnerabilidades.js';
 import { obtenerVigilancia } from '../dev/vigilancia.js';
 import { saludArea, saludProyectos } from '../salud/runner.js';
 import {
@@ -67,8 +66,8 @@ export async function manejarRutasConsola(
    * propios, y su frescura viaja en `vigencia.devEn`. */
   const [analisis, vulnerabilidades, { informe: dev }, [saludPorProyecto, saludDelArea], hallazgosTaller] =
     await Promise.all([
-      forzar ? analizarTodo(snapshot.proyectos, true) : leerTodas(),
-      forzar ? auditarTodo(snapshot.proyectos, true) : leerTodasVulnerabilidades(),
+      forzar ? analizarTodo(snapshot.proyectos, true) : analisisVigentes(snapshot.proyectos),
+      forzar ? auditarTodo(snapshot.proyectos, true) : auditoriasVigentes(snapshot.proyectos),
       obtenerVigilancia(),
       Promise.all([saludProyectos(forzar), saludArea(forzar)]),
       hallazgosDelTaller(),

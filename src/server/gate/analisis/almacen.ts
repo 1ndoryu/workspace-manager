@@ -22,4 +22,4 @@ const almacen = crearAlmacenPersistido<AnalisisSentinel>(
   esCacheable,
 );
 
-export const { frescos: analisisFresco, guardar: guardarAnalisis, podar: podarAnalisis, leer: leerAnalisis, leerTodas } = almacen;
+export const { frescos: analisisFresco, guardar: guardarAnalisis, podar: podarAnalisis, leer: leerAnalisis } = almacen;
