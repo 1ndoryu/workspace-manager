@@ -1,11 +1,37 @@
 /* Propaga el release a un consumidor: router, pin, lock, evidencia y doctor. */
 import fs from 'node:fs';
+import { hostname } from 'node:os';
 import path from 'node:path';
 import { conPasos, escribir, escribirRouters } from './ajustes.mjs';
 import { familiaDe, revisarRouters } from './consumidores.mjs';
 import { reescribirPin, validarReescritura } from './manifiesto.mjs';
 import { pasosDe } from './release.mjs';
-import { ejecutar, leerJson, leerJsonDeTexto, primeraLineaUtil } from './utilidades.mjs';
+import { cargarTaller, decidirDonde, dirRemotoDe, ejecutarEnVps, mensajeSinVps } from '../../shared/vps.mjs';
+import { comando, ejecutar, leerJson, leerJsonDeTexto, primeraLineaUtil } from './utilidades.mjs';
+
+/* [por que] Igual que quality:setup: si el taller está configurado, el doctor del proyecto corre
+ * en la 89 (AGENTS §1). Sin VPS no se ejecuta en el portátil: se informa como omitido con el motivo.
+ * `--local` (emergencia) se respeta igual que en el resto de herramientas. */
+function ejecutarDoctor(consumidor, doctor) {
+  const taller = cargarTaller();
+  let destino;
+  try {
+    destino = decidirDonde(process.argv, taller, hostname());
+  } catch (error) {
+    return { omitido: error.message, grave: true };
+  }
+  if (destino.donde === 'local') return ejecutar(comando(...doctor.argv), consumidor.dir, 300_000);
+  /* [por que] Un doctor de herramienta vive fuera de la réplica y la 89 no lo tiene: no es un fallo
+   * del proyecto, así que se informa sin marcarlo como error. */
+  if (!doctor.enProyecto) return { omitido: 'doctor de herramienta fuera del proyecto: no corre en la 89', grave: false };
+  const dir = dirRemotoDe(taller, path.basename(consumidor.dir), consumidor.dir, consumidor.dir);
+  const resultado = ejecutarEnVps(taller, dir, doctor.argv, { capturar: true });
+  const aviso = mensajeSinVps(resultado.status, taller.host);
+  return {
+    status: typeof resultado.status === 'number' ? resultado.status : 2,
+    salida: aviso ?? String(resultado.stdout ?? ''),
+  };
+}
 
 export function propagarConsumidor(consumidor, tool, destino) {
   const dirManifiesto = path.join(consumidor.dir, 'quality-tools.json');
@@ -87,7 +113,13 @@ export function propagarConsumidor(consumidor, tool, destino) {
     fila.doctor = 'n/d';
     return fila;
   }
-  const doctor = ejecutar(pasos.doctor, consumidor.dir, 300_000);
+  const doctor = ejecutarDoctor(consumidor, pasos.doctor);
+  if (doctor.omitido) {
+    fila.doctor = 'n/d';
+    fila.nota = doctor.omitido;
+    if (doctor.grave) fila.estado = 'error';
+    return fila;
+  }
   const informe = leerJsonDeTexto(doctor.salida);
   fila.doctor = doctor.status === 0 ? 'ok' : 'fallo';
   fila.issues = Array.isArray(informe?.issues) ? informe.issues.length : null;
