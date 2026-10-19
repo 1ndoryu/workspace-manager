@@ -45,6 +45,19 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 
 ## Tareas pendientes (orden de dependencia)
 
+- `19AA-2` — **Frentes abiertos del `/goal` de calidad (no hechos el 2026-10-19).** Pendientes: organizar
+  los 24 `PLAN-*.md` (cerrados a `planes/completados/`); README; detección de `.mjs` en Sentinel (o
+  prueba de que ya la hay, con control positivo); SOLID (~25 archivos de más de 300 líneas);
+  re-medir `REPOS_EN_PARALELO` 1/4/6 y documentar el riesgo de `ignorar` durante un escaneo en
+  `cache.ts`; accesibilidad de la UI; limpieza de config privada fuera del repo; restos del frente 9
+  (`test-utils.mjs`, `doctor.*.test.mjs`, `cm-sweep.sh`, `provision-89.sh`, `root-taller-89.sh:19,71`,
+  `comprobacionesProyecto.ts:34,57`, `comprobacionesArea.ts:55`, `pc/ejecucion.ts:55`,
+  `doctor/indice.mjs:204`, `lanzar.mjs:266,268`, `rcargo.test.mjs:76-87`, `release.mjs:11`
+  `.quality-tools` vs `_quality-tools`); rutas viejas en AGENTS §2 y en la skill de workspace-manager;
+  réplicas de gloryapi, Glory-Laminal, coolify-manager-rs, glory-lab y glory-pulse en `taller.json` o
+  aviso; `/api/proyectos/doctor` tarda 14,3 s sin caché. Fuera de este repo: `glory-pulse` (compilar
+  el .exe en la 89) y los falsos positivos de `dist/` en glory-harness (Sentinel), cada uno en su
+  sesión. Criterio de hecho: cada frente con evidencia y commit, o marcado con su motivo.
 - `18AA-1` — **Gate de calidad: el frontend corre en el laptop (error, AGENTS §1).** `frontend.mjs` del
   adaptador de calidad ejecuta `npm --prefix frontend run type-check|test:full|build` en el portátil,
   y `tsc` no existe allí (`npm` falla con «tsc no se reconoce»). Mismo fallo en
