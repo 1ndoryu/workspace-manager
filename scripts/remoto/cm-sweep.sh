@@ -4,7 +4,7 @@
 # Log: /var/log/cm-sweep.log. La última línea de cada corrida es el estado (OK o BLOQUEADO).
 #
 # Por qué así:
-# - Targets /var/tmp/glory-target/<proyecto_rama>: se purgan si nada se escribió en UMBRAL_H horas
+# - Targets $CM_TARGET_BASE/<proyecto_rama> (por defecto /var/tmp/glory-target): se purgan si nada se escribió en UMBRAL_H horas
 #   ("uso" = algún archivo con mtime reciente). Con techo por antigüedad. Nunca se purga un target
 #   con un ejecutable suyo en marcha (un dev server que no escribe desde hace días sigue vivo).
 # - Solo purga con el lock de cm-heavy tomado por nosotros: un build en marcha no pierde su target.
@@ -26,7 +26,9 @@ set -uo pipefail
 
 LOG=/var/log/cm-sweep.log
 ESTADO=/var/lib/cm-sweep/estado
-RAIZ=/var/tmp/glory-target
+# Raíz de los targets y tmp de builders: por defecto los de la 89; otro servidor los fija por entorno.
+RAIZ=${CM_TARGET_BASE:-/var/tmp/glory-target}
+BUILDER_TMP=${CM_BUILDER_TMP:-/tmp/cm-builder}
 LOCK=/run/lock/cm-heavy.lock
 UMBRAL_H=${CM_SWEEP_UMBRAL_H:-72}
 TECHO_GB=${CM_SWEEP_TECHO_GB:-25}
@@ -37,13 +39,16 @@ SUELO_GB=${CM_SWEEP_SUELO_GB:-15}
 if [[ "${1:-}" == --instalar ]]; then
   [[ "$(readlink -f "$0")" == /usr/local/sbin/cm-sweep ]] || install -m 755 "$0" /usr/local/sbin/cm-sweep
   install -d -m 755 /var/lib/cm-sweep
-  cat > /etc/systemd/system/cm-sweep.service <<'EOF'
+  # [por que] El servicio no hereda el entorno de quien instala: las rutas se fijan aquí, al instalar.
+  cat > /etc/systemd/system/cm-sweep.service <<EOF
 [Unit]
 Description=Limpieza periódica del taller remoto (cm-sweep)
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/cm-sweep
+Environment=CM_TARGET_BASE=$RAIZ
+Environment=CM_BUILDER_TMP=$BUILDER_TMP
 Nice=10
 IOSchedulingClass=idle
 EOF
@@ -209,7 +214,7 @@ podar_docker() {
 purgar_targets "$TECHO_GB"
 limpiar_incremental
 podar_docker "$BUILDX_GB"
-find /tmp/cm-builder -mindepth 1 -maxdepth 1 -mtime +1 -exec rm -rf -- {} + 2>/dev/null
+find "$BUILDER_TMP" -mindepth 1 -maxdepth 1 -mtime +1 -exec rm -rf -- {} + 2>/dev/null
 journalctl --vacuum-size=500M >/dev/null 2>&1
 apt-get clean >/dev/null 2>&1
 
