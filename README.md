@@ -128,11 +128,35 @@ analizar. Ninguna de las dos se sirve nunca si el dato dejó de ser fresco
 | `WS_PORT` | Puerto del backend. Por defecto, `8787`. |
 | `WS_WEB_PORT` | Puerto del front del tablero. Por defecto, `5175`. |
 | `WS_PREVIEW_PORT` | Puerto de `vite preview`. Por defecto, `4173`. |
-| `WS_OPENCODE_PORT` | Puerto de opencode-propio (ajeno, pero hay que conocerlo para no matarlo nunca). Por defecto, `5174`. |
+| `WS_AJENO_PORT` | Puerto de opencode-propio (ajeno, pero hay que conocerlo para no matarlo nunca). Por defecto, `5174`. |
 | `WS_NOMBRE` | Nombre del tablero. Por defecto, el nombre de la carpeta del repo. |
+| `WS_REPOS_PARALELO` | Cuántos `git` corren a la vez al escanear. Por defecto, `4`; un valor no válido cae a 4. Medición en [docs/rendimiento.md](docs/rendimiento.md). |
+| `WS_GIT`, `WS_NPM`, `WS_SSH`, `WS_TAR` | Ejecutable de cada herramienta, si no es el del `PATH`. |
 | `WM_TMP` | Carpeta de temporales. Por defecto, `C:/tmp` en Windows y `~/tmp` en Linux. |
+| `WM_API` | URL base de la API del tablero (p. ej. un túnel). Por defecto, `http://127.0.0.1:<WS_PORT>`. |
 | `WM_TOKEN`, `WM_TOKEN_FILE` | Token de portador (ver arriba). |
+| `LIMPIADOR_BIN` | Ruta del binario del limpiador de PC. Por defecto, `data/bin/limpiador.exe`, o el nombre del papel `limpiador` de `area.json`. |
+| `VPS_REFRESH_MS` | Refresco del estado VPS del backend, en ms. Por defecto, `0` (desactivado). |
 | `VITE_PORT`, `VITE_HOST`, `VITE_API_PROXY_TARGET` | Puerto, interfaz y destino del front de desarrollo. Pisan a `WS_WEB_PORT`. |
+
+#### Scripts del taller remoto
+
+Los scripts de `scripts/remoto/` corren **en el propio taller**, no en el portátil.
+Sus valores por defecto son los que usa un taller nuevo; para otro taller, defínelos
+como variable de entorno antes de ejecutar el script.
+
+| Variable | Script | Por defecto |
+|---|---|---|
+| `TALLER_USUARIO` | `provision-89.sh` | `dev` |
+| `TALLER_HOME` | `provision-89.sh` | `/home/$TALLER_USUARIO` |
+| `CM_TARGET_BASE` | `provision-89.sh`, `cm-sweep.sh` | `/var/tmp/glory-target` |
+| `CM_QUALITY_BASE` | `cm-sweep.sh` | `/var/tmp/glory-quality` |
+| `CM_SCCACHE_DIR` | `provision-89.sh` | `/var/cache/sccache` |
+| `CM_SWEEP_CASA` | `cm-sweep.sh` | `/home/usuario` |
+
+La carpeta de herramientas de calidad (`dirRemotoHerramientas` en `config/taller.json`,
+por defecto `/var/tmp/glory-quality`) queda fuera del directorio que sincroniza
+Mutagen: son artefactos, no código fuente.
 
 ## Uso
 
@@ -180,7 +204,10 @@ proyecto que deba ir contra corriente.
 
 ## Pruebas
 
-No hay `npm test`. Son dos suites, con sus comandos exactos:
+No hay `npm test`. Son dos suites, con sus comandos exactos. Los tests y el
+type-check corren en el **taller remoto** cuando el área tiene uno (así lo quiere
+el diseño: el portátil edita, lo pesado va a la máquina del taller). Sin taller,
+se ejecutan en local con los mismos comandos:
 
 ```bash
 npm run type-check
