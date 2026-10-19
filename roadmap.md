@@ -46,8 +46,9 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 ## Tareas pendientes (orden de dependencia)
 
 - `19AA-2` — **Frentes abiertos del `/goal` de calidad (no hechos el 2026-10-19).** Pendientes: organizar
-  los 24 `PLAN-*.md` (cerrados a `planes/completados/`); README; detección de `.mjs` en Sentinel (o
-  prueba de que ya la hay, con control positivo); SOLID (~25 archivos de más de 300 líneas);
+  los 24 `PLAN-*.md` (cerrados a `planes/completados/`); README; SOLID (~25 archivos de más de 300 líneas;
+  `limite-lineas` de Sentinel no dispara en `.ts` de 417 líneas aunque sí en un `.mjs` de control: causa
+  sin diagnosticar, ver `Agente/documentacion/calidad/deteccion-mjs-2026-10-19.md`);
   re-medir `REPOS_EN_PARALELO` 1/4/6 y documentar el riesgo de `ignorar` durante un escaneo en
   `cache.ts`; accesibilidad de la UI; limpieza de config privada fuera del repo; restos del frente 9
   (`test-utils.mjs`, `doctor.*.test.mjs`, `cm-sweep.sh`, `provision-89.sh`, `root-taller-89.sh:19,71`,
