@@ -15,8 +15,11 @@ const TOOLCHAIN_REFERENCIA = { vite: '8.3.0', typescript: '6.0.0' } as const;
 
 const lista = (valores: string[]): string => valores.join(', ');
 
-const noRust = (d: DatosProyecto): string | null => (d.esRust ? null : 'no es un proyecto Rust');
-const sinGuard = (d: DatosProyecto): string | null => (d.esElegible ? null : 'sin Guardián: su puerta no es sentinel');
+/* [por que] Cada condición pide solo el campo que lee (ISP): así se puede probar con
+ * un fragmento y no hace falta armar un DatosProyecto completo. */
+const noRust = (d: Pick<DatosProyecto, 'esRust'>): string | null => (d.esRust ? null : 'no es un proyecto Rust');
+const sinGuard = (d: Pick<DatosProyecto, 'esElegible'>): string | null =>
+  d.esElegible ? null : 'sin Guardián: su puerta no es sentinel';
 /* Primera versión numérica del rango declarado ('^6.4.0' → '6.4.0'); null si no hay ninguna (p. ej. 'latest'). */
 const minimoDeclarado = (rango: string): string | null => rango.match(/\d+(?:\.\d+)*/)?.[0] ?? null;
 
