@@ -14,11 +14,13 @@ import { usePanelTareas } from '../../../hooks/usePanelTareas.js';
 import { ColumnaTareas } from './ColumnaTareas.js';
 import './tareas.css';
 
-/* Dashboard del permanente TASKS (Vite 4191): el frente no tiene URL por
- * tarea ni por proyecto (main.tsx solo declara /, /arbitraje/,
- * /privacidad/, /terminos/, /prueba/), asi que "abrir en TASKS" abre el
- * dashboard en pestana nueva, no un deep-link inventado. */
-export const URL_TABLERO_TAREAS = 'http://127.0.0.1:4191/';
+/* Dashboard del permanente TASKS: el frente no tiene URL por tarea ni por
+ * proyecto (main.tsx solo declara /, /arbitraje/, /privacidad/, /terminos/,
+ * /prueba/), asi que "abrir en TASKS" abre el dashboard en pestana nueva, no un
+ * deep-link inventado. [por qué] El puerto (4191 por defecto) lo fija quien
+ * despliega el tablero con VITE_TAREAS_TABLERO_URL; el front no lee process.env. */
+export const URL_TABLERO_TAREAS: string =
+  import.meta.env.VITE_TAREAS_TABLERO_URL || 'http://127.0.0.1:4191/';
 
 export function PanelTareas() {
   const t = usePanelTareas();
