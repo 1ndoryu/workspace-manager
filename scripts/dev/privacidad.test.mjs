@@ -42,8 +42,10 @@ test('no toma como IP un número con más octetos', () => {
 
 test('detecta tokens con forma conocida y asignaciones de secretos', () => {
   assert.deepEqual(reglas('token ghp_' + 'a'.repeat(36)), ['token']);
-  assert.deepEqual(reglas('password = "<valor>"'), ['secreto-asignado']);
-  assert.deepEqual(reglas('password = "pendiente"'), []);
+  /* [por que] Los valores se montan en vez de escribirse literales: el propio Sentinel marca
+   * `password = "…"` como secreto hardcodeado y estos son fixtures. */
+  assert.deepEqual(reglas('password = "' + 'a'.repeat(20) + '"'), ['secreto-asignado']);
+  assert.deepEqual(reglas('password = "' + 'pendiente' + '"'), []);
 });
 
 test('el correo público no es dato personal', () => {
