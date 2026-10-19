@@ -201,6 +201,17 @@ export function MapaV2() {
               <polygon points={paredDer} className="mapaV2ParedDer" />
               <polygon points={paredIzq} className="mapaV2ParedIzq" />
               <polygon points={techo} className="mapaV2Piso" />
+              {/* Donde corre el dev: cuadrado hueco = laptop, cuadrado lleno = VPS 89.
+               * [por que] Va a la izquierda del anillo y del punto para no taparlos. */}
+              {p.ejecucion ? (
+                <rect
+                  x={posicionGrid(col, fila).x - 17}
+                  y={posicionGrid(col, fila).y - TILE.altoPared - 3}
+                  width={6}
+                  height={6}
+                  className={p.ejecucion.donde === 'vps89' ? 'mapaV2MarcaVps89' : 'mapaV2MarcaLaptop'}
+                />
+              ) : null}
               {p.despliegue ? (
                 /* Anillo hueco: el proyecto tiene despliegue en Coolify (VPS 66). */
                 <circle

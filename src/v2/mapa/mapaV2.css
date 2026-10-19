@@ -127,6 +127,21 @@
     pointer-events: none;
 }
 
+/* Marcas de ubicacion (monocromo): cuadrado lleno = corre en la VPS 89,
+ * cuadrado hueco = corre en el laptop. El anillo marca Coolify (VPS 66). */
+.mapaV2MarcaVps89 {
+    fill: var(--v2-texto);
+    stroke: none;
+    pointer-events: none;
+}
+
+.mapaV2MarcaLaptop {
+    fill: none;
+    stroke: var(--v2-texto);
+    stroke-width: 0.8;
+    pointer-events: none;
+}
+
 /* Anillo hairline monocromo: despliegue en Coolify. Sin color, para no
  * competir con el punto verde (que solo marca lo que esta vivo). */
 .mapaV2AnilloCoolify {
