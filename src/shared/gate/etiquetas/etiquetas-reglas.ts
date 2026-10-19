@@ -6,7 +6,7 @@
  * Vive separado de `etiquetas.ts` (claves de configuracion) para mantener
  * ambos catalogos por debajo del limite de lineas y con un unico responsable. */
 
-import type { InfoSegmento } from './etiquetas.js';
+import type { InfoSegmento } from './etiquetas-tipos.js';
 
 /* Reglas estaticas conocidas (CATALOGO_REGLAS en reglas.ts).
  * Las reglas dinamicas de cada proyecto (no en el catalogo) caen al

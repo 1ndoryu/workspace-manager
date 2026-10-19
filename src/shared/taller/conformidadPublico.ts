@@ -1,7 +1,7 @@
 /* Reglas públicas del taller (P0–P2): qué hostnames hay que comprobar ahora y si el conector
  * de Cloudflare vive. [por que] Va aparte de conformidad.ts para que cada módulo quede bajo el
  * límite de líneas. Igual que él: funciones puras, sin E/S, importables desde cliente y servidor. */
-import type { EntradaConformidad, EstadoTaller89, Hallazgo, RegistroConformidad } from './conformidad.js';
+import type { EntradaConformidad, EstadoTaller89, Hallazgo, RegistroConformidad } from './conformidad-tipos.js';
 
 /* Hostnames públicos que hay que comprobar ahora. [por que] Un dev parado no tiene conector
  * de Cloudflare (el conector arranca con el dev) y no debe sondearse: exigirlo daba un

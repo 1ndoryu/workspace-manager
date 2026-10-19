@@ -6,17 +6,11 @@
  * sensores. */
 import axios from 'axios';
 import type { StoreApi } from 'zustand';
-import type { InformeDev } from '../../shared/dev.js';
-import type { AccionesDev, AccionDevNombre, EstadoWorkspace } from './tipos.js';
+import type { AccionesDev, AccionDevNombre, EstadoWorkspace, InformeDevVivo } from './tipos.js';
 import { logger } from '../../shared/logger.js';
 
 type Set = StoreApi<EstadoWorkspace>['setState'];
 type Get = StoreApi<EstadoWorkspace>['getState'];
-
-/* Informe vivo: el InformeDev del doctor mas la frescura del cache server. */
-export interface InformeDevVivo extends InformeDev {
-  escaneadoHaceMs: number;
-}
 
 export function crearAccionesDev(set: Set, get: Get): AccionesDev {
   return {

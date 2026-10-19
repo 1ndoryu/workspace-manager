@@ -7,7 +7,7 @@
  * `FetchPuente` (inyectable en tests). */
 import {request as pedirHttp} from 'node:http';
 import {request as pedirHttps} from 'node:https';
-import type {FetchPuente, RespuestaPuente} from './puente-tareas.js';
+import type {FetchPuente, RespuestaPuente} from './transporte-tipos.js';
 
 export function crearHttpNativo(timeoutMs: number): FetchPuente {
   return (url, init) =>

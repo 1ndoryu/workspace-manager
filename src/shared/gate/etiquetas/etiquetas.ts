@@ -8,13 +8,8 @@
  * se usa el segmento tecnico como nombre (fallback); solo se muestra la
  * descripcion cuando existe. */
 
-export interface InfoSegmento {
-  nombre: string;
-  descripcion?: string;
-  /* Explicacion detallada para el tooltip del editor: breve, clara y
-   * suficiente para entender de que trata la opcion sin mirar la doc. */
-  detalle?: string;
-}
+import type { InfoSegmento } from './etiquetas-tipos.js';
+export type { InfoSegmento } from './etiquetas-tipos.js';
 
 /* Traduccion por segmento tecnico de ruta. La clave es el segmento EXACTO
  * tal como aparece en la ruta (case-sensitive). Si un segmento no esta,

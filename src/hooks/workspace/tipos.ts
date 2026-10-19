@@ -10,12 +10,19 @@ import type {
   ConfigScan,
   SnapshotWorkspace,
 } from '../../shared/types.js';
-import type { InformeDevVivo } from './accionesDev.js';
+import type { InformeDev } from '../../shared/dev.js';
 import type { ReglaCatalogo } from '../../shared/gate/catalogo/reglas.js';
 import type { NodoEsquema } from '../../shared/gate/modelo/esquema.js';
 import type { TipoGate } from '../../shared/gate/proveedores.js';
 import type { ReporteSincronizacion } from '../../server/gate/sincronizacion.js';
 import type { ResultadoSalud } from '../../shared/salud/salud.js';
+
+/* Informe vivo: el InformeDev del doctor mas la frescura del cache server.
+ * [por que] Vive aquí, en el contrato, y no en accionesDev.ts: así el store
+ * y sus acciones dependen de tipos.ts y no se importan en círculo. */
+export interface InformeDevVivo extends InformeDev {
+  escaneadoHaceMs: number;
+}
 
 /* Panel central y visibilidad de paneles (nav), persistidos igual que el
  * layout y la seleccion: sobreviven a recargas. [por que] El usuario pidio

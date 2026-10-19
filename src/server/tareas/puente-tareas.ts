@@ -47,12 +47,8 @@ export function leerConfigPuente(env: Record<string, string | undefined> = proce
   };
 }
 
-/* Respuesta con las cookies de sesion separadas (el fetch global las junta). */
-export interface RespuestaPuente extends RespuestaHttp {
-  cookies: string[];
-}
-
-export type FetchPuente = (url: string, init: PeticionHttp) => Promise<RespuestaPuente>;
+export type {FetchPuente, RespuestaPuente} from './transporte-tipos.js';
+import type {FetchPuente, RespuestaPuente} from './transporte-tipos.js';
 
   /* Transporte de produccion: HTTP nativo (el fetch global bloquea el
    * puerto 4190 por Fetch-spec: `bad port` sin tocar red; ver
