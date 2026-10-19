@@ -5,6 +5,7 @@
  * y lógica; sin E/S, para poder importarlo desde cliente y servidor.
  * Cada regla devuelve null si pasa o el detalle si falla. Sin lectura válida de la 89 no se
  * afirma «sano»: se emite A0. */
+import { fallaConector, fallaPublico } from './conformidadPublico.js';
 
 export type AmbitoConformidad = '89' | 'publico' | 'local';
 export type SeveridadConformidad = 'error' | 'advertencia';
@@ -70,6 +71,8 @@ export interface EstadoLocal {
 export interface RegistroConformidad {
   sesionesDev: string[];
   hostsPublicos: string[];
+  /* Sesiones tmux (dev-<id>-<puerto>) del proyecto de cada hostname público. */
+  sesionesDevPorHost: Record<string, string[]>;
   puertosLocalesPublicos: number[];
   sitiosRust: { id: string; buildMode: string | null }[];
   /* Marcas (subcadenas, en minúsculas) de las apps ajenas al área: las que el
@@ -287,45 +290,6 @@ const REGLAS_LOCAL: ReglaLocal[] = [
     },
   },
 ];
-
-/* Reglas públicas que dependen de la sonda P1 (HTTP sin credenciales). */
-function fallaPublico(e: EntradaConformidad): Hallazgo[] {
-  const out: Hallazgo[] = [];
-  if (e.registro.hostsPublicos.length === 0) return out;
-  if (!e.publico) {
-    out.push({ id: 'P0', ambito: 'publico', severidad: 'advertencia', detalle: 'hostnames públicos no comprobados', remedio: 'Reintentar la comprobación (forzar).' });
-    return out;
-  }
-  const malos: string[] = [];
-  for (const host of e.registro.hostsPublicos) {
-    const r = e.publico.hosts.find((h) => h.host === host);
-    if (!r) { malos.push(`${host} no comprobado`); continue; }
-    if (r.status === 200) malos.push(`${host} sirve la app sin Access (200)`);
-    else if (!r.location || !/cloudflareaccess\.com/.test(r.location)) {
-      malos.push(`${host} no redirige a Access (status ${r.status ?? 'sin respuesta'}${r.error ? `, ${r.error}` : ''})`);
-    }
-  }
-  if (malos.length) out.push({
-    id: 'P1', ambito: 'publico', severidad: 'error', detalle: malos.join('; '),
-    remedio: 'Crear la app de Access para el hostname antes de publicarlo (plan sucesor S6.1); no hay servicio sin Access.',
-  });
-  return out;
-}
-
-/* P2: el conector de Cloudflare vive en la 89 y su token va con modo 0600. Solo se exige
- * si hay hostnames públicos declarados; sin ellos no hay túnel que vigilar. */
-function fallaConector(e: EntradaConformidad, t: EstadoTaller89): Hallazgo | null {
-  if (e.registro.hostsPublicos.length === 0) return null;
-  const av: string[] = [];
-  if (!t.cloudflared.viva) av.push('cloudflared no está vivo');
-  if (t.cloudflared.tokenModo === null) av.push('sin fichero de token');
-  else if (t.cloudflared.tokenModo !== '600') av.push(`token con modo ${t.cloudflared.tokenModo}`);
-  if (!av.length) return null;
-  return {
-    id: 'P2', ambito: 'publico', severidad: 'error', detalle: av.join('; '),
-    remedio: 'Token de cloudflared en ~/.config/cloudflared/*.env con modo 0600; conector vivo con Arranque up.',
-  };
-}
 
 /* Evalúa todas las reglas y devuelve los hallazgos. Lista vacía = conforme. */
 export function evaluarConformidad(e: EntradaConformidad): Hallazgo[] {

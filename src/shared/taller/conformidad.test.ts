@@ -8,6 +8,7 @@ import {
   type EntradaConformidad,
   type EstadoTaller89,
 } from './conformidad.js';
+import { hostsActivos } from './conformidadPublico.js';
 
 const T89_CONFORME: EstadoTaller89 = {
   version: 1,
@@ -48,6 +49,7 @@ const CONFORME: EntradaConformidad = {
   registro: {
     sesionesDev: ['dev-mn'],
     hostsPublicos: ['mn-dev.wandori.us'],
+    sesionesDevPorHost: { 'mn-dev.wandori.us': ['dev-mn'] },
     puertosLocalesPublicos: [5199],
     sitiosRust: [{ id: 'rust-x', buildMode: 'builder' }],
     ajenos: ['app-ajena'],
@@ -180,6 +182,20 @@ describe('conformidad del taller: público (P0, P1, P2)', () => {
     assert.ok(ids(con({ cloudflared: { version: null, tokenModo: '600', viva: false } })).includes('P2'));
     assert.ok(ids(con({ cloudflared: { version: '1', tokenModo: '644', viva: true } })).includes('P2'));
     assert.ok(ids(con({ cloudflared: { version: '1', tokenModo: null, viva: true } })).includes('P2'));
+  });
+
+  it('P1/P2: un dev público parado no se exige ni se sondea', () => {
+    const parado: EntradaConformidad = {
+      ...con({ tmux: [], cloudflared: { version: null, tokenModo: null, viva: false } }),
+      publico: null,
+    };
+    assert.deepEqual(ids(parado).filter((i) => i.startsWith('P')), []);
+    assert.deepEqual(hostsActivos(parado.registro, parado.t89), []);
+  });
+
+  it('P1/P2: un host sin sesiones conocidas sigue exigiéndose', () => {
+    const sinSesion = { ...CONFORME.registro, sesionesDevPorHost: {} };
+    assert.deepEqual(hostsActivos(sinSesion, T89_CONFORME), ['mn-dev.wandori.us']);
   });
 
   it('P2: sin hostnames públicos no se exige conector', () => {

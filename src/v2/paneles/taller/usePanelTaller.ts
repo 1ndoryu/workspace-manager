@@ -52,7 +52,8 @@ function filasPublico(hosts: string[], publico: EstadoPublico | null): Fila[] {
   if (!publico) return [['lectura', 'no comprobada']];
   return hosts.map((h): Fila => {
     const r = publico.hosts.find((x) => x.host === h);
-    if (!r) return [h, 'no comprobado'];
+    /* Sin sonda es que su dev está parado: hostsActivos no lo sondea (conformidadPublico.ts). */
+    if (!r) return [h, 'no sondeado (dev parado)'];
     const estado = r.status === null ? 'sin respuesta' : `HTTP ${r.status}`;
     const destino = r.location ? ` → ${r.location}` : '';
     const error = r.error ? ` (${r.error})` : '';

@@ -4,7 +4,8 @@
  * es lo único que impide que un dev quede expuesto, y no debe depender de la red. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { leerRegistroConformidad, parsearHistorial, pedirPublico, sesionesMutagenMalas } from './estado.js';
+import { parsearHistorial, pedirPublico, sesionesMutagenMalas } from './estado.js';
+import { leerRegistroConformidad } from './registroConformidad.js';
 
 /* Línea de estado.jsonl con la forma que escribe `taller-estado --registrar`. */
 function linea(tomadaEn: string, libreGb: number): string {

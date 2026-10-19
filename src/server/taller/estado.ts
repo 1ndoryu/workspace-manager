@@ -6,7 +6,6 @@
  * 60 s y las peticiones simultáneas comparten una sola lectura (single-flight). Así el panel y
  * la consola no multiplican sesiones SSH. */
 import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import {
   evaluarConformidad,
   type EntradaConformidad,
@@ -15,16 +14,14 @@ import {
   type EstadoTaller89,
   type Hallazgo,
   type MuestraHistorial,
-  type RegistroConformidad,
 } from '../../shared/taller/conformidad.js';
-import { NOMBRE_MANAGER, rutaConfigPrivada } from '../../shared/rutas.js';
+import { hostsActivos } from '../../shared/taller/conformidadPublico.js';
+import { leerRegistroConformidad } from './registroConformidad.js';
+import { NOMBRE_MANAGER } from '../../shared/rutas.js';
 import { BIN_SSH } from '../../shared/binarios.js';
 import { esNumero, esObjeto } from '../../shared/guardas.js';
 import { hostTaller, leerConfigRemota } from '../gate/herramientas/config.js';
-import { sesionDev } from '../../shared/taller/sesiones.js';
-import { appsAjenas } from '../registro.js';
 
-const RUTA_REGISTRO = rutaConfigPrivada('registro.json');
 /* Alias SSH del taller. [por que] Antes era la constante 'dev89' incrustada: el alias
  * de la máquina de una persona, que en otro entorno no existe. Lo declara taller.json
  * (`host`), que es privado; sin ese fichero no hay taller que leer y se dice. */
@@ -57,55 +54,6 @@ function correr(archivo: string, args: string[], timeoutMs: number): Promise<{ s
         resolver({ salida, error: detalle || 'error sin detalle' });
       });
   });
-}
-
-/* ---------- Registro ---------- */
-
-interface ProyectoRegistro {
-  id?: unknown;
-  host?: unknown;
-  puertos?: unknown;
-  puertosRemotos?: unknown;
-  hostsPublicos?: unknown;
-  puertosPublicos?: unknown;
-  buildMode?: unknown;
-}
-
-const textos = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
-const numeros = (v: unknown): number[] => (Array.isArray(v) ? v.filter((x): x is number => typeof x === 'number') : []);
-
-/* Lo que el registro declara y debe cumplirse. Sitios Rust: solo los que declaran buildMode;
- * un Rust sin declarar no se evalúa (cobertura limitada, dicho en el resumen). */
-export function leerRegistroConformidad(): RegistroConformidad {
-  const crudo = JSON.parse(readFileSync(RUTA_REGISTRO, 'utf8')) as {
-    proyectos?: ProyectoRegistro[];
-    noAplica?: Record<string, unknown>;
-  };
-  const sesionesDev: string[] = [];
-  const hostsPublicos = new Set<string>();
-  const puertosLocalesPublicos = new Set<number>();
-  const sitiosRust: RegistroConformidad['sitiosRust'] = [];
-  for (const p of crudo.proyectos ?? []) {
-    const id = typeof p.id === 'string' ? p.id : '';
-    if (!id) continue;
-    /* [por que] Las sesiones tmux remotas se llaman dev-<id>-<puerto> (scripts/dev/remoto.mjs:27)
-     * y el puerto es el remoto (puertosRemotos ?? puertos, remoto.mjs:30). */
-    if (typeof p.host === 'string' && p.host !== '') {
-      for (const puerto of numeros(p.puertosRemotos ?? p.puertos)) sesionesDev.push(sesionDev(id, puerto));
-    }
-    textos(p.hostsPublicos).forEach((h) => hostsPublicos.add(h));
-    numeros(p.puertosPublicos).forEach((n) => puertosLocalesPublicos.add(n));
-    if ('buildMode' in p) sitiosRust.push({ id, buildMode: typeof p.buildMode === 'string' ? p.buildMode : null });
-  }
-  /* Apps ajenas al área: las que el registro marca `gestion-externa`. No son
-   * nuestros proyectos, así que L1 no las denuncia ni las manda parar. */
-  return {
-    sesionesDev,
-    hostsPublicos: [...hostsPublicos],
-    puertosLocalesPublicos: [...puertosLocalesPublicos],
-    sitiosRust,
-    ajenos: appsAjenas(crudo),
-  };
 }
 
 /* ---------- VPS 89 (sonda por SSH) ---------- */
@@ -334,9 +282,10 @@ async function leerLocal(): Promise<EstadoLocal> {
 
 async function calcular(): Promise<EstadoTallerCompleto> {
   const registro = leerRegistroConformidad();
-  const [taller, publico, local, hist] = await Promise.all([
-    leerTaller89(),
-    leerPublico(registro.hostsPublicos),
+  /* La 89 va primero: sin su lectura no se sabe qué dev está levantado, y solo esos hosts se sondean. */
+  const taller = await leerTaller89();
+  const [publico, local, hist] = await Promise.all([
+    leerPublico(hostsActivos(registro, taller.t89)),
     leerLocal(),
     leerHistorial(),
   ]);
