@@ -33,11 +33,14 @@ export function pasosDe(consumidor, config, configSentinel) {
   const setupPropio = [propios('quality-setup.mjs'), propios('setup.mjs')].find(archivo => fs.existsSync(archivo));
   const setup = setupPropio ?? path.join(AQUI, 'quality-setup.mjs');
   const pkg = leerJson(path.join(consumidor.dir, 'package.json'));
-  /* `doctor` es { argv, enProyecto }: argv se ejecuta en local o en la 89; `enProyecto` dice si el
-   * comando vive en la réplica del consumidor (sí en el script npm) o en un checkout fuera de ella. */
+  /* `doctor` es { argv, enProyecto, remota }: argv se ejecuta en local o en la 89; `enProyecto` dice si el
+   * comando vive en la réplica del consumidor (sí en el script npm) o en un checkout fuera de ella.
+   * `remota` ({ nombre, commit }) indica que en la 89 el doctor usa la CLI que prepara el setup en
+   * /var/tmp/glory-quality (la réplica no trae .quality-tools; sin ella el script npm cae en un `sentinel` global). */
+  const remota = configSentinel?.commit ? { nombre: 'sentinel', commit: configSentinel.commit } : null;
   let doctor;
   if (pkg?.scripts?.['quality:doctor']) {
-    doctor = { argv: ['npm', 'run', 'quality:doctor', '--silent'], enProyecto: true };
+    doctor = { argv: ['npm', 'run', 'quality:doctor', '--silent'], enProyecto: true, remota };
   } else {
     /* [219A-2] El doctor siempre es `sentinel doctor`, aunque se este
      * propagando otra tool: el CLI de varsense no tiene subcomando doctor
@@ -45,7 +48,7 @@ export function pasosDe(consumidor, config, configSentinel) {
     const cfgDoctor = configSentinel ?? config;
     const provision = path.resolve(consumidor.dir, cfgDoctor?.provisionPath ?? '.quality-tools');
     const cli = typeof cfgDoctor?.cli === 'string' && cfgDoctor.cli ? path.join(provision, cfgDoctor.cli) : null;
-    doctor = cli && fs.existsSync(cli) ? { argv: [process.execPath, cli, 'doctor', '--json'], enProyecto: false } : null;
+    doctor = cli && fs.existsSync(cli) ? { argv: [process.execPath, cli, 'doctor', '--json'], enProyecto: false, remota } : null;
   }
   return {
     lock: comando(process.execPath, [lock, '--write']),

@@ -6,8 +6,16 @@ import { conPasos, escribir, escribirRouters } from './ajustes.mjs';
 import { familiaDe, revisarRouters } from './consumidores.mjs';
 import { reescribirPin, validarReescritura } from './manifiesto.mjs';
 import { pasosDe } from './release.mjs';
-import { cargarTaller, decidirDonde, dirRemotoDe, ejecutarEnVps, mensajeSinVps } from '../../shared/vps.mjs';
+import { cargarTaller, decidirDonde, dirRemotoDe, dirRemotoDeHerramienta, ejecutarEnVps, mensajeSinVps } from '../../shared/vps.mjs';
 import { comando, ejecutar, leerJson, leerJsonDeTexto, primeraLineaUtil } from './utilidades.mjs';
+
+/* Issues que aparecen solo porque la herramienta no está instalada en la 89 (no por el proyecto). */
+const ISSUES_ENTORNO_89 = new Set(['tool-source-missing', 'tool-cli-missing', 'tool-capability-missing']);
+
+export function soloEntornoSinHerramienta(informe) {
+  const issues = Array.isArray(informe?.issues) ? informe.issues : [];
+  return issues.length > 0 && issues.every(issue => ISSUES_ENTORNO_89.has(issue?.code));
+}
 
 /* [por que] Igual que quality:setup: si el taller está configurado, el doctor del proyecto corre
  * en la 89 (AGENTS §1). Sin VPS no se ejecuta en el portátil: se informa como omitido con el motivo.
@@ -22,10 +30,21 @@ function ejecutarDoctor(consumidor, doctor) {
   }
   if (destino.donde === 'local') return ejecutar(comando(...doctor.argv), consumidor.dir, 300_000);
   /* [por que] Un doctor de herramienta vive fuera de la réplica y la 89 no lo tiene: no es un fallo
-   * del proyecto, así que se informa sin marcarlo como error. */
-  if (!doctor.enProyecto) return { omitido: 'doctor de herramienta fuera del proyecto: no corre en la 89', grave: false };
+   * del proyecto, así que se informa sin marcarlo como error (salvo que haya CLI remota, `remota`). */
+  if (!doctor.enProyecto && !doctor.remota) return { omitido: 'doctor de herramienta fuera del proyecto: no corre en la 89', grave: false };
   const dir = dirRemotoDe(taller, path.basename(consumidor.dir), consumidor.dir, consumidor.dir);
-  const resultado = ejecutarEnVps(taller, dir, doctor.argv, { capturar: true });
+  /* [por que] Mutagen no sincroniza todos los proyectos: sin réplica el doctor no se puede comprobar
+   * y no es un fallo del pin; se informa como no comprobado. */
+  const replica = ejecutarEnVps(taller, '/var/tmp', ['test', '-d', dir], { capturar: true });
+  const sinVps = mensajeSinVps(replica.status, taller.host);
+  if (sinVps) return { omitido: sinVps, grave: true };
+  if (replica.status !== 0) return { omitido: 'proyecto sin réplica en la 89: doctor no comprobado', grave: false };
+  /* [por que] La CLI del commit fijado la prepara el setup en /var/tmp; el script npm del proyecto
+   * busca `.quality-tools` (que la 89 no tiene) y acabaría en un `sentinel` global inexistente allí. */
+  const argv = doctor.remota
+    ? ['node', path.posix.join(dirRemotoDeHerramienta(taller, doctor.remota.nombre, doctor.remota.commit), 'out/cli/index.js'), 'doctor', '--json', '--workspace', dir]
+    : doctor.argv;
+  const resultado = ejecutarEnVps(taller, dir, argv, { capturar: true });
   const aviso = mensajeSinVps(resultado.status, taller.host);
   return {
     status: typeof resultado.status === 'number' ? resultado.status : 2,
@@ -124,6 +143,13 @@ export function propagarConsumidor(consumidor, tool, destino) {
   fila.doctor = doctor.status === 0 ? 'ok' : 'fallo';
   fila.issues = Array.isArray(informe?.issues) ? informe.issues.length : null;
   if (informe && informe.readyForGate === false) fila.doctor = 'no-listo';
+  /* [por que] Si todos los issues son de herramienta ausente, la 89 no tiene `.quality-tools` (Mutagen no lo
+   * replica): no es un fallo del proyecto ni del pin (lock, setup y evidencia ya lo validan) → no comprobado. */
+  if (soloEntornoSinHerramienta(informe)) {
+    fila.doctor = 'no-comprobado';
+    fila.nota = 'herramienta fuera de la réplica de la 89 (.quality-tools no replicado)';
+    return fila;
+  }
   const doctorRoto = doctor.status !== 0 || fila.doctor !== 'ok';
   if (doctorRoto) {
     fila.estado = 'error';
