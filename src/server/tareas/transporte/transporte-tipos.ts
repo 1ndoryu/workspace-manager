@@ -4,7 +4,7 @@
  * usa) se importaban mutuamente por estos tipos: un ciclo que solo existía en tipos,
  * pero que obligaba a leer los dos archivos para entender uno. Aquí vive el contrato
  * y ambos dependen de él, no el uno del otro. */
-import type {PeticionHttp, RespuestaHttp} from './nucleo/tipos.js';
+import type {PeticionHttp, RespuestaHttp} from '../nucleo/tipos.js';
 
 /* Respuesta con las cookies de sesion separadas (el fetch global las junta). */
 export interface RespuestaPuente extends RespuestaHttp {

@@ -1,5 +1,5 @@
 /* Test del transporte nativo TASKS (07AA-5 F3): se corre con
- * `node node_modules/tsx/dist/cli.mjs --test src/server/tareas/transporte-tareas.test.ts`.
+ * `node node_modules/tsx/dist/cli.mjs --test src/server/tareas/transporte/transporte-tareas.test.ts`.
  * Solo loopback con servidor efimero propio (127.0.0.1:puerto-0): prueba que
  * el transporte de produccion alcanza puertos que el fetch global rechaza
  * (`bad port` en 4190) y separa las `set-cookie` para la sesion D1. */
@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {createServer, type Server} from 'node:http';
 import type {AddressInfo} from 'node:net';
 import {crearHttpNativo} from './transporte-tareas.js';
-import {crearPuenteTareas} from './puente-tareas.js';
+import {crearPuenteTareas} from '../puente-tareas.js';
 
 let servidor: Server;
 let base = '';

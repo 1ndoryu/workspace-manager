@@ -15,7 +15,7 @@ import type {
   PeticionHttp,
   RespuestaHttp,
 } from './nucleo/tipos.js';
-import {crearHttpNativo} from './transporte-tareas.js';
+import {crearHttpNativo} from './transporte/transporte-tareas.js';
 import {pedirProyectosPuente} from './proyectos-puente.js';
 import {mapearErrorTarea, type ParcheTarea, type ProyectoPuente} from './tarea-unitaria.js';
 
@@ -47,8 +47,8 @@ export function leerConfigPuente(env: Record<string, string | undefined> = proce
   };
 }
 
-export type {FetchPuente, RespuestaPuente} from './transporte-tipos.js';
-import type {FetchPuente, RespuestaPuente} from './transporte-tipos.js';
+export type {FetchPuente, RespuestaPuente} from './transporte/transporte-tipos.js';
+import type {FetchPuente, RespuestaPuente} from './transporte/transporte-tipos.js';
 
   /* Transporte de produccion: HTTP nativo (el fetch global bloquea el
    * puerto 4190 por Fetch-spec: `bad port` sin tocar red; ver
