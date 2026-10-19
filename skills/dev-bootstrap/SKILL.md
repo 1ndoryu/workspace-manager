@@ -1,6 +1,6 @@
 ---
 name: dev-bootstrap
-description: Arrancar, detener o comprobar cualquier proyecto del área con el mando dev de workspace-manager. Usar cuando el usuario quiera levantar, parar, ver el estado o ver los logs de un proyecto (MN-Inmobiliaria, NAKOMI, WANDORIUS, PROYECTO TASKS, gloryapi, etc.).
+description: Arrancar, detener o comprobar cualquier proyecto del área con el mando dev de workspace-manager. Usar cuando el usuario quiera levantar, parar, ver el estado o ver los logs de un proyecto registrado.
 ---
 
 # Dev-bootstrap
@@ -21,7 +21,7 @@ Arranque alta "<id|carpeta>" [--aplicar]  # lista de alta: en seco; --aplicar cr
 
 `Arranque` = atajo global (`%USERPROFILE%\bin\Arranque.cmd` en el PATH de usuario; hace falta terminal nueva la primera vez). Sin atajo: `node scripts/dev/dev.mjs ...` desde el repo.
 
-Los `<id>` válidos están en `config/registro.json` (p. ej. `MN-Inmobiliaria`, `NAKOMI`, `WANDORIUS`, `PROYECTO TASKS`, `glory-pulse`, `gloryapi`).
+Los `<id>` válidos están en `config/registro.json` (`Arranque status` los lista).
 
 ## Alta de proyecto nuevo
 
@@ -51,7 +51,7 @@ Reglas:
 - `boton`: el comando exacto que levanta el proyecto; `expectedCmdline`: subcadena que lo identifica en la lista de procesos.
 - `requiere`: solo si necesita otro servicio antes (p. ej. `glory-pulse`); `env`: objeto string→string no vacío (p. ej. `VITE_PORT`, vars de sccache) — llega al hijo vía `envPara()`/`lanzar()`, sin reiniciar el backend.
 - Sin servicio que levantar (solo docs o estático): no va en entradas, va en `noAplica` con motivo (`sin-servicio`).
-- Host remoto (`host`, p. ej. `dev89`): la entrada corre en esa VPS y su alta la valida `remoto.mjs` (fail-closed). `tunelSsh: false` = sin túnel SSH (dev público por Cloudflare Access, ver skill `taller-remoto`); `puertosLocales` no aplica con `tunelSsh: false`.
+- Host remoto (`host`, alias SSH de la VPS del taller): la entrada corre en esa VPS y su alta la valida `remoto.mjs` (fail-closed). `tunelSsh: false` = sin túnel SSH (dev público por Cloudflare Access, ver skill `taller-remoto`); `puertosLocales` no aplica con `tunelSsh: false`.
 - Validar el alta con `Arranque doctor --all` (falla si la entrada está mal formada) y luego `status "<id>"`.
 - Alta completa del proyecto (11 puntos: stack, git, README, roadmap y `Agente/`, registro, Sentinel, varsense, `quality:check`, `target-dir`, `.gitignore`, sin AGENTS/CLAUDE propios): fuente canónica `Agente/documentacion/alta-proyectos-2026-10-11.md`. `Arranque alta "<id>"` dice qué falta; `--aplicar` crea solo lo mecánico y nunca sobrescribe ni escribe en el registro.
 
@@ -71,11 +71,7 @@ Reglas:
 - Editar `scripts/quality-sync.mjs` y `sentinel.lock.json.bak` (ruido ajeno sin commitear).
 - Tocar código de otros repos para que algo arranque (p. ej. `glory-harness-core`).
 
-## Tareas kanban (07AA-5, sin comando de mando: se consume el proxy)
-
-No se creó comando `tareas` en el mando (decisión: el proxy + tab cubren el
-uso; el mando no gestiona credenciales de usuario y `stop` jamás toca 8787).
-Acceso para agentes vía proxy del backend WM (`src/server/tareas/`):
+## Integración de tareas (opcional)
 
 ```text
 GET  /api/tareas/estado                  # {disponible, motivo} honesto
@@ -83,20 +79,7 @@ GET  /api/tareas/proyecto?legacy_id=9001 # tareas de la columna
 POST /api/tareas/reordenar               # {movimientos:[{legacyId,orden,proyectoId?}]} (bulk ≤200)
 ```
 
-- Requiere backend 8787 con `TASKS_EMAIL`/`TASKS_PASSWORD`. Fuente: entorno de
-  proceso, o `logs/.tareas-env` (gitignored; lo añade `doctor.mjs` `envPara` solo
-  al backend de workspace-manager, así arranca con el tablero). Solo se aplican
-  al arrancar: tras editarlo, reinicia el backend. Sin ellas: `sin-credenciales`,
-  nunca datos falsos.
-- TASKS permanente: `127.0.0.1:4190` (+Vite 4191), auth cookie+CSRF (D1);
-  restart SOLO con `.freebuff/start-permanente.ps1` de `PROYECTO TASKS`
-  (idempotente; rebuild con `CARGO_TARGET_DIR=.runtime/target` parando el
-  backend antes por el lock del linker). OJO: fetch global → `bad port` en
-  4190 (Fetch-spec); usar `node:http` o `curl.exe`.
-- Núcleo agnóstico: `src/server/tareas/nucleo/` (pin tasks-core + `PIN.md`).
+- Solo funciona si el proyecto de tareas está configurado; si no, `disponible: false` con su motivo, nunca datos falsos.
+- Credenciales en `logs/.tareas-env` (gitignored), no en el repo. Se leen al arrancar el backend: tras editarlas, reinícialo.
+- Núcleo agnóstico: `src/server/tareas/nucleo/` (pin en `PIN.md`).
 
-## Bloqueos conocidos (decirlos, no esconderlos)
-
-- ~~`PROYECTO TASKS`: no compila por `glory-harness-core` E0753 (ajeno).~~
-  Obsoleto 2026-10-07: compila y corre (permanente 4190 con F1, live 13/13).
-- Puerto `5173` ocupado por opencode-propio mientras esté abierto: frontends en 5173 esperan.
