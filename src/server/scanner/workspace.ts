@@ -87,43 +87,57 @@ async function mapLimitado<T, R>(items: T[], limite: number, fn: (x: T) => Promi
   return salida;
 }
 
-/** Escanea la raiz y devuelve el snapshot completo del workspace. */
-export async function escanearWorkspace(opts: OpcionesEscaneo): Promise<SnapshotWorkspace> {
+type InfoGit = ReturnType<typeof detectarGit>;
+
+function repoDe(ruta: string, id: string, info: InfoGit): RepoPendiente {
+  return { ruta, id, tipo: info.esWorktree ? 'worktree' : 'repo', padre: info.padre };
+}
+
+/* Separa lo que hay en la raíz en repos (a leer con git) y carpetas que solo se listan.
+ * [por que] Es el único paso que recorre el disco sin git: aislado, se prueba con un
+ * directorio temporal sin repos reales. Las de `recursivas` se bajan un nivel. */
+export function descubrir(raiz: string, ignoradas: Set<string>, recursivas: Set<string>): Descubierto {
   const carpetas: Proyecto[] = [];
   const repos: RepoPendiente[] = [];
-  const entradas = leerEntradas(opts.raiz);
+  for (const nombre of leerEntradas(raiz)) {
+    if (ignoradas.has(nombre)) continue;
+    const ruta = join(raiz, nombre);
+    const info = detectarGit(ruta);
+    if (info.esRepo) {
+      repos.push(repoDe(ruta, nombre, info));
+    } else if (recursivas.has(nombre)) {
+      /* bajar un nivel: dentro de una carpeta que solo agrupa puede haber repos */
+      for (const interno of leerEntradas(ruta)) {
+        if (ignoradas.has(interno)) continue;
+        const rutaInterna = join(ruta, interno);
+        const infoInterno = detectarGit(rutaInterna);
+        if (infoInterno.esRepo) {
+          repos.push(repoDe(rutaInterna, interno, infoInterno));
+        } else {
+          carpetas.push({ id: interno, clave: claveDe(rutaInterna, raiz), ruta: rutaInterna, esGit: false, tipo: 'carpeta', padre: nombre });
+        }
+      }
+    } else {
+      carpetas.push({ id: nombre, clave: claveDe(ruta, raiz), ruta, esGit: false, tipo: 'carpeta' });
+    }
+  }
+  return { carpetas, repos };
+}
 
+export interface Descubierto {
+  carpetas: Proyecto[];
+  repos: RepoPendiente[];
+}
+
+/** Escanea la raiz y devuelve el snapshot completo del workspace. */
+export async function escanearWorkspace(opts: OpcionesEscaneo): Promise<SnapshotWorkspace> {
   const config = leerConfigArea(opts.raiz);
   const sinGate = new Set(config.sinGate ?? []);
   const varsenseOpcional = new Set(config.varsenseOpcional ?? []);
   const ignoradas = new Set([...IGNORADAS, ...(config.carpetasIgnoradas ?? [])]);
   const recursivas = new Set(config.carpetasRecursivas ?? []);
 
-  for (const nombre of entradas) {
-    const ruta = join(opts.raiz, nombre);
-    if (ignoradas.has(nombre)) continue;
-    const info = detectarGit(ruta);
-
-    if (info.esRepo) {
-      repos.push({ ruta, id: nombre, tipo: info.esWorktree ? 'worktree' : 'repo', padre: info.padre });
-    } else if (recursivas.has(nombre)) {
-      /* bajar un nivel: dentro de una carpeta que solo agrupa puede haber repos */
-      const internos = leerEntradas(ruta);
-      for (const interno of internos) {
-        const rutaInterna = join(ruta, interno);
-        if (ignoradas.has(interno)) continue;
-        const infoInterno = detectarGit(rutaInterna);
-        if (infoInterno.esRepo) {
-          repos.push({ ruta: rutaInterna, id: interno, tipo: infoInterno.esWorktree ? 'worktree' : 'repo', padre: infoInterno.padre });
-        } else {
-          carpetas.push({ id: interno, clave: claveDe(rutaInterna, opts.raiz), ruta: rutaInterna, esGit: false, tipo: 'carpeta', padre: nombre });
-        }
-      }
-    } else {
-      carpetas.push({ id: nombre, clave: claveDe(ruta, opts.raiz), ruta, esGit: false, tipo: 'carpeta' });
-    }
-  }
-
+  const { carpetas, repos } = descubrir(opts.raiz, ignoradas, recursivas);
   /* El orden de llegada no importa: la lista se ordena por id más abajo. */
   const deRepos = await mapLimitado(repos, REPOS_EN_PARALELO, (r) =>
     proyectoCompleto(opts.raiz, r.ruta, r.id, r.tipo, r.padre, sinGate, varsenseOpcional));

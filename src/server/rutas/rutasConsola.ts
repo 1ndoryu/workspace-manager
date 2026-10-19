@@ -56,14 +56,34 @@ export async function manejarRutasConsola(
     return true;
   }
   const forzar = url.searchParams.get('forzar') === '1';
+  const fuentes = await recogerFuentes(forzar);
+  const proyectos = agruparProblemas(fuentes);
+  const total = proyectos.reduce((n, g) => n + g.total, 0);
+  const { snapshot, analisis, vulnerabilidades, dev, saludDelArea } = fuentes;
+  json(res, 200, {
+    total,
+    escaneadoEn: new Date().toISOString(),
+    vigencia: {
+      snapshotEn: snapshot.escaneadoEn,
+      analisisEn: Object.fromEntries(analisis.map((a) => [a.clave, a.analizadoEn])),
+      vulnerabilidadesEn: Object.fromEntries(vulnerabilidades.map((v) => [v.clave, v.analizadoEn])),
+      devEn: dev.tomadoEn,
+      saludEn: saludDelArea.calculadoEn,
+    },
+    proyectos,
+  });
+  return true;
+}
+
+/* Lee todas las fuentes de la consola. [por que] Tras el snapshot, análisis, auditoría,
+ * vigilancia, salud y taller no se necesitan entre sí: en paralelo tarda lo que el más
+ * lento, en vez de sumar sus tiempos. La vigilancia no se fuerza: trae TTL 60 s y
+ * single-flight propios, y su frescura viaja en `vigencia.devEn`. */
+async function recogerFuentes(forzar: boolean) {
   /* [por que] snapshotArea(true) invalida la memoria del server (igual que
    * analizarTodo): si no, un commit reciente seguiría mostrando el HEAD
    * viejo en las entradas sinCommit/sinPush. */
   const { snapshot } = await snapshotArea(forzar);
-  /* [por que] Tras el snapshot, análisis, auditoría, vigilancia, salud y taller no se
-   * necesitan entre sí: en serie sumaban sus tiempos (≈30 s en frío); en paralelo tarda
-   * lo que tarda el más lento. La vigilancia no se fuerza: trae TTL 60 s y single-flight
-   * propios, y su frescura viaja en `vigencia.devEn`. */
   const [analisis, vulnerabilidades, { informe: dev }, [saludPorProyecto, saludDelArea], hallazgosTaller] =
     await Promise.all([
       forzar ? analizarTodo(snapshot.proyectos, true) : analisisVigentes(snapshot.proyectos),
@@ -72,51 +92,44 @@ export async function manejarRutasConsola(
       Promise.all([saludProyectos(forzar), saludArea(forzar)]),
       hallazgosDelTaller(),
     ]);
+  return { snapshot, analisis, vulnerabilidades, dev, saludPorProyecto, saludDelArea, hallazgosTaller };
+}
 
-  const porAnalisis = new Map(analisis.map((a) => [a.clave, a]));
-  const porVuln = new Map(vulnerabilidades.map((v) => [v.clave, v]));
+type Fuentes = Awaited<ReturnType<typeof recogerFuentes>>;
+
+/* Agrupa por proyecto las entradas de la consola. [por que] Sin E/S: recibe las fuentes
+ * ya leídas, así la ruta solo orquesta y el agrupado no depende del disco ni de la red. */
+export function agruparProblemas(f: Fuentes): { clave: string; id: string; entradas: Entrada[]; total: number }[] {
+  const porAnalisis = new Map(f.analisis.map((a) => [a.clave, a]));
+  const porVuln = new Map(f.vulnerabilidades.map((v) => [v.clave, v]));
   const porProyecto = new Map<string, { clave: string; id: string; entradas: Entrada[] }>();
   const poner = (clave: string, id: string, entradas: Entrada[]) => {
     const ex = porProyecto.get(clave);
     if (ex) ex.entradas.push(...entradas);
     else porProyecto.set(clave, { clave, id, entradas: [...entradas] });
   };
-  for (const p of snapshot.proyectos) {
+  for (const p of f.snapshot.proyectos) {
     const base = problemasDe(p);
     if (base) poner(p.clave, p.id, base.entradas);
     const sen = problemasSentinelDe(p, porAnalisis.get(p.clave));
     if (sen) poner(p.clave, p.id, sen.entradas);
     const vul = problemasVulnerabilidadDe(p, porVuln.get(p.clave));
     if (vul) poner(p.clave, p.id, vul.entradas);
-    const dv = problemasDevDe(p, dev, null);
+    const dv = problemasDevDe(p, f.dev, null);
     if (dv) poner(p.clave, p.id, dv.entradas);
-    const salud = problemasSaludDe(p, saludPorProyecto.get(p.clave));
+    const salud = problemasSaludDe(p, f.saludPorProyecto.get(p.clave));
     if (salud) poner(p.clave, p.id, salud.entradas);
   }
   /* Grupo sintético del área (comprobaciones de disco, runtime, AGENTS.md...). */
-  const salArea = problemaSaludArea(saludDelArea);
+  const salArea = problemaSaludArea(f.saludDelArea);
   if (salArea) poner(CLAVE_AREA, salArea.p.id, salArea.entradas);
-  const taller = problemasTallerDe(hallazgosTaller);
+  const taller = problemasTallerDe(f.hallazgosTaller);
   if (taller) poner(CLAVE_AREA, taller.p.id, taller.entradas);
   /* Grupo sintético de huérfanos sin proyecto (misma regla que el hook:
    * nunca participa en selección, solo en el conteo). */
-  const solos = problemaHuerfanosSinProyecto(dev);
+  const solos = problemaHuerfanosSinProyecto(f.dev);
   if (solos) poner('', solos.p.id, solos.entradas);
 
   /* [por que] El total cuenta todas las entradas que la consola muestra. */
-  const proyectos = [...porProyecto.values()].map((g) => ({ ...g, total: contarProblemas(g.entradas) }));
-  const total = proyectos.reduce((n, g) => n + g.total, 0);
-  json(res, 200, {
-    total,
-    escaneadoEn: new Date().toISOString(),
-    vigencia: {
-      snapshotEn: (snapshot as { escaneadoEn?: string }).escaneadoEn ?? null,
-      analisisEn: Object.fromEntries([...porAnalisis].map(([k, a]) => [k, a.analizadoEn])),
-      vulnerabilidadesEn: Object.fromEntries([...porVuln].map(([k, v]) => [k, v.analizadoEn])),
-      devEn: dev.tomadoEn,
-      saludEn: saludDelArea.calculadoEn,
-    },
-    proyectos,
-  });
-  return true;
+  return [...porProyecto.values()].map((g) => ({ ...g, total: contarProblemas(g.entradas) }));
 }
