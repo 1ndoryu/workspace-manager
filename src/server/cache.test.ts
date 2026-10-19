@@ -58,3 +58,24 @@ test('sin gitEn cuenta desde escaneadoEn', async () => {
   });
   assert.equal(llamadas, 1);
 });
+
+/* [por que] Un `forzar` que llega con un escaneo ya en marcha no debe unirse a él:
+ * ese escaneo pudo leer la config antes del último cambio. Un escaneo normal sí se comparte. */
+test('forzar no se une a un escaneo en curso; uno normal sí', async () => {
+  const base = snapshot(hace(1_000));
+  let llamadas = 0;
+  let abrir!: () => void;
+  const puerta = new Promise<void>((r) => (abrir = r));
+  const lento = async () => {
+    llamadas++;
+    await puerta;
+    return base;
+  };
+  const primero = obtenerSnapshot(base.raiz, lento, true, async (s) => s);
+  const unido = obtenerSnapshot(base.raiz, lento, false, async (s) => s);
+  const forzado = obtenerSnapshot(base.raiz, lento, true, async (s) => s);
+  await new Promise((r) => setImmediate(r));
+  abrir();
+  await Promise.all([primero, unido, forzado]);
+  assert.equal(llamadas, 2);
+});

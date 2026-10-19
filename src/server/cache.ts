@@ -81,6 +81,10 @@ export async function obtenerSnapshot(
       return { snapshot: refrescado, desdeCache: true };
     }
   }
+  /* [por que] Un `forzar` no se une a un escaneo que ya corre: ese pudo leer la config
+   * antes del último cambio y serviría un dato viejo. Espera a que termine y lanza el suyo
+   * (el `finally` ya lo habrá soltado). Un escaneo normal sí se comparte. */
+  if (forzar && escaneoEnCurso) await escaneoEnCurso.catch(() => undefined);
   /* [por que] `finally` (asíncrono) libera el escaneo compartido aunque falle; no se
    * usa try/finally dentro de la función async porque ahí la liberación podía correr
    * antes de guardar la promesa. */
