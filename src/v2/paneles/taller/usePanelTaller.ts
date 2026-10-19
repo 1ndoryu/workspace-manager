@@ -15,6 +15,9 @@ import {
 
 export type Fila = [etiqueta: string, valor: string];
 
+/* Nivel de la última corrida de cm-sweep (D4 del plan de limpieza del disco de la 89). */
+const NIVELES_SWEEP: Record<number, string> = { 0: 'mantenimiento', 1: 'aviso', 2: 'suelo' };
+
 export type Veredicto = 'cargando' | 'sin-datos' | 'conforme' | 'avisos' | 'errores';
 
 export const ETIQUETA_VEREDICTO: Record<Veredicto, string> = {
@@ -31,6 +34,14 @@ function veredictoDe(datos: RespuestaTaller | null, error: string | null, hallaz
   return hallazgos.length > 0 ? 'avisos' : 'conforme';
 }
 
+/* Qué hizo la última corrida del limpiador: nivel y GB liberados. Si la sonda no los trajo (sonda
+ * antigua o estado ilegible) se dice «sin dato», no un cero que parecería «no liberó nada». */
+function filaLimpieza(s: EstadoTaller89['sweep']): string {
+  if (s.nivel === null || s.nivel === undefined) return 'sin dato';
+  const gb = s.liberadoGb === null || s.liberadoGb === undefined ? '?' : s.liberadoGb;
+  return `${NIVELES_SWEEP[s.nivel] ?? s.nivel} · ${gb} GB liberados`;
+}
+
 function filasVps(t: EstadoTaller89 | null, motivo: string | null): Fila[] {
   if (!t) return [['lectura', `no disponible${motivo ? `: ${motivo}` : ''}`]];
   return [
@@ -38,6 +49,7 @@ function filasVps(t: EstadoTaller89 | null, motivo: string | null): Fila[] {
     ['memoria', `${t.memoria.disponibleMiB} MiB disponibles · swap en uso ${t.memoria.swapUsadaMiB} MiB`],
     ['último sweep', t.sweep.edadHoras === null ? 'sin log' : `hace ${t.sweep.edadHoras} h`],
     ['timer cm-sweep', t.sweep.timerActivo ? 'activo' : 'inactivo'],
+    ['última limpieza', filaLimpieza(t.sweep)],
     ['cm-heavy', t.cmHeavy.ocupado ? 'ocupado' : 'libre'],
     ['escuchas', t.escuchas.map((x) => `${x.direccion}:${x.puerto}/${x.proto}`).join(' ') || 'ninguna'],
     ['sesiones tmux', t.tmux.join(', ') || 'ninguna'],

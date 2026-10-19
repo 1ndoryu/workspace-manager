@@ -16,6 +16,7 @@ LIMITE_BYTES=5242880
 DATOS="$HOME/taller/_datos"
 LOCK=/run/lock/cm-heavy.lock
 LOG_SWEEP=/var/log/cm-sweep.log
+ESTADO_SWEEP=/var/lib/cm-sweep/estado
 USUARIO="$(id -un)"
 
 # Cadena JSON segura para rutas y nombres (comillas y barras invertidas).
@@ -36,6 +37,25 @@ else
   SWEEP_H=null
 fi
 if systemctl is-active --quiet cm-sweep.timer 2>/dev/null; then TIMER=true; else TIMER=false; fi
+
+# Última corrida del sweep: nivel, GB liberados y cuándo. cm-sweep escribe el estado como
+# `OK libre=57GB 1792449776 nivel=1 liberadoGb=1.42 borrados=8` (el epoch sigue en la posición 3,
+# sin nombre, por si lo parsea alguien). Si el fichero falta o está a medias, los tres campos van a
+# null: el panel prefiere un hueco a un cero falso.
+SWEEP_NIVEL=null
+SWEEP_LIBERADO=null
+SWEEP_ULTIMA=null
+if [ -r "$ESTADO_SWEEP" ]; then
+  # Sin `IFS=`: aquí sí se trocea en campos (con IFS vacío la línea entera cae en el primero).
+  read -r _ _ SWEEP_EPOCH _RESTO < "$ESTADO_SWEEP" || SWEEP_EPOCH=
+  # Se compara con un espacio delante y detrás para no casar un `nivel=` dentro de otro valor; el
+  # espacio de delante se añade porque `nivel=` abre el resto de la línea (los dos primeros campos
+  # se consumen arriba).
+  case " $_RESTO " in *" nivel="*) SWEEP_NIVEL=${_RESTO#*nivel=}; SWEEP_NIVEL=${SWEEP_NIVEL%% *} ;; esac
+  case " $_RESTO " in *" liberadoGb="*) SWEEP_LIBERADO=${_RESTO#*liberadoGb=}; SWEEP_LIBERADO=${SWEEP_LIBERADO%% *} ;; esac
+  case "$SWEEP_EPOCH" in '' | *[!0-9]*) SWEEP_EPOCH= ;; esac
+  [ -n "$SWEEP_EPOCH" ] && SWEEP_ULTIMA=$(json_str "$(date -u -d "@$SWEEP_EPOCH" +%Y-%m-%dT%H:%M:%SZ)")
+fi
 
 # Memoria disponible y swap en uso (MiB).
 MEM_MIB=$(awk '/^MemAvailable:/{print int($2/1024)}' /proc/meminfo)
@@ -67,7 +87,10 @@ if [ -e "$LOCK" ] && ! flock -n "$LOCK" true; then OCUPADO=true; fi
 # Un proceso sin ese fd abierto sobre el lock no pasó por cm-heavy.
 FUERA=$(ps -u "$USUARIO" -o pid=,comm= 2>/dev/null | awk '$2=="cargo"||$2=="rustc"{print $1}' | while read -r pid; do
   if readlink /proc/"$pid"/fd/* 2>/dev/null | grep -qx "$LOCK"; then continue; fi
-  printf '{"pid":%s,"cmd":"%s"}\n' "$pid" "$(tr -d '"\\' < /proc/"$pid"/comm 2>/dev/null)"
+  # El proceso puede morir entre `ps` y esta lectura; sin la guarda, bash escribe un error en stderr
+  # (y la sonda contesta por stdout, pero ensucia el diagnóstico).
+  [ -r /proc/"$pid"/comm ] || continue
+  printf '{"pid":%s,"cmd":"%s"}\n' "$pid" "$(tr -d '"\\' < /proc/"$pid"/comm)"
 done | paste -sd, -)
 
 # Permisos de los secretos de cloudflared (solo ruta y modo, nunca contenido).
@@ -95,7 +118,7 @@ DAEMON=false
 pgrep -u "$USUARIO" -f 'dist-server/server/index.js' >/dev/null 2>&1 && DAEMON=true
 
 TOMADA=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-JSON="{\"version\":1,\"tomadaEn\":\"$TOMADA\",\"disco\":{\"libreGb\":$LIBRE_GB},\"sweep\":{\"edadHoras\":$SWEEP_H,\"timerActivo\":$TIMER},\"memoria\":{\"disponibleMiB\":${MEM_MIB:-0},\"swapUsadaMiB\":${SWAP_MIB:-0}},\"escuchas\":[$ESCUCHAS],\"tmux\":[$TMUX_LISTA],\"cmHeavy\":{\"ocupado\":$OCUPADO},\"buildsFueraDeCmHeavy\":[$FUERA],\"secretos\":[$SECRETOS],\"cloudflared\":{\"version\":$CF_VER_J,\"tokenModo\":$CF_MODO_J,\"viva\":$CF_VIVA},\"bdTrabajo\":{\"existe\":$BD_EXISTE,\"edadHoras\":null},\"managerDaemonVivo\":$DAEMON}"
+JSON="{\"version\":1,\"tomadaEn\":\"$TOMADA\",\"disco\":{\"libreGb\":$LIBRE_GB},\"sweep\":{\"edadHoras\":$SWEEP_H,\"timerActivo\":$TIMER,\"nivel\":$SWEEP_NIVEL,\"liberadoGb\":$SWEEP_LIBERADO,\"ultimaLimpieza\":$SWEEP_ULTIMA},\"memoria\":{\"disponibleMiB\":${MEM_MIB:-0},\"swapUsadaMiB\":${SWAP_MIB:-0}},\"escuchas\":[$ESCUCHAS],\"tmux\":[$TMUX_LISTA],\"cmHeavy\":{\"ocupado\":$OCUPADO},\"buildsFueraDeCmHeavy\":[$FUERA],\"secretos\":[$SECRETOS],\"cloudflared\":{\"version\":$CF_VER_J,\"tokenModo\":$CF_MODO_J,\"viva\":$CF_VIVA},\"bdTrabajo\":{\"existe\":$BD_EXISTE,\"edadHoras\":null},\"managerDaemonVivo\":$DAEMON}"
 
 if [ "$REGISTRAR" = 1 ]; then
   mkdir -p "$DATOS"

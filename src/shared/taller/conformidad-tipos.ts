@@ -17,7 +17,16 @@ export interface EstadoTaller89 {
   version: number;
   tomadaEn: string;
   disco: { libreGb: number };
-  sweep: { edadHoras: number | null; timerActivo: boolean };
+  /* `nivel` (0 mantenimiento, 1 aviso, 2 suelo) y `liberadoGb` son de la última corrida de
+   * cm-sweep, y `ultimaLimpieza` su marca de tiempo. Opcionales: una sonda antigua no los trae y
+   * null significa «no se pudo leer el estado», que no es lo mismo que un cero. */
+  sweep: {
+    edadHoras: number | null;
+    timerActivo: boolean;
+    nivel?: number | null;
+    liberadoGb?: number | null;
+    ultimaLimpieza?: string | null;
+  };
   memoria: { disponibleMiB: number; swapUsadaMiB: number };
   /* `proceso` llega vacío cuando el socket es de otro usuario (la sonda no corre como root). */
   escuchas: { direccion: string; puerto: number; proto: 'tcp' | 'udp'; proceso?: string }[];
