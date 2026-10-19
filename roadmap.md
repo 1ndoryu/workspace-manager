@@ -67,7 +67,7 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
   `doctor/indice.mjs:204`, `lanzar.mjs:266,268`, `rcargo.test.mjs:76-87`, `release.mjs:11`
   `.quality-tools` vs `_quality-tools`); rutas viejas en AGENTS §2 y en la skill de workspace-manager;
   réplicas de gloryapi, Glory-Laminal, coolify-manager-rs, glory-lab y glory-pulse en `taller.json` o
-  aviso; `/api/proyectos/doctor` tarda 14,3 s sin caché. Fuera de este repo: `glory-pulse` (compilar
+  aviso; `/api/proyectos/doctor` bajó de 12–17 s a ~6 s con la marca `.runtime-sha` (medido con el script de perfil; el endpoint HTTP sigue sirviendo el build anterior hasta reconstruir `dist-server` en la 89). Fuera de este repo: `glory-pulse` (compilar
   el .exe en la 89) y los falsos positivos de `dist/` en glory-harness (Sentinel), cada uno en su
   sesión. Criterio de hecho: cada frente con evidencia y commit, o marcado con su motivo.
 - `18AA-1` — **Gate de calidad: el frontend corre en el laptop (error, AGENTS §1).** `frontend.mjs` del

@@ -70,6 +70,39 @@ export function huellaLock(ruta: string): string {
   }
 }
 
+/* Huella del runtime que se copia: su `out/` y sus dos ficheros de dependencias.
+ * [por que] Por contenido y no por mtime: un checkout sin cambios no debe reenviar
+ * 4,5 MB, y un cambio real siempre cambia el hash. */
+export function huellaRuntime(base: string): string {
+  const archivos: string[] = [];
+  listarBajo(base, 'out', archivos);
+  const h = createHash('sha256');
+  for (const f of [...archivos.sort(), 'package.json', 'package-lock.json']) {
+    h.update(`${f}\0`);
+    try {
+      h.update(readFileSync(join(base, f)));
+    } catch {
+      h.update('?'); /* falta: la huella cambia igual que si cambiara el contenido */
+    }
+  }
+  return h.digest('hex').slice(0, 16);
+}
+
+/* Relativas (con `/`) de los ficheros bajo `rel`, recursivo. */
+function listarBajo(base: string, rel: string, salida: string[]): void {
+  let entradas;
+  try {
+    entradas = readdirSync(join(base, rel), { withFileTypes: true });
+  } catch {
+    return; /* no existe: el runtime no tiene `out/` y la huella sale de los otros ficheros */
+  }
+  for (const e of entradas) {
+    const ruta = `${rel}/${e.name}`;
+    if (e.isDirectory()) listarBajo(base, ruta, salida);
+    else if (e.isFile()) salida.push(ruta);
+  }
+}
+
 /* Instala las dependencias del runtime en la 89, solo cuando el lock cambió. [por que]
  * `out/` se copia en cada análisis (4,5 MB) pero `node_modules` son 61 MB: copiarlo
  * cada vez no tiene sentido. El runtime usa 3 dependencias de producción, así que
@@ -195,16 +228,35 @@ async function prepararSentinelRemoto(
   const ws = rutaRemota(cfg, clave);
   const base = rutaRuntimeRemota(cfg, clave, 'sentinel');
   const cli = `${base}/out/cli/index.js`;
-  try {
-    await copiarEntradas(local.base, cfg, base, ['out', 'package.json', 'package-lock.json']);
-  } catch (err) {
-    throw new Error(`copia de sentinel a ${cfg.host}: ${mensaje(err)}`);
-  }
+  const marca = `${base}/.runtime-sha`;
   const npm = `${posix.dirname(cfg.nodeRemoto)}/npm`;
-  const deps = await ssh(cfg, comandoDeps(npm, base, huellaLock(join(local.base, 'package-lock.json'))), TIMEOUT_DEPS_MS);
-  if (deps.fallo) throw new Error(`dependencias de sentinel en ${cfg.host}: ${deps.fallo}`);
-  const sonda = await ssh(cfg, comandoSonda(cli), TIMEOUT_SONDA_MS);
-  if (sonda.fallo) throw new Error(`runtime sentinel no disponible en ${cfg.host} (${cli}): ${sonda.fallo}`);
+  const huella = huellaRuntime(local.base);
+  const huellaLockLocal = huellaLock(join(local.base, 'package-lock.json'));
+  const copiar = async () => {
+    try {
+      await copiarEntradas(local.base, cfg, base, ['out', 'package.json', 'package-lock.json']);
+    } catch (err) {
+      throw new Error(`copia de sentinel a ${cfg.host}: ${mensaje(err)}`);
+    }
+  };
+  /* Una sola ida y vuelta por intento. Con la marca al día basta con deps + sonda y
+   * se evita la copia; si no, la misma línea responde «copiar» sin tocar nada. La marca
+   * solo se escribe tras copiar y verificar, así que una copia rota no deja huella válida. */
+  const verificar = (conMarca: boolean) => {
+    const deps = `${comandoDeps(npm, base, huellaLockLocal)} && ${comandoSonda(cli)}`;
+    const orden = conMarca
+      ? `if [ "$(cat ${comillas(marca)} 2>/dev/null)" != ${comillas(huella)} ]; then echo copiar; exit 0; fi; ${deps}`
+      : `${deps} && printf '%s' ${comillas(huella)} > ${comillas(marca)}`;
+    return ssh(cfg, orden, TIMEOUT_DEPS_MS);
+  };
+  let listo = await verificar(true);
+  /* Marca al día pero runtime ausente o deps rotas (barrido de la 89): se copia una vez
+   * y se reintenta antes de dar el fallo. */
+  if (listo.stdout.trim() === 'copiar' || listo.fallo) {
+    await copiar();
+    listo = await verificar(false);
+  }
+  if (listo.fallo) throw new Error(`runtime sentinel no listo en ${cfg.host} (${cli}): ${listo.fallo}`);
   const env = { GLORY_SENTINEL_SOURCE_PATH: base, GLORY_VARSENSE_SOURCE_PATH: rutaRuntimeRemota(cfg, clave, 'varsense') };
   return { ws, cli, env, version: local.version };
 }

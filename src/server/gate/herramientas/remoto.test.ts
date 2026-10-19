@@ -13,6 +13,7 @@ import {
   comandoMarcasRepos,
   comandoSonda,
   huellaLock,
+  huellaRuntime,
   reposAnidados,
 } from './remoto.js';
 import { configRemotaDe, hostTaller, modoAnalisisEn, rutaRemota, rutaRuntimeRemota } from './config.js';
@@ -76,6 +77,29 @@ test('huellaLock: 16 hex del contenido, y "?" si no hay lock', () => {
    * esta máquina ni del checkout de las herramientas de calidad. */
   assert.match(huellaLock(join(RAIZ_REPO, 'package-lock.json')), /^[0-9a-f]{16}$/);
   assert.equal(huellaLock('C:/no/existe/package-lock.json'), '?');
+});
+
+/* [por que] La huella decide si se reenvia el runtime (4,5 MB). Debe cambiar con el
+ * contenido de out/ o de los manifiestos, y no con el orden de lectura ni con el mtime. */
+test('huellaRuntime: cambia con el contenido de out/ y de los manifiestos, no con el mtime', () => {
+  const base = mkdtempSync(join(tmpdir(), 'wm-runtime-'));
+  try {
+    mkdirSync(join(base, 'out', 'cli'), { recursive: true });
+    writeFileSync(join(base, 'out', 'cli', 'index.js'), 'a');
+    writeFileSync(join(base, 'package.json'), '{}');
+    writeFileSync(join(base, 'package-lock.json'), '{}');
+    const primera = huellaRuntime(base);
+    assert.match(primera, /^[0-9a-f]{16}$/);
+    assert.equal(huellaRuntime(base), primera);
+    writeFileSync(join(base, 'out', 'cli', 'index.js'), 'b');
+    assert.notEqual(huellaRuntime(base), primera);
+    writeFileSync(join(base, 'out', 'cli', 'index.js'), 'a');
+    assert.equal(huellaRuntime(base), primera);
+    writeFileSync(join(base, 'package-lock.json'), '{"x":1}');
+    assert.notEqual(huellaRuntime(base), primera);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
 });
 
 test('modoAnalisisEn: el taller solo con analisisEn exacto; por defecto local', () => {
