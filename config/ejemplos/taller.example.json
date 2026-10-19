@@ -16,6 +16,7 @@
       "target",
       "node_modules",
       "dist",
+      "dist-server",
       ".quality-tools",
       ".env",
       ".env.*",
