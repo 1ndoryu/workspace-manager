@@ -204,8 +204,9 @@ export async function contextoEntrada(id, args, { autoBackend = false } = {}) {
   }
   const pids = [...new Set(escucha.map((e) => e.pid))];
   const procs = await procesosDe(pids);
-  // [por que] Los binarios Rust compilan en C:\tmp por regla del area: un
-  // `0.0.0.0` suyo jamas contiene RAIZ_REPO y el filtro viejo los borraba
+  // [por que] Los binarios Rust de otros proyectos salen de su target-dir, fuera
+  // de RAIZ_REPO (hoy en la VPS, antes en C:\tmp): un `0.0.0.0` suyo jamas
+  // contiene RAIZ_REPO y el filtro viejo los borraba
   // (caso real 2026-10-03: pulse en 3000 visto como "libre"). La contencion
   // correcta es la misma atribucion que esDelProyecto (exe bajo la ruta del
   // proyecto o cmd con su expectedCmdline), aplicada a TODAS las entradas.
