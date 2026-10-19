@@ -26,10 +26,10 @@
     "quality:lock": "node scripts/quality/lock-generator.mjs",
     "quality:lock:check": "node scripts/quality/lock-generator.mjs",
     "quality:bump": "node scripts/quality/bump.mjs",
-    "quality:bump:test": "node --test scripts/quality/bump.test.mjs",
-    "quality:setup:test": "node --test scripts/quality/quality-setup.test.mjs",
-    "quality:sync:test": "node --test scripts/quality-sync.test.mjs",
-    "quality:cert:test": "node --test scripts/quality/certificacion.test.mjs"
+    "quality:bump:test": "node scripts/dev/ejecutar-tests.mjs node --test scripts/quality/bump.test.mjs",
+    "quality:setup:test": "node scripts/dev/ejecutar-tests.mjs node --test scripts/quality/quality-setup.test.mjs",
+    "quality:sync:test": "node scripts/dev/ejecutar-tests.mjs node --test scripts/quality-sync.test.mjs",
+    "quality:cert:test": "node scripts/dev/ejecutar-tests.mjs node --test scripts/quality/certificacion.test.mjs"
   },
   "dependencies": {
     "axios": "^1.7.0",

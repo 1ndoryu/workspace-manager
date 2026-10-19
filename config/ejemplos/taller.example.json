@@ -2,6 +2,7 @@
   "version": 1,
   "modoPorDefecto": "remoto",
   "host": "<ALIAS_SSH>",
+  "hostnameTaller": "<HOSTNAME_TALLER>",
   "dirRemotoBase": "<HOME_REMOTO>/taller",
   "targetBase": "/var/tmp/glory-target",
   "nodeRemoto": "<HOME_REMOTO>/.local/share/fnm/node-versions/v24.21.0/installation/bin/node",
