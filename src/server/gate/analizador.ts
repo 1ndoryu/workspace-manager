@@ -11,8 +11,8 @@
  *    execFileSync bloqueaba snapshot/config/doctor durante segundos);
  *  - ante fallo marca 'error' y NUNCA rompe el snapshot;
  *  - si el proyecto es del taller (registro.json + taller.json), el analisis corre
- *    en la VPS sobre su replica (remoto.ts, S3.7); si esa corrida no arranca, se
- *    reintenta en el portatil y se anota el porque en `aviso`. Lo demas no cambia.
+ *    en la VPS sobre su replica (remoto.ts, S3.7); si esa corrida no arranca, queda
+ *    en 'error' con su motivo, sin reintento en el portatil (AGENTS §1). Lo demas no cambia.
  * El cliente es 'tonto': pide y muestra; este modulo es el dueno de la ejecucion.
  *
  * [por que esta partido] La auditoria SOLID (E3) vio dos oficios en un fichero:
