@@ -112,16 +112,6 @@ export const COLOR_HUB: Record<string, string> = {
   produccion: 'var(--mapa-produccion)',
 };
 
-/* Icono "en linea" (ondas sobre un punto), dibujado en una caja de unos 10 px de alto
- * con el punto de anclaje en la base. Lo usa el mapa sobre las cajas conectadas. */
-export const ICONO_EN_LINEA = 'M-6,-4 Q0,-10 6,-4 M-3.5,-1.5 Q0,-5.5 3.5,-1.5 M0,0 L0.01,0';
-
-/** Ancla del icono "en linea": encima del techo de la caja, centrado. */
-export function anclaIconoEnLinea(col: number, fila: number): PuntoIso {
-  const c = posicionGrid(col, fila);
-  return { x: c.x, y: c.y - TILE.alto / 2 - TILE.altoPared - 3 };
-}
-
 /** Degradado del borde de una caja, del color de cada linea que le llega.
  * Eje: arranca por el lado por donde SALE cada linea (su primer tramo, `punto`)
  * y acaba en el lado de la segunda (o en el opuesto si solo tiene una).
@@ -159,3 +149,7 @@ export function degradadoBorde(
 
 
 
+/** Puntos SVG (`x,y x,y …`) de una ruta de celdas. */
+export function textoRuta(celdas: { col: number; fila: number }[]): string {
+  return celdas.map(({ col, fila }) => { const p = posicionGrid(col, fila); return `${p.x},${p.y}`; }).join(' ');
+}

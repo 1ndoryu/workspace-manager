@@ -2,24 +2,24 @@
  * sin sombras, sin bold. [por que] Reglas de diseño del front v2: los estados
  * se diferencian con patrones de relleno/borde, no con color. La logica de
  * interaccion (zoom, pan, arrastre, hover, tooltip) vive en useMapaV2. */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { Proyecto } from '../../shared/types.js';
 import { ETIQUETA_ESTADO, estadoProyecto } from '../estado.js';
-import { carrilesDe, disponer, ladosDe, puntoSalida, rutaSuelo } from './disposicion.js';
+import { disponer } from './geometria/disposicion.js';
+import { claveEnlace, puntoSalida, rutasDe } from './geometria/rutas.js';
 import {
   TILE,
-  ICONO_EN_LINEA,
-  anclaIconoEnLinea,
   pathCuadricula,
   degradadoBorde,
   posicionGrid,
+  textoRuta,
   verticesParedDer,
   verticesParedIzq,
   verticesTecho,
-} from './tiles.js';
+} from './geometria/tiles.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
-import { LeyendaMapa } from './LeyendaMapa.js';
-import { NodoMapa, Troncales } from './NodoMapa.js';
+import { EnlaceSuelo, NodoMapa, Troncales } from './NodoMapa.js';
+import { BordeDev } from './BordeDev.js';
 import { ControlesMapa } from './ControlesMapa.js';
 import { TooltipMapa } from './TooltipMapa.js';
 import { useMapaV2 } from './useMapaV2.js';
@@ -70,6 +70,9 @@ export function MapaV2() {
 
   const enProd = useProduccionViva(proyectos);
 
+  /* Nodo bajo el raton: solo entonces se muestra su nombre. */
+  const [hubSobre, setHubSobre] = useState<string | null>(null);
+
   /* Tres nodos (laptop, VPS 89, produccion) y cada proyecto junto al suyo,
    * unido por una linea. Todo en celdas pares: una celda vacia entre cajas. */
   const { colocados, hubs, enlaces, troncales } = useMemo(() => disponer(proyectos, enMarcha, enProd), [proyectos, enMarcha, enProd]);
@@ -84,9 +87,8 @@ export function MapaV2() {
     return items.sort((a, b) => a.col + a.fila - (b.col + b.fila) || a.col - b.col);
   }, [colocados, hubs]);
 
-  /* Carriles y rutas por el suelo: en disposicion.ts (geometria de los enlaces). */
-  const carriles = useMemo(() => carrilesDe(enlaces, hubs), [enlaces, hubs]);
-  const lados = useMemo(() => ladosDe(enlaces, hubs), [enlaces, hubs]);
+  /* Rutas por el suelo (camino mas corto por los pasillos): en rutas.ts. */
+  const rutas = useMemo(() => rutasDe(colocados, hubs, enlaces, troncales), [colocados, hubs, enlaces, troncales]);
 
   /* Rango de celdas ocupadas por cajas y nodos (para extender la cuadricula). */
   const rangoCeldas = useMemo(() => {
@@ -167,6 +169,14 @@ export function MapaV2() {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          {/* Brillo suave del borde degradado de las cajas conectadas. */}
+          <filter id="mapaV2BrilloBorde" x="-40%" y="-40%" width="180%" height="190%">
+            <feGaussianBlur stdDeviation="1.4" result="halo" />
+            <feMerge>
+              <feMergeNode in="halo" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
         </defs>
         {/* Cuadricula iso de separacion, dibujada detras de las cajas.
          * Se extiende EXT celdas mas alla del contenido en cada direccion
@@ -186,35 +196,32 @@ export function MapaV2() {
          * donde corre (verde y con halo si esta en marcha); discontinua = produccion. */}
         <Troncales troncales={troncales} hubs={hubs} atenuar={!!hover} />
         {enlaces.map((e) => (
-          <polyline
-            key={`${e.clave}-${e.hasta}`}
-            points={rutaSuelo(e, hubs, carriles, lados)}
-            className={`mapaV2Enlace mapaV2Enlace--${e.hasta}${hover && hover.clave !== e.clave ? ' mapaV2Enlace--ajeno' : ''}`}
-            filter={e.vivo ? 'url(#mapaV2Brillo)' : undefined}
+          <EnlaceSuelo
+            key={claveEnlace(e)}
+            puntos={textoRuta(rutas.get(claveEnlace(e))!)}
+            hasta={e.hasta}
+            vivo={e.vivo}
+            atenuar={!!hover && hover.clave !== e.clave}
           />
         ))}
         {escena.map((item) => {
           if (item.tipo === 'hub') {
-            return <NodoMapa key={item.h.id} h={item.h} alto={ALTO_HUB} />;
+            return <NodoMapa key={item.h.id} h={item.h} alto={ALTO_HUB} onSobre={setHubSobre} />;
           }
           const { p, fila, col } = item;
           const estado = estadoProyecto(p);
           const techo = verticesTecho(col, fila);
           const paredIzq = verticesParedIzq(col, fila);
           const paredDer = verticesParedDer(col, fila);
-          /* Borde degradado del color de sus lineas, desde el lado de cada nodo. */
-          /* Punto de salida de cada linea: su cara y carril, igual que en la ruta. */
+          /* Borde degradado del color de sus lineas, desde la cara por donde sale cada una. */
           const lineas = enlaces.filter((e) => e.clave === p.clave).map((e) => ({
             hasta: e.hasta,
-            punto: puntoSalida(e, carriles, lados),
+            punto: puntoSalida(rutas.get(claveEnlace(e))!),
           }));
           const borde = degradadoBorde(col, fila, lineas);
           const idBorde = `mapaV2Borde-${col}-${fila}`;
-          /* Trazo como atributo SVG (no style={{}}): las reglas CSS de la caja no lo
-           * pisan porque `mapaV2.css` no fija stroke en las cajas con degradado. */
+          /* Trazo como atributo SVG: las reglas CSS de la caja no lo pisan. */
           const trazoBorde = borde ? `url(#${idBorde})` : undefined;
-          const enLinea = enMarcha.has(p.clave) || enProd.has(p.clave);
-          const ancla = anclaIconoEnLinea(col, fila);
           return (
             <g
               key={p.id}
@@ -248,17 +255,18 @@ export function MapaV2() {
                   <stop offset="1" stopColor={borde.colores[1]} />
                 </linearGradient>
               )}
-              {/* Orden de dibujo iso: paredes primero, techo encima. */}
-              <polygon points={paredDer} className="mapaV2ParedDer" stroke={trazoBorde} />
-              <polygon points={paredIzq} className="mapaV2ParedIzq" stroke={trazoBorde} />
-              <polygon points={techo} className="mapaV2Piso" stroke={trazoBorde} />
-              {/* Icono pequeno sobre la caja: indica que esta en linea (en marcha o en produccion). */}
-              {enLinea && <path d={ICONO_EN_LINEA} transform={`translate(${ancla.x} ${ancla.y})`} className="mapaV2EnLinea" />}
+              {/* Orden iso: paredes y techo; el brillo solo si la caja tiene lineas. */}
+              <g filter={borde ? 'url(#mapaV2BrilloBorde)' : undefined}>
+                <polygon points={paredDer} className="mapaV2ParedDer" stroke={trazoBorde} />
+                <polygon points={paredIzq} className="mapaV2ParedIzq" stroke={trazoBorde} />
+                <polygon points={techo} className="mapaV2Piso" stroke={trazoBorde} />
+              </g>
+              {p.ejecucion?.modo === 'dev' && <BordeDev caras={[paredDer, paredIzq, techo]} />}
             </g>
           );
         })}
         {/* Nombres en capa final: ninguna caja posterior los tapa. */}
-        {hubs.map((h) => (
+        {hubs.filter((h) => h.id === hubSobre).map((h) => (
           <text
             key={`e-${h.id}`}
             x={posicionGrid(h.col, h.fila).x}
@@ -270,22 +278,24 @@ export function MapaV2() {
           </text>
         ))}
         {/* Proyectos */}
-        {colocados.map(({ p, col, fila }) => (
-          <text
-            key={`n-${p.clave}`}
-            x={posicionGrid(col, fila).x}
-            y={posicionGrid(col, fila).y + TILE.alto / 2 + 7}
-            textAnchor="middle"
-            className="mapaV2NombreProyecto"
-          >
-            {corto(p.id)}
-          </text>
-        ))}
+        {/* Nombre tumbado sobre la cara superior, con la proyeccion 2:1 del suelo. */}
+        {colocados.map(({ p, col, fila }) => {
+          const c = posicionGrid(col, fila);
+          return (
+            <text
+              key={`n-${p.clave}`}
+              transform={`translate(${c.x} ${c.y - TILE.altoPared}) matrix(1 -0.5 1 0.5 0 0)`}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="mapaV2NombreProyecto"
+            >
+              {corto(p.id)}
+            </text>
+          );
+        })}
       </svg>
 
       <ControlesMapa modoArrastre={modoArrastre} alternarModoArrastre={alternarModoArrastre} acercar={acercar} alejar={alejar} />
-
-      <LeyendaMapa />
 
       {hover && tooltipPos && <TooltipMapa proyecto={hover} posicion={tooltipPos} />}
     </div>

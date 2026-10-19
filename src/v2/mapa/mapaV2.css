@@ -133,13 +133,17 @@
 }
 
 /* Nodos de ubicacion: cajas altas y macizas (plataformas a las que se conectan
- * los proyectos). Sin eventos: el techo de las cajas es el unico capturador. */
+ * los proyectos). Solo el techo capta el raton, para mostrar el nombre al pasar. */
 .mapaV2HubPared,
 .mapaV2HubTecho {
     stroke: var(--v2-fondo);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
     pointer-events: none;
+}
+
+.mapaV2HubTecho {
+    pointer-events: visiblePainted;
 }
 
 .mapaV2Hub--laptop .mapaV2HubPared,
@@ -162,9 +166,9 @@
 .mapaV2NombreProyecto {
     fill: var(--v2-texto);
     stroke: var(--v2-fondo);
-    stroke-width: 2px;
+    stroke-width: 1.5px;
     paint-order: stroke;
-    font-size: var(--v2-textMicro);
+    font-size: var(--v2-textNano);
     font-weight: normal;
     pointer-events: none;
 }
@@ -184,8 +188,7 @@
 
 /* Al pasar el raton por un proyecto, las lineas que no son suyas casi se apagan
  * para leer su flujo. */
-.mapaV2Enlace,
-.mapaV2Troncal {
+.mapaV2Enlaces {
     transition: opacity 0.15s;
 }
 
@@ -201,39 +204,44 @@
     pointer-events: none;
 }
 
-/* Leyenda (esquina inferior izquierda). */
-.mapaV2Leyenda {
-    position: absolute;
-    left: var(--v2-spaceMd);
-    bottom: var(--v2-spaceMd);
-    margin: 0;
-    padding: 4px 6px;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    background: var(--v2-fondo);
-    border: 1px solid var(--v2-borde);
-    font-size: var(--v2-textLeyenda);
-    line-height: 1.2;
+/* Flujo de datos: puntos claros que recorren la linea de la caja al nodo, despacio.
+ * [por que] Solo anima stroke-dashoffset (barato) y se apaga con "reducir movimiento". */
+.mapaV2Flujo {
+    fill: none;
+    stroke: var(--v2-fondo);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-dasharray: 0.1 14;
+    opacity: 0.9;
+    vector-effect: non-scaling-stroke;
     pointer-events: none;
+    animation: mapaV2Flujo 2.8s linear infinite;
 }
 
-.mapaV2Leyenda li {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+@keyframes mapaV2Flujo {
+    to { stroke-dashoffset: -14.1; }
 }
 
-.mapaV2LeyendaLinea {
-    display: inline-block;
-    width: 12px;
-    height: 2px;
+/* Caja en modo dev: trazo claro discontinuo que recorre sus bordes, encima del
+ * borde solido (BordeDev). [por que] Solo anima stroke-dashoffset; se apaga con
+ * "reducir movimiento". */
+.mapaV2BordeDev polygon {
+    fill: none;
+    stroke: var(--v2-fondo);
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+    animation: mapaV2BordeDev 1.6s linear infinite;
 }
 
-.mapaV2LeyendaLinea--vivo {
-    background: var(--v2-texto);
-    box-shadow: 0 0 6px 1px var(--v2-texto);
+@keyframes mapaV2BordeDev {
+    to { stroke-dashoffset: -7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mapaV2Flujo,
+    .mapaV2BordeDev polygon { animation: none; }
 }
 
 /* Tooltip monocromo: caja negra con borde y texto blanco. La posicion la
@@ -264,14 +272,4 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-}
-
-/* Icono "en linea" sobre la caja conectada: trazo fino, sin eventos. */
-.mapaV2EnLinea {
-    fill: none;
-    stroke: var(--v2-texto);
-    stroke-width: 1.2;
-    stroke-linecap: round;
-    vector-effect: non-scaling-stroke;
-    pointer-events: none;
 }

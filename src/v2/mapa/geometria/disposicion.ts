@@ -3,9 +3,9 @@
  * libre más cercana al nodo donde corre y se enlaza con él; si además tiene
  * despliegue en Coolify, se enlaza también con producción.
  * [por que] Función pura y separada de la vista para poder probarla sin SVG. */
-import type { Proyecto } from '../../shared/types.js';
-import { PESO_ESTADO, estadoProyecto } from '../estado.js';
-import { posicionGrid, type PuntoIso } from './tiles.js';
+import type { Proyecto } from '../../../shared/types.js';
+import { PESO_ESTADO, estadoProyecto } from '../../estado.js';
+import { textoRuta } from './tiles.js';
 
 export type IdHub = 'laptop' | 'vps89' | 'produccion';
 
@@ -32,7 +32,7 @@ export interface Enlace {
   tipo: 'ejecucion' | 'produccion';
   /* Brilla lo que corre: ejecución en marcha o producción en running. */
   vivo: boolean;
-  /* Puente entre dos nodos: su línea va recta al nodo, sin pasillos. */
+  /* Puente entre dos nodos: su ruta se calcula antes que las demás, para quedarse con el camino recto. */
   directo?: boolean;
 }
 
@@ -60,7 +60,7 @@ const TRONCALES: Troncal[] = [
 
 /* Camino directo entre dos celdas siguiendo los ejes de la cuadrícula (un solo codo):
  * así la línea respeta la perspectiva isométrica y no cruza en diagonal. */
-function caminoL(a: Celda, b: Celda, primero: 'col' | 'fila'): Celda[] {
+export function caminoL(a: Celda, b: Celda, primero: 'col' | 'fila'): Celda[] {
   const codo = primero === 'col' ? { col: b.col, fila: a.fila } : { col: a.col, fila: b.fila };
   return [a, codo, b];
 }
@@ -78,9 +78,6 @@ function celdasDeCamino(camino: Celda[]): Celda[] {
   return t;
 }
 
-function textoRuta(celdas: Celda[]): string {
-  return celdas.map(({ col, fila }) => { const p = posicionGrid(col, fila); return `${p.x},${p.y}`; }).join(' ');
-}
 
 type Destino = IdHub | 'libre';
 
@@ -214,87 +211,4 @@ export function disponer(
 export function rutaTroncal(t: Troncal, hubs: Hub[]): string {
   const [a, b] = [t.de, t.a].map((id) => hubs.find((x) => x.id === id)!);
   return textoRuta(caminoL(a, b, t.primero));
-}
-
-/* Franja del pasillo (en celdas, respecto al centro de la caja) que ocupa cada
- * nodo; dentro de ella cada enlace recibe su propio carril. */
-const FRANJA = { vps89: [0.55, 0.95], produccion: [1.05, 1.45], laptop: [-1.45, -0.55] } as const;
-
-/* Carril propio por enlace: reparte los de un mismo nodo a lo largo de su
- * franja, asi ninguna linea tapa a otra al compartir pasillo. */
-export function carrilesDe(enlaces: Enlace[], hubs: Hub[]): Map<string, number> {
-  const t = new Map<string, number>();
-  (Object.keys(FRANJA) as (keyof typeof FRANJA)[]).forEach((id) => {
-    const h = hubs.find((x) => x.id === id)!;
-    const ls = enlaces
-      .filter((e) => e.hasta === id)
-      .sort((a, b) => Math.abs(b.desde.col - h.col) + Math.abs(b.desde.fila - h.fila) - (Math.abs(a.desde.col - h.col) + Math.abs(a.desde.fila - h.fila)) || a.clave.localeCompare(b.clave));
-    const [lo, hi] = FRANJA[id];
-    ls.forEach((e, i) => t.set(`${e.clave}-${id}`, ls.length < 2 ? (lo + hi) / 2 : lo + ((hi - lo) * i) / (ls.length - 1)));
-  });
-  return t;
-}
-
-/* Las cuatro caras de una celda, como vector unitario en celdas (col, fila). */
-const LADOS: [number, number][] = [[0, 1], [1, 0], [0, -1], [-1, 0]];
-
-/* Cara de la caja por donde sale cada enlace (clave `${clave}-${hasta}`).
- * [por que] Si varias lineas de una caja salen por la misma cara, se pisan y el
- * borde degradado no tiene dos colores distintos: cada enlace toma la cara libre
- * que mira mas hacia su nodo. */
-export function ladosDe(enlaces: Enlace[], hubs: Hub[]): Map<string, [number, number]> {
-  const t = new Map<string, [number, number]>();
-  const porCaja = new Map<string, Enlace[]>();
-  for (const e of enlaces) porCaja.set(e.clave, [...(porCaja.get(e.clave) ?? []), e]);
-  for (const grupo of porCaja.values()) {
-    const usados = new Set<number>();
-    for (const e of grupo) {
-      const h = hubs.find((x) => x.id === e.hasta)!;
-      const dc = h.col - e.desde.col;
-      const df = h.fila - e.desde.fila;
-      let mejor = -1;
-      LADOS.forEach(([lc, lf], i) => {
-        if (usados.has(i)) return;
-        if (mejor < 0 || lc * dc + lf * df > LADOS[mejor][0] * dc + LADOS[mejor][1] * df) mejor = i;
-      });
-      usados.add(mejor);
-      t.set(`${e.clave}-${e.hasta}`, LADOS[mejor]);
-    }
-  }
-  return t;
-}
-
-/* Celda de salida del enlace: a una distancia del centro de la caja igual a su
- * carril, en la cara que le toca. Con carriles distintos, las lineas no se solapan. */
-function salidaDe(e: Enlace, carriles: Map<string, number>, lados: Map<string, [number, number]>): Celda {
-  const k = `${e.clave}-${e.hasta}`;
-  const [dc, df] = lados.get(k)!;
-  const d = Math.abs(carriles.get(k)!);
-  return { col: e.desde.col + dc * d, fila: e.desde.fila + df * d };
-}
-
-/* Punto de salida en pantalla: donde arranca el borde degradado de la caja. */
-export function puntoSalida(e: Enlace, carriles: Map<string, number>, lados: Map<string, [number, number]>): PuntoIso {
-  const s = salidaDe(e, carriles, lados);
-  return posicionGrid(s.col, s.fila);
-}
-
-/* Ruta por el suelo, por los pasillos impares (las celdas vacias entre cajas):
- * sale de la caja por su cara, corre en paralelo a la cuadricula y entra al nodo de lado. */
-export function rutaSuelo(
-  e: Enlace,
-  hubs: Hub[],
-  carriles: Map<string, number>,
-  lados: Map<string, [number, number]>,
-): string {
-  const h = hubs.find((x) => x.id === e.hasta)!;
-  if (e.directo) return textoRuta(caminoL(e.desde, h, 'col'));
-  const s = carriles.get(`${e.clave}-${e.hasta}`)!;
-  const salida = salidaDe(e, carriles, lados);
-  /* Pasillo paralelo a la cara de salida, y tramo de entrada al nodo. */
-  const porFila = lados.get(`${e.clave}-${e.hasta}`)![0] === 0;
-  const pasillo = porFila ? { col: h.col + s, fila: salida.fila } : { col: salida.col, fila: h.fila + s };
-  const entrada = porFila ? { col: pasillo.col, fila: h.fila } : { col: h.col, fila: pasillo.fila };
-  const celdas = [e.desde, salida, pasillo, entrada, h];
-  return celdas.map(({ col, fila }) => { const p = posicionGrid(col, fila); return `${p.x},${p.y}`; }).join(' ');
 }

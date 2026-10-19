@@ -4,7 +4,7 @@
  * del mapa (monocromo, wireframe). La seleccion es estado global del store.
  * [299A-11] Estado en `usePanelDetalle`: el componente renderiza. */
 import { usePanelDetalle } from '../../hooks/usePanelDetalle.js';
-import { verticesParedDer, verticesParedIzq, verticesTecho } from '../mapa/tiles.js';
+import { verticesParedDer, verticesParedIzq, verticesTecho } from '../mapa/geometria/tiles.js';
 import { Button } from '../ui/form/Button.js';
 import './detalle.css';
 
