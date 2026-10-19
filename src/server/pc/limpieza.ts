@@ -1,8 +1,8 @@
 /* Borrado del papel `limpiador`: limpiarPc (una pasada) y limpiarTodo (SSE).
  * [por que] [299A-11] Bloque E: sale de ejecucion.js (590 líneas efectivas)
  * junto con scan.js; la base (fases, tipos, cola, rutas) queda en
- * ejecucion.js. El ciclo limpieza ↔ scan (predicados de exclusión mutua)
- * es solo en tiempo de llamada —nunca en la carga— y tsc lo verifica.
+ * ejecucion.js. La exclusión mutua con el análisis vive en exclusion.js
+ * (módulo hoja), así que limpieza no importa a scan.
  * [0610A-1] Ejecución, validación, parseo, reintento y poda viven en
  * limpiezaBase.js (compartidos por ambas mitades); aquí solo orquesta. */
 import { existsSync } from 'node:fs';
@@ -16,7 +16,7 @@ import {
   rutaReporte,
 } from './ejecucion.js';
 import type { AccionPc, FasePc, ResumenReintento, ResultadoLimpieza } from './ejecucion.js';
-import { hayScanEnCurso } from './scan.js';
+import { hayLimpiezaEnCurso, hayScanEnCurso, marcarLimpieza } from './exclusion.js';
 import {
   agruparSeleccion,
   correrClean,
@@ -99,11 +99,6 @@ export function estadoLimpieza(): { enCurso: boolean; hechas: number; total: num
   };
 }
 
-/* Predicado para la exclusión mutua con el análisis (vive en scan.js). */
-export function hayLimpiezaEnCurso(): boolean {
-  return trabajoLimpieza !== null;
-}
-
 /* Adjunta un cliente al borrado en curso (reenvío + en vivo). Null si no
  * hay trabajo activo (p. ej. recarga tardía). */
 export function adjuntarLimpieza(
@@ -136,6 +131,7 @@ export function limpiarTodo(
     resolver = res;
   });
   trabajoLimpieza = { total: seleccion.length, emitidas: [], oyentes: new Set([informa]), terminado, resolver };
+  marcarLimpieza(true);
   void encolar(() => cuerpoLimpieza(seleccion));
   return terminado;
 }
@@ -186,7 +182,10 @@ async function cuerpoLimpieza(seleccion: SeleccionPc[]): Promise<void> {
     emite({ tipo: 'error', fase: 'area', etiqueta: '', detalle: String(err) });
     t.resolver({ acciones, liberadosGb, reintentos });
   } finally {
-    if (trabajoLimpieza === t) trabajoLimpieza = null;
+    if (trabajoLimpieza === t) {
+      trabajoLimpieza = null;
+      marcarLimpieza(false);
+    }
   }
 }
 

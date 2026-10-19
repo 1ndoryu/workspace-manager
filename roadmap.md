@@ -48,7 +48,11 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 - `19AA-2` — **Frentes abiertos del `/goal` de calidad (no hechos el 2026-10-19).** Pendientes: organizar
   los 24 `PLAN-*.md` (cerrados a `planes/completados/`); README; SOLID (ningún archivo de código no-test
   supera 300 líneas efectivas; máximo 296. `limite-lineas` cuenta efectivas, no brutas: ver
-  `Agente/documentacion/calidad/deteccion-mjs-2026-10-19.md`);
+  `Agente/documentacion/calidad/deteccion-mjs-2026-10-19.md`). **SOLID, auditoría real (2026-10-19):**
+  ciclo `pc/scan` ↔ `pc/limpieza` **roto** (exclusión mutua en `pc/exclusion.ts`, módulo hoja, con test).
+  Pendiente, sin corregir: `gate/analisis/almacen.ts` y `gate/vulnerabilidades/almacen.ts` duplican la
+  persistencia y fijan `RAIZ_AREA`; `vulnerabilidades.ts` (SRP), `salud/recoger.ts`,
+  `auditoria-remota.ts`, `rutasGuardianTipos.ts` (ISP) y las capas de `shared/` sin verificar contra el código;
   accesibilidad de la UI; limpieza de config privada fuera del repo; restos del frente 9
   (`test-utils.mjs`, `doctor.*.test.mjs`, `cm-sweep.sh`, `provision-89.sh`, `root-taller-89.sh:19,71`,
   `comprobacionesProyecto.ts:34,57`, `comprobacionesArea.ts:55`, `pc/ejecucion.ts:55`,

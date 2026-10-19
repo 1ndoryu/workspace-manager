@@ -1,8 +1,8 @@
 /* Análisis del papel `limpiador`: un solo scan global a la vez, por SSE.
  * [por que] [299A-11] Bloque E: sale de ejecucion.js (590 líneas efectivas)
  * junto con limpieza.js; la base (fases, tipos, cola, rutas) queda en
- * ejecucion.js. El ciclo scan ↔ limpieza (predicados de exclusión mutua)
- * es solo en tiempo de llamada —nunca en la carga— y tsc lo verifica. */
+ * ejecucion.js. La exclusión mutua con el borrado vive en exclusion.js (módulo
+ * hoja), así que scan no importa a limpieza. */
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
@@ -20,7 +20,7 @@ import {
   rutaReporte,
 } from './ejecucion.js';
 import type { AvanceScan, EntradaPc, EventoScan, FasePc, ReportePc } from './ejecucion.js';
-import { hayLimpiezaEnCurso } from './limpieza.js';
+import { hayLimpiezaEnCurso, marcarScan } from './exclusion.js';
 import { appsAjenas, leerRegistroArea } from '../registro.js';
 
 /* Apps ajenas al área, o vacío si el registro no se puede leer: sin registro no
@@ -151,12 +151,6 @@ export function estadoScan(): AvanceScan | null {
   return trabajo ? { ...trabajo.avance } : null;
 }
 
-/* Predicado para la exclusión mutua con el borrado (vive en limpieza.js;
- * el import cruzado scan ↔ limpieza solo se usa dentro de funciones). */
-export function hayScanEnCurso(): boolean {
-  return trabajo !== null;
-}
-
 /* Análisis global: recorre las fases en serie e informa cada tramo para
  * mostrar el progreso en vivo (qué carpeta se mide y lo que va apareciendo).
  * Al terminar persiste el reporte unido + crudos y limpia los reportes
@@ -200,6 +194,7 @@ export function escanearTodo(informa: (ev: EventoScan) => void): Promise<void> {
     terminado,
     resolver,
   };
+  marcarScan(true);
   void encolar(cuerpoScan);
   return terminado;
 }
@@ -270,7 +265,10 @@ async function cuerpoScan(): Promise<void> {
     }
     emitir({ tipo: 'fin', totalBytes, n: todas.length, medidoEn, versionBinario: version });
   } finally {
-    if (trabajo === t) trabajo = null;
+    if (trabajo === t) {
+      trabajo = null;
+      marcarScan(false);
+    }
     t.resolver();
   }
 }
