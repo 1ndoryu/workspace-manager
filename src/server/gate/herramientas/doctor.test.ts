@@ -2,12 +2,12 @@
  * portátil como red). Se corre con:
  *   node node_modules/tsx/dist/cli.mjs --test src/server/gate/doctor.test.ts
  * [por que] Los temporales van bajo la raíz de temporales (AGENTS.md §0.2), nunca en %TEMP__ ni en el repo. */
-import { describe, it, before, after } from 'node:test';
+import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { raizTemporales } from '../../plataforma/temporales.js';
-import { doctorConModo } from './doctor.js';
+import { doctorCacheado, doctorConModo, vaciarCacheDoctor } from './doctor.js';
 
 /* Runtime falso con la misma forma que el real: `quality-tools.json` declara su
  * `provisionPath` y el CLI imprime un JSON y sale con 1 (como el doctor de verdad
@@ -81,5 +81,35 @@ describe('doctor: el taller sin respaldo local', () => {
       remoto: async () => '{"desde":"la 89"}',
     });
     assert.deepEqual(r, { salida: '{"desde":"la 89"}', modo: 'taller' });
+  });
+});
+
+describe('doctor: caché de respuesta', () => {
+  beforeEach(() => vaciarCacheDoctor());
+
+  /* [por que] El panel pide el doctor cada vez que se abre un proyecto; repetir dentro del
+   * TTL no debe volver a tocar la 89. `fresco` la salta. */
+  it('reutiliza el diagnóstico dentro del TTL y `fresco` lo recalcula', async () => {
+    let llamadas = 0;
+    const inyectado = { modo: 'taller' as const, remoto: async () => { llamadas++; return '{"n":1}'; } };
+    const a = await doctorCacheado('clave-cache', '/no-se-usa', { inyectado });
+    const b = await doctorCacheado('clave-cache', '/no-se-usa', { inyectado });
+    assert.equal(llamadas, 1);
+    assert.equal(a.salida, '{"n":1}');
+    assert.equal(b.salida, '{"n":1}');
+    assert.equal(a.edadMs, 0);
+    assert.ok(b.edadMs >= 0);
+    await doctorCacheado('clave-cache', '/no-se-usa', { fresco: true, inyectado });
+    assert.equal(llamadas, 2);
+  });
+
+  /* [por que] Sin salida no hay nada que reutilizar: un fallo no se guarda, para que la
+   * siguiente pregunta reintente el taller. */
+  it('no guarda los fallos: la siguiente pregunta vuelve a intentarlo', async () => {
+    let llamadas = 0;
+    const inyectado = { modo: 'taller' as const, remoto: async () => { llamadas++; throw new Error('caído'); } };
+    await doctorCacheado('clave-fallo', '/no-se-usa', { inyectado });
+    await doctorCacheado('clave-fallo', '/no-se-usa', { inyectado });
+    assert.equal(llamadas, 2);
   });
 });

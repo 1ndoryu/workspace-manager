@@ -63,6 +63,39 @@ export async function doctorConModo(
   }
 }
 
+/* Caché de respuesta por proyecto. [por que] Medido en la 89: cada handshake SSH cuesta
+ * ~2,3 s (Windows OpenSSH no admite ControlMaster) y el doctor hace 2 o 3; el panel
+ * pide el doctor cada vez que se abre un proyecto. Se guarda solo un diagnóstico con
+ * salida, 60 s, y la respuesta dice cuántos ms tiene (`edadMs`) para no pasar por
+ * fresca una cifra vieja. `fresco` la salta. Las promesas en vuelo también se comparten. */
+const TTL_DOCTOR_MS = 60_000;
+const cache = new Map<string, { hecho: number; promesa: Promise<DoctorSentinel> }>();
+
+export type DoctorRespuesta = DoctorSentinel & { edadMs: number };
+
+export async function doctorCacheado(
+  clave: string,
+  ruta: string,
+  opciones: { fresco?: boolean; inyectado?: Parameters<typeof doctorConModo>[2] } = {},
+): Promise<DoctorRespuesta> {
+  const ahora = Date.now();
+  const previa = cache.get(clave);
+  if (!opciones.fresco && previa && ahora - previa.hecho < TTL_DOCTOR_MS) {
+    return { ...(await previa.promesa), edadMs: ahora - previa.hecho };
+  }
+  const entrada = { hecho: ahora, promesa: doctorConModo(clave, ruta, opciones.inyectado) };
+  cache.set(clave, entrada);
+  const valor = await entrada.promesa;
+  /* Sin salida no hay nada que reutilizar: se olvida para que la próxima pregunta reintente. */
+  if (valor.salida === null && cache.get(clave) === entrada) cache.delete(clave);
+  return { ...valor, edadMs: 0 };
+}
+
+/* Solo para pruebas: vacía la caché entre casos. */
+export function vaciarCacheDoctor(): void {
+  cache.clear();
+}
+
 /* El doctor de un proyecto de taller no tiene salida en el portátil: queda null con el motivo. */
 function sinDiagnostico(aviso: string): DoctorSentinel {
   return { salida: null, modo: 'taller', aviso };

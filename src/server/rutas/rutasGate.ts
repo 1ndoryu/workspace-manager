@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { campoStr, json, leerArchivo, leerBody } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
 import { ARCHIVOS_GATE } from '../scanner/gate.js';
-import { doctorConModo } from '../gate/herramientas/doctor.js';
+import { doctorCacheado } from '../gate/herramientas/doctor.js';
 import { esquemaGate, reglasGate } from '../gate/herramientas/proveedor.js';
 import { esquemaPorArchivo } from '../../shared/gate/catalogo/esquemas.js';
 import { diagnosticar, rutaEtiqueta, severidadDe } from '../../shared/gate/modelo/esquema.js';
@@ -127,8 +127,9 @@ export async function manejarRutasGate(
     }
     /* `modo` es dónde corrió de verdad y `aviso` por qué se cayó al portátil: sin ellos
      * un `doctor: null` no distingue «no se pudo» de «no se pidió» (frente 5). */
-    const { salida, modo, aviso } = await doctorConModo(proyecto.clave, proyecto.ruta);
-    json(res, 200, { id, doctor: salida, modo, aviso });
+    const fresco = url.searchParams.get('fresco') === '1';
+    const { salida, modo, aviso, edadMs } = await doctorCacheado(proyecto.clave, proyecto.ruta, { fresco });
+    json(res, 200, { id, doctor: salida, modo, aviso, edadMs });
     return true;
   }
   /* Catálogo de reglas VIVO del gate desde el runtime sentinel.
