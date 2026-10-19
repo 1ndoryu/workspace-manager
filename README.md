@@ -154,6 +154,10 @@ como variable de entorno antes de ejecutar el script.
 | `CM_SCCACHE_DIR` | `provision-89.sh` | `/var/cache/sccache` |
 | `CM_SWEEP_CASA` | `cm-sweep.sh` | `/home/usuario` |
 
+Los nombres `glory-target` y `glory-quality` son contrato con Sentinel y con los scripts del
+taller: los comparten el manager, `provision-89.sh` y `cm-sweep.sh`. Se mantienen a propósito,
+porque renombrarlos obliga a reconstruir la caché del taller una vez y toca scripts de otros proyectos.
+
 La carpeta de herramientas de calidad (`dirRemotoHerramientas` en `config/taller.json`,
 por defecto `/var/tmp/glory-quality`) queda fuera del directorio que sincroniza
 Mutagen: son artefactos, no código fuente.
@@ -204,22 +208,25 @@ proyecto que deba ir contra corriente.
 
 ## Pruebas
 
-No hay `npm test`. Son dos suites, con sus comandos exactos. Los tests y el
-type-check corren en el **taller remoto** cuando el área tiene uno (así lo quiere
-el diseño: el portátil edita, lo pesado va a la máquina del taller). Sin taller,
-se ejecutan en local con los mismos comandos:
+No hay `npm test`. Los tests y el type-check corren **solo en el taller remoto**, nunca
+en el portátil: el portátil edita y lo pesado va a la máquina del taller. Los scripts
+`quality:*:test` pasan por `scripts/dev/ejecutar-tests.mjs`, que manda el comando al
+taller. Sin taller configurado el comando falla con un error claro en vez de ejecutarse
+en local.
+
+La única excepción es `--local`, para una emergencia en la que el taller no esté
+disponible. Hay que pedirlo a mano y dejar nota en el registro de tareas.
 
 ```bash
 npm run type-check
 ```
 
 ```bash
-node --test "scripts/**/*.test.mjs"
+npm run quality:sync:test
 ```
 
-```bash
-npx tsx --test "src/**/*.test.ts"
-```
+Las suites completas usan `node --test` (`scripts/**/*.test.mjs`) o `npx tsx --test`
+(`src/**/*.test.ts`), y se lanzan igual, a través del ejecutor.
 
 ## Estructura
 
