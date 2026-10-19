@@ -50,8 +50,8 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
   supera 300 líneas efectivas; máximo 296. `limite-lineas` cuenta efectivas, no brutas: ver
   `Agente/documentacion/calidad/deteccion-mjs-2026-10-19.md`). **SOLID, auditoría real (2026-10-19):**
   ciclo `pc/scan` ↔ `pc/limpieza` **roto** (exclusión mutua en `pc/exclusion.ts`, módulo hoja, con test).
-  Pendiente, sin corregir: `gate/analisis/almacen.ts` y `gate/vulnerabilidades/almacen.ts` duplican la
-  persistencia y fijan `RAIZ_AREA`; `vulnerabilidades.ts` (SRP), `salud/recoger.ts`,
+  Almacenes unificados en `gate/almacenPersistido.ts` (con test; commit `8b4b8bf`).
+  Pendiente, sin corregir: `vulnerabilidades.ts` (SRP), `salud/recoger.ts`,
   `auditoria-remota.ts`, `rutasGuardianTipos.ts` (ISP) y las capas de `shared/` sin verificar contra el código;
   accesibilidad de la UI; limpieza de config privada fuera del repo; restos del frente 9
   (`test-utils.mjs`, `doctor.*.test.mjs`, `cm-sweep.sh`, `provision-89.sh`, `root-taller-89.sh:19,71`,
