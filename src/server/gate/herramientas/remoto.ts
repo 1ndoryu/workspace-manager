@@ -1,13 +1,12 @@
 /* Ejecución del gate en la VPS del taller (S3.7, plan taller fase 2): arma la línea de
  * comandos y la lanza. Solo ejecuta y cita: la caché y la normalización son de
- * analizador.ts, el transporte (ssh, copia, flush de la réplica) de ssh.ts, y la forma
- * del taller y la decisión de modo de config.ts.
+ * analizador.ts, el transporte (ssh, copia, flush de la réplica) de ssh.ts, la forma
+ * del taller y la decisión de modo de config.ts, y las líneas de comandos de remoto/comandos.ts.
  * [por que] Un proyecto dado de alta en el taller (taller.json) lo analiza la VPS, y
  * `analisisEn` del registro puede forzarlo. Su árbol remoto es una réplica (mutagen
  * one-way, taller.json): antes de analizar se vacía la cola de cambios (`sync flush`),
  * así el análisis ve el árbol local actual. Sin taller no hay modo remoto. */
 import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { promisify } from 'node:util';
@@ -15,6 +14,7 @@ import { sesionMutagen } from '../../../shared/taller/sesiones.js';
 import { checkoutVarsense, cliRuntime, parsearReporte, varsenseRuntime } from './ejecucion.js';
 import type { ResultadoSpawn } from './ejecucion.js';
 import { type ConfigRemota, rutaRemota, rutaRuntimeRemota } from './config.js';
+import { comandoAnalisis, comandoDeps, comandoDoctor, comandoMarcasRepos, comandoSonda, huellaLock, huellaRuntime } from './remoto/comandos.js';
 import { comillas, copiarEntradas, mensaje, ssh } from './ssh.js';
 
 const execFileAsync = promisify(execFile);
@@ -27,96 +27,6 @@ const TIMEOUT_DEPS_MS = 180_000;
 /* El doctor no analiza el arbol: resuelve el runtime y mira la evidencia de
  * release. Lo que tarda es el viaje, no el trabajo. */
 const TIMEOUT_DOCTOR_MS = 60_000;
-
-/* Línea de comandos del análisis remoto: entorno de los runtimes de la 89 + CLI. */
-export function comandoAnalisis(a: {
-  env: Record<string, string>;
-  node: string;
-  cli: string;
-  verbo: 'analyze' | 'all';
-  workspace: string;
-}): string {
-  const asignaciones = Object.entries(a.env).map(([k, v]) => `${k}=${comillas(v)}`);
-  return ['env', ...asignaciones, comillas(a.node), comillas(a.cli), a.verbo, '--workspace', comillas(a.workspace), '--format', 'json'].join(' ');
-}
-
-/* Línea del `doctor` remoto. Se diferencia del análisis en la forma del comando:
- * `doctor` no tiene `--format`, su JSON es siempre el mismo y sale por stdout. */
-export function comandoDoctor(a: {
-  env: Record<string, string>;
-  node: string;
-  cli: string;
-  workspace: string;
-}): string {
-  const asignaciones = Object.entries(a.env).map(([k, v]) => `${k}=${comillas(v)}`);
-  return ['env', ...asignaciones, comillas(a.node), comillas(a.cli), 'doctor', '--json', '--workspace', comillas(a.workspace)].join(' ');
-}
-
-/* Comprueba que el CLI está en su sitio, en una sola ida y vuelta. [por que] La
- * versión no se lee de la 89: el runtime lo acaba de copiar el portátil, así que
- * la sabe de origen y ahorra una lectura remota. */
-export function comandoSonda(cli: string): string {
-  return `test -f ${comillas(cli)} && echo ok`;
-}
-
-/* Huella del package-lock: identifica el juego de dependencias. [por que] La versión
- * no sirve de marca: el lock puede cambiar sin subir versión. mtime sí cambiaría en un
- * `git checkout` sin cambios de contenido y reinstalaría de balde. */
-export function huellaLock(ruta: string): string {
-  try {
-    return createHash('sha256').update(readFileSync(ruta)).digest('hex').slice(0, 16);
-  } catch {
-    return '?';
-  }
-}
-
-/* Huella del runtime que se copia: su `out/` y sus dos ficheros de dependencias.
- * [por que] Por contenido y no por mtime: un checkout sin cambios no debe reenviar
- * 4,5 MB, y un cambio real siempre cambia el hash. */
-export function huellaRuntime(base: string): string {
-  const archivos: string[] = [];
-  listarBajo(base, 'out', archivos);
-  const h = createHash('sha256');
-  for (const f of [...archivos.sort(), 'package.json', 'package-lock.json']) {
-    h.update(`${f}\0`);
-    try {
-      h.update(readFileSync(join(base, f)));
-    } catch {
-      h.update('?'); /* falta: la huella cambia igual que si cambiara el contenido */
-    }
-  }
-  return h.digest('hex').slice(0, 16);
-}
-
-/* Relativas (con `/`) de los ficheros bajo `rel`, recursivo. */
-function listarBajo(base: string, rel: string, salida: string[]): void {
-  let entradas;
-  try {
-    entradas = readdirSync(join(base, rel), { withFileTypes: true });
-  } catch {
-    return; /* no existe: el runtime no tiene `out/` y la huella sale de los otros ficheros */
-  }
-  for (const e of entradas) {
-    const ruta = `${rel}/${e.name}`;
-    if (e.isDirectory()) listarBajo(base, ruta, salida);
-    else if (e.isFile()) salida.push(ruta);
-  }
-}
-
-/* Instala las dependencias del runtime en la 89, solo cuando el lock cambió. [por que]
- * `out/` se copia en cada análisis (4,5 MB) pero `node_modules` son 61 MB: copiarlo
- * cada vez no tiene sentido. El runtime usa 3 dependencias de producción, así que
- * `npm ci --omit=dev` en la 89 es barato y deja el árbol reproducible. Si `npm ci`
- * falla sale con 3: la sonda lo ve como fallo y el análisis remoto queda en 'error'
- * con motivo, en vez de reventar más tarde con un «Cannot find module». */
-export function comandoDeps(npm: string, base: string, huella: string): string {
-  const marca = `${base}/.lock-sha`;
-  return (
-    `if [ "$(cat ${comillas(marca)} 2>/dev/null)" != ${comillas(huella)} ]; then ` +
-    `${comillas(npm)} ci --omit=dev --silent --prefix ${comillas(base)} >/dev/null 2>&1 && ` +
-    `printf '%s' ${comillas(huella)} > ${comillas(marca)} || exit 3; fi; echo ok`
-  );
-}
 
 /* Directorios no recorridos al buscar repos anidados (mismos que el analizador). */
 const DIRS_NO_RECORRIDOS = new Set([
@@ -170,19 +80,6 @@ export function reposAnidados(raiz: string): RepoAnidado[] {
     }
   }
   return encontrados.sort((a, b) => a.ruta.localeCompare(b.ruta));
-}
-
-/* Recrea esas marcas en la réplica. [por que] Viven bajo una ruta que Mutagen
- * ignora, así que la sincronización no las borra y quedan estables entre flushes. */
-export function comandoMarcasRepos(ws: string, repos: RepoAnidado[]): string {
-  const partes = repos.map((r) => {
-    const dir = `${ws}/${r.ruta}`;
-    const marca = `${dir}/.git`;
-    return r.marca === null
-      ? `mkdir -p ${comillas(marca)}`
-      : `mkdir -p ${comillas(dir)} && printf '%s' ${comillas(r.marca)} > ${comillas(marca)}`;
-  });
-  return [...partes, 'echo ok'].join(' && ');
 }
 
 /* Vacía la cola de cambios de la sesión mutagen del proyecto (`taller-<clave>`, la
@@ -288,7 +185,6 @@ export async function correrDoctorRemoto(clave: string, cfg: ConfigRemota, rutaL
   if (!salida) throw new Error(`sentinel doctor en ${cfg.host} no devolvió diagnóstico${r.fallo ? `: ${r.fallo}` : ''}`);
   return salida.slice(0, 2000);
 }
-
 
 /* Varsense en la 89. Mutagen ignora `dist`, así que el runtime local se copia antes
  * (tar por ssh, sobrescribe). Lanza ante cualquier fallo: a diferencia del local, no

@@ -14,8 +14,8 @@ import {
   comandoSonda,
   huellaLock,
   huellaRuntime,
-  reposAnidados,
-} from './remoto.js';
+} from './remoto/comandos.js';
+import { reposAnidados } from './remoto.js';
 import { configRemotaDe, hostTaller, modoAnalisisEn, rutaRemota, rutaRuntimeRemota } from './config.js';
 import { comillas } from './ssh.js';
 
