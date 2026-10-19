@@ -127,7 +127,7 @@ test('cargo-target: no Rust se omite; Rust sin target-dir falla; con target-dir 
   assert.equal(comprobarCargo(dir).ok, true);
   escribir(dir, 'Cargo.toml', '[package]\nname = "x"\n');
   assert.equal(comprobarCargo(dir).ok, false);
-  escribir(dir, '.cargo/config.toml', '[build]\ntarget-dir = "C:/tmp/glory-target/x"\n');
+  escribir(dir, '.cargo/config.toml', '[build]\ntarget-dir = "C:/tmp/proyecto-target/x"\n');
   assert.equal(comprobarCargo(dir).ok, true);
 });
 

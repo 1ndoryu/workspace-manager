@@ -19,7 +19,7 @@ function proyecto(extra: Partial<DatosProyecto> = {}): DatosProyecto {
     esElegible: true,
     esRust: true,
     compilacionEnArbol: [],
-    targetDir: 'C:/tmp/glory-target/proyecto',
+    targetDir: 'C:/tmp/proyecto-target/proyecto',
     targetDirCompartidoCon: [],
     incrementalDesactivadoEn: [],
     tieneProfileDev: true,
