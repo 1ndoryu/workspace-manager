@@ -197,7 +197,8 @@ test('puertosRemotos: el túnel y la validación usan la lista remota; puertos q
   assert.match(validarHostRemoto({ ...e, puertosLocales: [3210, 5299, 3202] }, config), /puertosLocales debe tener/);
   assert.match(validarHostRemoto({ ...e, botonRemoto: [['cargo', 'run'], ['npm'], ['x']] }, config), /un comando por puerto/);
   assert.match(validarHostRemoto({ ...e, puertosRemotos: [3110, 8787] }, config), /protegidos/);
-  assert.match(validarHostRemoto({ host: config.host, puertos: [3001], puertosRemotos: [] }, config), /puertos remotos/);
+  // Sin puertos = proyecto sin servicio: válido (la réplica es lo que se sirve).
+  assert.equal(validarHostRemoto({ host: config.host, puertos: [], puertosRemotos: [] }, config), null);
   assert.match(validarHostRemoto({ host: config.host, puertos: [3001], puertosRemotos: [80] }, config), /puertos remotos/);
 });
 

@@ -35,7 +35,8 @@ export function validarHostRemoto(entrada, config, override) {
   if (entrada.host !== config.host) return `host '${entrada.host}' no permitido (solo '${config.host}')`;
   if (entrada.requiere?.length) return 'requiere no se soporta en host remoto';
   const remotos = puertosRemotosDe(entrada);
-  if (!Array.isArray(remotos) || remotos.length === 0 || remotos.some((p) => !Number.isInteger(p) || p < 1024 || p > 65535)) {
+  // [por que] Lista vacía = proyecto sin servicio (solo análisis/tests en la 89): sin puertos, su réplica es lo que se sirve.
+  if (!Array.isArray(remotos) || remotos.some((p) => !Number.isInteger(p) || p < 1024 || p > 65535)) {
     return 'puertos remotos: lista de puertos (1024-65535), no vacía';
   }
   const protegidos = remotos.filter((p) => PUERTOS_PROTEGIDOS.has(p));

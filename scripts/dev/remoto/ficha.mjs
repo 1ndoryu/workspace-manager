@@ -1,6 +1,6 @@
 /* Lectura de la ficha de una entrada remota: puertos, healths y estado real en la VPS. */
 
-import { shQuote } from '../../remoto/rcargo.mjs';
+import { rutasRemotas, shQuote } from '../../remoto/rcargo.mjs';
 import { localesDeModo, puertosRemotosDe } from '../doctor.mjs';
 
 import { comandoSesiones, sesionTmux } from './comandos.mjs';
@@ -59,6 +59,16 @@ export async function estadoRemoto(config, id, entrada) {
   const tunel = usaTunel(entrada);
   const pidTunel = tunel ? await tunelVivo(config, entrada, leerEstado(id)) : null;
   const remotos = puertosRemotosDe(entrada);
+  // [por que] Sin puertos no hay sesiones ni sondas: `[].every` daba «bajo-mando» aunque la réplica
+  // no existiera, y `up` se saltaba el sync (varsense quedó sin ~/taller/varsense). Aquí «arriba» =
+  // la réplica está en la 89.
+  if (!remotos.length) {
+    const dir = rutasRemotas(config, id, 'main').dirRemoto;
+    const replica = await sshRemoto(config, `test -d ${shQuote(dir)} && echo si || echo no`);
+    if (!replica.ok) return { estado: 'deriva', pidTunel, motivo: `sin ssh a ${config.host} (${replica.error})` };
+    const hay = replica.salida.trim() === 'si';
+    return { estado: hay ? 'bajo-mando' : 'parado', pidTunel, motivo: `${config.host}: sin puertos, réplica ${hay ? 'presente' : 'ausente'}` };
+  }
   const r = await sshRemoto(config, comandoSesiones(remotos.map((p) => sesionTmux(id, p))));
   if (!r.ok) {
     return { estado: 'deriva', pidTunel, motivo: `sin ssh a ${config.host} (${r.error})` };
