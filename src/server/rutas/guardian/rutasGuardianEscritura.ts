@@ -16,7 +16,7 @@ import { comprobarRegistrada } from '../../guardian/operacion/probar.js';
 import { calcularEdicionPlantilla, guardarEdicionPlantilla } from '../../guardian/configuracion/plantilla.js';
 import { calcularTopes, guardarTopes, validarCambioTopes } from '../../guardian/configuracion/topes.js';
 import type { EntradaMantenimiento } from '../../guardian/operacion/mantenimiento.js';
-import type { Contexto } from './rutasGuardianTipos.js';
+import type { Contexto, EscrituraGuardian } from './rutasGuardianTipos.js';
 /* [por que] `esObjeto` se importa de su dueno (shared/guardas) y no de las
  * ayudas: la ayuda solo lo reexportaba, un paso de mas que ocultaba de donde
  * venia la guarda. */
@@ -37,7 +37,7 @@ import {
 
 /* Guardas de origen antes de leer el cuerpo: una petición ajena no llega a
  * parsear nada. Devuelve null si ya respondió el error. */
-async function cuerpoPost(c: Contexto): Promise<Record<string, unknown> | null> {
+async function cuerpoPost(c: Contexto<unknown>): Promise<Record<string, unknown> | null> {
   const veredicto = verificarPeticionEscritura(c.req.headers);
   if (!veredicto.ok) {
     json(c.res, veredicto.status, { error: veredicto.motivo });
@@ -57,7 +57,7 @@ async function cuerpoPost(c: Contexto): Promise<Record<string, unknown> | null> 
   return cuerpo;
 }
 
-export async function editarPolitica(c: Contexto): Promise<void> {
+export async function editarPolitica(c: Contexto<EscrituraGuardian>): Promise<void> {
   const cuerpo = await cuerpoPost(c);
   if (!cuerpo) return;
   const proyecto = await proyectoElegible(c.deps, cuerpo.clave);
@@ -71,7 +71,7 @@ export async function editarPolitica(c: Contexto): Promise<void> {
   responderEdicion(c.res, r, confirmar);
 }
 
-export async function editarTopes(c: Contexto): Promise<void> {
+export async function editarTopes(c: Contexto<EscrituraGuardian>): Promise<void> {
   const cuerpo = await cuerpoPost(c);
   if (!cuerpo) return;
   const proyecto = await proyectoElegible(c.deps, cuerpo.clave);
@@ -117,7 +117,7 @@ export async function editarTopes(c: Contexto): Promise<void> {
   json(c.res, status, { estado: 'error', motivo: r.motivo, configRevertida: r.configRevertida });
 }
 
-export async function editarLote(c: Contexto): Promise<void> {
+export async function editarLote(c: Contexto<EscrituraGuardian>): Promise<void> {
   const cuerpo = await cuerpoPost(c);
   if (!cuerpo) return;
   const entradas = await entradasLote(c.deps, cuerpo.entradas);
@@ -144,7 +144,7 @@ export async function editarLote(c: Contexto): Promise<void> {
   json(c.res, 200, { estado: 'ok', escrito: confirmar, resultados });
 }
 
-export async function editarPlantilla(c: Contexto): Promise<void> {
+export async function editarPlantilla(c: Contexto<EscrituraGuardian>): Promise<void> {
   const cuerpo = await cuerpoPost(c);
   if (!cuerpo) return;
   const hashPrevio = textoRequerido(cuerpo.hashPrevio, 'hashPrevio');
@@ -157,7 +157,7 @@ export async function editarPlantilla(c: Contexto): Promise<void> {
 
 /* Ejecuta un comando de prueba en el proyecto para ver qué decide el guard. Solo
  * proyectos elegibles: el comando corre en su raíz y con sus reglas. */
-export async function probarRuta(c: Contexto): Promise<void> {
+export async function probarRuta(c: Contexto<EscrituraGuardian>): Promise<void> {
   const cuerpo = await cuerpoPost(c);
   if (!cuerpo) return;
   const proyecto = await proyectoElegible(c.deps, cuerpo.clave);
@@ -177,7 +177,7 @@ export async function probarRuta(c: Contexto): Promise<void> {
 
 /* [por que] Solo se copian los tres campos que la página puede pedir. La raíz y
  * los destinos los fija el servidor: el cliente no elige qué directorio se toca. */
-export async function mantenimientoRuta(c: Contexto): Promise<void> {
+export async function mantenimientoRuta(c: Contexto<EscrituraGuardian>): Promise<void> {
   const cuerpo = await cuerpoPost(c);
   if (!cuerpo) return;
   const entrada: EntradaMantenimiento = {};

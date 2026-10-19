@@ -18,7 +18,7 @@ import {
 } from '../../guardian/configuracion/politica.js';
 import { leerPlantilla, NOMBRE_PLANTILLA } from '../../guardian/configuracion/plantilla.js';
 import type { HashesTopes, PlanTopes } from '../../guardian/configuracion/topes.js';
-import type { DependenciasGuardian } from './rutasGuardianTipos.js';
+import type { DepsProyecto } from './rutasGuardianTipos.js';
 
 /* [por que] Límite de proyectos por lote: acota el trabajo de una sola petición. */
 export const MAX_LOTE = 50;
@@ -55,7 +55,7 @@ export function hashesDeTexto(plan: Pick<PlanTopes, 'nuevo'>): HashesTopes {
 }
 
 /* Proyecto que existe y tiene Guardián. Un fallo aquí es un 422 para la página. */
-export async function proyectoElegible(deps: DependenciasGuardian, clave: unknown): Promise<Proyecto> {
+export async function proyectoElegible(deps: DepsProyecto, clave: unknown): Promise<Proyecto> {
   const nombre = textoRequerido(clave, 'clave');
   const proyecto = await deps.proyectoPorClave(nombre);
   if (!proyecto) throw new ErrorValidacion(`no existe el proyecto ${nombre}`);
@@ -65,7 +65,7 @@ export async function proyectoElegible(deps: DependenciasGuardian, clave: unknow
 
 /* La plantilla es del tablero, pero se aplica por proyecto según su stack. */
 export function contextoPlantilla(
-  deps: DependenciasGuardian,
+  deps: DepsProyecto,
   clave: string,
 ): { plantilla: Plantilla; stacks: string[] } {
   const lectura = leerPlantilla(deps.dirConfig);
@@ -75,7 +75,7 @@ export function contextoPlantilla(
 }
 
 /* Secuencial a propósito: el orden de llegada decide qué entrada es «duplicada». */
-export async function entradasLote(deps: DependenciasGuardian, valor: unknown): Promise<EdicionLote[]> {
+export async function entradasLote(deps: DepsProyecto, valor: unknown): Promise<EdicionLote[]> {
   if (!Array.isArray(valor)) throw new ErrorValidacion('entradas debe ser una lista');
   if (valor.length < 1 || valor.length > MAX_LOTE) {
     throw new ErrorValidacion(`entradas: entre 1 y ${MAX_LOTE} proyectos`);
