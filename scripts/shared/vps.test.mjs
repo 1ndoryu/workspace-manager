@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import { comandoEnVps, decidirDonde, dirRemotoDe, mensajeSinVps } from './vps.mjs';
+import { comandoEnVps, decidirDonde, dentroDe, dirRemotoDe, dirRemotoDeHerramienta, mensajeSinVps } from './vps.mjs';
 
 const TALLER = {
   host: 'remoto-ejemplo',
@@ -44,6 +44,21 @@ test('dirRemotoDe: réplica bajo dirRemotoBase/<id>/<ruta relativa>', () => {
 
 test('dirRemotoDe: carpeta fuera del proyecto no se replica', () => {
   assert.throws(() => dirRemotoDe(TALLER, 'proyecto', RAIZ, path.resolve('otro-proyecto')), /fuera de/);
+});
+
+test('dentroDe: la raíz y sus subcarpetas cuentan como dentro; hermanas y padres, no', () => {
+  assert.equal(dentroDe(RAIZ, RAIZ), true);
+  assert.equal(dentroDe(RAIZ, path.join(RAIZ, '.quality-tools')), true);
+  assert.equal(dentroDe(RAIZ, path.resolve('proyecto-ejemplo-2')), false);
+  assert.equal(dentroDe(RAIZ, path.dirname(RAIZ)), false);
+});
+
+test('dirRemotoDeHerramienta: carpeta por commit fuera de la réplica, en /var/tmp por defecto', () => {
+  assert.equal(dirRemotoDeHerramienta(TALLER, 'sentinel', 'abc123'), '/var/tmp/glory-quality/sentinel/abc123');
+  assert.equal(
+    dirRemotoDeHerramienta({ ...TALLER, dirRemotoHerramientas: '/srv/herr' }, 'sentinel', 'abc123'),
+    '/srv/herr/sentinel/abc123',
+  );
 });
 
 test('comandoEnVps: usa el candado y el preludio de la configuración, y entra en el directorio', () => {

@@ -33,15 +33,30 @@ export function decidirDonde(argv, config, equipo) {
   return { donde: 'remoto' };
 }
 
-/* Carpeta de la réplica en la 89 para `carpeta` (dentro de `raiz`), bajo `dirRemotoBase/<id>`.
- * [por que] Mutagen replica el proyecto entero; lo que cuelga fuera de `raiz` no existe en la 89. */
-export function dirRemotoDe(config, id, raiz, carpeta) {
+/* ¿`carpeta` está dentro de `raiz` (o es la raíz)? */
+export function dentroDe(raiz, carpeta) {
   const relativa = path.relative(raiz, carpeta);
-  if (relativa.startsWith('..') || path.isAbsolute(relativa)) {
+  return !relativa.startsWith('..') && !path.isAbsolute(relativa);
+}
+
+/* Carpeta de la réplica en la 89 para `carpeta` (dentro de `raiz`), bajo `dirRemotoBase/<id>`.
+ * [por que] Mutagen replica el proyecto entero; lo que cuelga fuera de `raiz` no existe en la 89
+ * (para eso está `dirRemotoDeHerramienta`). */
+export function dirRemotoDe(config, id, raiz, carpeta) {
+  if (!dentroDe(raiz, carpeta)) {
     throw new Error(`${carpeta} está fuera de ${raiz}: no se replica en la VPS 89`);
   }
+  const relativa = path.relative(raiz, carpeta);
   const partes = relativa ? relativa.split(path.sep).join('/') : '';
   return path.posix.join(config.dirRemotoBase, id, partes);
+}
+
+/* Carpeta en la 89 de un checkout compartido que no cuelga del proyecto (p. ej. `.quality-tools/<tool>`
+ * fuera del consumidor). Una carpeta por commit: el árbol se envía con `git archive` (el mismo que
+ * hashea el lock) y `npm ci` corre una vez por commit. Fuera de `dirRemotoBase`: Mutagen no la toca.
+ * [por que] /var/tmp, como el resto de temporales de la 89 (AGENTS §1). */
+export function dirRemotoDeHerramienta(config, nombre, commit) {
+  return path.posix.join(config.dirRemotoHerramientas ?? '/var/tmp/glory-quality', nombre, commit);
 }
 
 /* Línea de shell para la VPS: entra en `dir` y ejecuta `argv` bajo el candado de carga pesada.
@@ -53,14 +68,16 @@ export function comandoEnVps(config, dir, argv) {
 }
 
 /* Ejecuta `argv` en la 89 y devuelve el resultado de ssh. `capturar` recoge stdout (análisis)
- * en vez de volcarlo al terminal. */
-export function ejecutarEnVps(config, dir, argv, { capturar = false } = {}) {
-  return spawnSync(BIN_SSH, ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', config.host, comandoEnVps(config, dir, argv)], {
+ * en vez de volcarlo al terminal. `entrada` (Buffer) se envía por stdin (p. ej. un tar). */
+export function ejecutarEnVps(config, dir, argv, { capturar = false, entrada } = {}) {
+  const opciones = {
     encoding: 'utf8',
-    stdio: capturar ? ['ignore', 'pipe', 'inherit'] : 'inherit',
+    stdio: entrada ? ['pipe', 'inherit', 'inherit'] : capturar ? ['ignore', 'pipe', 'inherit'] : 'inherit',
     windowsHide: true,
     maxBuffer: 64 * 1024 * 1024,
-  });
+  };
+  if (entrada) opciones.input = entrada;
+  return spawnSync(BIN_SSH, ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', config.host, comandoEnVps(config, dir, argv)], opciones);
 }
 
 /* ssh devuelve 255 cuando no llega a la VPS; ese caso se nombra aparte del fallo del comando. */

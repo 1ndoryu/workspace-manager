@@ -33,7 +33,15 @@ import { hostname } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BIN_GIT, BIN_NPM } from '../shared/binarios.mjs';
-import { cargarTaller, decidirDonde, dirRemotoDe, ejecutarEnVps, mensajeSinVps } from '../shared/vps.mjs';
+import {
+  cargarTaller,
+  decidirDonde,
+  dentroDe,
+  dirRemotoDe,
+  dirRemotoDeHerramienta,
+  ejecutarEnVps,
+  mensajeSinVps,
+} from '../shared/vps.mjs';
 import {
   describirClave,
   directorioCertificaciones,
@@ -66,12 +74,45 @@ if (destino.aviso) process.stderr.write(`[quality:setup] ${destino.aviso}\n`);
 // [por que] `ejecutor` dice DÓNDE se compiló: en la VPS (también si este equipo ES la VPS) o en local por emergencia.
 const ejecutor = destino.donde === 'local' ? 'local' : 'vps89';
 
-/* Paso de build o suite. Remoto: `npm run <script>` dentro de la réplica del consumidor en la 89.
+/* Carpeta en la 89 donde compilar `source`: la réplica del consumidor si el checkout cuelga de él;
+ * si es un checkout compartido (p. ej. `.quality-tools/<tool>` fuera del proyecto), su carpeta por commit. */
+function dirRemotoDeFuente(source, name, config) {
+  if (dentroDe(workspace, source)) return dirRemotoDe(taller, path.basename(workspace), workspace, source);
+  return dirRemotoDeHerramienta(taller, name, config.commit);
+}
+
+/* [por que] Mutagen no replica `.quality-tools/<tool>` (está fuera del consumidor), así que la 89 no lo tiene.
+ * Se envía el árbol EXACTO del commit fijado (`git archive HEAD`, el que hashea el lock) y se instalan
+ * sus dependencias una vez; `.listo` marca una carpeta completa, así una ejecución fallida se rehace.
+ * [por que] `core.autocrlf=false`: con autocrlf (portátil Windows) `git archive` escribe CRLF y los
+ * textos comparados (p. ej. rules.md) fallan en la 89; el blob del commit es LF. */
+function prepararFuenteRemota(source, dir, name, commit) {
+  const archivo = spawnSync(BIN_GIT, ['-C', source, '-c', 'core.autocrlf=false', 'archive', '--format=tar', commit], { maxBuffer: 256 * 1024 * 1024, windowsHide: true });
+  if (archivo.error || archivo.status !== 0) {
+    process.stderr.write(`[quality:setup] ${name}: no se pudo generar el árbol de ${commit} para la VPS; sin evidencia\n`);
+    process.exit(1);
+  }
+  const script = [
+    'set -e',
+    `D="${dir}"`,
+    'if [ -f "$D/.listo" ]; then exit 0; fi',
+    'rm -rf "$D"; mkdir -p "$D"; tar -x -C "$D"',
+    'cd "$D"; npm ci --no-audit --no-fund',
+    'touch .listo',
+  ].join('; ');
+  const resultado = ejecutarEnVps(taller, '/var/tmp', ['bash', '-c', script], { entrada: archivo.stdout });
+  const aviso = mensajeSinVps(resultado.status, taller.host);
+  if (aviso || resultado.status !== 0) {
+    process.stderr.write(`[quality:setup] ${name}: preparar ${commit} en la VPS falló${aviso ? `: ${aviso}` : ` (exit ${resultado.status})`}; sin evidencia\n`);
+    process.exit(aviso ? 2 : 1);
+  }
+}
+
+/* Paso de build o suite. Remoto: `npm run <script>` dentro de `dirRemoto` en la 89.
  * Los checkouts git (staging, evidencia) siguen siendo locales: la evidencia vive en el portátil. */
-function paso(source, script, label) {
+function paso(source, script, label, dirRemoto) {
   if (destino.donde !== 'remoto') return run(BIN_NPM, ['run', script], source, label);
-  const dir = dirRemotoDe(taller, path.basename(workspace), workspace, source);
-  const resultado = ejecutarEnVps(taller, dir, ['npm', 'run', script]);
+  const resultado = ejecutarEnVps(taller, dirRemoto, ['npm', 'run', script]);
   const aviso = mensajeSinVps(resultado.status, taller.host);
   if (aviso) {
     process.stderr.write(`[quality:setup] ${label}: ${aviso}\n`);
@@ -253,13 +294,15 @@ for (const [name, config] of Object.entries(tools)) {
   }
 
   if (origen === 'ejecutada') {
+    const dirRemoto = destino.donde === 'remoto' && (buildScript || testScript) ? dirRemotoDeFuente(source, name, config) : null;
+    if (dirRemoto && !dentroDe(workspace, source)) prepararFuenteRemota(source, dirRemoto, name, commit);
     if (buildScript) {
       process.stdout.write(`[quality:setup] ${name}: compilando (npm run ${buildScript}, ${ejecutor})\n`);
-      paso(source, buildScript, `${name} compile`);
+      paso(source, buildScript, `${name} compile`, dirRemoto);
     }
     if (testScript) {
       process.stdout.write(`[quality:setup] ${name}: suite (npm run ${testScript}, ${ejecutor})\n`);
-      paso(source, testScript, `${name} suite`);
+      paso(source, testScript, `${name} suite`, dirRemoto);
     }
     ejecutadas += 1;
     if (cacheActiva) {
