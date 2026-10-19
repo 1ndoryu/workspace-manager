@@ -78,9 +78,9 @@
  * es un <g> de SVG: ahi el anillo se traza sobre la caja envolvente, que
  * incluye las paredes colgantes y tapa la fila de abajo. Mismo lenguaje que el
  * resto del v2 (Button.css, Casilla.css): el foco engorda el borde. */
-.mapaV2Tile:focus-visible .mapaV2Piso,
-.mapaV2Tile:focus-visible .mapaV2ParedIzq,
-.mapaV2Tile:focus-visible .mapaV2ParedDer {
+.mapaV2Tile:focus-visible .mapaV2Piso:not([stroke]),
+.mapaV2Tile:focus-visible .mapaV2ParedIzq:not([stroke]),
+.mapaV2Tile:focus-visible .mapaV2ParedDer:not([stroke]) {
     stroke: var(--v2-texto);
     stroke-width: 2;
 }
@@ -99,9 +99,17 @@
 .mapaV2ParedIzq,
 .mapaV2ParedDer {
     fill: var(--v2-fondo);
-    stroke: var(--v2-borde);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
+}
+
+/* [por que] Las cajas con degradado de borde llevan su trazo como atributo SVG
+ * (url del degradado). El color de por defecto solo se aplica sin ese atributo:
+ * una regla de clase lo pisaria. */
+.mapaV2Piso:not([stroke]),
+.mapaV2ParedIzq:not([stroke]),
+.mapaV2ParedDer:not([stroke]) {
+    stroke: var(--v2-borde);
 }
 
 /* [gotcha] Solo el techo (diamante) captura eventos de puntero: las paredes
@@ -174,6 +182,25 @@
 .mapaV2Enlace--vps89 { stroke: var(--mapa-vps89); background: var(--mapa-vps89); }
 .mapaV2Enlace--produccion { stroke: var(--mapa-produccion); background: var(--mapa-produccion); }
 
+/* Al pasar el raton por un proyecto, las lineas que no son suyas casi se apagan
+ * para leer su flujo. */
+.mapaV2Enlace,
+.mapaV2Troncal {
+    transition: opacity 0.15s;
+}
+
+.mapaV2Enlace--ajeno {
+    opacity: 0.12;
+}
+
+/* Troncal entre nodos: mas gruesa que las lineas de proyecto; el color lo da el degradado. */
+.mapaV2Troncal {
+    fill: none;
+    stroke-width: 2.2;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+}
+
 /* Leyenda (esquina inferior izquierda). */
 .mapaV2Leyenda {
     position: absolute;
@@ -239,10 +266,12 @@
     gap: 4px;
 }
 
-/* Conectado (en marcha): borde verde en toda la caja. */
-.mapaV2Tile--vivo .mapaV2Piso,
-.mapaV2Tile--vivo .mapaV2ParedIzq,
-.mapaV2Tile--vivo .mapaV2ParedDer {
-    stroke: var(--v2-punto-verde);
-    stroke-width: 2px;
+/* Icono "en linea" sobre la caja conectada: trazo fino, sin eventos. */
+.mapaV2EnLinea {
+    fill: none;
+    stroke: var(--v2-texto);
+    stroke-width: 1.2;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
 }

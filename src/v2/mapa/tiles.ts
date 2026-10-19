@@ -105,5 +105,57 @@ export function pathCuadricula(
   return segmentos.join(' ');
 }
 
+/* Color de cada ubicacion (espejo de las variables --mapa-* del CSS). */
+export const COLOR_HUB: Record<string, string> = {
+  laptop: 'var(--mapa-laptop)',
+  vps89: 'var(--mapa-vps89)',
+  produccion: 'var(--mapa-produccion)',
+};
+
+/* Icono "en linea" (ondas sobre un punto), dibujado en una caja de unos 10 px de alto
+ * con el punto de anclaje en la base. Lo usa el mapa sobre las cajas conectadas. */
+export const ICONO_EN_LINEA = 'M-6,-4 Q0,-10 6,-4 M-3.5,-1.5 Q0,-5.5 3.5,-1.5 M0,0 L0.01,0';
+
+/** Ancla del icono "en linea": encima del techo de la caja, centrado. */
+export function anclaIconoEnLinea(col: number, fila: number): PuntoIso {
+  const c = posicionGrid(col, fila);
+  return { x: c.x, y: c.y - TILE.alto / 2 - TILE.altoPared - 3 };
+}
+
+/** Degradado del borde de una caja, del color de cada linea que le llega.
+ * Eje: arranca por el lado por donde SALE cada linea (su primer tramo, `punto`)
+ * y acaba en el lado de la segunda (o en el opuesto si solo tiene una).
+ * [por que] El color de cada punta coincide con la direccion real de su linea. */
+export function degradadoBorde(
+  col: number,
+  fila: number,
+  lineas: { hasta: string; punto: PuntoIso }[],
+): { x1: number; y1: number; x2: number; y2: number; colores: [string, string] } | null {
+  if (lineas.length === 0) return null;
+  const c = posicionGrid(col, fila);
+  /* Centro visual de la caja: el techo esta subido altoPared. */
+  const cy = c.y - TILE.altoPared / 2;
+  const direccion = (p: PuntoIso) => {
+    const dx = p.x - c.x;
+    const dy = p.y - c.y;
+    const n = Math.hypot(dx, dy) || 1;
+    return { x: dx / n, y: dy / n };
+  };
+  /* Distancia desde el centro hasta el borde del rombo en esa direccion:
+   * asi el color puro cae justo en la cara por donde sale la linea. */
+  const alBorde = (u: PuntoIso) => 1 / (Math.abs(u.x) / (TILE.ancho / 2) + Math.abs(u.y) / (TILE.alto / 2));
+  const u1 = direccion(lineas[0].punto);
+  let u2 = lineas[1] ? direccion(lineas[1].punto) : { x: -u1.x, y: -u1.y };
+  /* [por que] Si las dos lineas salen por la misma cara, los dos extremos del
+   * degradado caen en el mismo punto y el trazo queda de un solo color: se
+   * gira el segundo extremo 90 grados para que cada color ocupe su sitio. */
+  if (lineas[1] && u1.x * u2.x + u1.y * u2.y > 0.98) u2 = { x: -u1.y, y: u1.x };
+  const r1 = alBorde(u1);
+  const r2 = alBorde(u2);
+  /* Sin segunda linea, el degradado se apaga hacia el borde neutro de la caja. */
+  const colores: [string, string] = [COLOR_HUB[lineas[0].hasta], lineas[1] ? COLOR_HUB[lineas[1].hasta] : 'var(--v2-borde)'];
+  return { x1: c.x + u1.x * r1, y1: cy + u1.y * r1, x2: c.x + u2.x * r2, y2: cy + u2.y * r2, colores };
+}
+
 
 

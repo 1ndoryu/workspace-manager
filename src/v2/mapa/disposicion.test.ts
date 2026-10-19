@@ -1,7 +1,7 @@
 /* Pruebas de disponer: celdas únicas, enlaces por ubicación y producción. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { disponer } from './disposicion.js';
+import { disponer, ladosDe } from './disposicion.js';
 import type { Proyecto } from '../../shared/types.js';
 
 function proyecto(id: string, extra: Partial<Proyecto> = {}): Proyecto {
@@ -41,4 +41,22 @@ test('enlaza solo lo que corre: ejecución en marcha y producción en running', 
 test('el reparto es estable entre ejecuciones', () => {
   const ps = [proyecto('x', { ejecucion: { donde: 'laptop', modo: null } }), proyecto('y')];
   assert.deepEqual(disponer(ps, new Set()), disponer(ps, new Set()));
+});
+
+test('un proyecto enlazado a dos nodos se asienta entre ambos, con caras opuestas', () => {
+  const ps = [proyecto('puente', { ejecucion: { donde: 'laptop', modo: 'dev' }, despliegue: coolify }), proyecto('otro')];
+  const { colocados, hubs, enlaces } = disponer(ps, new Set(['puente']), new Set(['puente']));
+  const c = colocados.find((x) => x.p.id === 'puente')!;
+  const l = hubs.find((h) => h.id === 'laptop')!;
+  const pr = hubs.find((h) => h.id === 'produccion')!;
+  assert.equal(c.col, (l.col + pr.col) / 2);
+  assert.equal(c.fila, (l.fila + pr.fila) / 2);
+  const lados = ladosDe(enlaces, hubs);
+  assert.deepEqual(lados.get('puente-laptop'), [-1, 0]);
+  assert.deepEqual(lados.get('puente-produccion'), [1, 0]);
+});
+
+test('los troncales unen laptop con VPS 89 y VPS 89 con producción, sin laptop-producción', () => {
+  const { troncales } = disponer([], new Set());
+  assert.deepEqual(troncales.map((t) => [t.de, t.a]), [['laptop', 'vps89'], ['vps89', 'produccion']]);
 });
