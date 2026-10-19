@@ -163,7 +163,7 @@ log "cm-heavy instalado"
 SWEEP_SRC="$(dirname "$(readlink -f "$0")")/cm-sweep.sh"
 [[ -f "$SWEEP_SRC" ]] || { echo "falta cm-sweep.sh junto a provision-89.sh" >&2; exit 1; }
 bash "$SWEEP_SRC" --instalar
-log "cm-sweep instalado (timer horario)"
+log "cm-sweep instalado (timer cada 15 min)"
 
 # 10. Toolchain del taller (sin root): rustup, componentes, nextest y node LTS con fnm.
 runuser -u "$USUARIO_TALLER" -- bash -s <<'EOF'
