@@ -130,7 +130,7 @@ Por eso M2 va en fase propia (D3), **después** de M1, y con su coste a la vista
 **[corregido] M5 es la única que toca el build de imágenes.** Con el driver `docker` la política va
 en `/etc/docker/daemon.json`, bajo `"builder": {"gc": {"policy": [{"maxUsedSpace": "12GB"}]}}`
 (en `daemon.json` los filtros usan un solo `=`, no `==`). Necesita **reiniciar dockerd**, que es
-root (`ssh root@192.0.2.10`, clave disponible). El reinicio es barato **hoy** porque
+root (`ssh root@<IP-VPS-89>`, clave disponible). El reinicio es barato **hoy** porque
 `live-restore=false` y hay **0 contenedores en marcha** (los 5 de Coolify están Exited y postgres
 es un proceso nativo en 5432) — pero eso mismo hace que su ganancia hoy sea baja: nadie está
 construyendo imágenes. Se hace ahora precisamente porque es el momento sin coste. Copia previa de
@@ -543,7 +543,7 @@ usarlo), no a este plan.
   dockerd.
 - **D3:** revertir el commit en KAMPLES y recompilar.
 - **D4:** `cm-sweep.sh` vive versionado en `workspace-manager/scripts/remoto/`; revertir el commit y
-  `ssh root@192.0.2.10 'install -m 755 … /usr/local/sbin/cm-sweep'`.
+  `ssh root@<IP-VPS-89> 'install -m 755 … /usr/local/sbin/cm-sweep'`.
 
 ## 10. Reservado a la usuaria — resuelto el 2026-10-17
 
