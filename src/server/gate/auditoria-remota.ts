@@ -17,7 +17,8 @@
  * «no targets specified in the manifest», aunque no compile nada) y los hermanos de
  * `path = "../X"` (PROYECTO TASKS -> ../glory-harness/core, que hereda `edition` del
  * workspace root). npm y pnpm solo necesitan los manifiestos y los lockfiles. Lo
- * pesado (node_modules, target, uploads, data) no viaja.
+ * pesado (node_modules, target, uploads, data) no viaja. El ssh y el envio viven en
+ * `herramientas/ssh.ts`; el binario de tar, en `herramientas/tar.ts`.
  *
  * Se reenvia solo si cambio algun manifiesto o lockfile (firma) o si cm-sweep ya
  * barrio /var/tmp (marca ausente).
@@ -26,34 +27,17 @@
  * y `cargo tree --target all` fallaba pidiendo crates que no tenia. Con red, cargo
  * los descarga la primera vez y los cachea en ~/.cargo/registry.
  */
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, delimiter, dirname, join, posix, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { leerConfigArea } from '../configArea.js';
 import { RAIZ_AREA } from '../plataforma/rutas.js';
-import { BIN_SSH, BIN_TAR } from '../plataforma/binarios.js';
-import { leerConfigRemota } from './herramientas/config.js';
-import { comillas } from './herramientas/ssh.js';
+import { type ConfigRemota, leerConfigRemota } from './herramientas/config.js';
+import { comillas, enviarArbol, type SalidaRemota, sshTexto } from './herramientas/ssh.js';
+import { tarReal } from './herramientas/tar.js';
 
 /* Los tres gestores que el audit sabe leer (ver detectarLockfiles). */
 export type GestorAudit = 'npm' | 'pnpm' | 'cargo';
-
-/* Carpeta temporal en la máquina remota (Linux). Por entorno para no fijar la
- * de nuestro taller; el default es genérico y vale para cualquier /tmp de Linux. */
-const REMOTO_BASE = process.env.WM_AUDIT_REMOTO?.trim() || '/tmp/wm-audit';
-const TIMEOUT_MS = 120_000;
-const SSH_OPTS = ['-n', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15'];
-/* Sin `-n`: ese flag deja la entrada estandar en /dev/null y el tar que viaja
- * por stdin nunca llegaria a la 89. */
-const SSH_OPTS_TAR = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15'];
-
-/* Salida cruda de un comando remoto. `codigo` es null si ssh no llego a correr
- * (o vencio el timeout); el llamante lo trata como fallo, no como exito. */
-export interface SalidaRemota {
-  stdout: string;
-  codigo: number | null;
-}
 
 /* Carpetas que no viajan: no las necesita ningun gestor y son las que pesan
  * (uploads, data, target, node_modules). Son las de cualquier repo: el
@@ -102,9 +86,10 @@ export const MANIFIESTOS: Record<GestorAudit, (nombre: string) => boolean> = {
 
 /* Raiz remota de un proyecto y gestor. [por que] Un proyecto puede tener lockfiles
  * de dos gestores (WANDORIUS: npm en frontend/, cargo en glory-rs/); con un arbol
- * por proyecto el segundo `rm -rf` borraria el del primero. */
-export function raizRemota(nombre: string, gestor: GestorAudit): string {
-  return `${REMOTO_BASE}/${nombre}/${gestor}`;
+ * por proyecto el segundo `rm -rf` borraria el del primero. La carpeta temporal
+ * llega en la config (`tmpAudit`), no se lee aquí. */
+export function raizRemota(cfg: Pick<ConfigRemota, 'tmpAudit'>, nombre: string, gestor: GestorAudit): string {
+  return `${cfg.tmpAudit}/${nombre}/${gestor}`;
 }
 
 /* Recorre el subarbol y acumula los archivos que `es` acepte (rutas absolutas). */
@@ -185,108 +170,6 @@ function hermanosDe(raiz: string, proyecto: string, pesadas: ReadonlySet<string>
   return [...fuera];
 }
 
-/* `tar` del PATH puede ser el de Windows (bsdtar) segun como arranque el padre;
- * el de Git es el que se ha probado. Se resuelve por ruta, no por orden.
- * [por que] Antes eran dos rutas fijas de `C:\Program Files\Git`: la instalacion
- * por defecto de esta maquina, no una verdad del proyecto. Git en
- * `%LOCALAPPDATA%\Programs\Git`, en otro idioma de sistema o en Linux no casaba
- * ninguno y se caia a `tar` (bsdtar), que es justo lo que se queria evitar. La
- * raiz se deriva ahora del `git` que haya en el PATH; `WS_TAR` la fija a mano. */
-export function tarReal(): string {
-  const declarado = process.env.WS_TAR?.trim();
-  if (declarado) return declarado;
-  for (const c of candidatosTar()) {
-    try {
-      if (statSync(c).isFile()) return c;
-    } catch {
-      /* siguiente candidato */
-    }
-  }
-  return BIN_TAR;
-}
-
-/* Candidatos a `tar` de Git, derivados de donde este `git` en el PATH.
- * [por que] No hay una sola forma: segun la instalacion, el ejecutable aparece
- * en `<raiz>\cmd`, `<raiz>\bin` o `<raiz>\mingw64\bin` (medido aqui: Git Bash
- * pone `mingw64\bin`), y el `tar` de Git vive en `<raiz>\usr\bin`. En vez de
- * fijar una, se suben hasta tres niveles desde el directorio de `git` probando
- * las ubicaciones en cada uno. En Linux no casa ninguna y se cae a `tar`, que
- * alli ya es GNU tar. */
-function candidatosTar(): string[] {
-  let dir = raizDeGit();
-  if (dir === null) return [];
-  const rutas: string[] = [];
-  for (let nivel = 0; nivel < 3; nivel++) {
-    rutas.push(join(dir, 'usr', 'bin', 'tar.exe'), join(dir, 'bin', 'tar.exe'), join(dir, 'tar.exe'));
-    const padre = dirname(dir);
-    if (padre === dir) break;
-    dir = padre;
-  }
-  return rutas;
-}
-
-/* Directorio del `git` que resuelve el PATH. Null si no hay ninguno. */
-function raizDeGit(): string | null {
-  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
-    if (dir === '') continue;
-    const exe = join(dir, process.platform === 'win32' ? 'git.exe' : 'git');
-    try {
-      if (statSync(exe).isFile()) return dir;
-    } catch {
-      /* siguiente directorio del PATH */
-    }
-  }
-  return null;
-}
-
-/* Ejecuta un comando en la 89 y devuelve su stdout con el codigo de salida. No
- * rechaza por codigo ≠ 0: los audit salen 1 cuando HAY vulnerabilidades y
- * `cargo tree` sale 101 cuando el crate no esta en el grafo, y los dos casos son
- * respuestas validas. Un fallo de ssh devuelve codigo null y stdout vacio. */
-function sshTexto(host: string, comando: string): Promise<SalidaRemota> {
-  return new Promise((listo) => {
-    const hijo = spawn(BIN_SSH, [...SSH_OPTS, host, comando], { windowsHide: true });
-    let out = '';
-    const to = setTimeout(() => {
-      hijo.kill();
-      listo({ stdout: out, codigo: null });
-    }, TIMEOUT_MS);
-    hijo.stdout.on('data', (d: Buffer) => {
-      out += d.toString('utf8');
-    });
-    hijo.on('error', () => {
-      clearTimeout(to);
-      listo({ stdout: '', codigo: null });
-    });
-    hijo.on('close', (codigo) => {
-      clearTimeout(to);
-      listo({ stdout: out, codigo });
-    });
-  });
-}
-
-/* Envia el arbol por stdin de ssh: `tar -T -` lee la lista de archivos de su
- * entrada estandar y escribe el archivo en la salida, asi que no hace falta
- * ningun temporal ni depender de como expanda `--exclude` cada tar. */
-function enviar(host: string, raiz: string, destino: string, archivos: string[], firma: string): Promise<void> {
-  return new Promise((ok, mal) => {
-    const lista = `${archivos.map((a) => relativa(raiz, a)).join('\n')}\n`;
-    const orden =
-      `rm -rf ${comillas(destino)} && mkdir -p ${comillas(destino)} && tar xzf - -C ${comillas(destino)} ` +
-      `&& printf '%s' ${comillas(firma)} > ${comillas(`${destino}/.firma`)}`;
-    const tar = spawn(tarReal(), ['czf', '-', '-C', raiz, '-T', '-'], { stdio: ['pipe', 'pipe', 'inherit'] });
-    const ssh = spawn(BIN_SSH, [...SSH_OPTS_TAR, host, orden], { stdio: ['pipe', 'inherit', 'inherit'] });
-    /* Si ssh muere antes de tragarse el tar, el pipe revienta con EPIPE; sin este
-     * manejador seria un error no capturado que tumbaria el manager. */
-    ssh.stdin.on('error', () => {});
-    tar.stdout.pipe(ssh.stdin);
-    tar.stdin.end(lista);
-    tar.on('error', (e) => mal(new Error(`no se pudo ejecutar tar: ${e.message}`)));
-    ssh.on('error', (e) => mal(new Error(`no se pudo ejecutar ssh: ${e.message}`)));
-    ssh.on('close', (c) => (c === 0 ? ok() : mal(new Error(`el envio del arbol a la 89 fallo (ssh ${c})`))));
-  });
-}
-
 /* Deja en la 89 el arbol que necesita este gestor para auditar el proyecto. Si ya
  * esta y no ha cambiado nada, no hace nada. */
 export async function prepararArbolRemoto(rutaProyecto: string, gestor: GestorAudit): Promise<void> {
@@ -300,11 +183,11 @@ export async function prepararArbolRemoto(rutaProyecto: string, gestor: GestorAu
   const dirs = gestor === 'cargo' ? [nombre, ...hermanosDe(raiz, nombre, pesadas)] : [nombre];
   for (const d of dirs) listar(join(raiz, d), archivos, es, pesadas);
   const firma = huella(archivos, raiz, MANIFIESTOS[gestor]);
-  const destino = raizRemota(nombre, gestor);
   const cfg = leerConfigRemota();
-  const visto = await sshTexto(cfg.host, `cat ${comillas(`${destino}/.firma`)} 2>/dev/null`);
+  const destino = raizRemota(cfg, nombre, gestor);
+  const visto = await sshTexto(cfg, `cat ${comillas(`${destino}/.firma`)} 2>/dev/null`);
   if (visto.codigo === 0 && visto.stdout.trim() === firma) return;
-  await enviar(cfg.host, raiz, destino, archivos, firma);
+  await enviarArbol(cfg, tarReal(), raiz, destino, archivos.map((a) => relativa(raiz, a)), firma);
 }
 
 /* PATH que necesita cada gestor en la 89. cargo vive en ~/.cargo/bin; npm y pnpm
@@ -330,7 +213,7 @@ export async function ejecutarAuditRemoto(
     return { stdout: '', codigo: null }; /* taller.json ilegible: se trata como fallo */
   }
   const nombre = basename(rutaProyecto);
-  const partes = [raizRemota(nombre, gestor), nombre, ...(base ? base.split(sep) : [])];
+  const partes = [raizRemota(cfg, nombre, gestor), nombre, ...(base ? base.split(sep) : [])];
   /* [por que] corepack pregunta en consola antes de descargar pnpm; sin consola esa
    * pregunta colgaria el audit.
    * [por que comillas DOBLES] `pathRemoto` devuelve `$HOME/.cargo/bin` para cargo, y
@@ -340,5 +223,5 @@ export async function ejecutarAuditRemoto(
    * `RUTA_ABSOLUTA_SEGURA` (solo `[A-Za-z0-9._/-]`), asi que no puede traer `$` ni
    * comillas. */
   const env = `export PATH="${pathRemoto(gestor, cfg.nodeRemoto)}:$PATH" && export COREPACK_ENABLE_DOWNLOAD_PROMPT=0`;
-  return sshTexto(cfg.host, `cd ${comillas(partes.join('/'))} && ${env} && ${comando}`);
+  return sshTexto(cfg, `cd ${comillas(partes.join('/'))} && ${env} && ${comando}`);
 }

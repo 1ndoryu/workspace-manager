@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ESENCIALES, MANIFIESTOS, pathRemoto, raizRemota, tarReal } from './auditoria-remota.js';
+import { ESENCIALES, MANIFIESTOS, pathRemoto, raizRemota } from './auditoria-remota.js';
+import { tarReal } from './herramientas/tar.js';
 
 test('cada gestor recibe solo los archivos que necesita para resolver su lockfile', () => {
   assert.ok(ESENCIALES.cargo('lib.rs'));
@@ -48,11 +49,12 @@ test('npm y pnpm no tienen archivos de sobra: todo lo que viaja cuenta', () => {
  * proyecto, el segundo `rm -rf` borraria el del primero y el audit siguiente
  * correria sobre un directorio vacio. */
 test('cada gestor tiene su propio arbol en la 89', () => {
-  const npm = raizRemota('portal-central', 'npm');
-  const cargo = raizRemota('portal-central', 'cargo');
+  const cfg = { tmpAudit: '/tmp/wm-audit' };
+  const npm = raizRemota(cfg, 'portal-central', 'npm');
+  const cargo = raizRemota(cfg, 'portal-central', 'cargo');
   assert.notEqual(npm, cargo);
-  assert.ok(npm.endsWith('/portal-central/npm'));
-  assert.ok(cargo.endsWith('/portal-central/cargo'));
+  assert.equal(npm, '/tmp/wm-audit/portal-central/npm');
+  assert.equal(cargo, '/tmp/wm-audit/portal-central/cargo');
 });
 
 /* [por que] El PATH del ssh no interactivo no trae ni el node de `taller.json` ni
@@ -72,21 +74,12 @@ test('el PATH remoto es POSIX y depende del gestor', () => {
  * sitio (o en Linux) no casaba ninguno y se caia a `tar`, que en Windows es
  * bsdtar — justo el binario que no se ha probado. Estos casos fijan las tres
  * salidas: `WS_TAR` manda, la raiz se deriva del `git` del PATH, y sin `git`
- * se usa el `tar` del PATH. */
+ * se usa el `tar` del PATH. El entorno llega por parametro: no se toca process.env. */
 test('tarReal - WS_TAR manda sobre cualquier busqueda', () => {
-  const original = process.env.WS_TAR;
-  process.env.WS_TAR = 'C:/ruta/elegida/tar.exe';
-  try {
-    assert.equal(tarReal(), 'C:/ruta/elegida/tar.exe');
-  } finally {
-    if (original === undefined) delete process.env.WS_TAR;
-    else process.env.WS_TAR = original;
-  }
+  assert.equal(tarReal({ WS_TAR: 'C:/ruta/elegida/tar.exe', PATH: '' }), 'C:/ruta/elegida/tar.exe');
 });
 
 test('tarReal - deriva la raiz de Git desde el PATH', () => {
-  const originalPath = process.env.PATH;
-  const originalTar = process.env.WS_TAR;
   const raiz = mkdtempSync(join(tmpdir(), 'wm-tar-'));
   try {
     /* Un Git de mentira con la forma real: el ejecutable en `bin/` y el `tar`
@@ -97,32 +90,18 @@ test('tarReal - deriva la raiz de Git desde el PATH', () => {
     mkdirSync(usrBin, { recursive: true });
     writeFileSync(join(bin, process.platform === 'win32' ? 'git.exe' : 'git'), '');
     writeFileSync(join(usrBin, 'tar.exe'), '');
-    delete process.env.WS_TAR;
-    process.env.PATH = bin;
 
-    assert.equal(tarReal(), join(usrBin, 'tar.exe'));
+    assert.equal(tarReal({ PATH: bin }), join(usrBin, 'tar.exe'));
   } finally {
-    if (originalPath === undefined) delete process.env.PATH;
-    else process.env.PATH = originalPath;
-    if (originalTar === undefined) delete process.env.WS_TAR;
-    else process.env.WS_TAR = originalTar;
     rmSync(raiz, { recursive: true, force: true });
   }
 });
 
 test('tarReal - sin git en el PATH cae al tar del PATH', () => {
-  const originalPath = process.env.PATH;
-  const originalTar = process.env.WS_TAR;
   const vacio = mkdtempSync(join(tmpdir(), 'wm-tar-vacio-'));
   try {
-    delete process.env.WS_TAR;
-    process.env.PATH = vacio;
-    assert.equal(tarReal(), 'tar');
+    assert.equal(tarReal({ PATH: vacio }), 'tar');
   } finally {
-    if (originalPath === undefined) delete process.env.PATH;
-    else process.env.PATH = originalPath;
-    if (originalTar === undefined) delete process.env.WS_TAR;
-    else process.env.WS_TAR = originalTar;
     rmSync(vacio, { recursive: true, force: true });
   }
 });
