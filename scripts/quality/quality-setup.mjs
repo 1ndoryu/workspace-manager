@@ -19,17 +19,21 @@
  * Nunca fabrica evidencia: ante cualquier fallo no escribe el archivo y sale con
  * error claro (1 = fallo de build/suite/staging, 2 = error de configuración).
  *
- * Uso: node quality-setup.mjs [--refresh] [--no-cache] [--workspace <dir>]
+ * Uso: node quality-setup.mjs [--refresh] [--no-cache] [--workspace <dir>] [--local]
  *   --refresh   ignora la caché y re-ejecuta compile+suite (actualiza la entrada)
  *   --no-cache  ni lee ni escribe la caché (comportamiento anterior a 109A-9)
  *   --workspace directorio del consumidor (por defecto el cwd)
+ *   --local     emergencia: compile+suite en este equipo si la VPS no está disponible.
+ *               Por defecto compile+suite corren en la VPS configurada (réplica del consumidor).
  * Variables: GLORY_CERT_REFRESH=1, GLORY_CERT_DISABLE=1, GLORY_CERT_CACHE=<dir>
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import { hostname } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BIN_GIT, BIN_NPM } from '../shared/binarios.mjs';
+import { cargarTaller, decidirDonde, dirRemotoDe, ejecutarEnVps, mensajeSinVps } from '../shared/vps.mjs';
 import {
   describirClave,
   directorioCertificaciones,
@@ -47,6 +51,37 @@ function valorDe(flag) {
 const workspace = path.resolve(valorDe('--workspace') ?? process.cwd());
 const refrescar = argv.includes('--refresh') || process.env.GLORY_CERT_REFRESH === '1';
 const cacheActiva = !argv.includes('--no-cache') && process.env.GLORY_CERT_DISABLE !== '1';
+
+/* Compile y suite van a la VPS configurada (carga pesada). Este equipo solo con `--local`, en emergencia.
+ * Sin VPS configurada, el setup falla aquí con mensaje claro, antes de tocar ningún checkout. */
+const taller = cargarTaller();
+let destino;
+try {
+  destino = decidirDonde(argv, taller, hostname());
+} catch (error) {
+  process.stderr.write(`[quality:setup] ${error.message}\n`);
+  process.exit(2);
+}
+if (destino.aviso) process.stderr.write(`[quality:setup] ${destino.aviso}\n`);
+// [por que] `ejecutor` dice DÓNDE se compiló: en la VPS (también si este equipo ES la VPS) o en local por emergencia.
+const ejecutor = destino.donde === 'local' ? 'local' : 'vps89';
+
+/* Paso de build o suite. Remoto: `npm run <script>` dentro de la réplica del consumidor en la 89.
+ * Los checkouts git (staging, evidencia) siguen siendo locales: la evidencia vive en el portátil. */
+function paso(source, script, label) {
+  if (destino.donde !== 'remoto') return run(BIN_NPM, ['run', script], source, label);
+  const dir = dirRemotoDe(taller, path.basename(workspace), workspace, source);
+  const resultado = ejecutarEnVps(taller, dir, ['npm', 'run', script]);
+  const aviso = mensajeSinVps(resultado.status, taller.host);
+  if (aviso) {
+    process.stderr.write(`[quality:setup] ${label}: ${aviso}\n`);
+    process.exit(2);
+  }
+  if (resultado.status !== 0) {
+    process.stderr.write(`[quality:setup] ${label} falló en la VPS (exit ${resultado.status}); no se escribe evidencia\n`);
+    process.exit(1);
+  }
+}
 
 function run(cmd, args, cwd, label) {
   // En Windows `npm` es un shim (npm.cmd): spawnSync solo lo ejecuta con shell.
@@ -161,6 +196,7 @@ for (const [name, config] of Object.entries(tools)) {
     testScript: testScript ?? null,
     platform: process.platform,
     nodeVersion: process.version,
+    ejecutor,
   };
   process.stdout.write(`[quality:setup] ${name}: staging ${source} (${commit})\n`);
   refrescarRefs(source, name);
@@ -218,12 +254,12 @@ for (const [name, config] of Object.entries(tools)) {
 
   if (origen === 'ejecutada') {
     if (buildScript) {
-      process.stdout.write(`[quality:setup] ${name}: compilando (npm run ${buildScript})\n`);
-      run(BIN_NPM, ['run', buildScript], source, `${name} compile`);
+      process.stdout.write(`[quality:setup] ${name}: compilando (npm run ${buildScript}, ${ejecutor})\n`);
+      paso(source, buildScript, `${name} compile`);
     }
     if (testScript) {
-      process.stdout.write(`[quality:setup] ${name}: suite (npm run ${testScript})\n`);
-      run(BIN_NPM, ['run', testScript], source, `${name} suite`);
+      process.stdout.write(`[quality:setup] ${name}: suite (npm run ${testScript}, ${ejecutor})\n`);
+      paso(source, testScript, `${name} suite`);
     }
     ejecutadas += 1;
     if (cacheActiva) {
@@ -240,6 +276,7 @@ for (const [name, config] of Object.entries(tools)) {
     compile: 'passed',
     suite: testScript ? 'passed' : 'not-configured',
     cleanStaging: true,
+    ejecutor,
     origen,
     at: new Date().toISOString(),
   };

@@ -10,14 +10,21 @@
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { escribirCertificacion } from './certificacion.mjs';
+import { cargarTaller, decidirDonde } from '../shared/vps.mjs';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SETUP = path.join(AQUI, 'quality-setup.mjs');
+
+/* Mismo criterio que quality-setup.mjs: la clave lleva el ejecutor real de este equipo. */
+function ejecutorDeEsteEquipo() {
+  return decidirDonde([], cargarTaller(), os.hostname()).donde === 'local' ? 'local' : 'vps89';
+}
 /* Los temporales del área van a C:\tmp (laptop) o /var/tmp (89), nunca a %TEMP%. */
 const BASE_TMP = process.env.QUALITY_TEST_TMP ?? (process.platform === 'win32' ? 'C:\\tmp' : '/var/tmp');
 
@@ -95,7 +102,15 @@ function montarConsumidor({ versionCli }) {
   /* La certificación ya está emitida para este commit: sin el chequeo nuevo, el
    * adapter la reutilizaría sin mirar el CLI. */
   escribirCertificacion(
-    { tool: 'sentinel', commit, buildScript: 'marca', testScript: null, platform: process.platform, nodeVersion: process.version },
+    {
+      tool: 'sentinel',
+      commit,
+      buildScript: 'marca',
+      testScript: null,
+      platform: process.platform,
+      nodeVersion: process.version,
+      ejecutor: ejecutorDeEsteEquipo(),
+    },
     {},
     { dir: cache },
   );

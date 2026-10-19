@@ -40,7 +40,9 @@ export const ESQUEMA = 1;
 /* Campos que forman la identidad de la certificación. Todos deben coincidir
  * para aceptar una entrada: la comparación campo a campo es la red de
  * seguridad frente a un nombre de fichero reutilizado o manipulado. */
-const CAMPOS_CLAVE = ['tool', 'commit', 'buildScript', 'testScript', 'platform', 'nodeVersion'];
+// [por que] `ejecutor` dice DÓNDE se compiló y probó (la 89 o el portátil en emergencia):
+// una certificación no pasa por la de otro lugar.
+const CAMPOS_CLAVE = ['tool', 'commit', 'buildScript', 'testScript', 'platform', 'nodeVersion', 'ejecutor'];
 
 function texto(valor) {
   return valor === null || valor === undefined ? '' : String(valor);
@@ -59,7 +61,7 @@ export function normalizarClave(datos = {}) {
  * leer. */
 export function huellaClave(datos = {}) {
   const clave = normalizarClave(datos);
-  const material = [clave.buildScript, clave.testScript, clave.platform, clave.nodeVersion].join('|');
+  const material = [clave.buildScript, clave.testScript, clave.platform, clave.nodeVersion, clave.ejecutor].join('|');
   return createHash('sha256').update(material).digest('hex').slice(0, 8);
 }
 
