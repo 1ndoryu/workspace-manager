@@ -3,9 +3,9 @@
  * se diferencian con patrones de relleno/borde, no con color. La logica de
  * interaccion (zoom, pan, arrastre, hover, tooltip) vive en useMapaV2. */
 import { useMemo } from 'react';
-import type { CSSProperties } from 'react';
 import type { Proyecto } from '../../shared/types.js';
-import { ETIQUETA_ESTADO, estadoProyecto, PESO_ESTADO } from '../estado.js';
+import { ETIQUETA_ESTADO, estadoProyecto } from '../estado.js';
+import { disponer } from './disposicion.js';
 import {
   TILE,
   pathCuadricula,
@@ -15,10 +15,22 @@ import {
   verticesTecho,
 } from './tiles.js';
 import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
-import { Button } from '../ui/form/Button.js';
+import { LeyendaMapa } from './LeyendaMapa.js';
+import { NodoMapa } from './NodoMapa.js';
+import { ControlesMapa } from './ControlesMapa.js';
+import { TooltipMapa } from './TooltipMapa.js';
 import { useMapaV2 } from './useMapaV2.js';
-import { anchoVentana } from '../../shared/platform/plataforma.js';
 import './mapaV2.css';
+
+/* Los nodos de ubicacion son cajas mas altas que las de proyecto: se leen como
+ * "plataformas" a las que se conectan. */
+const ALTO_HUB = TILE.altoPared * 2;
+
+/* Franja del pasillo (en celdas, respecto al centro de la caja) que ocupa cada
+ * nodo; dentro de ella cada enlace recibe su propio carril. */
+const FRANJA = { vps89: [0.55, 0.95], produccion: [1.05, 1.45], laptop: [-1.45, -0.55] } as const;
+
+const corto = (t: string) => (t.length > 14 ? `${t.slice(0, 13)}…` : t);
 
 export function MapaV2() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
@@ -45,24 +57,9 @@ export function MapaV2() {
 
   const proyectos = snapshot?.proyectos ?? [];
 
-  /* Grid: filas de ancho fijo, ordenadas por estado primero (repo/dirty/gate/carpeta) */
-  const porFila = 8;
-  const grid = useMemo(() => {
-    const orden = [...proyectos].sort(
-      (a, b) => PESO_ESTADO[estadoProyecto(a)] - PESO_ESTADO[estadoProyecto(b)],
-    );
-    return orden.map((p, i) => {
-      /* Cajas en celdas PARES: cada caja ocupa una celda del tamano de la
-       * caja y deja una celda vacia entre ellas como separacion. */
-      const fila = Math.floor(i / porFila) * 2;
-      const col = (i % porFila) * 2;
-      return { p, fila, col };
-    });
-  }, [proyectos]);
-
-  /* Claves con servicio en marcha (05AA-4): punto verde en su caja.
+  /* Claves con servicio en marcha (05AA-4): su enlace con la ubicacion brilla.
    * [por que] Solo bajo-mando = probe verde real; parado/deriva/sin-boton
-   * no llevan punto. Excepcion explicita del usuario a la regla monocroma. */
+   * no brillan. Excepcion explicita del usuario a la regla monocroma. */
   const enMarcha = useMemo(() => {
     const set = new Set<string>();
     for (const d of dev?.proyectos ?? []) {
@@ -71,23 +68,67 @@ export function MapaV2() {
     return set;
   }, [dev]);
 
-  /* Rango de celdas ocupadas por las cajas (para extender la cuadricula). */
+  /* Tres nodos (laptop, VPS 89, produccion) y cada proyecto junto al suyo,
+   * unido por una linea. Todo en celdas pares: una celda vacia entre cajas. */
+  const { colocados, hubs, enlaces } = useMemo(() => disponer(proyectos, enMarcha), [proyectos, enMarcha]);
+
+  /* Escena en orden de pintado iso: lo mas lejano (col+fila menor) primero,
+   * para que las cajas cercanas tapen a las lejanas. */
+  const escena = useMemo(() => {
+    const items = [
+      ...colocados.map((c) => ({ tipo: 'proyecto' as const, col: c.col, fila: c.fila, p: c.p })),
+      ...hubs.map((h) => ({ tipo: 'hub' as const, col: h.col, fila: h.fila, h })),
+    ];
+    return items.sort((a, b) => a.col + a.fila - (b.col + b.fila) || a.col - b.col);
+  }, [colocados, hubs]);
+
+  /* Carril propio por enlace: reparte los de un mismo nodo a lo largo de su
+   * franja, asi ninguna linea tapa a otra al compartir pasillo. */
+  const carriles = useMemo(() => {
+    const t = new Map<string, number>();
+    (Object.keys(FRANJA) as (keyof typeof FRANJA)[]).forEach((id) => {
+      const h = hubs.find((x) => x.id === id)!;
+      const ls = enlaces
+        .filter((e) => e.hasta === id)
+        .sort((a, b) => Math.abs(b.desde.col - h.col) + Math.abs(b.desde.fila - h.fila) - (Math.abs(a.desde.col - h.col) + Math.abs(a.desde.fila - h.fila)) || a.clave.localeCompare(b.clave));
+      const [lo, hi] = FRANJA[id];
+      ls.forEach((e, i) => t.set(`${e.clave}-${id}`, ls.length < 2 ? (lo + hi) / 2 : lo + ((hi - lo) * i) / (ls.length - 1)));
+    });
+    return t;
+  }, [enlaces, hubs]);
+
+  /* Ruta por el suelo, por los pasillos impares (las celdas vacias entre cajas):
+   * sale de la caja, corre en paralelo a la cuadricula y entra al nodo de lado. */
+  const rutaSuelo = (e: (typeof enlaces)[number]) => {
+    const h = hubs.find((x) => x.id === e.hasta)!;
+    const s = carriles.get(`${e.clave}-${e.hasta}`)!;
+    const celdas = [
+      [e.desde.col, e.desde.fila],
+      [e.desde.col, e.desde.fila + s],
+      [h.col + s, e.desde.fila + s],
+      [h.col + s, h.fila],
+      [h.col, h.fila],
+    ];
+    return celdas.map(([c, f]) => { const p = posicionGrid(c, f); return `${p.x},${p.y}`; }).join(' ');
+  };
+
+  /* Rango de celdas ocupadas por cajas y nodos (para extender la cuadricula). */
   const rangoCeldas = useMemo(() => {
-    if (grid.length === 0) return null;
-    const cols = grid.map((g) => g.col);
-    const filas = grid.map((g) => g.fila);
+    if (escena.length === 0) return null;
+    const cols = escena.map((g) => g.col);
+    const filas = escena.map((g) => g.fila);
     return {
       minCol: Math.min(...cols),
       maxCol: Math.max(...cols),
       minFila: Math.min(...filas),
       maxFila: Math.max(...filas),
     };
-  }, [grid]);
+  }, [escena]);
 
   /* Cuadricula extendida EXT celdas mas alla del contenido en cada direccion.
    * Como la extension es simetrica (misma EXT por los 4 lados), el centro de
    * la cuadricula coincide con el centro de las cajas y queda centrada. */
-  const EXT = 10;
+  const EXT = 6;
 
   /* viewBox base (zoom 1, sin pan): bbox de la cuadricula extendida + margen.
    * [por que] Separado del viewBox final porque el arrastre solo necesita el
@@ -165,7 +206,21 @@ export function MapaV2() {
             className="mapaV2Cuadricula"
           />
         )}
-        {grid.map(({ p, fila, col }) => {
+        {/* Lineas proyecto -> nodo, pegadas al suelo y bajo las cajas. Continua =
+         * donde corre (verde y con halo si esta en marcha); discontinua = produccion. */}
+        {enlaces.map((e) => (
+          <polyline
+            key={`${e.clave}-${e.hasta}`}
+            points={rutaSuelo(e)}
+            className={`mapaV2Enlace mapaV2Enlace--${e.hasta}`}
+            filter={e.vivo ? 'url(#mapaV2Brillo)' : undefined}
+          />
+        ))}
+        {escena.map((item) => {
+          if (item.tipo === 'hub') {
+            return <NodoMapa key={item.h.id} h={item.h} alto={ALTO_HUB} />;
+          }
+          const { p, fila, col } = item;
           const estado = estadoProyecto(p);
           const techo = verticesTecho(col, fila);
           const paredIzq = verticesParedIzq(col, fila);
@@ -173,7 +228,7 @@ export function MapaV2() {
           return (
             <g
               key={p.id}
-              className={`mapaV2Tile mapaV2Tile--${estado}`}
+              className={`mapaV2Tile mapaV2Tile--${estado}${enMarcha.has(p.clave) ? ' mapaV2Tile--vivo' : ''}`}
               onClick={() => {
                 if (!modoArrastre) seleccionar(p.id);
               }}
@@ -201,117 +256,28 @@ export function MapaV2() {
               <polygon points={paredDer} className="mapaV2ParedDer" />
               <polygon points={paredIzq} className="mapaV2ParedIzq" />
               <polygon points={techo} className="mapaV2Piso" />
-              {/* Donde corre el dev: cuadrado hueco = laptop, cuadrado lleno = VPS 89.
-               * [por que] Va a la izquierda del anillo y del punto para no taparlos. */}
-              {p.ejecucion ? (
-                <rect
-                  x={posicionGrid(col, fila).x - 17}
-                  y={posicionGrid(col, fila).y - TILE.altoPared - 3}
-                  width={6}
-                  height={6}
-                  className={p.ejecucion.donde === 'vps89' ? 'mapaV2MarcaVps89' : 'mapaV2MarcaLaptop'}
-                />
-              ) : null}
-              {p.despliegue ? (
-                /* Anillo hueco: el proyecto tiene despliegue en Coolify (VPS 66). */
-                <circle
-                  cx={posicionGrid(col, fila).x}
-                  cy={posicionGrid(col, fila).y - TILE.altoPared}
-                  r={6}
-                  className="mapaV2AnilloCoolify"
-                />
-              ) : null}
-              {enMarcha.has(p.clave) ? (
-                <circle
-                  cx={posicionGrid(col, fila).x}
-                  cy={posicionGrid(col, fila).y - TILE.altoPared}
-                  r={3.2}
-                  className="mapaV2PuntoVerde"
-                  filter="url(#mapaV2Brillo)"
-                >
-                  <title>en marcha (dev bajo-mando)</title>
-                </circle>
-              ) : null}
             </g>
           );
         })}
+        {/* Nombres en capa final: ninguna caja posterior los tapa. */}
+        {colocados.map(({ p, col, fila }) => (
+          <text
+            key={`n-${p.clave}`}
+            x={posicionGrid(col, fila).x}
+            y={posicionGrid(col, fila).y + TILE.alto / 2 + 7}
+            textAnchor="middle"
+            className="mapaV2NombreProyecto"
+          >
+            {corto(p.id)}
+          </text>
+        ))}
       </svg>
 
-      {/* Controles del mapa (esquina superior derecha): mano (modo mover) y zoom. */}
-      <div className="mapaV2Controles">
-        <Button
-          cuadrado
-          activo={modoArrastre}
-          onClick={alternarModoArrastre}
-          aria-label="Mover el mapa (arrastrar)"
-          aria-pressed={modoArrastre}
-          title={modoArrastre ? 'Modo mover activo: arrastra el mapa' : 'Activar modo mover: arrastra el mapa'}
-        >
-          {/* Icono de mano (pan_tool de Material) en monocromo: fill=currentColor
-           * hereda el color del boton segun su estado. */}
-          <svg className="mapaV2ManoIcono" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M23,5.5V20c0,2.2 -1.8,4 -4,4h-7.3c-1.08,0 -2.1,-0.43 -2.85,-1.19L1,14.83c0,0 -1.26,-1.38 0.3,-2.24c0.39,-0.23 0.86,-0.26 1.27,-0.03L6,15V4c0,-1.1 0.9,-2 2,-2s2,0.9 2,2v6h1V1.5c0,-0.83 0.67,-1.5 1.5,-1.5S14,0.67 14,1.5V10h1V2.5c0,-0.83 0.67,-1.5 1.5,-1.5S18,1.67 18,2.5V10h1V5.5c0,-0.83 0.67,-1.5 1.5,-1.5S22,4.67 22,5.5z"
-              fill="currentColor"
-            />
-          </svg>
-        </Button>
-        <Button
-          cuadrado
-          grande
-          onClick={acercar}
-          aria-label="Acercar"
-          title="Acercar"
-        >
-          +
-        </Button>
-        <Button
-          cuadrado
-          grande
-          onClick={alejar}
-          aria-label="Alejar"
-          title="Alejar"
-        >
-          −
-        </Button>
-      </div>
+      <ControlesMapa modoArrastre={modoArrastre} alternarModoArrastre={alternarModoArrastre} acercar={acercar} alejar={alejar} />
 
-      {hover && tooltipPos && (
-        <div
-          className="mapaV2Tooltip"
-          style={
-            {
-              '--mapa-tip-x': `${Math.min(tooltipPos.x + 14, anchoVentana() - 240)}px`,
-              '--mapa-tip-y': `${tooltipPos.y + 14}px`,
-            } as CSSProperties
-          }
-        >
-          <div className="mapaV2TooltipTitulo">{hover.id}</div>
-          {hover.ejecucion && (
-            <div className="mapaV2TooltipDatos">
-              <div>
-                corre: {hover.ejecucion.donde === 'vps89' ? 'VPS 89' : 'laptop'} · modo {hover.ejecucion.modo ?? 'sin declarar'}
-              </div>
-            </div>
-          )}
-          {hover.despliegue && (
-            <div className="mapaV2TooltipDatos">
-              <div>coolify: {hover.despliegue.sitio} (VPS {hover.despliegue.vps})</div>
-              <div>{hover.despliegue.dominio}</div>
-            </div>
-          )}
-          {hover.esGit && hover.git ? (
-            <div className="mapaV2TooltipDatos">
-              <div>rama: {hover.git.rama}</div>
-              <div>dirty: {hover.git.dirty ? 'sí' : 'no'}</div>
-              <div>ahead: {hover.git.ahead} · behind: {hover.git.behind}</div>
-              {hover.gate?.declarado && <div>gate: sí</div>}
-            </div>
-          ) : (
-            <div className="mapaV2TooltipDatos">carpeta (no git)</div>
-          )}
-        </div>
-      )}
+      <LeyendaMapa />
+
+      {hover && tooltipPos && <TooltipMapa proyecto={hover} posicion={tooltipPos} />}
     </div>
   );
 }

@@ -116,39 +116,94 @@
     pointer-events: none;
 }
 
-/* Punto verde de servicio en marcha [05AA-4]: excepcion explicita del
- * usuario a la regla monocroma, solo este punto lleva color. El valor
- * vive en --v2-punto-verde (variables-v2.css), no aqui. Sin eventos
- * (el techo sigue siendo el unico capturador, ver gotcha de arriba). */
-.mapaV2PuntoVerde {
-    fill: var(--v2-punto-verde);
+/* Colores por ubicacion (unica excepcion a la regla monocroma, a peticion del
+ * usuario): la linea y el nodo comparten color; el halo marca lo que esta en marcha. */
+.mapaV2 {
+    --mapa-laptop: #3b82f6;
+    --mapa-vps89: #f59e0b;
+    --mapa-produccion: #e11d6a;
+}
+
+/* Nodos de ubicacion: cajas altas y macizas (plataformas a las que se conectan
+ * los proyectos). Sin eventos: el techo de las cajas es el unico capturador. */
+.mapaV2HubPared,
+.mapaV2HubTecho {
     stroke: var(--v2-fondo);
     stroke-width: 1;
+    vector-effect: non-scaling-stroke;
     pointer-events: none;
 }
 
-/* Marcas de ubicacion (monocromo): cuadrado lleno = corre en la VPS 89,
- * cuadrado hueco = corre en el laptop. El anillo marca Coolify (VPS 66). */
-.mapaV2MarcaVps89 {
+.mapaV2Hub--laptop .mapaV2HubPared,
+.mapaV2Hub--laptop .mapaV2HubTecho { fill: var(--mapa-laptop); }
+.mapaV2Hub--vps89 .mapaV2HubPared,
+.mapaV2Hub--vps89 .mapaV2HubTecho { fill: var(--mapa-vps89); }
+.mapaV2Hub--produccion .mapaV2HubPared,
+.mapaV2Hub--produccion .mapaV2HubTecho { fill: var(--mapa-produccion); }
+
+.mapaV2HubEtiqueta {
     fill: var(--v2-texto);
-    stroke: none;
+    font-size: var(--v2-textMini);
+    font-weight: normal;
     pointer-events: none;
 }
 
-.mapaV2MarcaLaptop {
-    fill: none;
-    stroke: var(--v2-texto);
-    stroke-width: 0.8;
+.mapaV2NombreProyecto {
+    fill: var(--v2-texto);
+    stroke: var(--v2-fondo);
+    stroke-width: 2px;
+    paint-order: stroke;
+    font-size: var(--v2-textMicro);
+    font-weight: normal;
     pointer-events: none;
 }
 
-/* Anillo hairline monocromo: despliegue en Coolify. Sin color, para no
- * competir con el punto verde (que solo marca lo que esta vivo). */
-.mapaV2AnilloCoolify {
+/* Lineas de conexion pegadas al suelo, siempre continuas: el color dice a que
+ * nodo van. Las que estan en marcha llevan ademas halo (filtro). */
+.mapaV2Enlace {
     fill: none;
-    stroke: var(--v2-texto);
-    stroke-width: 0.8;
+    stroke-width: 1.4;
+    vector-effect: non-scaling-stroke;
     pointer-events: none;
+}
+
+.mapaV2Enlace--laptop { stroke: var(--mapa-laptop); background: var(--mapa-laptop); }
+.mapaV2Enlace--vps89 { stroke: var(--mapa-vps89); background: var(--mapa-vps89); }
+.mapaV2Enlace--produccion { stroke: var(--mapa-produccion); background: var(--mapa-produccion); }
+
+/* Leyenda (esquina inferior izquierda). */
+.mapaV2Leyenda {
+    position: absolute;
+    left: var(--v2-spaceMd);
+    bottom: var(--v2-spaceMd);
+    margin: 0;
+    padding: 4px 6px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--v2-fondo);
+    border: 1px solid var(--v2-borde);
+    font-size: var(--v2-textLeyenda);
+    line-height: 1.2;
+    pointer-events: none;
+}
+
+.mapaV2Leyenda li {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.mapaV2LeyendaLinea {
+    display: inline-block;
+    width: 12px;
+    height: 2px;
+}
+
+.mapaV2LeyendaLinea--vivo {
+    background: var(--v2-texto);
+    box-shadow: 0 0 6px 1px var(--v2-texto);
 }
 
 /* Tooltip monocromo: caja negra con borde y texto blanco. La posicion la
@@ -179,4 +234,12 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+}
+
+/* Conectado (en marcha): borde verde en toda la caja. */
+.mapaV2Tile--vivo .mapaV2Piso,
+.mapaV2Tile--vivo .mapaV2ParedIzq,
+.mapaV2Tile--vivo .mapaV2ParedDer {
+    stroke: var(--v2-punto-verde);
+    stroke-width: 2px;
 }

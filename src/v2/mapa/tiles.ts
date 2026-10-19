@@ -30,8 +30,8 @@ export function posicionGrid(col: number, fila: number): PuntoIso {
   };
 }
 
-function puntosCaja(col: number, fila: number) {
-  const { ancho, alto, altoPared } = TILE;
+function puntosCaja(col: number, fila: number, altoPared: number = TILE.altoPared) {
+  const { ancho, alto } = TILE;
   const c = posicionGrid(col, fila);
   const hw = ancho / 2;
   const hh = alto / 2;
@@ -59,20 +59,20 @@ export function verticesBase(col: number, fila: number): string {
 }
 
 /** Techo (rombo superior) de la caja, desplazado hacia arriba. */
-export function verticesTecho(col: number, fila: number): string {
-  const { techo } = puntosCaja(col, fila);
+export function verticesTecho(col: number, fila: number, altura?: number): string {
+  const { techo } = puntosCaja(col, fila, altura);
   return `${techo.top.x},${techo.top.y} ${techo.right.x},${techo.right.y} ${techo.bottom.x},${techo.bottom.y} ${techo.left.x},${techo.left.y}`;
 }
 
 /** Pared lateral izquierda: conecta la base con el techo. */
-export function verticesParedIzq(col: number, fila: number): string {
-  const { base, techo } = puntosCaja(col, fila);
+export function verticesParedIzq(col: number, fila: number, altura?: number): string {
+  const { base, techo } = puntosCaja(col, fila, altura);
   return `${base.left.x},${base.left.y} ${base.bottom.x},${base.bottom.y} ${techo.bottom.x},${techo.bottom.y} ${techo.left.x},${techo.left.y}`;
 }
 
 /** Pared lateral derecha: conecta la base con el techo. */
-export function verticesParedDer(col: number, fila: number): string {
-  const { base, techo } = puntosCaja(col, fila);
+export function verticesParedDer(col: number, fila: number, altura?: number): string {
+  const { base, techo } = puntosCaja(col, fila, altura);
   return `${base.right.x},${base.right.y} ${base.bottom.x},${base.bottom.y} ${techo.bottom.x},${techo.bottom.y} ${techo.right.x},${techo.right.y}`;
 }
 

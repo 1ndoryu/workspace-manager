@@ -58,6 +58,9 @@
 
     /* Escala tipografica (rem; la base del root es 13px, ver v2.css, asi que
      * 0.72rem ~= 9.4px, 0.85rem ~= 11.1px, 1rem = 13px, 1.15rem ~= 15px) */
+    --v2-textMicro: 0.31rem;
+    --v2-textMini: 0.44rem;
+    --v2-textLeyenda: 0.56rem;
     --v2-textXs: 0.72rem;
     --v2-textSm: 0.85rem;
     /* [por que] Fantasma del editor por esquema (decision del usuario en fase
