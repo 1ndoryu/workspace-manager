@@ -19,7 +19,7 @@ import {
 } from './ejecucion.js';
 import type { AccionPc, FasePc, ResumenReintento } from './ejecucion.js';
 import { ejecutarCleanElevado, esFalloPermiso, esRutaAdmin } from './elevacion.js';
-import { leerReporte } from './scan.js';
+import { leerReporte } from './reporte.js';
 
 const execFileAsync = promisify(execFile);
 
