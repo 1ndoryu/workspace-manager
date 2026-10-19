@@ -82,7 +82,14 @@ export async function obtenerSnapshot(
 }
 
 /* Actualiza el snapshot cacheado (memoria + disco) con el snapshot mutado
- * que devuelve la operacion (p. ej. ignorar). No re-escanea. */
+ * que devuelve la operacion (p. ej. ignorar). No re-escanea.
+ * [por que] Riesgo conocido: si hay un escaneo en curso (`escaneoEnCurso`), al
+ * terminar sobrescribe memoria y disco con SU snapshot. Ese escaneo leyó la config
+ * al empezar, así que puede no recoger la mutación recién hecha. El efecto es una
+ * vista desfasada hasta el siguiente escaneo, no pérdida de datos: la config
+ * (`data/workspace.config.json`) sí se escribe antes de mutar y el siguiente
+ * escaneo la aplica. No se corrige con una bandera de generación porque el caso
+ * es raro (ignorar mientras escanea) y el coste de la vista desfasada es bajo. */
 export function actualizarSnapshot(snapshot: SnapshotWorkspace): void {
   snapshotMemoria = snapshot;
   escribirCache(rutaCache(snapshot.raiz), snapshot);
