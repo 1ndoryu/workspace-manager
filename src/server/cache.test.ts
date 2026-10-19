@@ -1,16 +1,24 @@
 /* Pruebas de la cache del snapshot: el estado git no puede quedarse congelado.
  * [por que] El tablero servía un snapshot escaneado antes de un commit («16 sin
  * commitear» con el repo limpio). Ahora, pasada la vigencia, se relee solo git. */
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { actualizarSnapshot, obtenerSnapshot, rutaCache } from './cache.js';
 import type { SnapshotWorkspace } from '../shared/types.js';
 
+/* Las raíces temporales de cada snapshot se anotan para borrarlas al acabar el
+ * fichero. Sin esto quedan restos /tmp/wm-cache-* que purga cm-sweep en la VPS 89. */
+const temporales: string[] = [];
+after(() => {
+  for (const dir of temporales) rmSync(dir, { recursive: true, force: true });
+});
+
 function snapshot(escaneadoEn: string, gitEn?: string, sucio = 0): SnapshotWorkspace {
   const raiz = mkdtempSync(join(tmpdir(), 'wm-cache-'));
+  temporales.push(raiz);
   return {
     escaneadoEn,
     gitEn,

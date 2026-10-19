@@ -2,9 +2,9 @@
  * [por qué] Es la mecánica común de los dos almacenes del gate; si se rompe aquí,
  * se rompen los dos a la vez, así que se prueba directamente. Escribe en un
  * directorio temporal propio de cada ejecución. */
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { crearAlmacenPersistido } from './almacenPersistido.js';
@@ -12,8 +12,18 @@ import { crearAlmacenPersistido } from './almacenPersistido.js';
 type Dato = { estado: string };
 const esCacheable = (d: Dato) => d.estado !== 'error';
 
+/* Cada test escribe en su propio directorio temporal; se anotan para borrarlos al
+ * acabar el fichero. Sin esto quedan restos /tmp/almacen-persistido-* que purga
+ * cm-sweep en la VPS 89. */
+const temporales: string[] = [];
+after(() => {
+  for (const dir of temporales) rmSync(dir, { recursive: true, force: true });
+});
+
 function rutaTemporal(): string {
-  return join(mkdtempSync(join(tmpdir(), 'almacen-persistido-')), 'cache.json');
+  const dir = mkdtempSync(join(tmpdir(), 'almacen-persistido-'));
+  temporales.push(dir);
+  return join(dir, 'cache.json');
 }
 
 test('sirve solo si la frescura coincide y no guarda lo no cacheable', () => {
