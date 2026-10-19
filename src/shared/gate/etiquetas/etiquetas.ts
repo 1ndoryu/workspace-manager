@@ -25,8 +25,8 @@ const CATALOGO_BASE: Record<string, InfoSegmento> = {
   },
   mode: {
     nombre: 'Modo de operación',
-    descripcion: 'Cómo aplica Sentinel las reglas (advisory = solo advierte).',
-    detalle: 'Define cómo aplica Sentinel las reglas. El valor habitual es advisory, que solo informa y advierte sin bloquear; otros modos pueden exigir cumplimiento estricto antes de cerrar.',
+    descripcion: 'Cómo aplica Sentinel las reglas (observe = solo informa).',
+    detalle: 'Define cómo aplica Sentinel las reglas: observe solo informa sin bloquear (valor no bloqueante habitual); enforce exige cumplimiento antes de cerrar; pass-through no aplica ninguna regla.',
   },
   project: {
     nombre: 'Proyecto',

@@ -42,7 +42,9 @@ const EN_CONFIG_ANALIZADOR: Alternativas = [['analyzers', '*', 'config']];
   const contenido: Record<string, NodoEsquema> = {
     /* Obligatorias a nivel raiz: el contrato minimo del gate. */
     schemaVersion: num(2, 'requerida'),
-    mode: text('advisory', 'requerida'),
+    /* [por que] 'advisory' no es un modo del runtime: `runtime-proyecto/config.ts` solo
+     * acepta enforce | observe | pass-through. 'observe' es el no bloqueante. */
+    mode: enumX(['enforce', 'observe', 'pass-through'], 'observe', 'requerida'),
     project: { objeto: { primaryBranch: text('main', 'requerida') } },
     /* Patterns: el runtime los acepta en raiz O dentro de analyzers…config
      * (Glory-Laminal los pone anidados); por eso solo 'recomendada': faltar en
