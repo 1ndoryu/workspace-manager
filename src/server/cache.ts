@@ -38,7 +38,8 @@ export function rutaCache(raiz: string): string {
 
 /* Snapshot en memoria del ultimo escaneo: permite mutarlo (ignorar/quitar)
  * sin re-escandear, y sirve de cache caliente para el siguiente GET. [por
- * que] El escaneo con git es lento (8 s en frío con 21 repos en serie; ahora en
+ * que] El escaneo con git puede ser lento en serie (cifra antigua de 8 s con 21 repos,
+ * no reproducida en la 89; medido en 2026-10-19, ver docs/rendimiento.md; ahora en
  * paralelo, ver REPOS_EN_PARALELO en scanner/workspace.ts), tras bajar a
  * dos procesos git por repo en el 17AA-2); alternar un ignorado no cambia
  * git/gate/roadmap, solo la visibilidad, asi que se muta este snapshot. */

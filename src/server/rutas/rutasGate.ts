@@ -38,9 +38,10 @@ function soloMetodo(c: Contexto, metodo: string): boolean {
   return false;
 }
 
-/* Proyecto para el gate sin re-escanear el área entera (~14 s con git de todos
- * los proyectos): la huella del árbol lee HEAD y los cambios por su cuenta, así
- * que basta el snapshot en memoria. Solo se re-escanea si el proyecto no está. */
+/* Proyecto para el gate sin re-escanear el área entera: la huella del árbol lee HEAD
+ * y los cambios por su cuenta, así que basta el snapshot en memoria. Solo se
+ * re-escanea si el proyecto no está. [por que] Coste medido del escaneo completo en
+ * la 89 (19 proyectos): 151 ms en frío, 54 ms en el segundo (ver docs/rendimiento.md). */
 async function proyectoParaGate(clave: string) {
   const buscar = async (forzar: boolean) =>
     (await snapshotArea(forzar)).snapshot.proyectos.find((p) => p.clave === clave);

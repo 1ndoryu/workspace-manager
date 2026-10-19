@@ -51,7 +51,8 @@ export function git(ruta: string, args: string[]): string | null {
 
 /* Igual que `git`, pero sin bloquear el event loop: el escaneo del workspace lo usa
  * para leer varios repos a la vez. [por que] `execFileSync` esperaba a cada git en
- * serie (21 repos ≈ 8 s en frío, medido); con esto el coste se solapa. */
+ * serie (cifra antigua de 21 repos ≈ 8 s, no reproducida en la 89; ver
+ * docs/rendimiento.md); con esto el coste se solapa. */
 export function gitAsync(ruta: string, args: string[]): Promise<string | null> {
   return new Promise((resolver) => {
     execFile(BIN_GIT, args, opcionesGit(ruta), (err, salida) => {
