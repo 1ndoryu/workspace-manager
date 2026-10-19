@@ -5,8 +5,9 @@
  * analisis; el roadmap documenta el flujo manual para quien quiera forzarlo.
  *
  * [16AA-1] La compilacion NO ocurre en el laptop: `scripts/build-windows.mjs`
- * del propio proyecto la hace cruzada en la VPS 89 (cargo-xwin) y devuelve el
- * .exe. Antes se compilaba aqui con el MSVC local (vswhere + link.exe), lo que
+ * del repo del limpiador se ejecuta desde aqui, pero solo orquesta: envia la
+ * fuente por ssh a la VPS 89, compila alli (cargo-xwin) y trae el .exe de
+ * vuelta. Antes se compilaba aqui con el MSVC local (vswhere + link.exe), lo que
  * dejaba un `target/` en C:\tmp y ataba el build a que hubiera Visual Studio.
  * Como el limpiador es Windows-only, la deteccion de cambios ya no puede ser
  * solo la version del `Cargo.toml`: mejoras sin subir version no se veian. Se
