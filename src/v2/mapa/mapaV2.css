@@ -143,6 +143,9 @@
 
 .mapaV2HubEtiqueta {
     fill: var(--v2-texto);
+    stroke: var(--v2-fondo);
+    stroke-width: 2px;
+    paint-order: stroke;
     font-size: var(--v2-textMini);
     font-weight: normal;
     pointer-events: none;

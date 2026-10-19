@@ -20,6 +20,7 @@ import { NodoMapa } from './NodoMapa.js';
 import { ControlesMapa } from './ControlesMapa.js';
 import { TooltipMapa } from './TooltipMapa.js';
 import { useMapaV2 } from './useMapaV2.js';
+import { useProduccionViva } from '../vps/useProduccionViva.js';
 import './mapaV2.css';
 
 /* Los nodos de ubicacion son cajas mas altas que las de proyecto: se leen como
@@ -68,9 +69,11 @@ export function MapaV2() {
     return set;
   }, [dev]);
 
+  const enProd = useProduccionViva(proyectos);
+
   /* Tres nodos (laptop, VPS 89, produccion) y cada proyecto junto al suyo,
    * unido por una linea. Todo en celdas pares: una celda vacia entre cajas. */
-  const { colocados, hubs, enlaces } = useMemo(() => disponer(proyectos, enMarcha), [proyectos, enMarcha]);
+  const { colocados, hubs, enlaces } = useMemo(() => disponer(proyectos, enMarcha, enProd), [proyectos, enMarcha, enProd]);
 
   /* Escena en orden de pintado iso: lo mas lejano (col+fila menor) primero,
    * para que las cajas cercanas tapen a las lejanas. */
@@ -228,7 +231,7 @@ export function MapaV2() {
           return (
             <g
               key={p.id}
-              className={`mapaV2Tile mapaV2Tile--${estado}${enMarcha.has(p.clave) || p.despliegue ? ' mapaV2Tile--vivo' : ''}`}
+              className={`mapaV2Tile mapaV2Tile--${estado}${enMarcha.has(p.clave) || enProd.has(p.clave) ? ' mapaV2Tile--vivo' : ''}`}
               onClick={() => {
                 if (!modoArrastre) seleccionar(p.id);
               }}
@@ -260,6 +263,18 @@ export function MapaV2() {
           );
         })}
         {/* Nombres en capa final: ninguna caja posterior los tapa. */}
+        {hubs.map((h) => (
+          <text
+            key={`e-${h.id}`}
+            x={posicionGrid(h.col, h.fila).x}
+            y={posicionGrid(h.col, h.fila).y - ALTO_HUB - TILE.alto / 2 - 5}
+            textAnchor="middle"
+            className="mapaV2HubEtiqueta"
+          >
+            {h.etiqueta} · {h.total}
+          </text>
+        ))}
+        {/* Proyectos */}
         {colocados.map(({ p, col, fila }) => (
           <text
             key={`n-${p.clave}`}

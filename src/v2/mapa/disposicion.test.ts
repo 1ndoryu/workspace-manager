@@ -20,13 +20,13 @@ test('cada proyecto ocupa una celda propia y distinta de los nodos', () => {
   assert.equal(celdas.size, 40 + hubs.length);
 });
 
-test('enlaza solo lo que corre: ejecución en marcha y despliegue', () => {
+test('enlaza solo lo que corre: ejecución en marcha y producción en running', () => {
   const ps = [
     proyecto('a', { ejecucion: { donde: 'vps89', modo: 'build' }, despliegue: coolify }),
     proyecto('b', { ejecucion: { donde: 'laptop', modo: 'dev' } }),
-    proyecto('c'),
+    proyecto('c', { despliegue: coolify }),
   ];
-  const { enlaces, hubs } = disponer(ps, new Set(['a']));
+  const { enlaces, hubs } = disponer(ps, new Set(['a']), new Set(['a']));
   /* b está apagado: sin enlace. */
   assert.deepEqual(
     enlaces.map((e) => [e.clave, e.hasta, e.tipo, e.vivo]),

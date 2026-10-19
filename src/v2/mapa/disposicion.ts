@@ -1,5 +1,5 @@
 /* Disposición del mapa v2: tres nodos de ubicación (laptop, VPS 89, producción)
- * en las esquinas de un cuadrado de celdas. Cada proyecto se asienta en la celda
+ * en el centro de un cuadrado de celdas. Cada proyecto se asienta en la celda
  * libre más cercana al nodo donde corre y se enlaza con él; si además tiene
  * despliegue en Coolify, se enlaza también con producción.
  * [por que] Función pura y separada de la vista para poder probarla sin SVG. */
@@ -29,7 +29,7 @@ export interface Enlace {
   desde: Celda;
   hasta: IdHub;
   tipo: 'ejecucion' | 'produccion';
-  /* Brilla lo que corre: ejecución en marcha o despliegue en producción. */
+  /* Brilla lo que corre: ejecución en marcha o producción en running. */
   vivo: boolean;
 }
 
@@ -44,26 +44,33 @@ type Destino = IdHub | 'libre';
 /* Orden fijo de reparto: así cada grupo recibe sus celdas más cercanas por turnos. */
 const TURNOS: IdHub[] = ['vps89', 'laptop', 'produccion'];
 
-/* Solo cuenta donde corre de verdad: ejecución en marcha o despliegue. Lo demás
+/* Solo cuenta donde corre de verdad: ejecución en marcha o producción en running. Lo demás
  * (apagado) va al bloque aparte, sin enlaces. */
-function destinoDe(p: Proyecto, vivos: ReadonlySet<string>): Destino {
+function destinoDe(p: Proyecto, vivos: ReadonlySet<string>, enProd: ReadonlySet<string>): Destino {
   if (p.ejecucion && vivos.has(p.clave)) return p.ejecucion.donde;
-  return p.despliegue ? 'produccion' : 'libre';
+  return enProd.has(p.clave) ? 'produccion' : 'libre';
 }
 
 function distancia2(a: Celda, b: Celda): number {
   return (a.col - b.col) ** 2 + (a.fila - b.fila) ** 2;
 }
 
-export function disponer(proyectos: Proyecto[], vivos: ReadonlySet<string>): Disposicion {
+export function disponer(
+  proyectos: Proyecto[],
+  vivos: ReadonlySet<string>,
+  enProd: ReadonlySet<string> = new Set(),
+): Disposicion {
   /* Lado del cuadrado en celdas (par): crece hasta que quepan todos con holgura. */
   let lado = 12;
   while ((lado / 2 + 1) ** 2 < proyectos.length + 6) lado += 2;
 
+  /* Nodos en triángulo en el centro del cuadrado (celdas pares): los proyectos
+   * se reparten alrededor de su nodo y las líneas se quedan cortas. */
+  const c = Math.round(lado / 4) * 2;
   const hubs: Hub[] = [
-    { id: 'laptop', etiqueta: 'Laptop', col: 0, fila: lado, total: 0 },
-    { id: 'vps89', etiqueta: 'VPS 89', col: lado, fila: 0, total: 0 },
-    { id: 'produccion', etiqueta: 'Producción', col: lado, fila: lado, total: 0 },
+    { id: 'laptop', etiqueta: 'Laptop', col: c - 4, fila: c + 2, total: 0 },
+    { id: 'vps89', etiqueta: 'VPS 89', col: c, fila: c - 4, total: 0 },
+    { id: 'produccion', etiqueta: 'Producción', col: c + 4, fila: c + 2, total: 0 },
   ];
   const anclas: Record<IdHub, Celda> = { laptop: hubs[0], vps89: hubs[1], produccion: hubs[2] };
 
@@ -79,7 +86,7 @@ export function disponer(proyectos: Proyecto[], vivos: ReadonlySet<string>): Dis
   const orden = [...proyectos].sort(
     (a, b) => PESO_ESTADO[estadoProyecto(a)] - PESO_ESTADO[estadoProyecto(b)] || a.id.localeCompare(b.id),
   );
-  for (const p of orden) grupos[destinoDe(p, vivos)].push(p);
+  for (const p of orden) grupos[destinoDe(p, vivos, enProd)].push(p);
 
   const colocados: Colocado[] = [];
   /* Apagados (sin ejecución en marcha ni despliegue): bloque aparte, separado del cuadrado de nodos
@@ -111,7 +118,7 @@ export function disponer(proyectos: Proyecto[], vivos: ReadonlySet<string>): Dis
     if (c.p.ejecucion && vivos.has(c.p.clave)) {
       enlaces.push({ clave: c.p.clave, desde: c, hasta: c.p.ejecucion.donde, tipo: 'ejecucion', vivo: true });
     }
-    if (c.p.despliegue) {
+    if (enProd.has(c.p.clave)) {
       enlaces.push({ clave: c.p.clave, desde: c, hasta: 'produccion', tipo: 'produccion', vivo: true });
     }
   }
