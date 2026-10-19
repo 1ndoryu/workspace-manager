@@ -228,7 +228,7 @@ export function MapaV2() {
           return (
             <g
               key={p.id}
-              className={`mapaV2Tile mapaV2Tile--${estado}${enMarcha.has(p.clave) ? ' mapaV2Tile--vivo' : ''}`}
+              className={`mapaV2Tile mapaV2Tile--${estado}${enMarcha.has(p.clave) || p.despliegue ? ' mapaV2Tile--vivo' : ''}`}
               onClick={() => {
                 if (!modoArrastre) seleccionar(p.id);
               }}

@@ -32,7 +32,7 @@ test('enlaza solo lo que corre: ejecución en marcha y despliegue', () => {
     enlaces.map((e) => [e.clave, e.hasta, e.tipo, e.vivo]),
     [
       ['a', 'vps89', 'ejecucion', true],
-      ['a', 'produccion', 'produccion', false],
+      ['a', 'produccion', 'produccion', true],
     ],
   );
   assert.equal(hubs.find((h) => h.id === 'produccion')?.total, 1);

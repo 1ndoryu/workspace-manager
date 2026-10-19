@@ -29,7 +29,7 @@ export interface Enlace {
   desde: Celda;
   hasta: IdHub;
   tipo: 'ejecucion' | 'produccion';
-  /* Solo la ejecución en marcha (dev bajo-mando) brilla. */
+  /* Brilla lo que corre: ejecución en marcha o despliegue en producción. */
   vivo: boolean;
 }
 
@@ -112,7 +112,7 @@ export function disponer(proyectos: Proyecto[], vivos: ReadonlySet<string>): Dis
       enlaces.push({ clave: c.p.clave, desde: c, hasta: c.p.ejecucion.donde, tipo: 'ejecucion', vivo: true });
     }
     if (c.p.despliegue) {
-      enlaces.push({ clave: c.p.clave, desde: c, hasta: 'produccion', tipo: 'produccion', vivo: false });
+      enlaces.push({ clave: c.p.clave, desde: c, hasta: 'produccion', tipo: 'produccion', vivo: true });
     }
   }
   for (const e of enlaces) hubs.find((h) => h.id === e.hasta)!.total += 1;
