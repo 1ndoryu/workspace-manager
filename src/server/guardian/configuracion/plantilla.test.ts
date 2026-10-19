@@ -1,6 +1,6 @@
 /* Test de la plantilla por stack (F11.4). Se corre con
  * `node node_modules/tsx/dist/cli.mjs --test src/server/guardian/plantilla.test.ts`.
- * Fixtures en C:/tmp (protocolo de temporales).
+ * Fixtures en la raíz de temporales (protocolo de temporales).
  * [por que] El texto de referencia es el ejemplo versionado, no la plantilla real:
  * la real es config privada y no existe en un clon limpio. Así el test corre en
  * cualquier clon y, de paso, comprueba que el ejemplo que se publica es válido. */
@@ -8,6 +8,8 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { raizTemporales } from '../../plataforma/temporales.js';
+import { RAIZ_REPO } from '../../../shared/rutas.js';
 import { eolDe, hashDe } from '../escritura.js';
 import {
   calcularEdicionPlantilla,
@@ -19,10 +21,10 @@ import {
 } from './plantilla.js';
 
 /* El ejemplo vive en el repo: sube 4 niveles desde configuracion/ hasta su raíz. */
-const EJEMPLO = join(import.meta.dirname, '..', '..', '..', '..', 'config', 'ejemplos', 'guard-plantillas.example.json');
+const EJEMPLO = join(RAIZ_REPO, 'config', 'ejemplos', 'guard-plantillas.example.json');
 const TEXTO_REAL = readFileSync(EJEMPLO, 'utf8');
 
-const BASE_TMP = 'C:/tmp/guardian-test';
+const BASE_TMP = join(raizTemporales(), 'guardian-test');
 const temporales: string[] = [];
 after(() => {
   for (const d of temporales) rmSync(d, { recursive: true, force: true });

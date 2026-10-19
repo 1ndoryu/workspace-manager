@@ -1,14 +1,15 @@
 /* Test del mantenimiento del Guardián (10AA-2 F11.4, «Mantenimiento»). Se corre con
  * `node node_modules/tsx/dist/cli.mjs --test src/server/guardian/mantenimiento.test.ts`.
- * Runtime falso en C:/tmp/guardian-test/mantenimiento-*: no toca Sentinel real. */
+ * Runtime falso en raíz de temporales/guardian-test/mantenimiento-*: no toca Sentinel real. */
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ejecutarMantenimiento, LIMITE_SALIDA } from './mantenimiento.js';
 import { ErrorValidacion } from '../configuracion/politica.js';
+import { raizTemporales } from '../../plataforma/temporales.js';
 
-const BASE_TMP = 'C:/tmp/guardian-test';
+const BASE_TMP = join(raizTemporales(), 'guardian-test');
 const temporales: string[] = [];
 after(() => {
   for (const d of temporales) rmSync(d, { recursive: true, force: true });
@@ -78,11 +79,14 @@ describe('ejecutarMantenimiento: simulación y aplicación', () => {
     const { dir, runtime } = prepararRuntime();
     const eco = join(dir, 'eco.json');
     const destino = join(dir, 'target');
+    // [por que] Ruta absoluta según la plataforma (C:/… solo lo es en Windows) y con
+    // espacio, para que un troceo por shell la rompería y el test lo detecta.
+    const origen = join(dir, 'glory sentinel');
     await ejecutarMantenimiento(
-      { sourceRoot: 'C:/glory/sentinel', targetRoot: destino, confirmar: true },
+      { sourceRoot: origen, targetRoot: destino, confirmar: true },
       { runtimeJs: runtime, entorno: envFalso('ok', { FAKE_ECO: eco }) },
     );
-    assert.deepEqual(argvDe(eco), ['update', '--source-root', 'C:/glory/sentinel', '--target-root', destino]);
+    assert.deepEqual(argvDe(eco), ['update', '--source-root', origen, '--target-root', destino]);
   });
 
   it('exit distinto de 0 es error con código y salida de stderr', async () => {

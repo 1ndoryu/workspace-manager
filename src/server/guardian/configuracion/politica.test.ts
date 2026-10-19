@@ -7,6 +7,7 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { raizTemporales } from '../../plataforma/temporales.js';
 import { escribirAtomico, hashDe } from '../escritura.js';
 import {
   aplicarPlantilla,
@@ -29,9 +30,9 @@ after(() => {
   for (const d of temporales) rmSync(d, { recursive: true, force: true });
 });
 
-/* [por que] Fixtures en C:\tmp, no en %TEMP%: el protocolo del área pide los
+/* [por que] Fixtures en la raíz de temporales, no en %TEMP%: el protocolo del área pide los
  * temporales fuera del sistema. */
-const BASE_TMP = 'C:/tmp/guardian-test';
+const BASE_TMP = join(raizTemporales(), 'guardian-test');
 
 function raizTmp(): string {
   mkdirSync(BASE_TMP, { recursive: true });

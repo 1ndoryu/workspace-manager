@@ -1,14 +1,15 @@
 /* Test del lector Guardián (10AA-2 F11.4): se corre con
  * `node node_modules/tsx/dist/cli.mjs --test src/server/guardian/lector.test.ts`
  * (el repo no tiene runner TS; node --test solo entiende JS). Fixtures en
- * C:/tmp (protocolo de temporales): ningún test toca proyectos reales. */
+ * raíz de temporales (protocolo de temporales): ningún test toca proyectos reales. */
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { raizTemporales } from '../../plataforma/temporales.js';
 import { leerGuardProyecto, leerOverride, leerPolitica, leerTareas } from './lector.js';
 
-const BASE_TMP = 'C:/tmp/guardian-test';
+const BASE_TMP = join(raizTemporales(), 'guardian-test');
 const temporales: string[] = [];
 after(() => {
   for (const d of temporales) rmSync(d, { recursive: true, force: true });

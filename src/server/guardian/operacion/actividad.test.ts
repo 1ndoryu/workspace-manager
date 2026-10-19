@@ -1,6 +1,6 @@
 /* Test de la actividad del Guardián (10AA-2 F11.4, «Actividad»): se corre con
  * `node node_modules/tsx/dist/cli.mjs --test src/server/guardian/actividad.test.ts`.
- * Fixtures en C:/tmp/guardian-test (protocolo de temporales): ningún test toca el
+ * Fixtures en raíz de temporales/guardian-test (protocolo de temporales): ningún test toca el
  * diario ni los leases reales. */
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,8 +8,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { guardLogDirPorDefecto, guardRootPorDefecto, leerActividad, LIMITE_ACTIVIDAD_DEFECTO } from './actividad.js';
 import { ErrorValidacion } from '../configuracion/politica.js';
+import { raizTemporales } from '../../plataforma/temporales.js';
 
-const BASE_TMP = 'C:/tmp/guardian-test';
+const BASE_TMP = join(raizTemporales(), 'guardian-test');
 const temporales: string[] = [];
 after(() => {
   for (const d of temporales) rmSync(d, { recursive: true, force: true });

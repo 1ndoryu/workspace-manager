@@ -5,10 +5,11 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import net from 'node:net';
+import { raizTemporales } from '../../shared/rutas.mjs';
 import { comprobarRoadmap, comprobarProcesos, PUERTOS_PROTEGIDOS } from './cierre.mjs';
 
-/* [por que] AGENTS §0.2: los temporales van a C:\tmp, nunca a %TEMP%. */
-const BASE_TMP = 'C:/tmp/cierre-tests';
+/* [por que] AGENTS §0.2: los temporales van a la raíz de temporales, nunca a %TEMP%. */
+const BASE_TMP = join(raizTemporales(), 'cierre-tests');
 
 function dirConRoadmap(texto) {
   mkdirSync(BASE_TMP, { recursive: true });

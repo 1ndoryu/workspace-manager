@@ -1,6 +1,6 @@
 /* Test del probe del Guardián (10AA-2 F11.4, «Probar»). Se corre con
  * `node node_modules/tsx/dist/cli.mjs --test src/server/guardian/probar.test.ts`.
- * Usa un runtime falso en C:/tmp/guardian-test/probar-* que imita la salida de
+ * Usa un runtime falso en raíz de temporales/guardian-test/probar-* que imita la salida de
  * `current.js guard --json`: ni toca Sentinel real ni escribe en el diario. */
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,8 +8,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { join } from 'node:path';
 import { probarComando, runtimeJsPorDefecto, DIARIO_PRUEBAS } from './probar.js';
 import { ErrorValidacion } from '../configuracion/politica.js';
+import { raizTemporales } from '../../plataforma/temporales.js';
 
-const BASE_TMP = 'C:/tmp/guardian-test';
+const BASE_TMP = join(raizTemporales(), 'guardian-test');
 const temporales: string[] = [];
 after(() => {
   for (const d of temporales) rmSync(d, { recursive: true, force: true });

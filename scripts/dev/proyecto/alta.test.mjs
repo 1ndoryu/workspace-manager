@@ -1,9 +1,10 @@
-/* Tests de alta.mjs (10AA-2 F10). Temporales en C:/tmp/alta-tests, nunca en el árbol del proyecto. */
+/* Tests de alta.mjs (10AA-2 F10). Temporales en la raíz de temporales/alta-tests, nunca en el árbol del proyecto. */
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { raizTemporales } from '../../shared/rutas.mjs';
 import {
   aplicarAlta,
   alta,
@@ -19,7 +20,7 @@ import {
   comprobarVarsense,
 } from './alta.mjs';
 
-const BASE = 'C:/tmp/alta-tests';
+const BASE = join(raizTemporales(), 'alta-tests');
 mkdirSync(BASE, { recursive: true });
 after(() => rmSync(BASE, { recursive: true, force: true }));
 const nuevoDir = () => mkdtempSync(join(BASE, 'caso-'));

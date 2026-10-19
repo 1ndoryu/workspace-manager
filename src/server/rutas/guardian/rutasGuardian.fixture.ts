@@ -3,19 +3,21 @@
  * test: no declara describe ni test.
  * [por que] Servidor HTTP real en un puerto libre para ejercer las guardas de origen
  * y el cuerpo tal como llegan. Proyectos y comandos son falsos e inyectados: ningún
- * test toca el área real ni ejecuta Sentinel. Fixtures en C:/tmp (protocolo de temporales).
+ * test toca el área real ni ejecuta Sentinel. Fixtures en la raíz de temporales (protocolo de temporales).
  * Cada fichero de test corre en su propio proceso y arranca su propio servidor y área. */
 import { createServer, request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { raizTemporales } from '../../plataforma/temporales.js';
 import { manejarRutasGuardian } from './rutasGuardian.js';
+import { RAIZ_REPO } from '../../../shared/rutas.js';
 import type { DependenciasGuardian } from './rutasGuardianTipos.js';
 import { leerActividad } from '../../guardian/operacion/actividad.js';
 import { NOMBRE_PLANTILLA } from '../../guardian/configuracion/plantilla.js';
 import type { Proyecto } from '../../../shared/types.js';
 
-const BASE_TMP = 'C:/tmp/guardian-test';
+const BASE_TMP = join(raizTemporales(), 'guardian-test');
 const temporales: string[] = [];
 
 /* [por que] Config privada falsa con una copia del ejemplo versionado: las escrituras
@@ -25,7 +27,7 @@ const DIR_CONFIG_FALSO = (() => {
   mkdirSync(BASE_TMP, { recursive: true });
   const d = mkdtempSync(join(BASE_TMP, 'config-'));
   temporales.push(d);
-  const ejemplo = join(import.meta.dirname, '..', '..', '..', '..', 'config', 'ejemplos', 'guard-plantillas.example.json');
+  const ejemplo = join(RAIZ_REPO, 'config', 'ejemplos', 'guard-plantillas.example.json');
   writeFileSync(join(d, NOMBRE_PLANTILLA), readFileSync(ejemplo, 'utf8'), 'utf8');
   return d;
 })();
@@ -73,8 +75,8 @@ export function registrar(clave: string, puerta: string, config: string | null):
 
 const deps: DependenciasGuardian = {
   dirConfig: DIR_CONFIG_FALSO,
-  proyectos: () => proyectos,
-  proyectoPorClave: (clave) => proyectos.find((p) => p.clave === clave) ?? null,
+  proyectos: async () => proyectos,
+  proyectoPorClave: async (clave) => proyectos.find((p) => p.clave === clave) ?? null,
   leerActividad,
   probarComando: async (entrada) => {
     llamadas.probar.push(entrada);

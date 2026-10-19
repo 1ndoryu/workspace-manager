@@ -1,16 +1,17 @@
 /* Test de los topes del Guardián (10AA-2 F11.4): se corre con
  * `node node_modules/tsx/dist/cli.mjs --test src/server/guardian/topes.test.ts`.
- * Fixtures en C:/tmp (protocolo de temporales): ningún test toca proyectos reales. */
+ * Fixtures en la raíz de temporales (protocolo de temporales): ningún test toca proyectos reales. */
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { raizTemporales } from '../../plataforma/temporales.js';
 import { guardarTopes, validarCambioTopes, type HashesTopes, type ResultadoGuardado } from './topes.js';
 import { escribirAtomico, hashDe } from '../escritura.js';
 import { leerOverride, leerPolitica } from './lector.js';
 import { ErrorValidacion } from './politica.js';
 
-const BASE_TMP = 'C:/tmp/guardian-test';
+const BASE_TMP = join(raizTemporales(), 'guardian-test');
 const temporales: string[] = [];
 after(() => {
   for (const d of temporales) rmSync(d, { recursive: true, force: true });

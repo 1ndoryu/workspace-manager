@@ -1,18 +1,19 @@
 /* Estilos del gate: sin hojas de estilo, varsense no se marca "ausente".
  * Se corre con: node node_modules/tsx/dist/cli.mjs --test src/server/scanner/gate.test.ts
- * [por que] Los temporales van bajo C:/tmp (AGENTS.md §0.2), nunca en %TEMP% ni en el repo. */
+ * [por que] Los temporales van bajo la raíz de temporales (AGENTS.md §0.2), nunca en %TEMP% ni en el repo. */
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { raizTemporales } from '../plataforma/temporales.js';
 import { estadoGate, hayEstilos } from './gate.js';
 
 describe('gate: sinEstilos', () => {
   let raiz: string;
 
   before(() => {
-    mkdirSync('C:/tmp', { recursive: true });
-    raiz = mkdtempSync('C:/tmp/gate-test-');
+    mkdirSync(raizTemporales(), { recursive: true });
+    raiz = mkdtempSync(join(raizTemporales(), 'gate-test-'));
   });
 
   after(() => {

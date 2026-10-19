@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { RAIZ_REPO } from '../../../shared/rutas.js';
 import {
   comandoAnalisis,
   comandoDeps,
@@ -73,7 +74,7 @@ test('comandoDeps: reinstala solo si el lock cambió, y falla en claro si npm ci
 test('huellaLock: 16 hex del contenido, y "?" si no hay lock', () => {
   /* El lock propio del repo: existe en cualquier clon, sin depender de rutas de
    * esta máquina ni del checkout de las herramientas de calidad. */
-  assert.match(huellaLock(join(import.meta.dirname, '..', '..', '..', '..', 'package-lock.json')), /^[0-9a-f]{16}$/);
+  assert.match(huellaLock(join(RAIZ_REPO, 'package-lock.json')), /^[0-9a-f]{16}$/);
   assert.equal(huellaLock('C:/no/existe/package-lock.json'), '?');
 });
 

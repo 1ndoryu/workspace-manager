@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test, { after } from 'node:test';
-import { detectarGit, estadoGit } from './git.js';
+import { detectarGit, estadoGit, estadoGitAsync } from './git.js';
 import { raizTemporales } from '../../shared/rutas.js';
 
 const BASE = mkdtempSync(join(raizTemporales(), 'wm-git-test-'));
@@ -67,6 +67,14 @@ test('detectarGit: un .git enlazado a una carpeta sigue siendo repo', () => {
   mkdirSync(enlazado, { recursive: true });
   symlinkSync(join(real, '.git'), join(enlazado, '.git'), process.platform === 'win32' ? 'junction' : 'dir');
   assert.deepEqual(detectarGit(enlazado), { esRepo: true, esWorktree: false, padre: null });
+});
+
+/* [por que] El escáner usa la versión async en paralelo: debe dar lo mismo que la síncrona. */
+test('estadoGitAsync: coincide con estadoGit en un repo con cambios', async () => {
+  const repo = repoNuevo('repo-async');
+  git(repo, 'remote', 'add', 'origin', 'https://ejemplo.test/alguien/proyecto.git');
+  writeFileSync(join(repo, 'nuevo.txt'), 'x');
+  assert.deepEqual(await estadoGitAsync(repo), estadoGit(repo));
 });
 
 test('estadoGit: repo limpio con remoto', () => {
