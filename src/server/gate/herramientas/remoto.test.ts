@@ -110,11 +110,20 @@ test('modoAnalisisEn: el taller solo con analisisEn exacto; por defecto local', 
       { id: 'otro', analisisEn: 'DEV89' },
     ],
   };
-  assert.equal(modoAnalisisEn(registro, 'sistema-legado'), 'taller');
-  assert.equal(modoAnalisisEn(registro, 'sitio-api'), 'local');
-  assert.equal(modoAnalisisEn(registro, 'otro'), 'local');
-  assert.equal(modoAnalisisEn(registro, 'no-existe'), 'local');
-  assert.equal(modoAnalisisEn({}, 'sistema-legado'), 'local');
+  const taller = { modoPorDefecto: 'remoto' };
+  assert.equal(modoAnalisisEn(registro, 'sistema-legado', taller), 'taller');
+  assert.equal(modoAnalisisEn(registro, 'sitio-api', taller), 'local');
+  assert.equal(modoAnalisisEn(registro, 'otro', taller), 'local');
+  assert.equal(modoAnalisisEn(registro, 'no-existe', taller), 'local');
+  assert.equal(modoAnalisisEn({}, 'sistema-legado', taller), 'local');
+});
+
+/* [por que] Sin taller.json, `analisisEn: "taller"` no puede pedir la 89: degrada a local
+ * igual que un proyecto con `host`. Antes quedaba en 'taller' y el análisis salía en error. */
+test('modoAnalisisEn: sin taller, analisisEn "taller" degrada a local', () => {
+  const registro = { proyectos: [{ id: 'sistema-legado', analisisEn: 'taller' }] };
+  assert.equal(modoAnalisisEn(registro, 'sistema-legado', null), 'local');
+  assert.equal(modoAnalisisEn(registro, 'sistema-legado'), 'local');
 });
 
 /* [por que] El alias del host fue el valor con el que se escribio `analisisEn` antes de

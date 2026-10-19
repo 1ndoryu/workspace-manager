@@ -112,6 +112,10 @@ export function modoAnalisisEn(
 ): ModoAnalisis {
   const entrada = registro.proyectos?.find((x) => x.id === clave);
   if (entrada?.analisisEn === 'local') return 'local';
+  /* [por que] Sin taller.json no hay 89 a la que mandar nada: el alias y `analisisEn: "taller"`
+   * degradan a local (el manager funciona sin VPS). Antes `"taller"` pedía la 89 aun sin
+   * configurar y el análisis quedaba en error, mientras `host` sin taller ya caía en local. */
+  if (!taller) return 'local';
   if (typeof entrada?.analisisEn === 'string' && pideTaller(entrada.analisisEn, taller)) return 'taller';
   if (taller?.modoPorDefecto !== 'remoto') return 'local';
   return typeof entrada?.host === 'string' && entrada.host.trim() ? 'taller' : 'local';
