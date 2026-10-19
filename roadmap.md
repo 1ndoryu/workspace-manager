@@ -113,6 +113,14 @@ coherencia, agnosticismo y publicación: `Agente/planes/plan-orden-workspace-man
 - `039A-1` — plan vivo del frente cero-deuda:
   `PROYECTO TASKS/Agente/planes/plan-cero-deuda-todos-proyectos-2026-09-03.md` §9.
 
+- `19AA-3` — **`cierre` da falso verde en `roadmap-tarea`.** `comprobarRoadmap`
+  (`scripts/dev/proyecto/cierre.mjs:85`) filtra con `l.includes(tarea)` contando con la tarea
+  entre comillas invertidas; MN la escribe en negrita (`- **18AA-7 — …**`) y también en
+  `glory-web`, así que `lineas.length === 0` y el chequeo dice «no aparece en roadmap.md»
+  aunque siga ahí. Medido el 2026-10-19 cerrando 18AA-7: hubo que quitar el bullet a mano.
+  Arreglo: comparar por límite de palabra sobre `tarea` sin comillas (y cubrirlo con test),
+  no cambiar el formato de los roadmaps.
+
 ## Planes activos
 
 - `Agente/planes/plan-orden-workspace-manager-2026-10-17.md` — `17AA-2` (este encargo).
