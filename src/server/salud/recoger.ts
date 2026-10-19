@@ -1,13 +1,11 @@
-/* Lectura de datos para la salud (10AA-2 F8). Único punto con I/O: disco, Git y
- * variables. Las comprobaciones (comprobacionesProyecto/Area) solo juzgan lo que aquí
- * se lee.
+/* Lectura de datos para la salud (10AA-2 F8). Único punto con I/O de disco y Git. Las
+ * variables y rutas del equipo llegan por `Entorno` (entorno.ts). Las comprobaciones
+ * (comprobacionesProyecto/Area) solo juzgan lo que aquí se lee.
  * [por que] La medición de C:\tmp es asíncrona y con presupuesto de tiempo: recorrer
  * targets de cargo de varios GB de forma síncrona bloquearía el servidor. */
 import { existsSync, readdirSync, statSync, statfsSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import { basename, join, parse } from 'node:path';
-import { CARPETA_SKILLS, RAIZ_AREA, RAIZ_REPO, rutaConfigPrivada } from '../plataforma/rutas.js';
 import type { Proyecto } from '../../shared/types.js';
 import { leerArchivo } from '../http.js';
 import { leerSentinelLock } from '../scanner/gate.js';
@@ -15,7 +13,7 @@ import { git } from '../scanner/git.js';
 import { diferenciasPlantilla, leerPolitica } from '../guardian/configuracion/politica.js';
 import type { LecturaPlantilla } from '../guardian/configuracion/plantilla.js';
 import type { DatosArea, DatosProyecto, EstadoGuard, PlanActivo, RamaSuelta } from './tipos.js';
-import { raizTemporales } from '../plataforma/temporales.js';
+import type { Entorno } from './entorno.js';
 
 const GB = 1024 ** 3;
 /* [por que] Presupuesto de la medición de C:\tmp: `du` tarda minutos; el tablero no
@@ -44,16 +42,16 @@ function leerJson(ruta: string): Record<string, unknown> | null {
  * [por que] Se resolvia como `<area>/workspace-manager/quality-tools.json`, que
  * incrustaba el nombre del proyecto y solo acertaba si el area era justo la
  * carpeta padre del repo. El fichero es del manager: se pide desde su raiz. */
-export function leerPinArea(): string | null {
-  const json = leerJson(join(RAIZ_REPO, 'quality-tools.json'));
+export function leerPinArea(raizRepo: string): string | null {
+  const json = leerJson(join(raizRepo, 'quality-tools.json'));
   const tools = json?.tools as { sentinel?: { version?: unknown } } | undefined;
   const v = tools?.sentinel?.version;
   return typeof v === 'string' ? v : null;
 }
 
 /* Runtime global instalado: %LOCALAPPDATA%\GlorySentinel\current.json. */
-function leerRuntimeSentinel(): string | null {
-  const local = process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local');
+function leerRuntimeSentinel(entorno: Entorno): string | null {
+  const local = entorno.localAppData ?? join(entorno.homedir, 'AppData', 'Local');
   const v = leerJson(join(local, 'GlorySentinel', 'current.json'))?.version;
   return typeof v === 'string' ? v : null;
 }
@@ -204,13 +202,13 @@ function encabezados(texto: string | null): string[] {
     .filter((t): t is string => t !== undefined);
 }
 
-function discoLibreGb(): number | null {
+function discoLibreGb(raizArea: string): number | null {
   try {
     /* [por que] La unidad se DERIVA de la raiz del area, no se escribe a mano:
      * el dato que se quiere medir es «cuanto espacio libre tiene el area», y
      * esa es su unidad. Un `C:/` fijo mentia en cualquier maquina donde el
      * area viva en otra letra (o en Linux, donde ni existe C:). */
-    const s = statfsSync(parse(RAIZ_AREA).root);
+    const s = statfsSync(parse(raizArea).root);
     return (Number(s.bavail) * Number(s.bsize)) / GB;
   } catch {
     return null;
@@ -258,9 +256,9 @@ async function medirTmp(raiz: string, presupuestoMs: number): Promise<{ bytes: n
 
 /* El mando declara sus subcomandos en el bloque AYUDA de dev.mjs.
  * [por que] Igual que leerPinArea: el mando es de este repo, asi que su script
- * se pide desde RAIZ_REPO y no como `<area>/workspace-manager/...`. */
-function subcomandosArranque(): string[] {
-  const bloque = leerArchivo(join(RAIZ_REPO, 'scripts', 'dev', 'dev.mjs'))?.match(
+ * se pide desde la raíz del repo y no como `<area>/workspace-manager/...`. */
+function subcomandosArranque(entorno: Entorno): string[] {
+  const bloque = leerArchivo(join(entorno.raizRepo, 'scripts', 'dev', 'dev.mjs'))?.match(
     /const AYUDA = `([\s\S]*?)`;/,
   );
   if (!bloque) return [];
@@ -272,15 +270,15 @@ function subcomandosArranque(): string[] {
  * y el nombre de la skill se deriva del del repo: antes se escribia a mano
  * `~/.agents/skills/workspace-manager/SKILL.md`, que en un clon con otro nombre
  * de carpeta no encontraba nada. */
-function skillArranque(): string | null {
-  return leerArchivo(join(CARPETA_SKILLS, basename(RAIZ_REPO), 'SKILL.md')) || null;
+function skillArranque(entorno: Entorno): string | null {
+  return leerArchivo(join(entorno.carpetaSkills, basename(entorno.raizRepo), 'SKILL.md')) || null;
 }
 
 /* AGENTS §10 pide que las copias en ~/.config/opencode/skills coincidan con
  * ~/.agents/skills: solo se comparan las skills que existen en el origen. */
-function copiasSkill(): { nombre: string; coincide: boolean }[] {
-  const origen = join(homedir(), '.agents', 'skills');
-  const copias = join(homedir(), '.config', 'opencode', 'skills');
+function copiasSkill(entorno: Entorno): { nombre: string; coincide: boolean }[] {
+  const origen = join(entorno.homedir, '.agents', 'skills');
+  const copias = join(entorno.homedir, '.config', 'opencode', 'skills');
   let nombres: string[];
   try {
     nombres = readdirSync(copias, { withFileTypes: true })
@@ -303,6 +301,7 @@ export async function recogerArea(
   raizArea: string,
   pinArea: string | null,
   ahora: number,
+  entorno: Entorno,
 ): Promise<DatosArea> {
   const carpetasGit = readdirSync(raizArea, { withFileTypes: true })
     .filter((d) => d.isDirectory() && existsSync(join(raizArea, d.name, '.git')))
@@ -312,7 +311,7 @@ export async function recogerArea(
    * raíz del área: pasar `raizArea` resolvía a `<área>/config/registro.json`,
    * que no existe, así que `noAplica` salía siempre vacío y todo repo declarado
    * ahí (p. ej. freebuff) se reportaba como «sin registrar». */
-  const registro = leerJson(rutaConfigPrivada('registro.json'));
+  const registro = leerJson(entorno.rutaConfigPrivada('registro.json'));
   const idsProyectos = Array.isArray(registro?.proyectos)
     ? (registro.proyectos as { id?: unknown }[]).map((p) => p.id).filter((id): id is string => typeof id === 'string')
     : [];
@@ -328,19 +327,19 @@ export async function recogerArea(
     ahora,
     carpetasGit,
     registradas: [...new Set([...proyectos.map((p) => p.clave), ...idsProyectos, ...noAplica])],
-    plataforma: process.platform,
-    discoLibreGb: discoLibreGb(),
-    rutaTemporales: raizTemporales(),
-    tmp: await medirTmp(raizTemporales(), PRESUPUESTO_TMP_MS),
-    /* [por que] process.env hereda las variables de usuario al arrancar el servidor. */
-    incrementalUsuario: process.env.CARGO_INCREMENTAL ?? null,
+    plataforma: entorno.plataforma,
+    discoLibreGb: discoLibreGb(raizArea),
+    rutaTemporales: entorno.raizTemporales,
+    tmp: await medirTmp(entorno.raizTemporales, PRESUPUESTO_TMP_MS),
+    /* [por que] Las variables de usuario entran por el entorno ya leídas, no por process.env aquí. */
+    incrementalUsuario: entorno.cargoIncremental ?? null,
     sentinelPin: pinArea,
-    sentinelRuntime: leerRuntimeSentinel(),
+    sentinelRuntime: leerRuntimeSentinel(entorno),
     agentsBytes,
     titulosAgents: encabezados(agentsTexto),
-    titulosClaudeMd: encabezados(leerArchivo(join(homedir(), '.claude', 'CLAUDE.md'))),
-    subcomandosArranque: subcomandosArranque(),
-    skillArranque: skillArranque(),
-    copiasSkill: copiasSkill(),
+    titulosClaudeMd: encabezados(leerArchivo(join(entorno.homedir, '.claude', 'CLAUDE.md'))),
+    subcomandosArranque: subcomandosArranque(entorno),
+    skillArranque: skillArranque(entorno),
+    copiasSkill: copiasSkill(entorno),
   };
 }

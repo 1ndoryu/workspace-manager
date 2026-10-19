@@ -10,6 +10,10 @@ import { COMPROBACIONES_PROYECTO } from './comprobacionesProyecto.js';
 import { COMPROBACIONES_AREA } from './comprobacionesArea.js';
 import { leerPinArea, recogerArea, recogerProyectos } from './recoger.js';
 import type { Comprobacion } from './tipos.js';
+import { entornoReal } from './entorno.js';
+
+/* Composición: el entorno real se resuelve una vez, aquí, y se pasa a quien lo necesita. */
+const entorno = entornoReal();
 
 export const TTL_SALUD_MS = 60_000;
 
@@ -68,7 +72,7 @@ export function saludProyectos(forzar = false): Promise<Map<string, ResultadoSal
       const { snapshot } = await snapshotArea(false);
       const datos = recogerProyectos(snapshot.proyectos, {
         ahora,
-        pinArea: leerPinArea(),
+        pinArea: leerPinArea(entorno.raizRepo),
         plantilla: leerPlantilla(dirConfigPrivada()),
       });
       const calculadoEn = new Date(ahora).toISOString();
@@ -84,7 +88,7 @@ export function saludArea(forzar = false): Promise<ResultadoSalud> {
     async () => {
       const ahora = Date.now();
       const { snapshot } = await snapshotArea(false);
-      const datos = await recogerArea(snapshot.proyectos, RAIZ_AREA, leerPinArea(), ahora);
+      const datos = await recogerArea(snapshot.proyectos, RAIZ_AREA, leerPinArea(entorno.raizRepo), ahora, entorno);
       return ejecutar('area', CLAVE_AREA, COMPROBACIONES_AREA, datos, new Date(ahora).toISOString());
     },
     forzar,
