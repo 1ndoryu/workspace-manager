@@ -240,10 +240,22 @@ export function aplicarAlta(ruta, items) {
   const log = [];
   for (const [bloque, acciones] of porBloque) {
     for (const a of acciones) aplicarAccion(ruta, a);
-    const archivos = acciones.map((a) => a.ruta);
+    /* [por que] Lo que el .gitignore declara local (p. ej. Agente/ en glory-sentinel, decisión
+     * de la usuaria) se crea en disco pero no se versiona: `git add` fallaría con «ignored». */
+    const archivos = acciones.map((a) => a.ruta).filter((r) => !gitOk(ruta, ['check-ignore', '-q', '--', r]));
+    if (archivos.length === 0) {
+      log.push(`bloque ${bloque}: solo local (ignorado por .gitignore), sin commit`);
+      continue;
+    }
     git(ruta, ['add', '--', ...archivos]);
     git(ruta, ['commit', '-m', MENSAJES[bloque]]);
     log.push(`commit ${bloque}: ${archivos.join(', ')}`);
+  }
+  /* [por que] Una rama sin commits no aporta nada que integrar: se vuelve a la base y se borra. */
+  if (!log.some((l) => l.startsWith('commit '))) {
+    git(ruta, ['checkout', base]);
+    git(ruta, ['branch', '-D', RAMA_ALTA]);
+    return [...log, 'sin cambios que versionar: rama descartada'];
   }
   log.push(`rama ${RAMA_ALTA} lista para integrar en ${base} (AGENTS §5)`);
   return log;

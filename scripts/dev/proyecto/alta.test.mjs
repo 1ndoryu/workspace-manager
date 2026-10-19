@@ -201,6 +201,30 @@ test('aplicar: crea en rama alta/10aa-2 con un commit por bloque y no toca lo ex
   assert.match(gi, /^target\/$/m);
 });
 
+test('aplicar: lo que .gitignore declara local se crea en disco sin commit', () => {
+  const dir = repo(nuevoDir());
+  escribir(dir, '.gitignore', 'Agente/\n');
+  git(dir, 'add', '.gitignore');
+  git(dir, 'commit', '-m', 'ignore previo');
+  aplicarAlta(dir, comprobarAlta(dir, ENTRADA, 'demo'));
+  assert.ok(existsSync(join(dir, 'Agente', 'lecciones', '.gitkeep')));
+  assert.equal(git(dir, 'ls-files', 'Agente'), '');
+});
+
+test('aplicar: bloque solo local no deja una rama vacía', () => {
+  const dir = repo(nuevoDir());
+  escribir(dir, 'README.md', '# demo\n');
+  escribir(dir, 'roadmap.md', '# Roadmap\n');
+  escribir(dir, '.gitignore', 'Agente/\n');
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '-m', 'base');
+  const docs = comprobarAlta(dir, ENTRADA, 'demo').filter((i) => i.bloque === 'docs');
+  const lineas = aplicarAlta(dir, docs);
+  assert.ok(lineas.some((l) => l.includes('sin cambios que versionar')), JSON.stringify(lineas));
+  assert.equal(git(dir, 'rev-parse', '--abbrev-ref', 'HEAD'), 'main');
+  assert.equal(git(dir, 'branch', '--list', 'alta/10aa-2'), '');
+});
+
 test('aplicar: se niega fuera de la rama base', () => {
   const dir = repo(nuevoDir());
   git(dir, 'checkout', '-b', 'otra');
