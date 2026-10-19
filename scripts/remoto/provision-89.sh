@@ -9,6 +9,14 @@
 #   provision-89.sh --clave-publica /ruta/id_ed25519.pub [--sin-coolify-stop]
 set -euo pipefail
 
+# Nombres y rutas del taller: por defecto los de la 89; otro servidor los fija por entorno, sin tocar el script.
+USUARIO_TALLER="${TALLER_USUARIO:-dev}"
+HOME_TALLER="${TALLER_HOME:-/home/$USUARIO_TALLER}"
+CACHE_SCCACHE="${CM_SCCACHE_DIR:-/var/cache/sccache}"
+TARGET_BASE="${CM_TARGET_BASE:-/var/tmp/glory-target}"
+# [por que] El nombre entra en SQL y en useradd sin comillas: solo identificadores simples.
+[[ "$USUARIO_TALLER" =~ ^[a-z_][a-z0-9_-]*$ ]] || { echo "TALLER_USUARIO no válido: $USUARIO_TALLER" >&2; exit 2; }
+
 CLAVE_PUB=""
 PARAR_COOLIFY=1
 while (($#)); do
@@ -33,29 +41,29 @@ apt-get install -y -qq git tmux curl ca-certificates unzip build-essential pkg-c
   clang lld ufw fail2ban unattended-upgrades postgresql postgresql-16-pgvector
 log "paquetes del sistema instalados"
 
-# 2. Usuario dev: sin sudo, sin docker, contraseña bloqueada, login solo por clave.
-if ! id dev &>/dev/null; then
-  useradd -m -s /bin/bash dev
-  log "usuario dev creado"
+# 2. Usuario del taller: sin sudo, sin docker, contraseña bloqueada, login solo por clave.
+if ! id "$USUARIO_TALLER" &>/dev/null; then
+  useradd -m -d "$HOME_TALLER" -s /bin/bash "$USUARIO_TALLER"
+  log "usuario $USUARIO_TALLER creado"
 fi
-usermod -p '*' dev
+usermod -p '*' "$USUARIO_TALLER"
 for grupo in sudo docker adm lxd; do
-  if id -nG dev | tr ' ' '\n' | grep -qx "$grupo"; then
-    gpasswd -d dev "$grupo" >/dev/null
-    log "dev quitado del grupo $grupo"
+  if id -nG "$USUARIO_TALLER" | tr ' ' '\n' | grep -qx "$grupo"; then
+    gpasswd -d "$USUARIO_TALLER" "$grupo" >/dev/null
+    log "$USUARIO_TALLER quitado del grupo $grupo"
   fi
 done
 
-install -d -m 700 -o dev -g dev /home/usuario/.ssh
+install -d -m 700 -o "$USUARIO_TALLER" -g "$USUARIO_TALLER" "$HOME_TALLER/.ssh"
 if [[ -n "$CLAVE_PUB" ]]; then
   [[ -f "$CLAVE_PUB" ]] || { echo "provision-89: no existe $CLAVE_PUB" >&2; exit 1; }
   CLAVE=$(head -n 1 "$CLAVE_PUB")
-  AUT=/home/usuario/.ssh/authorized_keys
+  AUT="$HOME_TALLER/.ssh/authorized_keys"
   touch "$AUT"
   grep -qxF "$CLAVE" "$AUT" || printf '%s\n' "$CLAVE" >> "$AUT"
-  chown dev:dev "$AUT"
+  chown "$USUARIO_TALLER:$USUARIO_TALLER" "$AUT"
   chmod 600 "$AUT"
-  log "clave pública de dev instalada"
+  log "clave pública de $USUARIO_TALLER instalada"
 fi
 
 # 3. sshd: sin contraseña (drop-in propio; se valida antes de recargar).
@@ -108,16 +116,16 @@ if ((PARAR_COOLIFY)) && command -v docker >/dev/null; then
   done
 fi
 
-# 8. PostgreSQL para tests: solo socket local (peer), sin contraseña, rol dev sin superusuario.
+# 8. PostgreSQL para tests: solo socket local (peer), sin contraseña, rol del taller sin superusuario.
 systemctl enable --now postgresql >/dev/null
-EXISTE_ROL=$(runuser -u postgres -- psql -v ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_roles WHERE rolname='dev'")
+EXISTE_ROL=$(runuser -u postgres -- psql -v ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_roles WHERE rolname='$USUARIO_TALLER'")
 if [[ "$EXISTE_ROL" != 1 ]]; then
-  runuser -u postgres -- psql -v ON_ERROR_STOP=1 -qc "CREATE ROLE dev LOGIN CREATEDB"
-  log "rol de PostgreSQL dev creado"
+  runuser -u postgres -- psql -v ON_ERROR_STOP=1 -qc "CREATE ROLE $USUARIO_TALLER LOGIN CREATEDB"
+  log "rol de PostgreSQL $USUARIO_TALLER creado"
 fi
 
 # 9. Cola de compilación: un build pesado a la vez, con techo de memoria y preflight.
-install -d -m 755 -o dev -g dev /var/cache/sccache /var/tmp/glory-target
+install -d -m 755 -o "$USUARIO_TALLER" -g "$USUARIO_TALLER" "$CACHE_SCCACHE" "$TARGET_BASE"
 cat > /usr/local/bin/cm-heavy <<'EOF'
 #!/usr/bin/env bash
 # Builds pesados de a uno (flock), con techo de memoria y preflight (plan F1, Presupuesto de RAM).
@@ -157,8 +165,8 @@ SWEEP_SRC="$(dirname "$(readlink -f "$0")")/cm-sweep.sh"
 bash "$SWEEP_SRC" --instalar
 log "cm-sweep instalado (timer horario)"
 
-# 10. Toolchain de dev (sin root): rustup, componentes, nextest y node LTS con fnm.
-runuser -u dev -- bash -s <<'EOF'
+# 10. Toolchain del taller (sin root): rustup, componentes, nextest y node LTS con fnm.
+runuser -u "$USUARIO_TALLER" -- bash -s <<'EOF'
 set -euo pipefail
 if [[ ! -x "$HOME/.cargo/bin/rustup" ]]; then
   curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
