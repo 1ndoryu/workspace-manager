@@ -84,6 +84,8 @@ function BotonSobra({ onClick, abierto, activo, titulo, refBoton }: { onClick?: 
       activo={activo}
       aria-haspopup={onClick ? 'menu' : undefined}
       aria-expanded={onClick ? abierto : undefined}
+      /* [por que] Sin acción no es un control: fuera del árbol de accesibilidad, para que no quede un botón sin nombre. */
+      aria-hidden={onClick ? undefined : true}
       title={titulo}
     >
       {/* Decorativo: el nombre del boton lo da su `title` (y el aria-label del
