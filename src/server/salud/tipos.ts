@@ -72,9 +72,13 @@ export interface DatosArea {
   carpetasGit: string[];
   /* Ids declarados en registro.json: proyectos y noAplica. */
   registradas: string[];
-  /* Espacio libre de C:, en GB; null si no se pudo medir. */
+  /* Plataforma del proceso: las comprobaciones de runtime local solo aplican a Windows. */
+  plataforma: NodeJS.Platform;
+  /* Espacio libre de la unidad del área, en GB; null si no se pudo medir. */
   discoLibreGb: number | null;
-  /* Tamaño de C:\tmp; parcial si la medición se cortó por tiempo. */
+  /* Raíz de temporales (C:/tmp en Windows, ~/tmp en Linux, o WM_TMP). */
+  rutaTemporales: string;
+  /* Tamaño de la raíz de temporales; parcial si la medición se cortó por tiempo. */
   tmp: { bytes: number; parcial: boolean } | null;
   /* CARGO_INCREMENTAL del entorno de usuario, o null si no está definida. */
   incrementalUsuario: string | null;

@@ -328,7 +328,9 @@ export async function recogerArea(
     ahora,
     carpetasGit,
     registradas: [...new Set([...proyectos.map((p) => p.clave), ...idsProyectos, ...noAplica])],
+    plataforma: process.platform,
     discoLibreGb: discoLibreGb(),
+    rutaTemporales: raizTemporales(),
     tmp: await medirTmp(raizTemporales(), PRESUPUESTO_TMP_MS),
     /* [por que] process.env hereda las variables de usuario al arrancar el servidor. */
     incrementalUsuario: process.env.CARGO_INCREMENTAL ?? null,

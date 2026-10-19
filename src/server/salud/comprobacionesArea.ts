@@ -44,15 +44,15 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
   },
   {
     id: 'disco-c',
-    omitirSi: (d) => (d.discoLibreGb === null ? 'no se pudo medir C:' : null),
+    omitirSi: (d) => (d.discoLibreGb === null ? 'no se pudo medir el disco del área' : null),
     evaluar: (d) => {
       if (d.discoLibreGb === null || d.discoLibreGb >= DISCO_MINIMO_GB) return [];
       return [
         {
           id: 'disco-c',
           severidad: 'error',
-          mensaje: `C: con ${d.discoLibreGb.toFixed(1)} GB libres (mínimo ${DISCO_MINIMO_GB})`,
-          accion: 'borra targets sin uso en C:\\tmp\\glory-target\\<rama> y archiva descargas',
+          mensaje: `disco del área con ${d.discoLibreGb.toFixed(1)} GB libres (mínimo ${DISCO_MINIMO_GB})`,
+          accion: `borra targets sin uso en ${d.rutaTemporales}/glory-target/<rama> y archiva descargas`,
           doc: 'AGENTS.md',
         },
       ];
@@ -60,7 +60,7 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
   },
   {
     id: 'tmp-tamano',
-    omitirSi: (d) => (d.tmp === null ? 'C:\\tmp no existe' : null),
+    omitirSi: (d) => (d.tmp === null ? `${d.rutaTemporales} no existe` : null),
     evaluar: (d) => {
       if (!d.tmp) return [];
       const gb = d.tmp.bytes / GB;
@@ -69,7 +69,7 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
           {
             id: 'tmp-tamano',
             severidad: 'aviso',
-            mensaje: `C:\\tmp ocupa ${gb.toFixed(1)} GB (máximo ${TMP_MAXIMO_GB})`,
+            mensaje: `${d.rutaTemporales} ocupa ${gb.toFixed(1)} GB (máximo ${TMP_MAXIMO_GB})`,
             accion: 'borra targets sin uso (GloryTmpSweep purga los de más de 12 h)',
             doc: 'AGENTS.md',
           },
@@ -80,7 +80,7 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
           {
             id: 'tmp-tamano',
             severidad: 'info',
-            mensaje: `medición parcial de C:\\tmp: ${gb.toFixed(1)} GB hasta el tope de tiempo`,
+            mensaje: `medición parcial de ${d.rutaTemporales}: ${gb.toFixed(1)} GB hasta el tope de tiempo`,
             accion: 'nada: el tamaño real puede ser mayor; repite con forzar=1 si importa',
           },
         ];
@@ -104,7 +104,12 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
   },
   {
     id: 'sentinel-runtime',
-    omitirSi: (d) => (d.sentinelPin === null ? 'sin versión fijada en quality-tools.json' : null),
+    omitirSi: (d) =>
+      d.plataforma !== 'win32'
+        ? 'el runtime global de Sentinel solo se instala en Windows'
+        : d.sentinelPin === null
+          ? 'sin versión fijada en quality-tools.json'
+          : null,
     evaluar: (d) => {
       if (d.sentinelRuntime === null) {
         return [
