@@ -24,7 +24,7 @@
  *   2  variacion de version del runtime respecto de la curacion */
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { RAIZ_VERSIONS, checkoutSentinel, versionRuntime, versionSentinel, VERSION_CURACION_SENTINEL } from '../src/server/gate/proveedor.js';
+import { raizVersiones, checkoutSentinel, versionRuntime, versionSentinel, VERSION_CURACION_SENTINEL } from '../src/server/gate/herramientas/proveedor.js';
 import { ESQUEMA_SENTINEL } from '../src/shared/gate/catalogo/sentinel.js';
 
 /* ------------------------------------------------------------------ *
@@ -243,7 +243,7 @@ function main() {
     return { version: versionSentinel() ?? '—', dts };
   })();
   const version = dtsArg ? '—' : enUso?.version ?? versionRuntime();
-  const dtsPath = dtsArg || enUso?.dts || (version ? join(RAIZ_VERSIONS, version, 'out', 'core', 'config.d.ts') : null);
+  const dtsPath = dtsArg || enUso?.dts || (version ? join(raizVersiones(), version, 'out', 'core', 'config.d.ts') : null);
 
   const reporte = { versionRuntime: version, versionCuracion: VERSION_CURACION_SENTINEL, problemas: [] };
 
