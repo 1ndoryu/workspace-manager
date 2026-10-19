@@ -74,7 +74,7 @@ test('planificarDns crea, no toca lo correcto y rechaza lo distinto', () => {
   assert.deepEqual(planificarDns([], 'a-dev.ejemplo.test', destino), { accion: 'crear' });
   const ok = [{ type: 'CNAME', content: destino, proxied: true }];
   assert.deepEqual(planificarDns(ok, 'a-dev.ejemplo.test', destino), { accion: 'ya' });
-  assert.throws(() => planificarDns([{ type: 'A', content: '1.2.3.4', proxied: false }], 'a-dev.ejemplo.test', destino), /no lo sobrescribo/);
+  assert.throws(() => planificarDns([{ type: 'A', content: '203.0.113.4', proxied: false }], 'a-dev.ejemplo.test', destino), /no lo sobrescribo/);
   assert.throws(() => planificarDns([{ type: 'CNAME', content: destino, proxied: false }], 'a-dev.ejemplo.test', destino), /no lo sobrescribo/);
 });
 

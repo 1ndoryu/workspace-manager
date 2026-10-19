@@ -41,7 +41,7 @@ RAIZ=${CM_TARGET_BASE:-/var/tmp/glory-target}
 CALIDAD=${CM_QUALITY_BASE:-/var/tmp/glory-quality}
 VTMP=${CM_VAR_TMP:-/var/tmp}
 TMPD=${CM_TMP:-/tmp}
-# [por que] Antes era /home/usuario incrustado: el usuario de una máquina concreta. Por defecto es el
+# [por que] Antes era una ruta de usuario incrustado: el usuario de una máquina concreta. Por defecto es el
 # HOME del usuario que corre el barrido; `:?` aborta si no hay HOME (fail-closed: esta ruta alimenta NUNCA).
 CASA=${CM_SWEEP_CASA:-${HOME:?sin HOME: define CM_SWEEP_CASA}}
 # Hoja obligatoria de cada raíz: si el último componente no es este, el objetivo no se toca
@@ -496,7 +496,7 @@ limpiar_tmp() {
 }
 
 # --- Objetivo 5: cachés de casa ----------------------------------------------
-# /home/usuario/.cache/* y la caché de npm: regenerables, pero caras (cargo-xwin, mn-target,
+# $HOME/.cache/* y la caché de npm: regenerables, pero caras (cargo-xwin, mn-target,
 # cargo-restaurante), de ahí los 7 días en mantenimiento. Nunca ~/.cargo/registry (está en $NUNCA)
 # ni la caché de opencode, que es de una herramienta viva.
 limpiar_casa() {

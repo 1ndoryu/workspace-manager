@@ -442,7 +442,7 @@ test('tunelDePuertosNuestros: reconoce el túnel huérfano del otro modo, no los
   assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:127.0.0.1:3110 dev89'), config, [3110, 20241]), true);
   // Y `remotos` acota el otro extremo: un reenvío a un puerto ajeno al proyecto no es nuestro.
   assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:127.0.0.1:3110 dev89'), config, [3110], [20241]), false);
-  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:10.0.0.9:3110 dev89'), config, [3110]), false);
+  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:203.0.113.9:3110 dev89'), config, [3110]), false);
 });
 
 test('validarHostRemoto: en build valida el bloque build, no el del dev', () => {
