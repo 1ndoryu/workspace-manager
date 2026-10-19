@@ -32,7 +32,13 @@ export interface ConfigRemota {
   dirRemotoBase: string;
   nodeRemoto: string;
   mutagen: string;
+  /* Carpeta temporal de la 89 donde la auditoría deja el árbol de cada gestor. */
+  tmpAudit: string;
 }
+
+/* [por que] Una ruta del taller, no del código: se fija con WM_AUDIT_REMOTO y, si no
+ * está, vale el /tmp de cualquier Linux. */
+export const TMP_AUDIT_DEFECTO = '/tmp/wm-audit';
 
 const RUTA_ABSOLUTA_SEGURA = /^\/[A-Za-z0-9._/-]+$/;
 
@@ -43,7 +49,7 @@ export function configRemotaDe(t: {
   dirRemotoBase?: unknown;
   nodeRemoto?: unknown;
   sync?: { binario?: unknown };
-}): ConfigRemota {
+}, tmpAudit: string = TMP_AUDIT_DEFECTO): ConfigRemota {
   const { host, dirRemotoBase, nodeRemoto } = t;
   const mutagen = t.sync?.binario;
   if (typeof host !== 'string' || typeof dirRemotoBase !== 'string' || typeof nodeRemoto !== 'string' || typeof mutagen !== 'string') {
@@ -51,11 +57,13 @@ export function configRemotaDe(t: {
   }
   if (!RUTA_ABSOLUTA_SEGURA.test(dirRemotoBase)) throw new Error(`taller.json: dirRemotoBase '${dirRemotoBase}' debe ser una ruta absoluta simple`);
   if (!RUTA_ABSOLUTA_SEGURA.test(nodeRemoto)) throw new Error(`taller.json: nodeRemoto '${nodeRemoto}' debe ser una ruta absoluta simple`);
-  return { host, dirRemotoBase, nodeRemoto, mutagen };
+  return { host, dirRemotoBase, nodeRemoto, mutagen, tmpAudit };
 }
 
-export function leerConfigRemota(): ConfigRemota {
-  return configRemotaDe(JSON.parse(readFileSync(RUTA_TALLER, 'utf8')));
+/* El entorno se lee aquí, al componer la configuración, no al cargar el módulo. */
+export function leerConfigRemota(entorno: NodeJS.ProcessEnv = process.env): ConfigRemota {
+  const tmpAudit = entorno.WM_AUDIT_REMOTO?.trim() || TMP_AUDIT_DEFECTO;
+  return configRemotaDe(JSON.parse(readFileSync(RUTA_TALLER, 'utf8')), tmpAudit);
 }
 
 /* Parte de taller.json que decide DÓNDE se analiza: el host del taller y si es el modo

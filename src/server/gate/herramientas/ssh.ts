@@ -90,3 +90,71 @@ export async function copiarEntradas(base: string, cfg: ConfigRemota, destino: s
     clearTimeout(reloj);
   }
 }
+
+/* Salida cruda de un comando remoto. `codigo` es null si ssh no llegó a correr (o venció
+ * el timeout); el llamante lo trata como fallo, no como éxito. */
+export interface SalidaRemota {
+  stdout: string;
+  codigo: number | null;
+}
+
+const TIMEOUT_AUDIT_MS = 120_000;
+
+/* Ejecuta un comando en la 89 y devuelve su stdout con el código de salida. No rechaza
+ * por código ≠ 0: los audit salen 1 cuando HAY vulnerabilidades y `cargo tree` sale 101
+ * cuando el crate no está en el grafo; los dos son respuestas válidas. Un fallo de ssh
+ * devuelve código null y stdout vacío. `-n`: no lee stdin, que aquí no lleva nada. */
+export function sshTexto(cfg: ConfigRemota, comando: string, timeout = TIMEOUT_AUDIT_MS): Promise<SalidaRemota> {
+  return new Promise((listo) => {
+    const hijo = spawn(BIN_SSH, ['-n', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', cfg.host, comando], { windowsHide: true });
+    let out = '';
+    const to = setTimeout(() => {
+      hijo.kill();
+      listo({ stdout: out, codigo: null });
+    }, timeout);
+    hijo.stdout.on('data', (d: Buffer) => {
+      out += d.toString('utf8');
+    });
+    hijo.on('error', () => {
+      clearTimeout(to);
+      listo({ stdout: '', codigo: null });
+    });
+    hijo.on('close', (codigo) => {
+      clearTimeout(to);
+      listo({ stdout: out, codigo });
+    });
+  });
+}
+
+/* Envía un árbol a la 89: `entradas` (relativas a `raiz`) se empaquetan con `tar` y se
+ * desempaquetan en `destino` tras borrar lo anterior; la firma queda en `destino/.firma`.
+ * [por que] `tar -T -` lee la lista por su entrada estándar: no hace falta temporal ni
+ * depender de cómo expanda `--exclude` cada tar. Sin `-n`: el tar viaja por stdin de ssh,
+ * y con `-n` no llegaría a la 89. */
+export function enviarArbol(
+  cfg: ConfigRemota,
+  tar: string,
+  raiz: string,
+  destino: string,
+  entradas: string[],
+  firma: string,
+): Promise<void> {
+  return new Promise((ok, mal) => {
+    const lista = `${entradas.join('\n')}\n`;
+    const orden =
+      `rm -rf ${comillas(destino)} && mkdir -p ${comillas(destino)} && tar xzf - -C ${comillas(destino)} ` +
+      `&& printf '%s' ${comillas(firma)} > ${comillas(`${destino}/.firma`)}`;
+    const empaquetar = spawn(tar, ['czf', '-', '-C', raiz, '-T', '-'], { stdio: ['pipe', 'pipe', 'inherit'] });
+    const ssh = spawn(BIN_SSH, ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', cfg.host, orden], {
+      stdio: ['pipe', 'inherit', 'inherit'],
+    });
+    /* Si ssh muere antes de tragarse el tar, el pipe revienta con EPIPE; sin este
+     * manejador sería un error no capturado que tumbaría el manager. */
+    ssh.stdin.on('error', () => {});
+    empaquetar.stdout.pipe(ssh.stdin);
+    empaquetar.stdin.end(lista);
+    empaquetar.on('error', (e) => mal(new Error(`no se pudo ejecutar tar: ${e.message}`)));
+    ssh.on('error', (e) => mal(new Error(`no se pudo ejecutar ssh: ${e.message}`)));
+    ssh.on('close', (c) => (c === 0 ? ok() : mal(new Error(`el envio del arbol a la 89 fallo (ssh ${c})`))));
+  });
+}
