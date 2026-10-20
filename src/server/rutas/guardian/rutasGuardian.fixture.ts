@@ -9,7 +9,7 @@ import { createServer, request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { raizTemporales } from '../../plataforma/temporales.js';
+import { raizTemporales } from '../../plataforma/sistema/temporales.js';
 import { manejarRutasGuardian } from './rutasGuardian.js';
 import { RAIZ_REPO } from '../../plataforma/rutas.js';
 import type { DependenciasGuardian } from './rutasGuardianTipos.js';

@@ -4,10 +4,10 @@
  * Este test compara las dos con el mismo entorno y falla si cambian los nombres o los valores. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import * as binariosTs from './binarios.js';
-import * as puertosTs from './puertos.js';
+import * as binariosTs from './sistema/binarios.js';
+import * as puertosTs from './sistema/puertos.js';
 import * as areaTs from './area.js';
-import { raizTemporales as raizTemporalesTs } from './temporales.js';
+import { raizTemporales as raizTemporalesTs } from './sistema/temporales.js';
 
 /* Importa el gemelo .mjs por URL: TypeScript no tiene su tipo y no hace falta, porque solo se compara. */
 async function gemelo(nombre: string): Promise<Record<string, unknown>> {

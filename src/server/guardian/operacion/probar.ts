@@ -11,7 +11,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { ErrorValidacion, type Listas } from '../configuracion/politica.js';
-import { raizTemporales } from '../../plataforma/temporales.js';
+import { raizTemporales } from '../../plataforma/sistema/temporales.js';
 
 const execFileAsync = promisify(execFile);
 

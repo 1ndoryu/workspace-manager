@@ -14,8 +14,8 @@ import type { ResolucionCli } from './proveedor.js';
 import { RAIZ_AREA } from '../../plataforma/rutas.js';
 /* [por que] El spawn va por el puerto de procesos para poder inyectar un falso
  * en tests sin lanzar sentinel/varsense de verdad. */
-import { PUERTO_PROCESOS } from '../../plataforma/procesos.js';
-import type { PuertoProcesos } from '../../plataforma/procesos.js';
+import { PUERTO_PROCESOS } from '../../plataforma/sistema/procesos.js';
+import type { PuertoProcesos } from '../../plataforma/sistema/procesos.js';
 /* Tipos y funciones puras (argumentos, parseo): en módulos propios para que este
  * fichero quede con la capa de IO. Reexportados para que los importadores no cambien. */
 import type { FuentesRuntime, ResultadoSpawn } from './ejecucion/tipos.js';

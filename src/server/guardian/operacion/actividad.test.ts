@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { guardLogDirPorDefecto, guardRootPorDefecto, leerActividad, LIMITE_ACTIVIDAD_DEFECTO } from './actividad.js';
 import { ErrorValidacion } from '../configuracion/politica.js';
-import { raizTemporales } from '../../plataforma/temporales.js';
+import { raizTemporales } from '../../plataforma/sistema/temporales.js';
 
 const BASE_TMP = join(raizTemporales(), 'guardian-test');
 const temporales: string[] = [];

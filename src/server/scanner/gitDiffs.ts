@@ -5,7 +5,7 @@
  * recorte de diffs viven en gitDiffs/puro.ts; aquí solo se lanza git, por el puerto. */
 import { execFileSync } from 'node:child_process';
 import { MAX_ARCHIVOS_LOCALES, opcionesGit, PUERTO_GIT, type PuertoGit } from './git.js';
-import { BIN_GIT } from '../plataforma/binarios.js';
+import { BIN_GIT } from '../plataforma/sistema/binarios.js';
 import type { ArchivosRepo } from '../../shared/types.js';
 import { leerPorcelain, MAX_BYTES_DIFF, MAX_UNTRACKED_DIFF, recortar, rutaDiffSegura } from './gitDiffs/puro.js';
 

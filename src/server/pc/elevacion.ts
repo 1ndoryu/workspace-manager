@@ -17,8 +17,8 @@
 import { readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PUERTO_PROCESOS } from '../plataforma/procesos.js';
-import type { PuertoProcesos } from '../plataforma/procesos.js';
+import { PUERTO_PROCESOS } from '../plataforma/sistema/procesos.js';
+import type { PuertoProcesos } from '../plataforma/sistema/procesos.js';
 
 /* Verdadero si la ruta absoluta vive fuera del perfil del usuario (ámbito
  * de máquina: ProgramData, raíces protegidas...). Fail-closed: ante duda

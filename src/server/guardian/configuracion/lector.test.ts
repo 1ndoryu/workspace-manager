@@ -6,7 +6,7 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { raizTemporales } from '../../plataforma/temporales.js';
+import { raizTemporales } from '../../plataforma/sistema/temporales.js';
 import { leerGuardProyecto, leerOverride, leerPolitica, leerTareas } from './lector.js';
 
 const BASE_TMP = join(raizTemporales(), 'guardian-test');

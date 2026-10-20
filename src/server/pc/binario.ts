@@ -17,8 +17,8 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { RAIZ_AREA, RAIZ_REPO } from '../plataforma/rutas.js';
 import { avisoSinPapel, papelDeArea } from '../plataforma/area.js';
-import { PUERTO_PROCESOS } from '../plataforma/procesos.js';
-import type { PuertoProcesos } from '../plataforma/procesos.js';
+import { PUERTO_PROCESOS } from '../plataforma/sistema/procesos.js';
+import type { PuertoProcesos } from '../plataforma/sistema/procesos.js';
 
 /* El limpiador es un proyecto NUESTRO (otro repo del area), asi que su nombre
  * sale de la config (`config/area.json`). [por que] Estaba incrustado: en un

@@ -36,7 +36,7 @@ import { obtenerToken } from './seguridad/token.js';
 import { registrarAuditoria, rutaAuditoriaPorDefecto } from './seguridad/auditoria.js';
 import { logger } from '../shared/logger.js';
 
-import { PUERTO_API } from './plataforma/puertos.js';
+import { PUERTO_API } from './plataforma/sistema/puertos.js';
 export const PUERTO = PUERTO_API;
 
 /* [por que] resolver DIST relativo al script y no al cwd: el servidor puede

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import { PUERTO_PROCESOS } from './procesos.js';
 import type { OpcionesProceso, PuertoProcesos } from './procesos.js';
-import { ejecutarClean } from '../pc/limpiezaBase.js';
+import { ejecutarClean } from '../../pc/limpiezaBase.js';
 
 describe('PUERTO_PROCESOS', () => {
   it('devuelve stdout y stderr como texto', async () => {

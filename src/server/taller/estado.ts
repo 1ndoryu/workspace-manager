@@ -18,8 +18,8 @@ import {
 import { hostsActivos } from '../../shared/taller/conformidadPublico.js';
 import { leerRegistroConformidad } from './registroConformidad.js';
 import { NOMBRE_MANAGER } from '../plataforma/rutas.js';
-import { BIN_SSH } from '../plataforma/binarios.js';
-import { escuchasConProceso, obtenerSistemaLocal } from '../plataforma/sistemaLocal.js';
+import { BIN_SSH } from '../plataforma/sistema/binarios.js';
+import { escuchasConProceso, obtenerSistemaLocal } from '../plataforma/sistema/sistemaLocal.js';
 import { bdTrabajoDe, hostTaller, leerConfigRemota } from '../gate/herramientas/config.js';
 import { errorFormaTaller89, funcionMutagen, parsearHistorial, SCRIPT_MUTAGEN, sesionesMutagenMalas } from './estadoParseo.js';
 

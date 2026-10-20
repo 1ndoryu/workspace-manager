@@ -6,7 +6,7 @@ import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { raizTemporales } from '../../plataforma/temporales.js';
+import { raizTemporales } from '../../plataforma/sistema/temporales.js';
 import { doctorCacheado, doctorConModo, vaciarCacheDoctor } from './doctor.js';
 
 /* Runtime falso con la misma forma que el real: `quality-tools.json` declara su

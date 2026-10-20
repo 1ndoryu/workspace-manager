@@ -10,7 +10,7 @@
  * y lectura en disco en actividad/actividad-io.ts; aquí queda la fachada. */
 import os from 'node:os';
 import path from 'node:path';
-import { raizTemporales } from '../../plataforma/temporales.js';
+import { raizTemporales } from '../../plataforma/sistema/temporales.js';
 import { leerCola, leerLeases } from './actividad/actividad-io.js';
 import {
   coincideComando,

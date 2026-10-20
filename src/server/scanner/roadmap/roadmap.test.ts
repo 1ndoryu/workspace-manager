@@ -7,7 +7,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { raizTemporales } from '../../plataforma/temporales.js';
+import { raizTemporales } from '../../plataforma/sistema/temporales.js';
 import { TOPE_LINEAS_ROADMAP, TOPE_TAREAS, analizarRoadmap, resumenRoadmap } from './roadmap.js';
 
 const motivos = (texto: string): string[] => analizarRoadmap(texto).problemas.map((p) => p.motivo);
@@ -221,7 +221,7 @@ describe('roadmap: IDs', () => {
 
   /* [por que] Un `1` suelto es indistinguible de cualquier cifra en prosa: admitirlo convertiría en
    * «tarea en tabla» o «tarea sin casilla» media docena de líneas legítimas. Queda fuera a
-   * propósito; los 9 IDs así de RESTAURANTE se arreglan en su roadmap, no aquí. */
+   * propósito; los 9 IDs así de proyecto-h se arreglan en su roadmap, no aquí. */
   it('una cifra suelta no basta para parecer una tarea', () => {
     assert.deepEqual(analizarRoadmap('## Pendientes\n\n- `1` — **Algo.**\n').problemas, []);
     assert.deepEqual(analizarRoadmap('## Pendientes\n\n| 1 | Otra |\n').problemas, []);

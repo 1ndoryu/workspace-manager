@@ -20,7 +20,7 @@ type ParsersDoctor = {
   parsearEstablecidas: (sal: string) => unknown;
 };
 const cargarDoctor = async () =>
-  (await import(new URL('../../../scripts/dev/doctor/sistema/procesos.mjs', import.meta.url).href)) as ParsersDoctor;
+  (await import(new URL('../../../../scripts/dev/doctor/sistema/procesos.mjs', import.meta.url).href)) as ParsersDoctor;
 
 const NETSTAT = [
   'Conexión activa a TCP',

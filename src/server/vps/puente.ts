@@ -14,7 +14,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { papelDeArea, papelesDeArea } from '../plataforma/area.js';
 import { RAIZ_AREA } from '../plataforma/rutas.js';
-import { raizTemporales } from '../plataforma/temporales.js';
+import { raizTemporales } from '../plataforma/sistema/temporales.js';
 
 /* Nombre base del ejecutable del gestor de despliegues. [por que] Estaba
  * incrustado ('coolify-manager.exe'), igual que su carpeta: dos datos nuestros

@@ -5,7 +5,7 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { raizTemporales } from '../../plataforma/temporales.js';
+import { raizTemporales } from '../../plataforma/sistema/temporales.js';
 import { guardarTopes, validarCambioTopes, type HashesTopes, type ResultadoGuardado } from './topes.js';
 import { escribirAtomico, hashDe } from '../escritura.js';
 import { leerOverride, leerPolitica } from './lector.js';

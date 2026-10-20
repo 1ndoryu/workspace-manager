@@ -5,7 +5,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { raizTemporales } from '../plataforma/temporales.js';
+import { raizTemporales } from '../plataforma/sistema/temporales.js';
 import { estadoGate, hayEstilos } from './gate.js';
 
 describe('gate: sinEstilos', () => {

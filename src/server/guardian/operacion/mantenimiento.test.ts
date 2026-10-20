@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { join } from 'node:path';
 import { ejecutarMantenimiento, LIMITE_SALIDA } from './mantenimiento.js';
 import { ErrorValidacion } from '../configuracion/politica.js';
-import { raizTemporales } from '../../plataforma/temporales.js';
+import { raizTemporales } from '../../plataforma/sistema/temporales.js';
 
 const BASE_TMP = join(raizTemporales(), 'guardian-test');
 const temporales: string[] = [];

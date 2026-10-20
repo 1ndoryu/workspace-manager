@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { descubrir } from './workspace.js';
-import { raizTemporales } from '../plataforma/temporales.js';
+import { raizTemporales } from '../plataforma/sistema/temporales.js';
 
 /* Área con: `a` y `hijo1` con manifiesto (proyectos), `grupo` que solo agrupa, `suelta` y
  * `scripts` sin señal (no son proyectos), `ign` ignorada y un fichero suelto. */

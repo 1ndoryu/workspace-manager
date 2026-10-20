@@ -4,7 +4,7 @@
  * prueban con un entorno falso y no dependen de la máquina donde corran. */
 import { homedir } from 'node:os';
 import { CARPETA_SKILLS, RAIZ_REPO, rutaConfigPrivada } from '../plataforma/rutas.js';
-import { raizTemporales } from '../plataforma/temporales.js';
+import { raizTemporales } from '../plataforma/sistema/temporales.js';
 
 export interface Entorno {
   plataforma: NodeJS.Platform;

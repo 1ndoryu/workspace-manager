@@ -5,8 +5,8 @@
  * estos helpers; viven aquí una sola vez, sin ciclos (la base solo mira
  * a `ejecucion.js`, `elevacion.js` y `scan.js`). */
 import { readFileSync } from 'node:fs';
-import { PUERTO_PROCESOS } from '../plataforma/procesos.js';
-import type { PuertoProcesos } from '../plataforma/procesos.js';
+import { PUERTO_PROCESOS } from '../plataforma/sistema/procesos.js';
+import type { PuertoProcesos } from '../plataforma/sistema/procesos.js';
 import {
   encolar,
   escribirAtomico,

@@ -31,8 +31,8 @@ import {
   podarAnalisis,
 } from './analisis/almacen.js';
 import { separarVigencia } from './vigencia.js';
-import { PUERTO_PROCESOS } from '../plataforma/procesos.js';
-import type { PuertoProcesos } from '../plataforma/procesos.js';
+import { PUERTO_PROCESOS } from '../plataforma/sistema/procesos.js';
+import type { PuertoProcesos } from '../plataforma/sistema/procesos.js';
 import { datoError, montarAnalisis } from './analisis/reporte.js';
 import {
   checkoutVarsense,

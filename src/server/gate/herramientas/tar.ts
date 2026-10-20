@@ -3,7 +3,7 @@
  * PATH) llega por parámetro, así que las pruebas no tocan el proceso. */
 import { statSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
-import { BIN_TAR } from '../../plataforma/binarios.js';
+import { BIN_TAR } from '../../plataforma/sistema/binarios.js';
 
 export type EntornoTar = Partial<Pick<NodeJS.ProcessEnv, 'WS_TAR' | 'PATH'>>;
 
