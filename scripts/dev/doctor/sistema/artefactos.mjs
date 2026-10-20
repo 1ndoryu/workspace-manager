@@ -1,7 +1,7 @@
 /* Artefactos entre proyectos (20AA-7): un proyecto que empotra el artefacto de
  * compilacion de otro.
  *
- * [por que] `MN-Escritorio` mete el `frontend/dist` de `MN-Inmobiliaria` dentro
+ * [por que] `proyecto-escritorio` mete el `frontend/dist` de `proyecto-web` dentro
  * del `.exe` al compilar. Nada lo declaraba, asi que cambiar el front dejaba el
  * `.exe` viejo sin que nadie avisara. No hay exe viejo *silencioso*
  * (`tauri-build` emite `cargo:rerun-if-changed` del front y cargo lo respeta,

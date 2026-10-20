@@ -268,7 +268,7 @@ src/
               lee el entorno o el disco)
   shared/     tipos y utilidades puras, sin E/S: lo que puede importar el front
   v2/         front: mapa y paneles (React). Es el que se sirve.
-  components/ hooks/ styles/ assets/   front v1, conservado por si hay que revertir
+  hooks/ styles/ assets/   apoyo del front v2 (hooks, CSS y fuentes)
 scripts/
   dev/        mando de desarrollo (dev.mjs y sus módulos)
   quality/    provisionado de Sentinel y VarSense

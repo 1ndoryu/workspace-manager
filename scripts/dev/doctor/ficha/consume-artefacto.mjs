@@ -1,6 +1,6 @@
 /* Validacion de `consumeArtefacto` (20AA-7), el campo que declara que una
  * entrada empotra el artefacto de compilacion de OTRO proyecto (hoy
- * MN-Escritorio mete el `frontend/dist` de MN-Inmobiliaria dentro del .exe).
+ * proyecto-escritorio mete el `frontend/dist` de proyecto-web dentro del .exe).
  *
  * [por que] Vive aparte de `validacion.mjs` porque ese archivo esta en el limite
  * de 300 lineas efectivas del gate: un sub-esquema con sus cuatro claves y su

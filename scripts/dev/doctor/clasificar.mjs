@@ -94,7 +94,7 @@ export async function clasificar(proyectos, registro, escucha, ignorados = [], e
     // proposito, no es un hueco. Antes salian ocho «(sin proyecto)» —los tres de
     // la lab (13103/13104/14190) y los cinco de las fichas (3105, 3110, 5199).
     if (tunelDeQuien(proc, entradasReg)) continue;
-    // [por que] Exe instalado de un artefacto consumido (MN-Escritorio, 58601): es la app del
+    // [por que] Exe instalado de un artefacto consumido (proyecto-escritorio, 58601): es la app del
     // proyecto, no un hueco. Solo cuenta el fichero exacto de consumeArtefacto.instalado.
     if (esAppInstalada(proc, entradasReg)) continue;
     // [por que] pid muerto (netstat lo atribuye al padre de `ssh -f`): el túnel
@@ -233,7 +233,7 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
   }
   // [por que] El corte en el primer health fallido dejaba sin consumir los
   // puertos propios restantes: salian como huerfanos "(sin proyecto)" aunque
-  // fueran del proyecto (MN-Inmobiliaria: gateway 3102 tras 5199 caido). La
+  // fueran del proyecto (proyecto-web: gateway 3102 tras 5199 caido). La
   // atribucion no cambia el estado; solo evita falsos huerfanos.
   for (const h of saludLocal) {
     for (const o of porPuerto.get(h.puertoLocal) ?? []) {

@@ -111,7 +111,7 @@ export function validarEntrada(e) {
   if (comprobar(motivoLanzamiento(e))) return;
   if (comprobar(motivoAuxiliares(e))) return;
   // [por que 20AA-7] `consumeArtefacto` = esta entrada empotra el artefacto de
-  // compilacion de OTRO proyecto (MN-Escritorio <- MN-Inmobiliaria/frontend/dist).
+  // compilacion de OTRO proyecto (proyecto-escritorio <- proyecto-web/frontend/dist).
   // El sub-esquema vive en su modulo: aqui el archivo esta en el limite de 300
   // lineas efectivas del gate.
   if ('consumeArtefacto' in e && !validarConsumeArtefacto(e, mal)) return;

@@ -39,7 +39,7 @@ export interface InformeDev {
   // Higiene Rust (05AA-2): avisos solo-lectura del doctor, nunca errores.
   rust?: AvisoRust[];
   // Artefactos entre proyectos (20AA-7): un proyecto que empotra el artefacto de
-  // compilacion de otro (`MN-Escritorio` <- `MN-Inmobiliaria/frontend/dist`).
+  // compilacion de otro (`proyecto-escritorio` <- `proyecto-web/frontend/dist`).
   // Mismo trato que rust: solo-lectura, nunca error; sale como degradado.
   artefactos?: AvisoArtefacto[];
 }

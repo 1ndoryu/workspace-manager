@@ -1,7 +1,6 @@
 /* Punto de entrada del cliente: monta la App v2 (monocromo).
  * [por que] El usuario pidio reiniciar el front en v2 con reglas estrictas
- * (blanco/negro, sin radios, sin sombras, sin bold). La v1 queda en
- * src/components y src/App.tsx por si se necesita revertir. */
+ * (blanco/negro, sin radios, sin sombras, sin bold). */
 import { createRoot } from 'react-dom/client';
 import { AppV2 } from './v2/AppV2.js';
 import { elementoPorId } from './shared/platform/plataforma.js';

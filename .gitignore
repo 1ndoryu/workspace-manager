@@ -13,10 +13,8 @@ logs/auditoria-*.jsonl*
 .DS_Store
 .sentinel/
 
-# Secretos locales: nunca se versionan (la plantilla va como .env.example).
 .env
 .env.*
-!.env.example
 
 # Config privada del area (rutas de esta maquina, lista de proyectos y bases de
 # datos). El repo se publica sin ella: las plantillas con la forma esperada

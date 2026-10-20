@@ -107,9 +107,11 @@ test('Público: un fallo de red se reporta acotado, sin lanzar', async () => {
 
 test('Registro: las sesiones dev de MN salen de host + puertos remotos', () => {
   const r = leerRegistroConformidad();
-  assert.ok(r.sesionesDev.includes('dev-MN-Inmobiliaria-3110'));
-  assert.ok(r.sesionesDev.includes('dev-MN-Inmobiliaria-5199'));
-  assert.ok(!r.sesionesDev.includes('dev-MN-Inmobiliaria-3102'), 'el 3102 no es remoto');
+  /* [por que] Los nombres de sesión salen del registro privado: el test fija la forma
+   * (`dev-<proyecto>-<puerto>`) y qué puertos son remotos, no los nombres de los proyectos. */
+  assert.ok(r.sesionesDev.length > 0, 'el registro declara sesiones dev remotas');
+  assert.ok(r.sesionesDev.every((s) => /^dev-.+-\d+$/.test(s)), 'forma dev-<proyecto>-<puerto>');
+  assert.ok(!r.sesionesDev.some((s) => s.endsWith('-3102')), 'el 3102 no es remoto');
   /* [por que] El host real vive en config/registro.json (local, fuera del repo): el test
    * no fija su nombre, solo que hay al menos un host público y sale del registro. */
   assert.ok(r.hostsPublicos.length > 0, 'el registro declara hosts públicos');

@@ -44,7 +44,7 @@ export function enRuta(texto, base) {
 
 
 /* ¿El proceso es el exe instalado de un artefacto consumido (consumeArtefacto.instalado)?
- * [por que] La app instalada (MN-Escritorio) corre fuera de la carpeta del proyecto que la
+ * [por que] La app instalada (proyecto-escritorio) corre fuera de la carpeta del proyecto que la
  * compila, así que el atribuidor por ruta no la reclamaba y salía como hueco «(sin proyecto)».
  * Coincidencia exacta del fichero y no de la carpeta: una carpeta entera sería una exención
  * demasiado amplia y ocultaría procesos ajenos. */

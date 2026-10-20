@@ -198,14 +198,14 @@ describe('artefacto: lo que esta entrada consume de otro proyecto', () => {
     ({ proyectos: [], huerfanos: [], errorSensor: null, artefactos }) as unknown as InformeDev;
 
   const aviso = (proyecto: string, veredicto: AvisoArtefacto['veredicto']): AvisoArtefacto =>
-    ({ proyecto, consumido: 'MN-Inmobiliaria:frontend/dist', veredicto, detalle: 'producto 1 < consumido 2' });
+    ({ proyecto, consumido: 'proyecto-web:frontend/dist', veredicto, detalle: 'producto 1 < consumido 2' });
 
   it('un artefacto desactualizado del propio proyecto es advertencia, no error', () => {
     const p = problemasDevDe(proyecto, informe([aviso('demo', 'desactualizado')]), null);
     assert.ok(p);
     assert.equal(p.entradas[0].categoria, 'dev');
     assert.equal(p.entradas[0].seriedad, 'advertencia');
-    assert.match(p.entradas[0].motivo, /artefacto desactualizado: MN-Inmobiliaria:frontend\/dist/);
+    assert.match(p.entradas[0].motivo, /artefacto desactualizado: proyecto-web:frontend\/dist/);
   });
 
   it('el artefacto de otro proyecto no se le atribuye', () => {

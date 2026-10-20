@@ -68,7 +68,7 @@ export function compararTool(manifest, dirRepo, tool, headCompartido) {
   /* [por que] La guarda valida consistencia INTERNA: el pin debe coincidir con el
    * HEAD del checkout que el propio manifiesto declara. Exigir el checkout
    * compartido a todos marcaba desync a consumidores coherentes —los del arnés
-   * (`../.quality-tools-harness/*`, MN-Inmobiliaria y plugins-opencode) y la
+   * (`../.quality-tools-harness/*`, proyecto-web y plugins-opencode) y la
    * familia B (`tools/*`)— y escondía el chequeo que sí importa. Un pin que no
    * cuadra con su propio checkout es desync, apunte donde apunte.
    * `sourcePathEnv` es un NOMBRE de variable, no una ruta: si el manifiesto no

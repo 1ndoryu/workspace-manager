@@ -58,8 +58,8 @@ export function problemasDevDe(
     });
   }
   /* [20AA-7] Artefactos entre proyectos: esta entrada empotra el artefacto de
-   * compilacion de otro y ha quedado por detras (hoy MN-Escritorio <-
-   * MN-Inmobiliaria/frontend/dist dentro del .exe). Advertencia, no error: no
+   * compilacion de otro y ha quedado por detras (hoy proyecto-escritorio <-
+   * proyecto-web/frontend/dist dentro del .exe). Advertencia, no error: no
    * hay nada roto, hay un paso pendiente (recompilar o reinstalar). Se atribuye
    * al proyecto CONSUMIDOR, que es el que tiene algo que hacer. */
   for (const a of dev?.artefactos ?? []) {
