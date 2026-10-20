@@ -265,6 +265,11 @@ export function codigoSalida(informe) {
   if (informe.errorSensor) return 1;
   if ((informe.compartidos ?? []).length > 0) return 2;
   if ((informe.rust ?? []).length > 0) return 2;
+  /* [20AA-7] Igual que rust: exit 2 es degradado visible, no fallo (el
+   * servidor parsea el JSON venga el codigo que venga). Un .exe que no embebe
+   * el front nuevo es una inconsistencia real del area, no una deriva de
+   * fichero de config como derivaEnv. */
+  if ((informe.artefactos ?? []).length > 0) return 2;
   if (informe.huerfanos.length > 0) return 2;
   if (informe.proyectos.some((p) => p.estado === 'deriva' || p.estado === 'sin-boton')) return 2;
   return 0;
@@ -284,6 +289,9 @@ export function tabla(informe) {
   }
   for (const r of informe.rust ?? []) {
     lineas.push(`aviso       rust ${r.chequeo} [${r.proyectos.join(', ')}]: ${r.detalle}`);
+  }
+  for (const a of informe.artefactos ?? []) {
+    lineas.push(`aviso       artefacto ${a.proyecto} <- ${a.consumido} [${a.veredicto}]: ${a.detalle}`);
   }
   for (const d of informe.derivaEnv ?? []) {
     lineas.push(`aviso       env ${d.id} ${d.archivo}: ${d.motivo}`);

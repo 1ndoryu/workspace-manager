@@ -10,6 +10,7 @@ import { problemas } from './taller/consola.mjs';
 import { comandos, gate } from './proyecto/gate.mjs';
 import { cierre } from './proyecto/cierre.mjs';
 import { alta } from './proyecto/alta.mjs';
+import { artefactos } from './proyecto/artefactos.mjs';
 import { despachar as remoto, entradaRemotaDe } from './remoto.mjs';
 
 const AYUDA = `uso: dev <comando>
@@ -27,7 +28,8 @@ const AYUDA = `uso: dev <comando>
   gate <id> --inicio|--cierre                                 hallazgos nuevos de la tarea (F9)
   comandos <id> [--json]                                      contrato de comandos (F9)
   cierre <id> [--tarea <ID>]                                  puerta de cierre, solo lectura (F9)
-  alta <id|carpeta> [--aplicar] [--json]                  lista de alta; en seco salvo --aplicar (F10)`;
+  alta <id|carpeta> [--aplicar] [--json]                  lista de alta; en seco salvo --aplicar (F10)
+  artefactos [--json]                                         que un proyecto consume de otro (20AA-7)`;
 
 export async function main(argv) {
   const args = argv ?? process.argv.slice(2);
@@ -48,6 +50,7 @@ export async function main(argv) {
   if (cmd === 'comandos') return comandos(resto);
   if (cmd === 'cierre') return cierre(resto);
   if (cmd === 'alta') return alta(resto);
+  if (cmd === 'artefactos') return artefactos(resto);
   console.log(AYUDA);
   return cmd ? 1 : 0;
 }

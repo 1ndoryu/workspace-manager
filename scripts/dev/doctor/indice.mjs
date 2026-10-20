@@ -13,6 +13,7 @@ import { contextoEntrada, esperarProbe, lanzar, leerSnapshotServidor, oyenteDelP
 import { detectarDerivaEnv, duenoDePuerto } from './sistema/puertos.mjs';
 import { leerRegistro } from './ficha/registro.mjs';
 import { asegurarExe, detectarRust } from './sistema/rust.mjs';
+import { detectarArtefactos } from './sistema/artefactos.mjs';
 import { validarMotivo } from './ficha/validacion.mjs';
 
 /* F1 `up <id>`: ya-arriba (verifica, no reinicia) | arranca puertos libres
@@ -241,7 +242,11 @@ export async function main(argv) {
   }
   // [por que] derivaEnv es aviso: no entra en codigoSalida (el registro manda
   // sobre el .env, y un .env desfasado no debe tumbar el chequeo del tablero).
-  const informe = { version: 1, tomadoEn, snapshotEn, ttlMs: TTL_MS, errorSensor, compartidos: detectarCompartidos(registro), rust: detectarRust(registro), derivaEnv: detectarDerivaEnv(registro), ...clasif };
+  // [por que 20AA-7] artefactos es aviso como derivaEnv: que el .exe de
+  // MN-Escritorio no embeba el front nuevo no puede tumbar el chequeo del
+  // tablero. Es lo unico del informe que sale a la 89 (~2,7 s medidos), sobre un
+  // doctor que ya tarda ~23 s y que el servidor cachea 60 s.
+  const informe = { version: 1, tomadoEn, snapshotEn, ttlMs: TTL_MS, errorSensor, compartidos: detectarCompartidos(registro), rust: detectarRust(registro), artefactos: await detectarArtefactos(registro), derivaEnv: detectarDerivaEnv(registro), ...clasif };
 
   if (conAssert) {
     const fallos = [];

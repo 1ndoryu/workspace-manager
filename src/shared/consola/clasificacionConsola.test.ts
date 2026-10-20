@@ -13,7 +13,7 @@ import {
   type Entrada,
 } from './clasificacionConsola.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades, Proyecto } from '../types.js';
-import type { HuerfanoDev } from '../dev.js';
+import type { AvisoArtefacto, HuerfanoDev } from '../dev.js';
 import type { InformeDev } from '../dev.js';
 
 /* Proyecto minimo: solo los campos que lee la clasificacion. */
@@ -122,17 +122,20 @@ describe('huerfano: nombre del proceso', () => {
 
   it('sin exe, el nombre sale del cmd (proceso elevado)', () => {
     const p = problemaHuerfanosSinProyecto({ huerfanos: [huerfano({ cmd: '"C:\\Program Files\\PostgreSQL\\16\\bin\\postgres.exe" -D C:\\pgdata' })] } as unknown as InformeDev);
-    assert.match(p!.entradas[0].motivo, /sin proyecto: postgres\.exe \(pid 12528\) NO-VERIFICADO/);
+    assert.ok(p);
+    assert.match(p.entradas[0].motivo, /sin proyecto: postgres\.exe \(pid 12528\) NO-VERIFICADO/);
   });
 
   it('sin exe ni cmd se dice desconocido, no el pid dos veces', () => {
     const p = problemaHuerfanosSinProyecto({ huerfanos: [huerfano({})] } as unknown as InformeDev);
-    assert.match(p!.entradas[0].motivo, /sin proyecto: proceso desconocido \(pid 12528\)/);
+    assert.ok(p);
+    assert.match(p.entradas[0].motivo, /sin proyecto: proceso desconocido \(pid 12528\)/);
   });
 
   it('el exe manda sobre el cmd', () => {
     const p = problemaHuerfanosSinProyecto({ huerfanos: [huerfano({ exe: 'C:\\otro\\servicio.exe', cmd: 'algo.exe --x' })] } as unknown as InformeDev);
-    assert.match(p!.entradas[0].motivo, /sin proyecto: servicio\.exe/);
+    assert.ok(p);
+    assert.match(p.entradas[0].motivo, /sin proyecto: servicio\.exe/);
   });
 });
 
@@ -168,7 +171,8 @@ describe('pendiente: trabajo abierto del roadmap', () => {
 
   it('va despues de los defectos del mismo proyecto', () => {
     const p = problemasDe(repo({ roadmap: roadmap([{ id: 'X1', titulo: 'Uno' }]) , git: { dirty: true, cambios: { staged: 1, unstaged: 0, untracked: 0 }, worktreesOrfanos: [], remoto: 'origin', ahead: 0 } }));
-    assert.deepEqual(p!.entradas.map((e) => e.categoria), ['sinCommit', 'pendiente']);
+    assert.ok(p);
+    assert.deepEqual(p.entradas.map((e) => e.categoria), ['sinCommit', 'pendiente']);
   });
 
   it('sin tareas no inventa entradas', () => {
@@ -178,6 +182,34 @@ describe('pendiente: trabajo abierto del roadmap', () => {
 
   it('una carpeta sin git tambien declara sus pendientes', () => {
     const p = problemasDe(repo({ esGit: false, tipo: 'carpeta', roadmap: roadmap([{ id: 'X1', titulo: 'Uno' }]) }));
-    assert.deepEqual(p!.entradas.map((e) => e.categoria), ['sinGit', 'pendiente']);
+    assert.ok(p);
+    assert.deepEqual(p.entradas.map((e) => e.categoria), ['sinGit', 'pendiente']);
+  });
+});
+
+/* [por que 20AA-7] El aviso de artefactos llega por `InformeDev`, igual que los
+ * huerfanos; se atribuye al proyecto CONSUMIDOR (el que tiene que recompilar o
+ * copiar), no al que produce el artefacto. */
+describe('artefacto: lo que esta entrada consume de otro proyecto', () => {
+  const informe = (artefactos: InformeDev['artefactos']): InformeDev =>
+    ({ proyectos: [], huerfanos: [], errorSensor: null, artefactos }) as unknown as InformeDev;
+
+  const aviso = (proyecto: string, veredicto: AvisoArtefacto['veredicto']): AvisoArtefacto =>
+    ({ proyecto, consumido: 'MN-Inmobiliaria:frontend/dist', veredicto, detalle: 'producto 1 < consumido 2' });
+
+  it('un artefacto desactualizado del propio proyecto es advertencia, no error', () => {
+    const p = problemasDevDe(proyecto, informe([aviso('demo', 'desactualizado')]), null);
+    assert.ok(p);
+    assert.equal(p.entradas[0].categoria, 'dev');
+    assert.equal(p.entradas[0].seriedad, 'advertencia');
+    assert.match(p.entradas[0].motivo, /artefacto desactualizado: MN-Inmobiliaria:frontend\/dist/);
+  });
+
+  it('el artefacto de otro proyecto no se le atribuye', () => {
+    assert.equal(problemasDevDe(proyecto, informe([aviso('otro', 'desactualizado')]), null), null);
+  });
+
+  it('sin artefactos no cambia nada', () => {
+    assert.equal(problemasDevDe(proyecto, informe([]), null), null);
   });
 });

@@ -38,10 +38,25 @@ export interface InformeDev {
   compartidos?: { puerto: number; ids: string[] }[];
   // Higiene Rust (05AA-2): avisos solo-lectura del doctor, nunca errores.
   rust?: AvisoRust[];
+  // Artefactos entre proyectos (20AA-7): un proyecto que empotra el artefacto de
+  // compilacion de otro (`MN-Escritorio` <- `MN-Inmobiliaria/frontend/dist`).
+  // Mismo trato que rust: solo-lectura, nunca error; sale como degradado.
+  artefactos?: AvisoArtefacto[];
 }
 
 export interface AvisoRust {
   chequeo: 'tamano' | 'perfil' | 'cache' | 'colision';
   proyectos: string[];
+  detalle: string;
+}
+
+/* `al-dia` solo viaja con `todos` (el mando `artefactos`); en el informe del
+ * doctor es ruido. Los demas son los modos de olvidarse un paso:
+ * `desactualizado` = el producto no embebe lo consumido; `instalado-distinto` =
+ * se compilo pero no se copio; `sin-producto`/`sin-instalar` = falta un lado. */
+export interface AvisoArtefacto {
+  proyecto: string;
+  consumido: string;
+  veredicto: 'al-dia' | 'desactualizado' | 'sin-producto' | 'sin-instalar' | 'instalado-distinto' | 'sin-dato';
   detalle: string;
 }

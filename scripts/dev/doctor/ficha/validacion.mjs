@@ -5,6 +5,8 @@ import { isAbsolute, normalize, resolve, sep } from 'node:path';
 
 import { rutaConfigPrivada } from '../../../shared/rutas.mjs';
 
+import { validarConsumeArtefacto } from './consume-artefacto.mjs';
+
 import { EXES_PERMITIDOS, MOTIVOS_ENUM, PUERTOS_PROTEGIDOS, RAIZ_REPO, RE_OTRO, SCRIPTS_NODO_VALIDOS } from '../base.mjs';
 import { entradaEfectiva, puertoDeSaludValido, validarBloqueBuild } from '../sistema/puertos.mjs';
 
@@ -47,7 +49,7 @@ export function validarEntrada(e) {
     if (!e._avisoRegistro) e._avisoRegistro = motivo;
   };
   // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) {
       mal(`registro: clave desconocida '${k}' en '${e.id}'`);
@@ -349,6 +351,11 @@ export function validarEntrada(e) {
       }
     }
   }
+  // [por que 20AA-7] `consumeArtefacto` = esta entrada empotra el artefacto de
+  // compilacion de OTRO proyecto (MN-Escritorio <- MN-Inmobiliaria/frontend/dist).
+  // El sub-esquema vive en su modulo: aqui el archivo esta en el limite de 300
+  // lineas efectivas del gate.
+  if ('consumeArtefacto' in e && !validarConsumeArtefacto(e, mal)) return;
   if (typeof e.expectedCmdline !== 'string' && !Array.isArray(e.expectedCmdline)) {
     mal(`registro: '${e.id}' expectedCmdline vacio`);
     return;
