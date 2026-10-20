@@ -108,6 +108,16 @@ export function escanear({ raiz, modo = 'staged', reglas = [] }) {
   return hallazgos;
 }
 
+/* true si `raiz` es un repo git (con árbol de trabajo o desnudo, como un mirror). */
+export function esRepoGit(raiz) {
+  try {
+    execFileSync('git', ['-C', raiz, 'rev-parse', '--git-dir'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /* Historial: solo las líneas AÑADIDAS de cada commit. Un dato retirado después
  * sigue en el historial, por eso se mira todo el historial y no solo el árbol. */
 export function escanearHistorial({ raiz, reglas = [] }) {
@@ -141,6 +151,12 @@ if (esEntrada) {
   const iRaiz = process.argv.indexOf('--raiz');
   const raiz = iRaiz > -1 ? resolve(process.argv[iRaiz + 1]) : resolve(join(fileURLToPath(import.meta.url), '..', '..', '..', '..'));
   const modo = process.argv.includes('--todo') ? 'todo' : process.argv.includes('--historial') ? 'historial' : 'staged';
+  // [por que] Sin repo git (réplica de Mutagen en la 89) el historial no existe: se dice en claro, sin volcar la pila de git.
+  // rev-parse y no existsSync('.git'): un mirror desnudo no tiene carpeta .git y sí tiene historial.
+  if (modo === 'historial' && !esRepoGit(raiz)) {
+    console.error(`privacidad: ${raiz} no es un repo git; el historial se escanea con --raiz <clon o mirror>`);
+    process.exit(2);
+  }
   const reglas = reglasPrivadas(join(raiz, 'config', 'privacidad.local.json'));
   const hallazgos = modo === 'historial' ? escanearHistorial({ raiz, reglas }) : escanear({ raiz, modo, reglas });
   informar(hallazgos);
