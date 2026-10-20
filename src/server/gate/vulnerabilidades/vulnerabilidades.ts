@@ -42,6 +42,7 @@ import {
 } from './almacen.js';
 import type { LockDetectado } from './lockfiles.js';
 import { agregarAnalisis, sinDatos } from './audit/agregado.js';
+import { POLITICA_GESTOR } from './audit/politica.js';
 import { cliDeAudit, ejecutar } from './audit/ejecucion.js';
 import type { Corredor } from './audit/ejecucion.js';
 import type {
@@ -113,7 +114,7 @@ async function correrAudit(p: Proyecto, lock: LockDetectado, enLa89: boolean): P
     if (!crudo || typeof crudo !== 'object') throw new Error('respuesta invalida');
     let { resumen, hallazgos } = parsearAudit(lock.gestor, crudo);
     const noAlcanzables: HallazgoVulnerabilidad[] = [];
-    if (lock.gestor === 'cargo') {
+    if (POLITICA_GESTOR[lock.gestor].filtraAlcance) {
       const memo = new Map<string, boolean>();
       const alcanzan: HallazgoVulnerabilidad[] = [];
       for (const h of hallazgos) {
@@ -135,9 +136,9 @@ async function correrAudit(p: Proyecto, lock: LockDetectado, enLa89: boolean): P
   } catch (err) {
     /* [por que] cargo-audit ausente produce stdout vacio o no-JSON. Se marca
      * 'noAuditable' (visible sin problema) como limitacion documentada. */
-    if (lock.gestor === 'cargo') {
+    if (POLITICA_GESTOR[lock.gestor].ausenciaEsNoAuditable) {
       const donde = remoto ? 'en la 89' : 'en local';
-      return sinDatos(base, 'noAuditable', `cargo-audit no disponible ${donde} (no instalado o sin salida)`);
+      return sinDatos(base, 'noAuditable', `${lock.gestor}-audit no disponible ${donde} (no instalado o sin salida)`);
     }
     const msg = stdout.trim() === '' ? 'sin salida del CLI' : err instanceof Error ? err.message : 'audit fallo';
     return sinDatos(base, 'error', `audit fallo: ${msg.slice(0, 120)}`);
