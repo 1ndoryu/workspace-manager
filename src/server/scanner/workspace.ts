@@ -2,7 +2,7 @@
  * en la raiz del area de trabajo, con recursividad controlada.
  * [por que] Un worktree tiene el .git como ARCHIVO (no carpeta) y hay carpetas que
  * solo agrupan: dentro puede haber un repo de verdad -> se baja un nivel. */
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join, normalize, relative, sep } from 'node:path';
 import { detectarGit, estadoGitAsync } from './git.js';
 import { estadoGate, diagnosticarGate } from './gate.js';
@@ -93,7 +93,16 @@ function repoDe(ruta: string, id: string, info: InfoGit): RepoPendiente {
   return { ruta, id, tipo: info.esWorktree ? 'worktree' : 'repo', padre: info.padre };
 }
 
-/* Separa lo que hay en la raíz en repos (a leer con git) y carpetas que solo se listan.
+/* Señales de que una carpeta sin git es un proyecto nuestro: su manifiesto de stack o su roadmap.
+ * [por que] Antes toda carpeta no ignorada era proyecto: scripts/, data/ o respaldos/ salían en el
+ * tablero como si lo fueran. La regla se invierte (308A-8): sin git, cuenta solo lo que trae un proyecto. */
+const SENALES_PROYECTO = ['roadmap.md', 'Agente', 'package.json', 'Cargo.toml', 'pyproject.toml', 'go.mod'];
+
+export function esProyectoSinGit(ruta: string): boolean {
+  return SENALES_PROYECTO.some((s) => existsSync(join(ruta, s)));
+}
+
+/* Separa lo que hay en la raíz en repos (a leer con git) y carpetas de proyecto sin git.
  * [por que] Es el único paso que recorre el disco sin git: aislado, se prueba con un
  * directorio temporal sin repos reales. Las de `recursivas` se bajan un nivel. */
 export function descubrir(raiz: string, ignoradas: Set<string>, recursivas: Set<string>): Descubierto {
@@ -113,11 +122,11 @@ export function descubrir(raiz: string, ignoradas: Set<string>, recursivas: Set<
         const infoInterno = detectarGit(rutaInterna);
         if (infoInterno.esRepo) {
           repos.push(repoDe(rutaInterna, interno, infoInterno));
-        } else {
+        } else if (esProyectoSinGit(rutaInterna)) {
           carpetas.push({ id: interno, clave: claveDe(rutaInterna, raiz), ruta: rutaInterna, esGit: false, tipo: 'carpeta', padre: nombre });
         }
       }
-    } else {
+    } else if (esProyectoSinGit(ruta)) {
       carpetas.push({ id: nombre, clave: claveDe(ruta, raiz), ruta, esGit: false, tipo: 'carpeta' });
     }
   }

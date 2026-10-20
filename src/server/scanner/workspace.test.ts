@@ -1,6 +1,6 @@
-/* Pruebas del descubrimiento del workspace: ignorados, carpetas que solo agrupan y
- * carpetas sin git. [por que] Usa un directorio temporal sin repos: así no depende de
- * git ni de la máquina, y corre igual en la VPS 89 (AGENTS §8). */
+/* Pruebas del descubrimiento del workspace: ignorados, carpetas que solo agrupan, carpetas sin
+ * git y la señal que las hace proyecto. [por que] Usa un directorio temporal sin repos: así no
+ * depende de git ni de la máquina, y corre igual en la VPS 89 (AGENTS §8). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -8,28 +8,34 @@ import { join } from 'node:path';
 import { descubrir } from './workspace.js';
 import { raizTemporales } from '../plataforma/temporales.js';
 
+/* Área con: `a` y `hijo1` con manifiesto (proyectos), `grupo` que solo agrupa, `suelta` y
+ * `scripts` sin señal (no son proyectos), `ign` ignorada y un fichero suelto. */
 function area(): string {
   const raiz = mkdtempSync(join(raizTemporales(), 'wm-descubrir-'));
   mkdirSync(join(raiz, 'a'));
+  writeFileSync(join(raiz, 'a', 'package.json'), '{}');
   mkdirSync(join(raiz, 'ign'));
+  mkdirSync(join(raiz, 'suelta'));
+  mkdirSync(join(raiz, 'scripts'));
   mkdirSync(join(raiz, 'grupo', 'hijo1'), { recursive: true });
+  writeFileSync(join(raiz, 'grupo', 'hijo1', 'Cargo.toml'), '');
   mkdirSync(join(raiz, 'grupo', 'ign'));
   writeFileSync(join(raiz, 'archivo.txt'), '');
   return raiz;
 }
 
-test('descubre carpetas, omite ignoradas y ficheros', () => {
+test('una carpeta sin git es proyecto solo con señal; ignoradas y ficheros quedan fuera', () => {
   const raiz = area();
   try {
     const { carpetas, repos } = descubrir(raiz, new Set(['ign']), new Set());
-    assert.deepEqual(carpetas.map((c) => c.id).sort(), ['a', 'grupo']);
+    assert.deepEqual(carpetas.map((c) => c.id).sort(), ['a']);
     assert.deepEqual(repos, []);
   } finally {
     rmSync(raiz, { recursive: true, force: true });
   }
 });
 
-test('una carpeta recursiva se baja un nivel y deja los hijos con su padre', () => {
+test('una carpeta recursiva se baja un nivel y deja los hijos con señal con su padre', () => {
   const raiz = area();
   try {
     const { carpetas } = descubrir(raiz, new Set(['ign']), new Set(['grupo']));
