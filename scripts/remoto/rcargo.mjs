@@ -133,6 +133,28 @@ export function argsCrearSesion(config, proyecto, rutaLocal) {
   ];
 }
 
+/* Patrones que ignora una sesión viva, de `mutagen sync list --template '{{json .}}'`.
+ * `null` si la salida no es legible: un fallo de lectura no autoriza a recrear nada. */
+export function ignoresDeSesion(salida) {
+  let sesiones;
+  try {
+    sesiones = JSON.parse(salida ?? '');
+  } catch {
+    return null;
+  }
+  const sesion = Array.isArray(sesiones) ? sesiones[0] : null;
+  const rutas = sesion?.ignore?.paths;
+  return Array.isArray(rutas) ? rutas : null;
+}
+
+/* ¿La sesión ignora exactamente lo que declara `sync.ignorar`? Se compara como conjunto: Mutagen
+ * no promete conservar el orden de los `--ignore`. */
+export function ignoresAlDia(esperados, vivos) {
+  if (!Array.isArray(esperados) || !Array.isArray(vivos) || esperados.length !== vivos.length) return false;
+  const conjunto = new Set(vivos);
+  return esperados.every((p) => conjunto.has(p));
+}
+
 // Base de datos por rama, como scripts/branch-db.mjs: {paquete}_{rama}; main/master usan {paquete}.
 // [14AA-1] Solo la necesitan los subcomandos de taller.json `bd.subcomandos`. La 89 no tiene .git
 // (Mutagen no lo sincroniza), por eso el nombre se calcula aquí y no con branch-db.mjs.
@@ -203,6 +225,24 @@ export function construirComandoRemoto(config, rutas, args, nombreBd = null, pre
   return ['bash', '-lc', shQuote(interno)];
 }
 
+/* La misma orden que `construirComandoRemoto`, sin ssh: se ejecuta donde ya estamos (la 89).
+ * `cwd` sustituye a `rutas.dirRemoto` porque en la 89 el árbol de trabajo ES la réplica. */
+export function comandoLocal(config, rutas, cwd, args, nombreBd = null, preparar = null, extra = []) {
+  const argsCargo = argsConTargetXwin(args);
+  const entorno = [
+    SIN_RUSTC_WRAPPER,
+    ...(nombreBd ? [`DATABASE_URL=${shQuote(urlBaseRemota(config.bd, nombreBd))}`] : []),
+    `CARGO_TARGET_DIR=${shQuote(rutas.target)}`,
+    ...extra,
+  ].join(' ');
+  return [
+    `cd ${shQuote(cwd)}`,
+    ...(nombreBd ? [comandoBaseRemota(config.bd, nombreBd)] : []),
+    ...(nombreBd && preparar ? [comandoPrepararRama(config.bd, nombreBd, preparar.base, preparar.semilla)] : []),
+    `${entorno} ${config.lockWrapper} cargo ${argsCargo.map(shQuote).join(' ')}`,
+  ].join(' && ');
+}
+
 // [por que] Sin ControlMaster/ControlPersist: el OpenSSH de Windows no abre el maestro
 // ("Failed to connect to new control master", 2026-10-14). Cada comando abre su conexion.
 export function argsSsh(config, comandoRemoto) {
@@ -256,22 +296,42 @@ function correr(cmd, args, { dryRun, cwd, heredar = false, silencioso = false })
 }
 
 // La base se deriva de la raíz del repo, igual que el directorio remoto (dirRemoto).
+// [19AA-3] Un crate en subcarpeta (glory-pulse: `pulse/Cargo.toml`) no tiene Cargo.toml en la raíz:
+// devolver null deja que `basedatos` de la ficha mande, y sin ninguna de las dos el proyecto se
+// trata como «sin BD» en vez de morir con ENOENT (así el gate de glory-pulse no podía correr).
 function leerCargoToml(cwd) {
   const raiz = git(cwd, ['rev-parse', '--show-toplevel']) ?? cwd;
-  return readFileSync(path.join(raiz, 'Cargo.toml'), 'utf8');
+  const ruta = path.join(raiz, 'Cargo.toml');
+  return existsSync(ruta) ? readFileSync(ruta, 'utf8') : null;
 }
 
 // Deja la réplica lista: crea el directorio y la sesión si faltan, y fuerza el envío pendiente.
 // Código 0 si el árbol de la VPS coincide con el laptop; 2 si no se pudo ejecutar mutagen; 1 en otro fallo.
 // [por que] `up` escribía .env en un directorio que aún no existía y no esperaba el envío inicial: npm ci y precompilar podían leer un árbol a medias.
-export function asegurarSesion({ config, proyecto, rutaLocal, rutas, dryRun = false, cwd = rutaLocal }) {
+// [10AA-3] Una sesión viva NO se entera de que `sync.ignorar` creció: esta versión de Mutagen no tiene
+// `sync configure` (solo create/list/monitor/flush/pause/resume/reset/terminate), así que la única vía es
+// recrearla. Sin esto, una sesión creada antes de añadir un patrón sigue enviando a la 89 lo que la 89
+// misma genera (`.quality-tools`, `out`, `dist-server`): la 89 provisiona la herramienta y el portátil le
+// pisa el resultado con su copia vieja segundos después. Se recrea solo si la lista difiere de verdad.
+// `rutas` es opcional: el gate solo necesita la réplica, no el directorio de build por rama.
+export function asegurarSesion({ config, proyecto, rutaLocal, rutas = null, dryRun = false, cwd = rutaLocal }) {
   const mutagen = config.sync?.binario || 'mutagen';
   const sesion = nombreSesion(proyecto);
   // [14AA-1] `sync list` sale con 1 si no existe la sesión (stderr); ese 1 no es un fallo, es la señal de crearla.
   const lista = correr(mutagen, ['sync', 'list', sesion], { dryRun, cwd, silencioso: true });
   if (lista.status === 2) return 2;
-  if (dryRun || lista.status !== 0) {
-    if (correr(BIN_SSH, argsSsh(config, ['mkdir', '-p', rutas.dirRemoto, rutas.target]), { dryRun, cwd }).status !== 0) return 1;
+  const vivos = lista.status === 0
+    ? ignoresDeSesion(correr(mutagen, ['sync', 'list', '--template', '{{json .}}', sesion], { dryRun, cwd, silencioso: true }).stdout)
+    : null;
+  const desalineada = vivos !== null && !ignoresAlDia(config.sync?.ignorar ?? [], vivos);
+  if (desalineada) {
+    process.stdout.write(`rcargo: la sesión ${sesion} ignora otros patrones que sync.ignorar; se recrea\n`);
+    if (correr(mutagen, ['sync', 'terminate', sesion], { dryRun, cwd, silencioso: true }).status !== 0) return 1;
+  }
+  if (dryRun || lista.status !== 0 || desalineada) {
+    const dirRemoto = rutas?.dirRemoto ?? `${config.dirRemotoBase}/${proyecto}`;
+    const mkdir = rutas?.target ? ['mkdir', '-p', dirRemoto, rutas.target] : ['mkdir', '-p', dirRemoto];
+    if (correr(BIN_SSH, argsSsh(config, mkdir), { dryRun, cwd }).status !== 0) return 1;
     if (correr(mutagen, argsCrearSesion(config, proyecto, rutaLocal), { dryRun, cwd }).status !== 0) return 1;
   }
   return correr(mutagen, ['sync', 'flush', sesion], { dryRun, cwd }).status === 0 ? 0 : 1;
@@ -300,10 +360,13 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun, extr
     try {
       const basedatos = config.proyectos?.[proyecto]?.basedatos;
       const cargoToml = leerCargoToml(cwd);
-      nombreBd = nombreBaseDatos(cargoToml, rama, basedatos);
-      const base = nombreBaseDatos(cargoToml, 'main', basedatos);
-      // [16AA-9 F3] Solo la base de rama: la base de trabajo la mantiene `Arranque up`.
-      if (nombreBd !== base) preparar = { base, semilla: config.proyectos?.[proyecto]?.bdRama?.semilla ?? null };
+      // Sin manifiesto en la raíz ni `basedatos` en la ficha: proyecto sin BD, etapa omitida.
+      if (cargoToml || basedatos) {
+        nombreBd = nombreBaseDatos(cargoToml, rama, basedatos);
+        const base = nombreBaseDatos(cargoToml, 'main', basedatos);
+        // [16AA-9 F3] Solo la base de rama: la base de trabajo la mantiene `Arranque up`.
+        if (nombreBd !== base) preparar = { base, semilla: config.proyectos?.[proyecto]?.bdRama?.semilla ?? null };
+      }
     } catch (e) {
       console.error(`rcargo: ${e.message}`);
       return 2;
@@ -322,6 +385,12 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun, extr
     const sync = asegurarSesion({ config, proyecto, rutaLocal: cwd, rutas, dryRun, cwd });
     if (sync !== 0) return sync;
   }
+
+  /* [10AA-3] Ya estamos en la 89: aquí `cwd` ES la réplica, así que no hay nada que sincronizar
+   * ni a dónde hacer ssh. Antes se lanzaba el `ssh dev89` igual, y desde la propia 89 ese nombre no
+   * resuelve: el gate de calidad fallaba en su etapa de Rust («Could not resolve hostname dev89»)
+   * y el error parecía del código del proyecto. El candado de carga pesada se mantiene. */
+  if (esVps()) return correr('bash', ['-lc', comandoLocal(config, rutas, cwd, args, nombreBd, preparar, extra)], { dryRun, cwd, heredar: true }).status;
 
   const remoto = construirComandoRemoto(config, rutas, args, nombreBd, preparar, extra);
   return correr(BIN_SSH, argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;

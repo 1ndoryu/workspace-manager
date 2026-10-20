@@ -11,6 +11,9 @@ import {
   rutasRemotas,
   argsCrearSesion,
   asegurarSesion,
+  comandoLocal,
+  ignoresDeSesion,
+  ignoresAlDia,
   construirComandoRemoto,
   cargarConfig,
   nombreBaseDatos,
@@ -124,6 +127,25 @@ test('sesión Mutagen: réplica unidireccional con exclusiones', () => {
   assert.equal(args.at(-1), `${config.host}:${config.dirRemotoBase}/sistema-legado`);
 });
 
+/* [10AA-3] La sesión viva no se actualiza sola cuando `sync.ignorar` crece (esta versión de Mutagen
+ * no tiene `sync configure`), así que hay que poder leer sus patrones y decidir si recrearla. */
+test('ignoresDeSesion lee los patrones de la sesión y calla si no entiende la salida', () => {
+  const salida = JSON.stringify([{ name: 'taller-X', ignore: { paths: ['.git', '.quality-tools'] } }]);
+  assert.deepEqual(ignoresDeSesion(salida), ['.git', '.quality-tools']);
+  assert.equal(ignoresDeSesion(''), null);
+  assert.equal(ignoresDeSesion('no es json'), null);
+  assert.equal(ignoresDeSesion(JSON.stringify([])), null);
+  assert.equal(ignoresDeSesion(JSON.stringify([{ name: 'X' }])), null);
+});
+
+test('ignoresAlDia compara como conjunto y detecta el patrón que falta', () => {
+  assert.equal(ignoresAlDia(['.git', 'out'], ['out', '.git']), true);
+  assert.equal(ignoresAlDia(['.git', 'out'], ['.git']), false);
+  assert.equal(ignoresAlDia(['.git'], ['.git', 'out']), false);
+  assert.equal(ignoresAlDia(['.git'], null), false);
+  assert.equal(ignoresAlDia(null, ['a']), false);
+});
+
 // [por que] Orden de la sincronización: el directorio existe antes de crear la sesión, y el envío se fuerza al final.
 test('sincronización: directorio antes que la sesión; envío forzado al final', () => {
   const lineas = [];
@@ -141,6 +163,24 @@ test('sincronización: directorio antes que la sesión; envío forzado al final'
   const flush = idx(/sync flush/);
   assert.equal(codigo, 0);
   assert.ok(mkdir >= 0 && crea > mkdir && flush > crea, lineas.join('\n'));
+});
+
+/* [10AA-3] Dentro de la 89 no hay a dónde hacer ssh: el árbol de trabajo ya es la réplica. Sin esta
+ * rama, la etapa de Rust del gate moría con «Could not resolve hostname dev89» desde la propia 89. */
+test('comando local: sin ssh, cd al árbol de trabajo y el candado de carga pesada intacto', () => {
+  const rutas = rutasRemotas(config, 'P', 'main');
+  const orden = comandoLocal(config, rutas, '/srv/taller/P', ['check']);
+  assert.doesNotMatch(orden, /\bssh\b/);
+  assert.match(orden, /cd '\/home\/dev\/taller\/P'/);
+  assert.match(orden, new RegExp(`CARGO_TARGET_DIR='${rutas.target}'`));
+  assert.match(orden, new RegExp(`${config.lockWrapper} cargo 'check'`));
+});
+
+test('comando local: la base de rama se prepara antes de cargo, igual que en remoto', () => {
+  const rutas = rutasRemotas(config, 'P', 'feature/x');
+  const orden = comandoLocal(config, rutas, '/srv/taller/P', ['test'], 'pkg_feature-x', { base: 'pkg', semilla: null });
+  assert.match(orden, /DATABASE_URL=/);
+  assert.ok(orden.indexOf('CREATE DATABASE') < orden.indexOf("cargo 'test'"), orden);
 });
 
 test('comando remoto: cargo detrás de cm-heavy y con target propio', () => {
