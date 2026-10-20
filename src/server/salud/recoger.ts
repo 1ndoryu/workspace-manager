@@ -4,8 +4,7 @@
  * [por que] La medición de C:\tmp es asíncrona y con presupuesto de tiempo: recorrer
  * targets de cargo de varios GB de forma síncrona bloquearía el servidor. */
 import { existsSync, readdirSync, statSync, statfsSync } from 'node:fs';
-import { readdir, stat } from 'node:fs/promises';
-import { basename, join, parse } from 'node:path';
+import { join, parse } from 'node:path';
 import type { Proyecto } from '../../shared/types.js';
 import { leerArchivo } from '../http.js';
 import { leerSentinelLock } from '../scanner/gate.js';
@@ -15,6 +14,10 @@ import { diferenciasPlantilla, leerPolitica } from '../guardian/configuracion/po
 import type { LecturaPlantilla } from '../guardian/configuracion/plantilla.js';
 import type { DatosArea, DatosProyecto, EstadoGuard, PlanActivo, RamaSuelta } from './tipos.js';
 import type { Entorno } from './entorno.js';
+import { medirTmp } from './recoger-tmp.js';
+import { copiasSkill, skillArranque } from './recoger-skill.js';
+import { abiertasDelPlan, encabezados } from './recoger-puro.js';
+export { abiertasDelPlan } from './recoger-puro.js';
 
 const GB = 1024 ** 3;
 /* [por que] Presupuesto de la medición de C:\tmp: `du` tarda minutos; el tablero no
@@ -125,15 +128,6 @@ function planesActivos(ruta: string, declarados: string[]): PlanActivo[] {
     }));
 }
 
-/* Trabajo abierto de un plan: sus casillas sin marcar (`- [ ]`, `* [ ]`) y, si el roadmap lo
- * declara en «Planes activos», al menos una más. [por que] El roadmap solo lista trabajo
- * abierto (D8): un plan declarado sigue activo aunque use pasos numerados (F4.1, F4.2) en vez
- * de casillas. Contarlo como cerrado daba un «ciérralo» falso. */
-export function abiertasDelPlan(texto: string, declarados: string[], archivo: string): number {
-  const casillas = texto.match(/^\s*[-*]\s\[ \]/gm)?.length ?? 0;
-  return casillas + (declarados.includes(archivo) ? 1 : 0);
-}
-
 /* Enlaces .md de roadmap.md que apuntan a ficheros inexistentes. */
 function enlacesRotos(ruta: string, texto: string): string[] {
   const rotos = new Set<string>();
@@ -200,14 +194,6 @@ export async function recogerProyectos(
   }));
 }
 
-function encabezados(texto: string | null): string[] {
-  if (texto === null) return [];
-  return texto
-    .split('\n')
-    .map((l) => l.match(/^#{1,2}\s+(.+?)\s*$/)?.[1])
-    .filter((t): t is string => t !== undefined);
-}
-
 function discoLibreGb(raizArea: string): number | null {
   try {
     /* [por que] La unidad se DERIVA de la raiz del area, no se escribe a mano:
@@ -221,61 +207,6 @@ function discoLibreGb(raizArea: string): number | null {
   }
 }
 
-/* Directorios que se listan y ficheros que se miden a la vez. [por que] Medido en
- * C:\tmp (16.754 ficheros, 2.167 directorios): con `stat` en serie 20,3 s; en lotes
- * de 8, 2,7 s con el mismo total. Lote acotado para no abrir miles de descriptores. */
-const LOTE_TMP = 8;
-/* [por que] El tamaño de temporales cambia despacio y su recuento cuesta ~3 s en E/S:
- * la salud de área se recalcula cada 60 s, así que se reusa el dato 10 min. */
-const TTL_TMP_MS = 10 * 60_000;
-let cacheTmp: { raiz: string; en: number; valor: { bytes: number; parcial: boolean } | null } | null = null;
-
-/* Suma de C:\tmp con presupuesto de tiempo. Asíncrona para no bloquear el servidor.
- * [por que] Si no existe, null (la comprobación se omite); si se corta, parcial. */
-async function medirTmp(raiz: string, presupuestoMs: number): Promise<{ bytes: number; parcial: boolean } | null> {
-  if (cacheTmp && cacheTmp.raiz === raiz && Date.now() - cacheTmp.en < TTL_TMP_MS) return cacheTmp.valor;
-  const valor = await recontarTmp(raiz, presupuestoMs);
-  /* [por que] Un recuento cortado por presupuesto no se reusa: sería un dato a medias durante 10 min. */
-  if (!valor?.parcial) cacheTmp = { raiz, en: Date.now(), valor };
-  return valor;
-}
-
-async function recontarTmp(raiz: string, presupuestoMs: number): Promise<{ bytes: number; parcial: boolean } | null> {
-  try {
-    await stat(raiz);
-  } catch {
-    return null;
-  }
-  const fin = Date.now() + presupuestoMs;
-  let bytes = 0;
-  let parcial = false;
-  const pendientes = [raiz];
-  while (pendientes.length > 0) {
-    if (Date.now() > fin) {
-      parcial = true;
-      break;
-    }
-    const dirs = pendientes.splice(0, LOTE_TMP);
-    const listados = await Promise.all(dirs.map((d) => readdir(d, { withFileTypes: true }).catch(() => null)));
-    const ficheros: string[] = [];
-    listados.forEach((entradas, i) => {
-      for (const e of entradas ?? []) {
-        const ruta = join(dirs[i], e.name);
-        if (e.isDirectory()) pendientes.push(ruta);
-        else if (e.isFile()) ficheros.push(ruta);
-      }
-    });
-    for (let i = 0; i < ficheros.length; i += LOTE_TMP) {
-      const tamanos = await Promise.all(
-        ficheros.slice(i, i + LOTE_TMP).map((f) => stat(f).then((s) => s.size, () => 0)),
-      );
-      /* fichero desaparecido durante el recorrido: cuenta 0 */
-      for (const t of tamanos) bytes += t;
-    }
-  }
-  return { bytes, parcial };
-}
-
 /* El mando declara sus subcomandos en el bloque AYUDA de dev.mjs.
  * [por que] Igual que leerPinArea: el mando es de este repo, asi que su script
  * se pide desde la raíz del repo y no como `<area>/workspace-manager/...`. */
@@ -285,37 +216,6 @@ function subcomandosArranque(entorno: Entorno): string[] {
   );
   if (!bloque) return [];
   return [...bloque[1].matchAll(/^ {2}(\w+)/gm)].map((m) => m[1]);
-}
-
-/* leerArchivo devuelve null si no existe; '' (vacío) también cuenta como ausente.
- * [por que] La carpeta sale de CARPETA_SKILLS (su unico dueno, con WS_SKILLS_ROOT)
- * y el nombre de la skill se deriva del del repo: antes se escribia a mano
- * `~/.agents/skills/workspace-manager/SKILL.md`, que en un clon con otro nombre
- * de carpeta no encontraba nada. */
-function skillArranque(entorno: Entorno): string | null {
-  return leerArchivo(join(entorno.carpetaSkills, basename(entorno.raizRepo), 'SKILL.md')) || null;
-}
-
-/* AGENTS §10 pide que las copias en ~/.config/opencode/skills coincidan con
- * ~/.agents/skills: solo se comparan las skills que existen en el origen. */
-function copiasSkill(entorno: Entorno): { nombre: string; coincide: boolean }[] {
-  const origen = join(entorno.homedir, '.agents', 'skills');
-  const copias = join(entorno.homedir, '.config', 'opencode', 'skills');
-  let nombres: string[];
-  try {
-    nombres = readdirSync(copias, { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .map((d) => d.name);
-  } catch {
-    return [];
-  }
-  return nombres
-    .filter((nombre) => existsSync(join(origen, nombre, 'SKILL.md')))
-    .map((nombre) => ({
-      nombre,
-      coincide:
-        leerArchivo(join(origen, nombre, 'SKILL.md')) === leerArchivo(join(copias, nombre, 'SKILL.md')),
-    }));
 }
 
 export async function recogerArea(
