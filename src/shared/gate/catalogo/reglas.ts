@@ -1,12 +1,13 @@
 /* Catalogo COMPLETO de reglas de sentinel (indice `rules`).
  * [por que] El esquema canónico no lista reglas por nombre: las reglas viven en
  * el runtime (`out/config/ruleRegistry.js`). Contaba solo con 14 ids estaticos,
- * pero contra la version fijada (0.7.4) el registro expone 105 reglas reales con
- * nombre, categoria y severidad por defecto. Extraje las 105 (datos estaticos,
- * para que el app no dependa de que el runtime este instalado) para poder
- * ofrecerlas TODAS en el editor, organizadas en tabs por categoria, sin
- * depender de lo que haya escrito el agente. Vive en shared/gate (no v2/schemas)
- * para que tambien lo use el server al diagnosticar la config. */
+ * pero la version fijada (0.7.26) expone 125 reglas. Este catalogo lista 105 con
+ * nombre, categoria y severidad por defecto (datos estaticos, para que la app no
+ * dependa de que el runtime este instalado). Los `habilitada` reflejan el runtime
+ * fijado: 35 nacen desactivadas. [por que] Antes estaban todas en true, y el
+ * editor mostraba como activas reglas que el analisis no aplica.
+ * Vive en shared/gate (no v2/schemas) para que tambien lo use el server al
+ * diagnosticar la config. */
 
 /* Severidad permitida por regla (ruleRegistry). */
 export const SEVERIDADES = ['error', 'warning', 'information', 'hint'] as const;
@@ -17,8 +18,9 @@ export interface ReglaCatalogo {
   nombre: string;
   categoria: string;
   severidad: SeveridadRegla;
-  /* Estado por defecto real del runtime: pocas reglas (2/105) nacen
-   * desactivadas (nomenclatura-css-ingles, default-export). */
+  /* Estado por defecto del runtime fijado (0.7.26, habilitadaDefault). Reglas de
+   * dominio PHP/Glory/API y las de catch/temp/lock nacen desactivadas: se activan
+   * por proyecto en `analyzers.sentinel.config.rules.<id>`. */
   habilitada: boolean;
 }
 
@@ -41,7 +43,7 @@ export const REGLAS: ReglaCatalogo[] = [
   { id: 'button-clase-especifica', habilitada: true, nombre: 'Clase específica en botón', categoria: 'react-patrones', severidad: 'warning' },
   { id: 'cola-sin-limite', habilitada: true, nombre: 'push() a cola sin limite', categoria: 'react-patrones', severidad: 'warning' },
   { id: 'componente-artesanal', habilitada: true, nombre: 'Componente artesanal detectado', categoria: 'react-patrones', severidad: 'warning' },
-  { id: 'componente-sin-hook-glory', habilitada: true, nombre: 'Componente sin hook dedicado', categoria: 'react-patrones', severidad: 'warning' },
+  { id: 'componente-sin-hook-glory', habilitada: false, nombre: 'Componente sin hook dedicado', categoria: 'react-patrones', severidad: 'warning' },
   { id: 'dom-access-outside-platform', habilitada: true, nombre: 'DOM fuera de plataforma', categoria: 'react-patrones', severidad: 'warning' },
   { id: 'error-enmascarado', habilitada: true, nombre: 'Error enmascarado como exito', categoria: 'react-patrones', severidad: 'error' },
   { id: 'fallo-sin-feedback', habilitada: true, nombre: 'Catch sin feedback al usuario', categoria: 'react-patrones', severidad: 'warning' },
@@ -67,23 +69,23 @@ export const REGLAS: ReglaCatalogo[] = [
   { id: 'window-reference-outside-platform', habilitada: true, nombre: 'Window fuera de plataforma', categoria: 'react-patrones', severidad: 'warning' },
   { id: 'zustand-objeto-selector', habilitada: true, nombre: 'Zustand selector crea ref nueva', categoria: 'react-patrones', severidad: 'warning' },
   { id: 'zustand-sin-selector', habilitada: true, nombre: 'Zustand sin selector', categoria: 'react-patrones', severidad: 'warning' },
-  { id: 'api-call-outside-service', habilitada: true, nombre: 'API fuera de servicio', categoria: 'glory-schema', severidad: 'warning' },
-  { id: 'api-response-mismatch', habilitada: true, nombre: 'Mismatch clave API PHP vs TS', categoria: 'glory-schema', severidad: 'error' },
-  { id: 'api-shape-mismatch', habilitada: true, nombre: 'Shape mismatch array PHP vs TS', categoria: 'glory-schema', severidad: 'error' },
-  { id: 'endpoint-accede-bd', habilitada: true, nombre: 'Controller accede a BD', categoria: 'glory-schema', severidad: 'warning' },
-  { id: 'glory-contenido-clave-incorrecta', habilitada: true, nombre: "'content' en vez de 'contenido'", categoria: 'glory-schema', severidad: 'warning' },
-  { id: 'glory-galeria-clave-incorrecta', habilitada: true, nombre: "'galeria'/'gallery' en vez de 'galeriaAssets'", categoria: 'glory-schema', severidad: 'warning' },
-  { id: 'glory-imagen-clave-incorrecta', habilitada: true, nombre: "'imagen' en vez de 'imagenDestacadaAsset'", categoria: 'glory-schema', severidad: 'warning' },
-  { id: 'glory-meta-clave-incorrecta', habilitada: true, nombre: "'meta' en vez de 'metaEntrada'", categoria: 'glory-schema', severidad: 'error' },
-  { id: 'glory-slug-clave-incorrecta', habilitada: true, nombre: "'slug' en vez de 'slugDefault'", categoria: 'glory-schema', severidad: 'error' },
-  { id: 'glory-titulo-clave-incorrecta', habilitada: true, nombre: "'title'/'name' en vez de 'titulo'", categoria: 'glory-schema', severidad: 'error' },
-  { id: 'hardcoded-enum-value', habilitada: true, nombre: 'Valor enum hardcodeado', categoria: 'glory-schema', severidad: 'warning' },
-  { id: 'hardcoded-sql-column', habilitada: true, nombre: 'Columna SQL hardcodeada', categoria: 'glory-schema', severidad: 'warning' },
-  { id: 'interval-sin-whitelist', habilitada: true, nombre: 'INTERVAL sin whitelist', categoria: 'glory-schema', severidad: 'error' },
-  { id: 'isla-no-registrada', habilitada: true, nombre: 'Isla no registrada', categoria: 'glory-schema', severidad: 'warning' },
-  { id: 'open-redirect', habilitada: true, nombre: 'Redireccion insegura', categoria: 'glory-schema', severidad: 'error' },
-  { id: 'return-void-critico', habilitada: true, nombre: 'Escritura retorna void', categoria: 'glory-schema', severidad: 'warning' },
-  { id: 'undefined-class-constant', habilitada: true, nombre: 'Constante de clase indefinida', categoria: 'glory-schema', severidad: 'error' },
+  { id: 'api-call-outside-service', habilitada: false, nombre: 'API fuera de servicio', categoria: 'glory-schema', severidad: 'warning' },
+  { id: 'api-response-mismatch', habilitada: false, nombre: 'Mismatch clave API PHP vs TS', categoria: 'glory-schema', severidad: 'error' },
+  { id: 'api-shape-mismatch', habilitada: false, nombre: 'Shape mismatch array PHP vs TS', categoria: 'glory-schema', severidad: 'error' },
+  { id: 'endpoint-accede-bd', habilitada: false, nombre: 'Controller accede a BD', categoria: 'glory-schema', severidad: 'warning' },
+  { id: 'glory-contenido-clave-incorrecta', habilitada: false, nombre: "'content' en vez de 'contenido'", categoria: 'glory-schema', severidad: 'warning' },
+  { id: 'glory-galeria-clave-incorrecta', habilitada: false, nombre: "'galeria'/'gallery' en vez de 'galeriaAssets'", categoria: 'glory-schema', severidad: 'warning' },
+  { id: 'glory-imagen-clave-incorrecta', habilitada: false, nombre: "'imagen' en vez de 'imagenDestacadaAsset'", categoria: 'glory-schema', severidad: 'warning' },
+  { id: 'glory-meta-clave-incorrecta', habilitada: false, nombre: "'meta' en vez de 'metaEntrada'", categoria: 'glory-schema', severidad: 'error' },
+  { id: 'glory-slug-clave-incorrecta', habilitada: false, nombre: "'slug' en vez de 'slugDefault'", categoria: 'glory-schema', severidad: 'error' },
+  { id: 'glory-titulo-clave-incorrecta', habilitada: false, nombre: "'title'/'name' en vez de 'titulo'", categoria: 'glory-schema', severidad: 'error' },
+  { id: 'hardcoded-enum-value', habilitada: false, nombre: 'Valor enum hardcodeado', categoria: 'glory-schema', severidad: 'warning' },
+  { id: 'hardcoded-sql-column', habilitada: false, nombre: 'Columna SQL hardcodeada', categoria: 'glory-schema', severidad: 'warning' },
+  { id: 'interval-sin-whitelist', habilitada: false, nombre: 'INTERVAL sin whitelist', categoria: 'glory-schema', severidad: 'error' },
+  { id: 'isla-no-registrada', habilitada: false, nombre: 'Isla no registrada', categoria: 'glory-schema', severidad: 'warning' },
+  { id: 'open-redirect', habilitada: false, nombre: 'Redireccion insegura', categoria: 'glory-schema', severidad: 'error' },
+  { id: 'return-void-critico', habilitada: false, nombre: 'Escritura retorna void', categoria: 'glory-schema', severidad: 'warning' },
+  { id: 'undefined-class-constant', habilitada: false, nombre: 'Constante de clase indefinida', categoria: 'glory-schema', severidad: 'error' },
   { id: 'any-type-explicito', habilitada: true, nombre: 'Tipo any explicito', categoria: 'estructura-nomenclatura', severidad: 'hint' },
   { id: 'barras-decorativas', habilitada: true, nombre: 'Barras decorativas', categoria: 'estructura-nomenclatura', severidad: 'information' },
   { id: 'card-icono-debe-extender-base', habilitada: true, nombre: 'CardIcono debe extender base compartida', categoria: 'estructura-nomenclatura', severidad: 'warning' },
@@ -98,20 +100,20 @@ export const REGLAS: ReglaCatalogo[] = [
   { id: 'nomenclatura-css-ingles', habilitada: false, nombre: 'CSS en ingles', categoria: 'estructura-nomenclatura', severidad: 'hint' },
   { id: 'non-null-assertion-excesivo', habilitada: true, nombre: 'Non-null assertion excesivo', categoria: 'estructura-nomenclatura', severidad: 'hint' },
   { id: 'todo-pendiente', habilitada: true, nombre: 'TODO/FIXME pendiente detectado', categoria: 'estructura-nomenclatura', severidad: 'hint' },
-  { id: 'cadena-isset-update', habilitada: true, nombre: 'Cadena isset-update', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'catch-critico-solo-log', habilitada: true, nombre: 'Catch critico solo log', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'controller-sin-trycatch', habilitada: true, nombre: 'Controller sin try-catch', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'curl-sin-verificacion', habilitada: true, nombre: 'curl_exec sin curl_error', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'json-decode-inseguro', habilitada: true, nombre: 'json_decode sin verificacion', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'json-sin-limite-bd', habilitada: true, nombre: 'JSON sin limite a BD', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'lock-sin-finally', habilitada: true, nombre: 'Lock sin finally', categoria: 'wordpress-php', severidad: 'error' },
-  { id: 'php-array-asociativo-como-lista', habilitada: true, nombre: 'Array asociativo retornado como lista', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'php-service-retorna-asociativo', habilitada: true, nombre: 'Service retorna asociativo en vez de lista', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'php-sin-return-type', habilitada: true, nombre: 'PHP sin return type', categoria: 'wordpress-php', severidad: 'hint' },
-  { id: 'request-json-directo', habilitada: true, nombre: 'JSON params sin filtrar', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'retorno-ignorado-repo', habilitada: true, nombre: 'Retorno repo ignorado', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'sanitizacion-faltante', habilitada: true, nombre: 'Request sin sanitizar', categoria: 'wordpress-php', severidad: 'warning' },
-  { id: 'temp-sin-finally', habilitada: true, nombre: 'tempnam sin finally', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'cadena-isset-update', habilitada: false, nombre: 'Cadena isset-update', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'catch-critico-solo-log', habilitada: false, nombre: 'Catch critico solo log', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'controller-sin-trycatch', habilitada: false, nombre: 'Controller sin try-catch', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'curl-sin-verificacion', habilitada: false, nombre: 'curl_exec sin curl_error', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'json-decode-inseguro', habilitada: false, nombre: 'json_decode sin verificacion', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'json-sin-limite-bd', habilitada: false, nombre: 'JSON sin limite a BD', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'lock-sin-finally', habilitada: false, nombre: 'Lock sin finally', categoria: 'wordpress-php', severidad: 'error' },
+  { id: 'php-array-asociativo-como-lista', habilitada: false, nombre: 'Array asociativo retornado como lista', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'php-service-retorna-asociativo', habilitada: false, nombre: 'Service retorna asociativo en vez de lista', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'php-sin-return-type', habilitada: false, nombre: 'PHP sin return type', categoria: 'wordpress-php', severidad: 'hint' },
+  { id: 'request-json-directo', habilitada: false, nombre: 'JSON params sin filtrar', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'retorno-ignorado-repo', habilitada: false, nombre: 'Retorno repo ignorado', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'sanitizacion-faltante', habilitada: false, nombre: 'Request sin sanitizar', categoria: 'wordpress-php', severidad: 'warning' },
+  { id: 'temp-sin-finally', habilitada: false, nombre: 'tempnam sin finally', categoria: 'wordpress-php', severidad: 'warning' },
   { id: 'at-generico-php', habilitada: true, nombre: 'Supresor @ generico PHP', categoria: 'patrones-prohibidos', severidad: 'warning' },
   { id: 'catch-vacio', habilitada: true, nombre: 'Catch vacio', categoria: 'patrones-prohibidos', severidad: 'error' },
   { id: 'console-generico-en-catch', habilitada: true, nombre: 'console.log en catch', categoria: 'patrones-prohibidos', severidad: 'warning' },
@@ -141,7 +143,7 @@ export const REGLAS: ReglaCatalogo[] = [
   { id: 'query-doble-verificacion', habilitada: true, nombre: 'Query doble verificacion', categoria: 'seguridad-sql', severidad: 'information' },
   { id: 'repository-sin-whitelist-columnas', habilitada: true, nombre: 'SELECT * sin columnas', categoria: 'seguridad-sql', severidad: 'hint' },
   { id: 'toctou-select-insert', habilitada: true, nombre: 'TOCTOU select-insert', categoria: 'seguridad-sql', severidad: 'error' },
-  { id: 'wpdb-sin-prepare', habilitada: true, nombre: '$wpdb sin prepare()', categoria: 'seguridad-sql', severidad: 'error' },
+  { id: 'wpdb-sin-prepare', habilitada: false, nombre: '$wpdb sin prepare()', categoria: 'seguridad-sql', severidad: 'error' },
 ];
 
 /* Compatibilidad con el esquema (nodo `mapaCatalogo` espera `catalogo: string[]`):
