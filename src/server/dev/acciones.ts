@@ -46,10 +46,18 @@ const TIMEOUT_FIJO: Record<Exclude<AccionDev, 'up'>, number> = {
   open: 30_000,
 };
 
+export interface OpcionesAccionDev {
+  /* Solo `logs`: lineas de cola a devolver. */
+  lineas?: number;
+  /* Solo `up` remoto: no refrescar la BD de la 89 desde el portatil (D3). Lo
+   * usa el supervisor de tuneles: reabrir un tunel caido no debe tocar datos. */
+  sinBd?: boolean;
+}
+
 export async function ejecutarAccionDev(
   accion: AccionDev,
   id: string,
-  lineas?: number,
+  opciones: OpcionesAccionDev = {},
 ): Promise<ResultadoAccionDev> {
   if (!ID_OK.test(id)) throw new Error(`id invalido '${id}'`);
   const timeout = accion === 'up' ? arranqueMsDe(id) : TIMEOUT_FIJO[accion];
@@ -63,8 +71,16 @@ export async function ejecutarAccionDev(
     writeFileSync(tmp, JSON.stringify(snapshot));
     const argv =
       accion === 'logs'
-        ? [DEV_MJS, 'logs', id, '--lineas', String(lineas ?? 50)]
-        : [DEV_MJS, accion, id, '--snapshot-file', tmp, '--json'];
+        ? [DEV_MJS, 'logs', id, '--lineas', String(opciones.lineas ?? 50)]
+        : [
+            DEV_MJS,
+            accion,
+            id,
+            '--snapshot-file',
+            tmp,
+            '--json',
+            ...(opciones.sinBd === true ? ['--sin-bd'] : []),
+          ];
     const r = await new Promise<{ codigo: number; salida: string }>((res) => {
       execFile(
         process.execPath,

@@ -62,7 +62,7 @@ export async function manejarRutasDev(
         json(res, 400, { error: 'id requerido' });
         return true;
       }
-      const r = await ejecutarAccionDev(accion, id, lineas);
+      const r = await ejecutarAccionDev(accion, id, { lineas });
       json(res, 200, r);
     } catch (err) {
       json(res, 400, { error: `accion dev no ejecutada: ${err instanceof Error ? err.message : String(err)}` });

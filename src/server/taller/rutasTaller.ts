@@ -6,6 +6,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json } from '../http.js';
 import { estadoTaller } from './estado.js';
+import { revisarTuneles } from './tuneles.js';
 
 export async function manejarRutasTaller(
   req: IncomingMessage,
@@ -38,6 +39,10 @@ export async function manejarRutasTaller(
       historial,
       motivoHistorial,
     });
+    /* Latido del supervisor de túneles (19AA-15): el panel pide este estado cada
+     * 60 s, así que es la cadencia natural para reabrir un túnel caído. No se
+     * espera: un `up` tarda minutos y esta respuesta no depende de él. */
+    void revisarTuneles(entrada.t89?.tmux ?? []).catch(() => undefined);
   } catch (err) {
     json(res, 500, { error: 'No se pudo evaluar el taller', detalle: String(err) });
   }
