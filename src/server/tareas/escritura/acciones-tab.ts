@@ -10,20 +10,8 @@
  * [por que hay avisos que no lo son] «sin cambios», «ya esta» y «mismo orden» significan que el
  * archivo ya decia lo que la accion pedia. Se callan para no llenar la tab de ruido; el resto
  * —falta el archivo, falta la seccion, no esta la tarea— si sube a la respuesta. */
-import { type PropiedadesTarea } from '../../scanner/roadmap/roadmap.js';
-import {
-  contenidoDe,
-  contenidoDeItem,
-  espejoDeItem,
-  huellaDeTarea,
-  huellaDeTexto,
-  idRoadmapDeItem,
-  payloadPropio,
-  textoDeTitulo,
-  URGENCIA_POR_DEFECTO,
-} from './contenido-tarea.js';
+import { contenidoDeItem, espejoDeItem, idRoadmapDeItem, payloadPropio } from './contenido-tarea.js';
 import { completarParche } from './parche-completo.js';
-import { leerDelDisco, type LecturaRoadmap } from './escribir-roadmaps.js';
 import {
   borrarDelRoadmap,
   borrarSubtarea,
@@ -35,75 +23,26 @@ import {
   huecoDeEtiqueta,
   reabrirEnRoadmap,
   reordenarRoadmap,
-  SECCION_NUEVAS,
-  type AccionTab,
-  type DepsAccionRoadmap,
   type ProyectoRoadmap,
   type RefSubtarea,
-  type ResultadoAccion,
 } from './accion-roadmap.js';
-import type { EspejoRoadmap } from '../espejo-roadmap.js';
+import { espejoDeAlta, espejoDeSubtarea } from './acciones-tab/espejos.js';
 import type { ItemVersionado, ReordenarMovimiento } from '../nucleo/tipos.js';
-import type { PuenteTareas } from '../puente-tareas.js';
-import type { ProyectoWm } from '../sincronizacion/sincronizar-tareas.js';
 import type { ParcheTarea } from '../tarea-unitaria.js';
+import {
+  depsRoadmap,
+  fallo,
+  propiedadesDeItem,
+  refDeSubtarea,
+  repetirSubtarea,
+  resumen,
+  VACIO,
+  type DepsAccionesTab,
+  type EscrituraTab,
+  type ResultadoTab,
+} from './acciones-tab/mapeo.js';
 
-export interface DepsAccionesTab {
-  /* Proyectos del workspace con su carpeta (los mismos que usa el sync). */
-  proyectos: () => ProyectoWm[] | Promise<ProyectoWm[]>;
-  puente: PuenteTareas;
-  raizRepo?: string;
-  leerRoadmap?: (ruta: string) => LecturaRoadmap | null;
-  ahora?: () => number;
-}
-
-/* Lo que la tab necesita saber de la accion sobre el archivo. */
-export interface ResultadoTab {
-  accion: AccionTab;
-  proyecto: string;
-  id: string | null;
-  linea: number | null;
-  escribio: boolean;
-  /* Solo lo que la usuaria tiene que ver: un problema, no un no-op. */
-  aviso: string | null;
-}
-
-export interface EscrituraTab {
-  roadmap: ResultadoTab | null;
-  /* Alta: el parche entero con el que repetir el PUT para grabar el espejo. */
-  repetir: ParcheTarea | null;
-}
-
-const VACIO: EscrituraTab = { roadmap: null, repetir: null };
-
-/* Avisos de «no habia nada que hacer»: no se le cuentan a nadie. */
-const BENIGNOS = new Set(['sin-cambios', 'ya-esta-en-el-roadmap', 'orden-sin-cambios']);
-
-function aviso(r: ResultadoAccion): string | null {
-  return r.aviso !== null && BENIGNOS.has(r.aviso) ? null : r.aviso;
-}
-
-function resumen(r: ResultadoAccion): ResultadoTab {
-  return { accion: r.accion, proyecto: r.proyecto, id: r.id, linea: r.linea, escribio: r.escribio, aviso: aviso(r) };
-}
-
-function leer(deps: DepsAccionesTab, ruta: string): LecturaRoadmap | null {
-  return (deps.leerRoadmap ?? leerDelDisco)(ruta);
-}
-
-/* Lo que se pudo romper al reflejar una escritura que en TASK ya ocurrio. [por que no se lanza] La
- * tarjeta ya esta escrita: un 500 haria creer que no se guardo nada, y el archivo quedaria
- * desincronizado sin que nadie lo sepa. */
-function fallo(accion: AccionTab, proyecto: ProyectoRoadmap | null, id: string | null, e: unknown): ResultadoTab {
-  return {
-    accion,
-    proyecto: proyecto?.nombre ?? '',
-    id,
-    linea: null,
-    escribio: false,
-    aviso: `roadmap-no-escrito: ${e instanceof Error ? e.message : 'desconocido'}`,
-  };
-}
+export type { DepsAccionesTab, EscrituraTab, ResultadoTab } from './acciones-tab/mapeo.js';
 
 /* Columna de TASK -> proyecto del workspace. [por que por `wmClave`] Es la misma llave con la que
  * el sync (08AA-6) empareja columna y repo: una columna que no nace de un repo del area no tiene
@@ -117,103 +56,11 @@ export async function proyectoDeColumna(deps: DepsAccionesTab, columna: number):
   return proyectos.find((p) => p.clave === clave) ?? null;
 }
 
-/* Las dependencias del tab son las del driver mas dos (`proyectos` y `puente`): se pasan tal cual,
- * que el driver solo mira las suyas. */
-function depsRoadmap(deps: DepsAccionesTab): DepsAccionRoadmap {
-  return deps;
-}
-
-/* Lo que TASK dice de la tarea, en propiedades del roadmap. [por que la urgencia normal no se
- * escribe] Es el valor por defecto de TASK: una tarea que nadie toco no dice «normal», no dice
- * nada, y escribirselo llenaria de ruido todas las lineas nuevas. */
-function propiedadesDeItem(item: Record<string, unknown>): PropiedadesTarea {
-  const p: PropiedadesTarea = {};
-  if (typeof item.prioridad === 'string' && item.prioridad !== '') p.prioridad = item.prioridad;
-  if (typeof item.urgencia === 'string' && item.urgencia !== '' && item.urgencia !== URGENCIA_POR_DEFECTO) {
-    p.urgencia = item.urgencia;
-  }
-  return p;
-}
-
-/* El espejo de una tarea que acaba de nacer en el archivo. [por que se relee el archivo] La huella
- * tiene que ser la de la linea tal como quedo escrita, no la que creiamos escribir: si el texto
- * llevaba punto o el titulo se recorto, la huella de la tarea y la de TASK tienen que coincidir o
- * la pasada siguiente la reescribiria otra vez. */
-function espejoDeAlta(deps: DepsAccionesTab, p: ProyectoRoadmap, id: string): EspejoRoadmap | null {
-  const lectura = leer(deps, p.ruta);
-  if (lectura === null) return null;
-  const t = lectura.tareas.find((x) => x.id === id);
-  if (t === undefined) return null;
-  return {
-    id,
-    proyecto: p.clave,
-    archivo: 'roadmap.md',
-    seccion: SECCION_NUEVAS,
-    huella: huellaDeTarea(t),
-    escritoEn: new Date((deps.ahora ?? Date.now)()).toISOString(),
-    mtimeArchivo: lectura.mtimeMs === null ? null : new Date(lectura.mtimeMs).toISOString(),
-    espejo: contenidoDe(t.propiedades, textoDeTitulo(t.titulo)),
-  };
-}
-
 /* --- Subtareas (F4) -------------------------------------------------------------------------
  * Una subtarea de TASK es una linea sangrada bajo el bloque de su padre. [por que hay que buscar al
  * padre] El ID del roadmap lo lleva el padre: la subtarea trae el suyo en `parentId`, y sin el padre
  * no se sabe en que linea del archivo vive. Si el padre no viene del roadmap, la subtarea tampoco
  * tiene casa en el archivo. */
-
-/* A que subtarea del archivo se refiere un item de TASK: por el texto y el hueco que el espejo
- * guardo la ultima vez. */
-function refDeSubtarea(item: Record<string, unknown>): RefSubtarea {
-  const e = espejoDeItem(item);
-  const contenido = e?.espejo;
-  const texto =
-    typeof contenido === 'object' && contenido !== null && typeof (contenido as Record<string, unknown>).texto === 'string'
-      ? ((contenido as Record<string, unknown>).texto as string)
-      : '';
-  return { texto, hueco: typeof e?.hueco === 'number' ? e.hueco : null };
-}
-
-/* El espejo de una subtarea que acaba de escribirse, releido del archivo. [por que se relee] La
- * huella tiene que ser la de la linea tal como quedo: si el titulo llevaba punto o el texto se
- * recorto, la huella de la linea y la de TASK tienen que coincidir o la pasada siguiente
- * reescribiria lo que esta bien. */
-function espejoDeSubtarea(
-  deps: DepsAccionesTab,
-  p: ProyectoRoadmap,
-  idPadre: string,
-  hueco: number | null,
-): EspejoRoadmap | null {
-  const lectura = leer(deps, p.ruta);
-  const padre = lectura?.tareas.find((x) => x.id === idPadre);
-  if (lectura === null || padre === undefined) return null;
-  const s = hueco !== null && hueco >= 0 && hueco < padre.subtareas.length ? padre.subtareas[hueco] : padre.subtareas.at(-1);
-  if (s === undefined) return null;
-  const texto = textoDeTitulo(s.titulo);
-  return {
-    id: idPadre,
-    proyecto: p.clave,
-    archivo: 'roadmap.md',
-    seccion: SECCION_NUEVAS,
-    huella: huellaDeTexto(texto, s.propiedades),
-    escritoEn: new Date((deps.ahora ?? Date.now)()).toISOString(),
-    mtimeArchivo: lectura.mtimeMs === null ? null : new Date(lectura.mtimeMs).toISOString(),
-    espejo: contenidoDe(s.propiedades, texto),
-    sub: true,
-    padre: idPadre,
-    hueco: padre.subtareas.findIndex((x) => x.linea === s.linea),
-  };
-}
-
-/* El parche con el que repetir el PUT de una subtarea para grabar su espejo. [por que el texto del
- * espejo] Misma razon que en el alta de una raiz: el texto de TASK tiene que ser el del archivo, o
- * la subtarea y su espejo se contradicen y la pasada siguiente reescribe la linea sin motivo. */
-function repetirSubtarea(item: ItemVersionado, espejo: EspejoRoadmap): ParcheTarea {
-  return completarParche(item.item, {
-    texto: espejo.espejo.texto,
-    payload: { ...payloadPropio(item.item), roadmap: espejo },
-  });
-}
 
 /* Lo que hay que hacer con la subtarea que se acaba de guardar en TASK. */
 async function trasGuardarSubtarea(deps: DepsAccionesTab, columna: number, item: ItemVersionado): Promise<EscrituraTab> {

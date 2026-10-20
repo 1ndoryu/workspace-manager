@@ -16,38 +16,13 @@ import { RAIZ_AREA } from '../../plataforma/rutas.js';
  * en tests sin lanzar sentinel/varsense de verdad. */
 import { PUERTO_PROCESOS } from '../../plataforma/procesos.js';
 import type { PuertoProcesos } from '../../plataforma/procesos.js';
+/* Tipos y funciones puras (argumentos, parseo): en módulos propios para que este
+ * fichero quede con la capa de IO. Reexportados para que los importadores no cambien. */
+import type { FuentesRuntime, ResultadoSpawn } from './ejecucion/tipos.js';
+import { argsAnalisisSentinel, argsDoctor, argsVarsense, resultadoDeSalida, salidaDoctor, salidaDoctorDeError } from './ejecucion/argumentos.js';
 
-/* Tipos del JSON real que devuelve `sentinel analyze --format json` (varsense
- * `all` comparte la forma: severityCounts + entries con findings). No se
- * importa nada del runtime: se normaliza en `analizador.ts` para aislar el
- * formato. */
-export interface FindingJson {
-  ruleId?: unknown;
-  message?: unknown;
-  mensaje?: unknown;
-  severity?: unknown;
-  severidad?: unknown;
-  suggestion?: unknown;
-  range?: { start?: { line?: unknown } };
-}
-
-export interface EntryJson {
-  ruta?: unknown;
-  path?: unknown;
-  archivo?: unknown;
-  findings?: FindingJson[];
-}
-
-export interface ReporteJson {
-  severityCounts?: Partial<Record<string, number>>;
-  entries?: EntryJson[];
-}
-
-export interface ResultadoSpawn {
-  version: string;
-  commit: string | null;
-  dato: ReporteJson;
-}
+export type { FindingJson, EntryJson, ReporteJson, ResultadoSpawn, FuentesRuntime } from './ejecucion/tipos.js';
+export { parsearReporte } from './ejecucion/argumentos.js';
 
 /* [por que] 308A-1 centraliza el runtime: los consumidores declaran
  * `sourcePathEnv: GLORY_SENTINEL_SOURCE_PATH`/`GLORY_VARSENSE_SOURCE_PATH` y
@@ -102,10 +77,6 @@ export function checkoutVarsense(entorno: NodeJS.ProcessEnv = process.env): stri
  * El portátil ya no genera ni envía `out/` o `dist/`: un checkout recién clonado (sin
  * compilar) basta, porque lo que se copia es el código y su manifest. Devuelve null si
  * faltan `src/` o `package.json`. */
-export interface FuentesRuntime {
-  base: string;
-  version: string;
-}
 export function fuentesDeRuntime(base: string): FuentesRuntime | null {
   try {
     if (!existsSync(join(base, 'src')) || !existsSync(join(base, 'package.json'))) return null;
@@ -191,19 +162,6 @@ export function cliRuntime(rutaProyecto?: string): ResolucionCli | null {
   return { base: join(raizVersiones(), v), cli, version: v, commit: null };
 }
 
-/* Parseo tolerante del reporte JSON: solo es un reporte válido si hay un
- * objeto parseable en stdout. [por que] comparte la lógica entre la rama de
- * éxito y la de exit != 0 (ver correrSentinel). */
-export function parsearReporte(stdout: string | undefined): ReporteJson | null {
-  if (typeof stdout !== 'string' || !stdout) return null;
-  try {
-    const dato = JSON.parse(stdout) as ReporteJson;
-    return dato && typeof dato === 'object' ? dato : null;
-  } catch {
-    return null;
-  }
-}
-
 /* Ejecuta el análisis real (asíncrono, cede el event loop para no congelar la
  * API). [por que] el JSON va SOLO en stdout; el stderr trae logs INFO del
  * analizador que no deben romper el parseo. `sentinel analyze` sale con exit
@@ -230,19 +188,10 @@ export async function correrSentinel(ruta: string, puerto: PuertoProcesos = PUER
     env: { ...process.env, ...entornoGate(ruta) },
   };
   try {
-    const { stdout } = await puerto.ejecutar(
-      process.execPath,
-      [res.cli, 'analyze', '--workspace', ruta, '--format', 'json'],
-      opciones,
-    );
-    const dato = parsearReporte(stdout);
-    if (!dato) return null;
-    return { version: res.version, commit: res.commit, dato };
+    const { stdout } = await puerto.ejecutar(process.execPath, argsAnalisisSentinel(res.cli, ruta), opciones);
+    return resultadoDeSalida(stdout, res.version, res.commit);
   } catch (err) {
-    const e = err as { stdout?: string };
-    const dato = parsearReporte(e.stdout);
-    if (!dato) return null;
-    return { version: res.version, commit: res.commit, dato };
+    return resultadoDeSalida((err as { stdout?: string }).stdout, res.version, res.commit);
   }
 }
 
@@ -257,17 +206,12 @@ export async function correrDoctorLocal(ruta: string, puerto: PuertoProcesos = P
   try {
     const { stdout } = await puerto.ejecutar(
       process.execPath,
-      [res.cli, 'doctor', '--json', '--workspace', ruta],
+      argsDoctor(res.cli, ruta),
       { timeout: 15000, windowsHide: true, maxBuffer: 1024 * 1024 },
     );
-    return stdout.trim().slice(0, 2000) || null;
+    return salidaDoctor(stdout);
   } catch (err) {
-    /* [por que] doctor sale con 1 cuando hay issues (p. ej. evidencia de release
-     * ausente) y su JSON sigue siendo el diagnóstico: se aprovecha stdout. Si lo
-     * mató el timeout, el stdout es parcial y no es JSON válido. */
-    const e = err as { stdout?: string; signal?: string | null };
-    if (e.signal) return null;
-    return e.stdout?.trim().slice(0, 2000) || null;
+    return salidaDoctorDeError(err as { stdout?: string; signal?: string | null });
   }
 }
 
@@ -289,18 +233,9 @@ export async function correrVarsense(ruta: string, puerto: PuertoProcesos = PUER
     timeout: 180000,
   };
   try {
-    const { stdout } = await puerto.ejecutar(
-      process.execPath,
-      [cli, 'all', '--workspace', ruta, '--format', 'json'],
-      opciones,
-    );
-    const dato = parsearReporte(stdout);
-    if (!dato) return null;
-    return { version: vs.version, commit: null, dato };
+    const { stdout } = await puerto.ejecutar(process.execPath, argsVarsense(cli, ruta), opciones);
+    return resultadoDeSalida(stdout, vs.version, null);
   } catch (err) {
-    const e = err as { stdout?: string };
-    const dato = parsearReporte(e.stdout);
-    if (!dato) return null;
-    return { version: vs.version, commit: null, dato };
+    return resultadoDeSalida((err as { stdout?: string }).stdout, vs.version, null);
   }
 }

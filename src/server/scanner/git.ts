@@ -5,8 +5,9 @@ import { execFile, execFileSync, type ExecFileSyncOptionsWithStringEncoding } fr
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { BIN_GIT } from '../plataforma/binarios.js';
-import type { ArchivoLocal, CommitResumen, DetalleRepoSync, EstadoGit, LadoSync } from '../../shared/types.js';
+import type { ArchivoLocal, DetalleRepoSync, EstadoGit, LadoSync } from '../../shared/types.js';
 import { commondirDe, detectarGit, gitdirDe, type InfoGit } from './gitDeteccion.js';
+import { contarCambios, estadoArchivo, leerCabeceraStatus, parsearCommits, parsearShortstat } from './git-parseo.js';
 
 /* Cuanto se espera a git antes de darlo por colgado. [por que] Un repo con un
  * hook o un filtro lento bloquea el escaneo entero; 10 s es el tope que ya
@@ -113,30 +114,6 @@ function leerRemotoDirecto(ruta: string): string | null | undefined {
   return url ? url[1].trim() : null;
 }
 
-/* Cabecera de `git status --porcelain --branch`: rama, upstream y ahead/behind.
- * [por que] Un solo proceso da lo que antes pedian tres (`symbolic-ref`,
- * `rev-list --left-right` y `status`). Formatos posibles:
- *   `## main...origin/main [ahead 1, behind 2]`   normal con upstream
- *   `## main...origin/main [gone]`               upstream borrado
- *   `## main`                                    sin upstream
- *   `## HEAD (no branch)`                        detached
- *   `## No commits yet on main`                  repo sin commits (unborn) */
-function leerCabeceraStatus(cabecera: string): { rama: string; ahead: number; behind: number } {
-  const cuerpo = cabecera.slice(3).trim();
-  if (/^HEAD \(no branch\)$/.test(cuerpo)) return { rama: 'DETACHED', ahead: 0, behind: 0 };
-  const unborn = cuerpo.match(/^No commits yet on (.+)$/);
-  if (unborn) return { rama: unborn[1], ahead: 0, behind: 0 };
-  const rama = cuerpo.split('...')[0].trim();
-  const cuenta = cuerpo.match(/\[ahead (\d+)(?:, behind (\d+))?\]/) ?? cuerpo.match(/\[behind (\d+)\]/);
-  /* `[behind N]` sin ahead: el primer grupo del segundo patron es el de behind. */
-  const soloBehind = cuerpo.includes('[behind') && !cuerpo.includes('[ahead');
-  return {
-    rama,
-    ahead: soloBehind ? 0 : Number(cuenta?.[1] ?? 0) || 0,
-    behind: soloBehind ? Number(cuenta?.[1] ?? 0) || 0 : Number(cuenta?.[2] ?? 0) || 0,
-  };
-}
-
 const ARGS_STATUS = ['status', '--porcelain', '--branch'];
 const ARGS_LOG = ['log', '-1', '--format=%H%x09%ci%x09%s'];
 const ARGS_REMOTO = ['remote', 'get-url', 'origin'];
@@ -205,27 +182,6 @@ function construirEstadoGit(
   };
 }
 
-/* Cuenta cambios locales por tipo desde `git status --porcelain`.
- * [por que] Formato `XY ruta`: X = indice (staged), Y = arbol de trabajo
- * (unstaged); '??' = untracked; 'R' renombra 'viejo -> nuevo' (cuenta 1). */
-function contarCambios(status: string): EstadoGit['cambios'] {
-  let staged = 0;
-  let unstaged = 0;
-  let untracked = 0;
-  for (const linea of status.split('\n')) {
-    if (!linea) continue;
-    if (linea.startsWith('??')) {
-      untracked++;
-      continue;
-    }
-    const x = linea[0];
-    const y = linea[1] ?? ' ';
-    if (x !== ' ') staged++;
-    if (y !== ' ') unstaged++;
-  }
-  return { staged, unstaged, untracked };
-}
-
 /* Worktrees registrados cuyo directorio ya no existe o cuya metadata gitdir
  * apunta a una ubicacion inexistente (git los marcaria 'prunable').
  * [por que] `git worktree prune` no es necesario para detectar: se lee la
@@ -292,35 +248,6 @@ function leerSubmodulos(ruta: string): string[] {
 const MAX_COMMITS_LADO = 50;
 export const MAX_ARCHIVOS_LOCALES = 200;
 
-/* Parsea `git log --format=%H%x09%ci%x09%s` en resumenes de una linea. */
-function parsearCommits(salida: string | null): CommitResumen[] {
-  if (!salida) return [];
-  const commits: CommitResumen[] = [];
-  for (const linea of salida.split('\n')) {
-    if (!linea) continue;
-    const [hash, fecha, ...resto] = linea.split('\t');
-    if (!hash) continue;
-    commits.push({ hash, fecha: fecha ?? '', mensaje: resto.join('\t') });
-  }
-  return commits;
-}
-
-/* Parsea `N files changed[, M insertions(+)][, K deletions(-)]` del
- * --shortstat. [por que] El shortstat es estable entre versiones de git y
- * evita recorrer el diff completo solo para la cabecera plegable. */
-function parsearShortstat(salida: string | null): { archivos: number; inserciones: number; borrados: number } {
-  const base = { archivos: 0, inserciones: 0, borrados: 0 };
-  if (!salida) return base;
-  const mArch = salida.match(/(\d+) files? changed/);
-  const mIns = salida.match(/(\d+) insertions?\(\+\)/);
-  const mDel = salida.match(/(\d+) deletions?\(-\)/);
-  return {
-    archivos: mArch ? Number(mArch[1]) : 0,
-    inserciones: mIns ? Number(mIns[1]) : 0,
-    borrados: mDel ? Number(mDel[1]) : 0,
-  };
-}
-
 /* Un lado del sync: lista de commits + stat agregado del rango. */
 function leerLado(ruta: string, rangoLog: string, rangoDiff: string, puerto: PuertoGit): LadoSync {
   const commits = parsearCommits(
@@ -328,17 +255,6 @@ function leerLado(ruta: string, rangoLog: string, rangoDiff: string, puerto: Pue
   );
   const stat = parsearShortstat(puerto.git(ruta, ['diff', '--shortstat', rangoDiff]));
   return { commits, ...stat };
-}
-
-/* Estado de un archivo desde las columnas XY del porcelain (misma lectura
- * que contarCambios: '??' = untracked; X = indice, Y = trabajo). */
-function estadoArchivo(x: string, y: string): ArchivoLocal['estado'] {
-  const enIndice = x !== ' ' && x !== '?';
-  const enTrabajo = y !== ' ' && y !== '?';
-  if (x === '?' || y === '?') return 'untracked';
-  if (enIndice && enTrabajo) return 'mixto';
-  if (enIndice) return 'staged';
-  return 'unstaged';
 }
 
 /* Detalle de sincronizacion de un repo para la tab repos (289A-6): que se

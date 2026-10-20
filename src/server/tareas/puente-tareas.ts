@@ -20,15 +20,13 @@ import {pedirProyectosPuente} from './proyectos-puente.js';
 import {mapearErrorTarea, type ParcheTarea, type ProyectoPuente} from './tarea-unitaria.js';
 import {completarParche} from './escritura/parche-completo.js';
 import {configPuenteViva, type ConfigPuente} from './entorno/config-puente.js';
-
-const RUTA_LOGIN = '/api/auth/login';
-const COOKIE_SESION = 'session_id';
-const COOKIE_CSRF = 'csrf_token';
-const VALOR_COOKIE_OK = /^[A-Za-z0-9._-]{1,256}$/;
-const TOPE_ESPERA_CUOTA_MS = 30_000;
+/* Piezas puras del puente, en subcarpeta (límite de 300 líneas). */
+import {errorIdInvalido, esKanban, mensajeDe, motivoSinConfig} from './puente-tareas/errores.js';
+import {esperaCuotaMs} from './puente-tareas/cuota.js';
+import {cabeceraCookies, loginTasks, type Sesion} from './puente-tareas/sesion.js';
 
 export type {FetchPuente, RespuestaPuente} from './transporte/transporte-tipos.js';
-import type {FetchPuente, RespuestaPuente} from './transporte/transporte-tipos.js';
+import type {FetchPuente} from './transporte/transporte-tipos.js';
 
   /* Transporte de produccion: HTTP nativo (el fetch global bloquea el
    * puerto 4190 por Fetch-spec: `bad port` sin tocar red; ver
@@ -59,32 +57,6 @@ export function crearFetchGlobal(timeoutMs: number): FetchPuente {
       clearTimeout(t);
     }
   };
-}
-
-interface Sesion {
-  sessionId: string;
-  csrf: string;
-}
-
-function extraerCookie(cookies: string[], nombre: string): string | null {
-  for (const c of cookies) {
-    const par = (c.split(';', 1)[0] ?? '').trim();
-    const eq = par.indexOf('=');
-    if (eq > 0 && par.slice(0, eq).trim() === nombre) {
-      const valor = par.slice(eq + 1).trim();
-      if (VALOR_COOKIE_OK.test(valor)) return valor;
-    }
-  }
-  return null;
-}
-
-function esKanban(e: unknown, codigo: ErrorKanban['codigo']): boolean {
-  return typeof e === 'object' && e !== null && (e as {codigo?: unknown}).codigo === codigo;
-}
-
-function mensajeDe(e: unknown, defecto: string): string {
-  const m = (e as {mensaje?: unknown} | null)?.mensaje;
-  return typeof m === 'string' && m ? m.slice(0, 200) : defecto;
 }
 
 export interface DepsPuente {
@@ -139,28 +111,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
   }
 
   async function hacerLogin(): Promise<Sesion> {
-    let respuesta: RespuestaPuente;
-    try {
-      respuesta = await transporte(`${cfg().base}${RUTA_LOGIN}`, {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify({email: cfg().email, password: cfg().password}),
-      });
-    } catch {
-      abrir('red-tasks: TASKS no responde al login');
-      throw {codigo: 'red', mensaje: 'TASKS no responde'} satisfies ErrorKanban;
-    }
-    if (!respuesta.ok) {
-      abrir(respuesta.estado === 401 ? 'credenciales-rechazadas por TASKS' : `login-tasks-${respuesta.estado}`);
-      throw {codigo: 'no-autenticado', mensaje: 'Login TASKS rechazado', estadoHttp: respuesta.estado} satisfies ErrorKanban;
-    }
-    const sessionId = extraerCookie(respuesta.cookies, COOKIE_SESION);
-    const csrf = extraerCookie(respuesta.cookies, COOKIE_CSRF);
-    if (sessionId === null || csrf === null) {
-      abrir('login-tasks-sin-cookies (contrato roto)');
-      throw {codigo: 'servidor', mensaje: 'Login TASKS sin cookies de sesión'} satisfies ErrorKanban;
-    }
-    sesion = {sessionId, csrf};
+    sesion = await loginTasks(transporte, cfg(), abrir);
     return sesion;
   }
 
@@ -176,7 +127,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
   function fetchConSesion(url: string, init: PeticionHttp): Promise<RespuestaHttp> {
     const cabezas = {...(init.headers ?? {})};
     if (sesion !== null) {
-      cabezas.cookie = `${COOKIE_SESION}=${sesion.sessionId}; ${COOKIE_CSRF}=${sesion.csrf}`;
+      cabezas.cookie = cabeceraCookies(sesion);
     }
     return transporte(url, {...init, headers: cabezas});
   }
@@ -248,18 +199,14 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
       } catch (e) {
         if (!esKanban(e, 'cuota') || intento >= cfg().maxReintentosCuota) throw e;
         const base = (e as ErrorKanban).reintentarEnMs ?? 1000;
-        await dormir(Math.round(Math.min(base, TOPE_ESPERA_CUOTA_MS) * (0.5 + azar())));
+        await dormir(esperaCuotaMs(base, azar()));
       }
     }
   }
 
   async function operar<T>(trabajo: () => Promise<T>): Promise<T> {
-    if (cfg().base === '') {
-      throw {codigo: 'red', mensaje: 'sin-base (TASKS_BASE_URL)'} satisfies ErrorKanban;
-    }
-    if (!conCredenciales()) {
-      throw {codigo: 'red', mensaje: 'sin-credenciales (TASKS_EMAIL/TASKS_PASSWORD)'} satisfies ErrorKanban;
-    }
+    const sinConfig = motivoSinConfig(cfg());
+    if (sinConfig !== null) throw {codigo: 'red', mensaje: sinConfig} satisfies ErrorKanban;
     if (motivoFalla !== null && ahora() - ultimaFalla < cfg().enfriamientoMs) {
       throw {codigo: 'red', mensaje: motivoFalla} satisfies ErrorKanban;
     }
@@ -300,12 +247,8 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
 
   return {
     estado(): EstadoPuente {
-      if (cfg().base === '') {
-        return {disponible: false, motivo: 'sin-base (TASKS_BASE_URL)', base: '', conCredenciales: conCredenciales()};
-      }
-      if (!conCredenciales()) {
-        return {disponible: false, motivo: 'sin-credenciales (TASKS_EMAIL/TASKS_PASSWORD)', base: cfg().base, conCredenciales: false};
-      }
+      const sinConfig = motivoSinConfig(cfg());
+      if (sinConfig !== null) return {disponible: false, motivo: sinConfig, base: cfg().base, conCredenciales: conCredenciales()};
       if (motivoFalla !== null && ahora() - ultimaFalla < cfg().enfriamientoMs) {
         return {disponible: false, motivo: motivoFalla, base: cfg().base, conCredenciales: true};
       }
@@ -319,7 +262,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
     crearProyecto: (legacyId, nombre, wmClave) => {
       /* Valida antes de operar (sin gastar sesion en un id imposible). */
       if (!esIdValido(legacyId)) {
-        return Promise.reject({codigo: 'validacion', mensaje: 'legacyId debe ser un entero positivo'} satisfies ErrorKanban);
+        return Promise.reject(errorIdInvalido());
       }
       return operar(async () => {
         await pedirApi('projects', 'PUT', legacyId, {nombre, payload: {wmClave}});
@@ -330,7 +273,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
     actualizar: (legacyId, parche) =>
       operar(async () => {
         if (!esIdValido(legacyId)) {
-          throw {codigo: 'validacion', mensaje: 'legacyId debe ser un entero positivo'} satisfies ErrorKanban;
+          throw errorIdInvalido();
         }
         const datos = await pedirApi('tasks', 'PUT', legacyId, {...(await conLoGuardado(legacyId, parche))});
         if (typeof datos !== 'object' || datos === null || typeof (datos as {id?: unknown}).id !== 'number') {
@@ -341,7 +284,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
     eliminar: (legacyId) =>
       operar(async () => {
         if (!esIdValido(legacyId)) {
-          throw {codigo: 'validacion', mensaje: 'legacyId debe ser un entero positivo'} satisfies ErrorKanban;
+          throw errorIdInvalido();
         }
         await pedirApi('tasks', 'DELETE', legacyId);
       }),
