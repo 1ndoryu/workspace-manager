@@ -89,12 +89,19 @@ function flagsIgnorarCargo(cwd: string): string {
   return vigentes.map((id) => ` --ignore ${id}`).join('');
 }
 
-/* Comando de audit del gestor. Para pnpm puede no haber CLI: devuelve null.
- * [por que] En la 89 no se sondea nada: el PATH lo fija `ejecutarAuditRemoto` con
- * el node de `taller.json` y pnpm se resuelve por corepack, que si esta. Sondead
- * costaria un ssh extra por audit para una respuesta que ya se conoce. */
-export async function cliDeAudit(g: GestorAudit, cwd: string, remoto: boolean): Promise<string | null> {
-  if (g === 'pnpm') return remoto ? 'corepack pnpm audit --json' : resolverCliPnpm(cwd);
-  if (g === 'cargo') return `cargo audit --json${flagsIgnorarCargo(cwd)}`;
-  return 'npm audit --json';
+/* Comando de audit de cada gestor. Para pnpm puede no haber CLI: devuelve null.
+ * [por que] Una tabla por gestor: añadir uno es una entrada, no otra rama. En la 89
+ * no se sondea nada: el PATH lo fija `ejecutarAuditRemoto` con el node de `taller.json`
+ * y pnpm se resuelve por corepack, que si esta. Sondearlo costaria un ssh extra por
+ * audit para una respuesta que ya se conoce. */
+type ComandoAudit = (cwd: string, remoto: boolean) => Promise<string | null>;
+
+const COMANDOS_AUDIT: Record<GestorAudit, ComandoAudit> = {
+  npm: async () => 'npm audit --json',
+  pnpm: async (cwd, remoto) => (remoto ? 'corepack pnpm audit --json' : resolverCliPnpm(cwd)),
+  cargo: async (cwd) => `cargo audit --json${flagsIgnorarCargo(cwd)}`,
+};
+
+export function cliDeAudit(g: GestorAudit, cwd: string, remoto: boolean): Promise<string | null> {
+  return COMANDOS_AUDIT[g](cwd, remoto);
 }
