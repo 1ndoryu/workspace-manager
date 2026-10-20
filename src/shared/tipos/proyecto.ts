@@ -33,6 +33,10 @@ export interface ResumenRoadmap {
   /* Planes activos que el roadmap declara. */
   activos: number;
   ids: string[];
+  /* Cada tarea pendiente con su ID y su titulo (tope 40, como `ids`).
+   * [por que] La consola de problemas las muestra una por linea y las filtra: con
+   * solo el numero no se puede leer cual es ni filtrarlas. */
+  tareas: { id: string; titulo: string }[];
   resumen: string;
   /* Lineas del documento, para el tope de 400 (D8). */
   lineas: number;

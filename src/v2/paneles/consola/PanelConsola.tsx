@@ -37,6 +37,8 @@ const FILTROS: { clave: 'todos' | Categoria; etiqueta: string }[] = [
   { clave: 'taller', etiqueta: 'taller' },
   { clave: 'dev', etiqueta: 'dev' },
   { clave: 'huerfano', etiqueta: 'huérfanos' },
+  /* Trabajo abierto del roadmap: un tipo de problema mas, listable y filtrable. */
+  { clave: 'pendiente', etiqueta: 'pendientes' },
 ];
 
 /* Botones del mando dev por linea con entrada (F3): arrancar (up),
@@ -58,7 +60,6 @@ export function PanelConsola() {
     setFiltro,
     visibles,
     contar,
-    pendientes,
     seleccionadoId,
     seleccionar,
     abrirMenuContextual,
@@ -96,11 +97,9 @@ export function PanelConsola() {
   return (
     <aside className="panelConsola" aria-label="Consola de problemas">
       <header className="panelConsolaCabecera">
+        {/* [por que] Un solo contador: los pendientes del roadmap son una categoria mas y
+            suman aqui (encargo de la usuaria, 2026-10-20). */}
         <span className="panelConsolaTitulo">problemas ({contar('todos')})</span>
-        {/* Trabajo abierto del area (D8): no son defectos, por eso no suman arriba. */}
-        <span className="panelConsolaTitulo" title="Tareas pendientes declaradas en los roadmap.md">
-          pendientes ({pendientes})
-        </span>
         <Button cuadrado pequeno onClick={plegarTodo} title="Plegar todos los grupos">
           −
         </Button>

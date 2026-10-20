@@ -37,14 +37,10 @@ export function usePanelConsola() {
   const abrirMenuContextual = useWorkspaceStore((s) => s.abrirMenuContextual);
   const [filtro, setFiltro] = useState<'todos' | Categoria>('todos');
 
-  /* Trabajo abierto declarado en los roadmaps (D8). [por que] Una tarea pendiente no es un
-   * defecto: `problemas (N)` sigue siendo lo que hay que corregir (AGENTS §7), y el trabajo
-   * abierto se ve como su propio número; si no, el contador de defectos nunca volvería a 0. */
-  const pendientes = useMemo(
-    () => (snapshot?.proyectos ?? []).reduce((n, p) => n + (p.roadmap?.pendientes ?? 0), 0),
-    [snapshot],
-  );
-
+  /* Los pendientes del roadmap (D8) ya no son un contador aparte: `problemasDe` los emite como
+   * categoria 'pendiente', así que entran en `problemas (N)`, se listan una por tarea y se
+   * filtran como cualquier otra. [por que] La usuaria pidió que fueran la misma cosa
+   * (2026-10-20); el contador separado no se podía filtrar ni leer. */
   const problemas = useMemo(() => {
     if (!snapshot) return [];
     return snapshot.proyectos.map(problemasDe).filter((x): x is Problema => x !== null);
@@ -174,7 +170,6 @@ export function usePanelConsola() {
     setFiltro,
     visibles,
     contar,
-    pendientes,
     devOcupado,
     devResultado,
     accionDev,

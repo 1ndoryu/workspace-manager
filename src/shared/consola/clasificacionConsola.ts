@@ -8,7 +8,7 @@ import type { HuerfanoDev, InformeDev } from '../dev.js';
 import { CLAVE_AREA, type ResultadoSalud } from '../salud/salud.js';
 import type { Hallazgo } from '../taller/conformidad.js';
 
-export type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad' | 'dev' | 'salud' | 'taller';
+export type Categoria = 'sinGit' | 'sinCommit' | 'sinPush' | 'gate' | 'config' | 'sentinel' | 'huerfano' | 'vulnerabilidad' | 'dev' | 'salud' | 'taller' | 'pendiente';
 
 /* Severidad real del hallazgo de sentinel (analyze); solo la categoria
  * 'sentinel' la usa. El badge del proyecto y de la linea deriva de aqui. */
@@ -62,6 +62,20 @@ export interface Problema {
   entradas: Entrada[];
 }
 
+/* Trabajo abierto del roadmap (D8), una entrada por tarea. [por que] Antes los
+ * pendientes iban en su propio contador y no aparecian en la consola: la usuaria
+ * pidio que fueran un tipo de problema mas, listables y filtrables como los demas
+ * (2026-10-20). Sin seriedad: es trabajo por hacer, no un defecto. */
+function entradasPendientes(p: Proyecto): Entrada[] {
+  return (p.roadmap?.tareas ?? []).map((t) => ({
+    categoria: 'pendiente' as const,
+    /* Sin los `**` del protocolo (`` - [ ] `ID` — **Titulo.** ``): en una linea de consola son
+     * ruido, y TODA tarea canonica los lleva. */
+    motivo: `${t.id} — ${t.titulo.replace(/\*\*/g, '').trim()}`,
+    seriedad: null,
+  }));
+}
+
 /* Clasifica un proyecto; null si no tiene ningun problema.
  * [por que] Las carpetas (no git) solo cuentan como "sin git": no tienen
  * sentido las categorias de push/gate sobre ellas. Los problemas de la CONFIG
@@ -73,6 +87,7 @@ export function problemasDe(p: Proyecto): Problema | null {
 
   if (!p.esGit) {
     entradas.push({ categoria: 'sinGit', motivo: 'no es repo git', seriedad: null });
+    entradas.push(...entradasPendientes(p));
     return { p, entradas };
   }
 
@@ -119,6 +134,9 @@ export function problemasDe(p: Proyecto): Problema | null {
   for (const c of p.gateProblemas ?? []) {
     entradas.push({ categoria: 'config', motivo: c.mensaje, seriedad: c.severidad });
   }
+
+  /* Al final: primero lo que hay que corregir, despues el trabajo abierto. */
+  entradas.push(...entradasPendientes(p));
 
   if (entradas.length === 0) return null;
   return { p, entradas };
@@ -291,7 +309,7 @@ export function problemasTallerDe(hallazgos: Hallazgo[] | undefined): Problema |
 
 /* Categorias unicas de un proyecto (para sus badges), en orden fijo. */
 export function categoriasDe(pr: Problema): Categoria[] {
-  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'vulnerabilidad', 'huerfano', 'dev', 'salud', 'taller'];
+  const orden: Categoria[] = ['sinGit', 'sinCommit', 'sinPush', 'gate', 'config', 'sentinel', 'vulnerabilidad', 'huerfano', 'dev', 'salud', 'taller', 'pendiente'];
   return orden.filter((c) => pr.entradas.some((e) => e.categoria === c));
 }
 

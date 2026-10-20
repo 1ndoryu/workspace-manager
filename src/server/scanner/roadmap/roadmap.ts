@@ -17,6 +17,10 @@ export const SECCIONES_ROADMAP = ['Siguiente bloque', 'Pendientes', 'Bloqueos', 
 /** Tope de lineas: pasarlo significa tener demasiado abierto (D8). */
 export const TOPE_LINEAS_ROADMAP = 400;
 
+/** Tope de IDs/tareas que viajan al tablero. [por que] Acotar la salida (AGENTS §5):
+ * un roadmap desbordado no debe engordar el snapshot sin limite. */
+export const TOPE_TAREAS = 40;
+
 /* IDs usados en el area: {DD}{M}{A}-{N} (297A-4, 19AA-4), H-<dominio>-<n>-<m> (H-F12-14) y
  * fases cortas (F0, T7, S17, R2). */
 const RE_ID = /\b(?:\d{2,3}[A-C][A-Z]?-\d+|[A-Z]-[A-Z]+\d+-\d+|[A-Z]{1,3}\d+)\b/;
@@ -174,7 +178,7 @@ export function analizarRoadmap(texto: string): AnalisisRoadmap {
     faltantes: SECCIONES_ROADMAP.filter((s) => !encontradas.has(s)),
     noCanonicas,
     planes,
-    ids: [...ids].slice(0, 40),
+    ids: [...ids].slice(0, TOPE_TAREAS),
   };
 }
 
@@ -182,6 +186,7 @@ const VACIO: ResumenRoadmap = {
   pendientes: 0,
   activos: 0,
   ids: [],
+  tareas: [],
   resumen: '',
   lineas: 0,
   problemas: 0,
@@ -199,6 +204,8 @@ export function resumenRoadmap(ruta: string): ResumenRoadmap {
       pendientes: a.tareas.length,
       activos: a.planes.length,
       ids: a.ids,
+      /* ID y titulo de cada tarea: la consola de problemas las lista y las filtra. */
+      tareas: a.tareas.slice(0, TOPE_TAREAS).map((t) => ({ id: t.id, titulo: t.titulo })),
       resumen: a.tareas
         .slice(0, 8)
         .map((t) => t.titulo)

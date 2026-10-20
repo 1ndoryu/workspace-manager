@@ -119,6 +119,7 @@ describe('roadmap: resumenRoadmap', () => {
       pendientes: 0,
       activos: 0,
       ids: [],
+      tareas: [],
       resumen: '',
       lineas: 0,
       problemas: 0,
@@ -155,6 +156,11 @@ describe('roadmap: resumenRoadmap', () => {
     assert.deepEqual(r.faltantes, ['Siguiente bloque']);
     assert.match(r.resumen, /Una/);
     assert.ok(r.lineas > 0);
+    /* ID y titulo viajan al tablero: la consola los lista como problema 'pendiente'. */
+    assert.deepEqual(r.tareas, [
+      { id: '19AA-1', titulo: '**Una.**' },
+      { id: '19AA-2', titulo: '**Otra.**' },
+    ]);
   });
 
   it('el tope del protocolo son 400 lineas', () => {

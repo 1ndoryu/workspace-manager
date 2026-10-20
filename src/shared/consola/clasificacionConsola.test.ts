@@ -4,6 +4,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   contarProblemas,
+  problemasDe,
+  categoriasDe,
   problemaHuerfanosSinProyecto,
   problemasDevDe,
   problemasSentinelDe,
@@ -131,5 +133,51 @@ describe('huerfano: nombre del proceso', () => {
   it('el exe manda sobre el cmd', () => {
     const p = problemaHuerfanosSinProyecto({ huerfanos: [huerfano({ exe: 'C:\\otro\\servicio.exe', cmd: 'algo.exe --x' })] } as unknown as InformeDev);
     assert.match(p!.entradas[0].motivo, /sin proyecto: servicio\.exe/);
+  });
+});
+
+/* [por que] La usuaria pidio (2026-10-20) que los pendientes del roadmap dejaran de ser un
+ * contador aparte y fueran un tipo de problema mas: listables y filtrables en la consola. */
+describe('pendiente: trabajo abierto del roadmap', () => {
+  /* Fixture minimo: solo los campos que lee la clasificacion. `over` no comprueba los
+   * tipos de los valores (los subobjetos van recortados a lo que se usa). */
+  const repo = (over: Partial<Record<keyof Proyecto, unknown>> = {}): Proyecto =>
+    ({
+      id: 'demo',
+      clave: 'demo',
+      ruta: 'demo',
+      esGit: true,
+      tipo: 'repo',
+      git: { dirty: false, cambios: { staged: 0, unstaged: 0, untracked: 0 }, worktreesOrfanos: [], remoto: 'origin', ahead: 0 },
+      gate: { declarado: true, sentinel: 'config', varsense: true, doctor: null, gateDisponible: true, puerta: 'sentinel' },
+      ...over,
+    }) as unknown as Proyecto;
+
+  const roadmap = (tareas: { id: string; titulo: string }[]): Proyecto['roadmap'] =>
+    ({ pendientes: tareas.length, activos: 0, ids: [], tareas, resumen: '', lineas: 10, problemas: 0, faltantes: [], planes: [] });
+
+  it('una entrada por tarea, con su ID y su titulo, y sin seriedad', () => {
+    const p = problemasDe(repo({ roadmap: roadmap([{ id: 'X1', titulo: '**Uno.**' }, { id: 'X2', titulo: '**Dos.**' }]) }));
+    assert.ok(p);
+    assert.equal(contarProblemas(p.entradas), 2);
+    assert.equal(p.entradas[0].categoria, 'pendiente');
+    assert.equal(p.entradas[0].motivo, 'X1 — Uno.');
+    assert.equal(p.entradas[0].seriedad, null);
+    assert.deepEqual(categoriasDe(p), ['pendiente']);
+  });
+
+  it('va despues de los defectos del mismo proyecto', () => {
+    const p = problemasDe(repo({ roadmap: roadmap([{ id: 'X1', titulo: 'Uno' }]) , git: { dirty: true, cambios: { staged: 1, unstaged: 0, untracked: 0 }, worktreesOrfanos: [], remoto: 'origin', ahead: 0 } }));
+    assert.deepEqual(p!.entradas.map((e) => e.categoria), ['sinCommit', 'pendiente']);
+  });
+
+  it('sin tareas no inventa entradas', () => {
+    assert.equal(problemasDe(repo({ roadmap: roadmap([]) })), null);
+    assert.equal(problemasDe(repo({})), null);
+  });
+
+  it('una carpeta sin git tambien declara sus pendientes', () => {
+    const p = problemasDe(repo({ esGit: false, tipo: 'carpeta', roadmap: roadmap([{ id: 'X1', titulo: 'Uno' }]) }));
+    assert.deepEqual(p!.entradas.map((e) => e.categoria), ['sinGit', 'pendiente']);
   });
 });
