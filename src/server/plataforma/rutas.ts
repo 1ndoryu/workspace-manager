@@ -45,6 +45,10 @@ export const RAIZ_QUALITY_TOOLS = join(RAIZ_AREA, NOMBRE_QUALITY_TOOLS);
 /** Carpeta de skills del agente (índice en AGENTS §11). */
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || join(homedir(), '.agents', 'skills');
 
+/* Copias de las skills para opencode, relativas al home (AGENTS §10). Relativa y no absoluta:
+ * el home llega inyectado (`entorno.homedir`) y los tests lo cambian. */
+export const CARPETA_SKILLS_OPENCODE = join('.config', 'opencode', 'skills');
+
 /* [por que] Nombre de la carpeta que instala GlorySentinel bajo %LOCALAPPDATA% (current.json,
  * current.js, versions/). Lo deletreaban cuatro módulos: cambiarlo exigía tocarlos todos. */
 export const NOMBRE_SENTINEL = 'GlorySentinel';

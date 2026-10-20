@@ -3,6 +3,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { leerArchivo } from '../../http.js';
+import { CARPETA_SKILLS_OPENCODE } from '../../plataforma/rutas.js';
 import type { Entorno } from '../entorno.js';
 
 /* leerArchivo devuelve null si no existe; '' (vacío) también cuenta como ausente.
@@ -21,7 +22,7 @@ export function skillArranque(entorno: Entorno): string | null {
  * se escribia ~/.agents/skills a mano y ignoraba esa variable. */
 export function copiasSkill(entorno: Entorno): { nombre: string; coincide: boolean }[] {
   const origen = entorno.carpetaSkills;
-  const copias = join(entorno.homedir, '.config', 'opencode', 'skills');
+  const copias = join(entorno.homedir, CARPETA_SKILLS_OPENCODE);
   let nombres: string[];
   try {
     nombres = readdirSync(copias, { withFileTypes: true })
