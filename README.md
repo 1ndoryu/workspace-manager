@@ -234,7 +234,7 @@ proyecto que deba ir contra corriente.
 
 ## Pruebas
 
-No hay `npm test`. Los tests y el type-check corren **solo en el taller remoto**, nunca
+`npm run test` (suite del servidor y los scripts) y `npm run type-check` corren **solo en el taller remoto**, nunca
 en el portátil: el portátil edita y lo pesado va a la máquina del taller. Los scripts
 `quality:*:test` pasan por `scripts/dev/ejecutar-tests.mjs`, que manda el comando al
 taller. Sin taller configurado el comando falla con un error claro en vez de ejecutarse
