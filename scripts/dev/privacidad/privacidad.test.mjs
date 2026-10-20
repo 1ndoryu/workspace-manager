@@ -25,7 +25,7 @@ test('no marca nombres de usuario de ejemplo (usuario, user)', () => {
 });
 
 test('detecta IPs públicas y privadas pero no versiones de lockfile ni localhost ni documentación', () => {
-  assert.deepEqual(reglas('host 192.0.2.10'), ['ip']);
+  assert.deepEqual(reglas('host 8.8.8.8'), ['ip']);
   assert.deepEqual(reglas('servidor 10.0.0.5'), ['ip']);
   assert.deepEqual(reglas('escucha 127.0.0.1, 127.0.0.2 y 0.0.0.0'), []);
   assert.deepEqual(reglas('ejemplo 203.0.113.9 y 198.51.100.7'), []);

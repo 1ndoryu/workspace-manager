@@ -9,13 +9,13 @@ import { emergenciaLocal } from '../../shared/vps.mjs';
 /* [por que] Sin VPS (config null) y sin --local el mando no analiza: falla con motivo. Con --local
  * la emergencia corre aquí y se avisa. La 89 (hostname del taller) siempre corre allí. */
 test('emergenciaLocal: con VPS va a remoto; sin VPS falla salvo con --local', () => {
-  const taller = { host: 'dev89', hostnameTaller: 'vmi-taller' };
-  assert.deepEqual(emergenciaLocal(['x', '--inicio'], taller, 'Wan'), { emergencia: false, aviso: undefined });
-  assert.equal(emergenciaLocal(['x', '--inicio', '--local'], taller, 'Wan').emergencia, true);
-  assert.match(emergenciaLocal(['x', '--local'], taller, 'Wan').aviso, /EMERGENCIA --local/);
-  assert.throws(() => emergenciaLocal(['x', '--inicio'], null, 'Wan'), /sin VPS configurada/);
-  assert.equal(emergenciaLocal(['x', '--local'], null, 'Wan').emergencia, true);
-  assert.deepEqual(emergenciaLocal(['x', '--inicio'], taller, 'vmi-taller'), { emergencia: false, aviso: undefined });
+  const taller = { host: 'taller', hostnameTaller: 'taller-remoto' };
+  assert.deepEqual(emergenciaLocal(['x', '--inicio'], taller, 'portatil'), { emergencia: false, aviso: undefined });
+  assert.equal(emergenciaLocal(['x', '--inicio', '--local'], taller, 'portatil').emergencia, true);
+  assert.match(emergenciaLocal(['x', '--local'], taller, 'portatil').aviso, /EMERGENCIA --local/);
+  assert.throws(() => emergenciaLocal(['x', '--inicio'], null, 'portatil'), /sin VPS configurada/);
+  assert.equal(emergenciaLocal(['x', '--local'], null, 'portatil').emergencia, true);
+  assert.deepEqual(emergenciaLocal(['x', '--inicio'], taller, 'taller-remoto'), { emergencia: false, aviso: undefined });
 });
 
 test('parsearArgsGate exige id y exactamente un modo', () => {
