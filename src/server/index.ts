@@ -1,7 +1,7 @@
 /* Servidor HTTP del workspace-manager: sirve la API JSON (escaneo del area)
  * y el build estatico del cliente. [por que] Node http nativo, sin framework:
  * rapido, cero deps, coherente con el stack ligero del proyecto. */
-import { createServer, type ServerResponse } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { json } from './http.js';
@@ -80,6 +80,32 @@ const manejarTareas = crearManejadorTareas({
   sincronia,
 });
 
+type ManejadorRuta = (req: IncomingMessage, res: ServerResponse, url: URL, ruta: string) => Promise<boolean>;
+
+/* Rutas de la API por dominio, en orden: la primera que reclama la ruta (devuelve true) responde.
+ * [por que] Una tabla en vez de una cadena de `if`: añadir un dominio es una línea y el orden
+ * queda a la vista. Cada módulo vive en su archivo; aquí solo se enumeran. */
+const MANEJADORES_API: ManejadorRuta[] = [
+  manejarRutasGate,         /* /api/proyecto/gate, /api/proyectos/doctor, /api/gate/* */
+  manejarRutasAlta,         /* lista de alta por proyecto (10AA-2 F10) */
+  manejarRutasGuardian,     /* /api/guardian/* (10AA-2 F11.4) */
+  manejarRutasConfig,       /* /api/config* */
+  manejarRutasDocumentos,   /* /api/skills/*, /api/agentes */
+  manejarRutasArchivos,     /* /api/archivos* */
+  manejarRutasRepos,        /* /api/repos/* */
+  manejarRutasVps,          /* /api/vps/* (299A-5, solo lectura) */
+  manejarRutasVpsPiezas,    /* /api/vps/pieza (0110A-3 F3): archivo aparte por el refactor de rutasVps */
+  manejarRutasVpsHistorial, /* /api/vps/historial (07AA-4): archivo aparte por el límite de líneas */
+  manejarRutasRecursos,     /* /api/recursos/historial (20AA-17) */
+  manejarRutasPc,           /* /api/pc/* */
+  manejarRutasDev,          /* /api/dev/* (F0b) */
+  manejarRutasConsola,      /* /api/consola/* (07AA-1) */
+  manejarRutasTaller,       /* /api/taller/estado (S3) */
+  manejarRutasTallerAgente, /* /api/taller/agente y /api/taller/pieza (20AA-16) */
+  manejarRutasSalud,        /* /api/salud/* (10AA-2 F8) */
+  manejarTareas,            /* /api/tareas/* (07AA-5 F2): el puente custodia la sesión D1 */
+];
+
 /* Sirve archivos estaticos del build (dist) o del index.html. */
 function servirEstatico(rutaRel: string, res: ServerResponse): void {
   const ruta = normalize(join(DIST, rutaRel));
@@ -156,89 +182,9 @@ export function crearServidor(opciones: OpcionesServidor = {}) {
           json(res, 200, snapshot.proyectos);
           return;
         }
-        /* Rutas del gate (/api/proyecto/gate, /api/proyectos/doctor,
-         * /api/gate/*): viven en rutasGate.ts (dominio gate). */
-        if (await manejarRutasGate(req, res, url, ruta)) {
-          return;
-        }
-        /* Lista de alta por proyecto (10AA-2 F10): vive en rutasAlta.ts. */
-        if (await manejarRutasAlta(req, res, url, ruta)) {
-          return;
-        }
-        /* Rutas del Guardián (/api/guardian/*, 10AA-2 F11.4): la pestaña que
-         * controla política, topes, plantilla y mantenimiento del guard. */
-        if (await manejarRutasGuardian(req, res, url, ruta)) {
-          return;
-        }
-        /* Rutas de config (/api/config*): viven en rutasConfig.ts. */
-        if (await manejarRutasConfig(req, res, url, ruta)) {
-          return;
-        }
-        /* Rutas de documentos (/api/skills/*, /api/agentes): viven en
-         * rutasDocumentos.ts. */
-        if (await manejarRutasDocumentos(req, res, url, ruta)) {
-          return;
-        }
-        /* Rutas del navegador de archivos (/api/archivos*): viven en
-         * rutasArchivos.ts. */
-        if (await manejarRutasArchivos(req, res, url, ruta)) {
-          return;
-        }
-        /* Rutas de la tab repos (/api/repos/*): viven en rutasRepos.ts. */
-        if (await manejarRutasRepos(req, res, url, ruta)) {
-          return;
-        }
-        /* Rutas de la tab vps (/api/vps/*, 299A-5, solo lectura): viven en
-         * vps/rutas/rutasVps.ts. */
-        if (await manejarRutasVps(req, res, url, ruta)) {
-          return;
-        }
-        /* Piezas pesadas bajo demanda (/api/vps/pieza, 0110A-3 F3):
-         * archivo aparte para no chocar con el refactor de rutasVps. */
-        if (await manejarRutasVpsPiezas(req, res, url, ruta)) {
-          return;
-        }
-        /* Historial persistente por despliegue (/api/vps/historial, 07AA-4):
-         * archivo aparte para no engordar rutasVps (límite de líneas). */
-        if (await manejarRutasVpsHistorial(req, res, url, ruta)) {
-          return;
-        }
-        /* Historial de recursos del tablero (/api/recursos/historial, 20AA-17): el anillo que
-         * alimenta el muestreo de fondo; el panel lo mezcla con su cola viva. */
-        if (await manejarRutasRecursos(req, res, url, ruta)) {
-          return;
-        }
-        /* Rutas de la tab PC (/api/pc/*): viven en rutasPc.ts. */
-        if (await manejarRutasPc(req, res, url, ruta)) {
-          return;
-        }
-        /* Rutas del mando dev (/api/dev/*, F0b): viven en rutasDev.ts. */
-        if (await manejarRutasDev(req, res, url, ruta)) {
-          return;
-        }
-        /* Consola de problemas agregada (/api/consola/*, 07AA-1): mismo
-         * conteo que la cabecera, con desglose. Viven en rutasConsola.ts. */
-        if (await manejarRutasConsola(req, res, url, ruta)) {
-          return;
-        }
-        /* Estado del taller remoto (/api/taller/estado, S3): viven en taller/rutasTaller.ts. */
-        if (await manejarRutasTaller(req, res, url, ruta)) {
-          return;
-        }
-        /* Pulse del taller (/api/taller/agente y /api/taller/pieza, 20AA-16): la tabla y el
-         * detalle del panel, en vivo desde la 89. Viven en taller/rutasTallerAgente.ts. */
-        if (await manejarRutasTallerAgente(req, res, url, ruta)) {
-          return;
-        }
-        /* Salud del entorno y de los proyectos (/api/salud/*, 10AA-2 F8): viven en
-         * rutas/salud/rutasSalud.ts. */
-        if (await manejarRutasSalud(req, res, url, ruta)) {
-          return;
-        }
-        /* Proxy de la tab tareas (/api/tareas/*, 07AA-5 F2): el front no
-         * toca TASKS; el puente custodia la sesion D1 en el servidor. */
-        if (await manejarTareas(req, res, url, ruta)) {
-          return;
+        /* Primera ruta de dominio que la reclama; si ninguna, 404. */
+        for (const manejar of MANEJADORES_API) {
+          if (await manejar(req, res, url, ruta)) return;
         }
         json(res, 404, { error: 'Ruta no encontrada', ruta });
         return;
