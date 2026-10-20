@@ -180,7 +180,7 @@ node scripts/dev/dev.mjs <subcomando> [args]
 | `logs <id>` | Cola del registro. |
 | `open <id>` | Imprime las URLs. |
 | `problemas` | Consola agregada de todo el área. |
-| `gate <id> --inicio\|--cierre` | Guarda la línea base de hallazgos o compara contra ella. `--cierre` además corre el autogate (`comandos.gate` de la ficha) en la 89; sin orden se omite con aviso. |
+| `gate <id> --inicio\|--cierre` | Guarda la línea base de hallazgos o compara contra ella. `--cierre` además corre el autogate (`comandos.gate` de la ficha) en la 89; sin orden se omite con aviso. Si el autogate ejecuta pruebas de VS Code en Linux, su `comandos.gate` debe fijar `DISPLAY` (p. ej. `DISPLAY=:99 TMPDIR=/var/tmp npm run quality:check` en la 89). |
 | `cierre <id>` | Puerta de cierre de una tarea. |
 | `alta <id\|carpeta>` | Lista de alta de un proyecto nuevo (en seco salvo `--aplicar`). |
 | `comandos <id>` | Imprime el contrato de comandos del proyecto. |
