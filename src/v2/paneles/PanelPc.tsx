@@ -106,7 +106,7 @@ export function PanelPc() {
           return (
             <section key={grupo.id} className="panelPcGrupo" aria-label={grupo.titulo}>
               <header className="panelPcGrupoCabecera">
-                <Button cuadrado pequeno onClick={() => plegar(grupo.id)} title={plegado ? `Despliega ${grupo.titulo}` : `Pliega ${grupo.titulo}`}>
+                <Button cuadrado pequeno onClick={() => plegar(grupo.id)} title={plegado ? `Despliega ${grupo.titulo}` : `Pliega ${grupo.titulo}`} aria-label={plegado ? `Despliega ${grupo.titulo}` : `Pliega ${grupo.titulo}`}>
                   {plegado ? '+' : '−'}
                 </Button>
                 <label className="panelPcCheck">

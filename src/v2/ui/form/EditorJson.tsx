@@ -101,14 +101,14 @@ function Fila({ campo }: { campo: Campo }) {
     <div className="fjFila">
       <span className="fjEtiqueta">{campo.label}</span>
       <span className="fjControl">
-        <ControlSimple value={campo.valor} onChange={campo.onChange} />
+        <ControlSimple value={campo.valor} onChange={campo.onChange} etiqueta={campo.label} />
       </span>
     </div>
   );
 }
 
 /* Control para un valor simple. */
-function ControlSimple({ value, onChange }: { value: JsonValue; onChange: (v: JsonValue) => void }) {
+function ControlSimple({ value, onChange, etiqueta }: { value: JsonValue; onChange: (v: JsonValue) => void; etiqueta: string }) {
   if (value === null) return <span className="fjVacio">—</span>;
   if (typeof value === 'boolean') {
     return (
@@ -122,6 +122,7 @@ function ControlSimple({ value, onChange }: { value: JsonValue; onChange: (v: Js
       <input
         type="number"
         className="fjInput fjInput--num"
+        aria-label={etiqueta}
         value={String(value)}
         onChange={(e) => {
           const n = Number(e.target.value);
@@ -130,7 +131,7 @@ function ControlSimple({ value, onChange }: { value: JsonValue; onChange: (v: Js
       />
     );
   }
-  return <input type="text" className="fjInput" value={value as string} onChange={(e) => onChange(e.target.value)} />;
+  return <input type="text" className="fjInput" aria-label={etiqueta} value={value as string} onChange={(e) => onChange(e.target.value)} />;
 }
 
 /* Tags editables para una lista de valores simples (una fila). */
@@ -165,6 +166,7 @@ function TagLista({ valores, onCambiar }: { valores: string[]; onCambiar: (v: st
           onChange={(e) => setNuevo(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && agregar()}
           placeholder="agregar valor…"
+          aria-label="agregar valor"
         />
         <Button className="fjBoton" onClick={agregar}>agregar</Button>
       </div>

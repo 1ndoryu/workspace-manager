@@ -100,10 +100,10 @@ export function PanelConsola() {
         {/* [por que] Un solo contador: los pendientes del roadmap son una categoria mas y
             suman aqui (encargo de la usuaria, 2026-10-20). */}
         <span className="panelConsolaTitulo">problemas ({contar('todos')})</span>
-        <Button cuadrado pequeno onClick={plegarTodo} title="Plegar todos los grupos">
+        <Button cuadrado pequeno onClick={plegarTodo} title="Plegar todos los grupos" aria-label="Plegar todos los grupos">
           −
         </Button>
-        <Button cuadrado pequeno onClick={desplegarTodo} title="Desplegar todos los grupos">
+        <Button cuadrado pequeno onClick={desplegarTodo} title="Desplegar todos los grupos" aria-label="Desplegar todos los grupos">
           +
         </Button>
         <Button

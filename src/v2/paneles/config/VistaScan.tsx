@@ -38,6 +38,7 @@ export function VistaScan({ datos }: { datos: DatosPanelConfig }) {
           <input
             type="number"
             className="scanCfgNum"
+            aria-label="Intervalo (valor)"
             min={1}
             max={1440}
             value={intervalo}
