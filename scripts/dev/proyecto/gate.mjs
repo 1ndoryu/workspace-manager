@@ -6,22 +6,25 @@
  * POST al cerrar y comparar a ojo) y evita releer package.json en cada tarea.
  * El análisis lo hace el backend y lo reutiliza si el árbol de trabajo no
  * cambió desde el último del gate (huella, 13AA-3); --forzar lo salta; el snapshot vive en data/gate-inicio/,
- * ignorado por Git (data/*). Los parsers y formateadores son puros y se exportan
- * para test; la red y el disco quedan en `gate` y `comandos`. */
+ * ignorado por Git (data/*). Tras los hallazgos, `gate --cierre` corre también el autogate del
+ * proyecto (`comandos.gate`) en la VPS. Los parsers y formateadores son puros y se exportan
+ * para test; la red y el disco quedan en `gate`, `comandos` y `correrAutogate`. */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rutaConfigPrivada } from '../../shared/rutas.mjs';
 import { cabeceraAutorizacion } from '../token.mjs';
 import { URL_API } from '../../shared/puertos.mjs';
-import { emergenciaLocal } from '../../shared/vps.mjs';
+import { cargarTaller, dirRemotoDe, ejecutarEnVps, emergenciaLocal, mensajeSinVps } from '../../shared/vps.mjs';
+import { rutaAbsDe } from '../remoto/rutaLocal.mjs';
 
 export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const API = URL_API;
 export const CLAVES_COMANDOS = ['gate', 'test-archivo', 'typecheck', 'build'];
 const USO = `uso:
   gate <id> --inicio     guarda la línea base de hallazgos antes de la tarea
-  gate <id> --cierre     lista solo los hallazgos nuevos frente a la base
+  gate <id> --cierre     lista solo los hallazgos nuevos frente a la base y corre el autogate
+                         (comandos.gate, en la 89; sin orden se omite con aviso)
                          (+ --forzar: re-analiza aunque el árbol no haya cambiado)
                          (+ --local: emergencia, VPS caída; analiza aquí, sin caché, con aviso)
   comandos <id>          contrato de comandos del proyecto (registro.json)`;
@@ -69,6 +72,53 @@ export function leerComandos(bloque) {
 /* Líneas de salida para los hallazgos nuevos, con archivo:línea. */
 export function formatearNuevos(nuevos) {
   return nuevos.map((h) => `  ${h.archivo}:${h.linea ?? '?'}  ${h.ruleId}  ${h.mensaje}`);
+}
+
+/* Entrada del proyecto en registro.json, o undefined si no existe. */
+export function leerEntrada(id, raiz = RAIZ) {
+  const registro = JSON.parse(readFileSync(rutaConfigPrivada('registro.json', raiz), 'utf8'));
+  return registro.proyectos.find((x) => x.id === id);
+}
+
+/* Decide si el autogate (`comandos.gate`) corre. Sin contrato o sin orden se omite con aviso:
+ * no bloquea a los proyectos que no tienen autogate. En emergencia (`--local`) no corre en el
+ * portátil, porque los tests van a la 89 (AGENTS §1). */
+export function decidirAutogate(entrada, emergencia) {
+  if (entrada?.comandos === undefined) return { estado: 'omitido', motivo: 'sin contrato de comandos en registro.json' };
+  const r = leerComandos(entrada.comandos);
+  if (r.error) return { estado: 'error', motivo: r.error };
+  if (!r.comandos.gate) return { estado: 'omitido', motivo: 'sin comandos.gate en registro.json' };
+  if (emergencia) return { estado: 'omitido', motivo: 'emergencia --local: el autogate no corre en el portátil; pásalo en la 89' };
+  return { estado: 'pendiente', orden: r.comandos.gate };
+}
+
+/* Últimas líneas de la salida: un fallo se lee desde el final. */
+export function colaSalida(texto, lineas = 40) {
+  return texto.trimEnd().split('\n').slice(-lineas);
+}
+
+/* Líneas de salida del autogate. Un fallo o un error no se calla: el mando devuelve 1. */
+export function lineasAutogate(id, a) {
+  if (a.estado === 'ok') return [`gate ${id} --cierre: autogate OK en la 89 (${a.orden})`];
+  if (a.estado === 'omitido') return [`gate ${id} --cierre: autogate omitido: ${a.motivo}`];
+  if (a.estado === 'fallo') return [`gate ${id} --cierre: autogate FALLÓ en la 89 (rc ${a.rc}, ${a.orden}). Últimas líneas:`, ...colaSalida(a.salida)];
+  return [`gate ${id} --cierre: autogate no ejecutado: ${a.motivo}`];
+}
+
+/* Corre el autogate en la VPS por la misma vía que los tests (cm-heavy, réplica en <dirRemotoBase>/<id>).
+ * [por que] Un script propio no invoca npm por su cuenta: el wrapper de la VPS es el que pone el candado
+ * de carga pesada y el PATH del taller (AGENTS §2). */
+export function correrAutogate(id, entrada, emergencia) {
+  if (!entrada) return { estado: 'error', motivo: `'${id}' no está en registro.json` };
+  const d = decidirAutogate(entrada, emergencia);
+  if (d.estado !== 'pendiente') return d;
+  const config = cargarTaller();
+  if (!config) return { estado: 'error', motivo: 'sin VPS configurada (config/taller.json)' };
+  const carpeta = rutaAbsDe(entrada);
+  const r = ejecutarEnVps(config, dirRemotoDe(config, id, carpeta, carpeta), ['sh', '-c', d.orden], { capturar: true });
+  const aviso = mensajeSinVps(r.status, config.host);
+  if (aviso) return { estado: 'error', motivo: aviso };
+  return { estado: r.status === 0 ? 'ok' : 'fallo', rc: r.status, orden: d.orden, salida: r.stdout ?? '' };
 }
 
 /* Llamada al backend. Lanza con un mensaje accionable si no responde. */
@@ -129,7 +179,10 @@ export async function gate(argv) {
     const r = await pedir('POST', '/api/gate/comparar', { clave: p.id, base: base.hallazgos, forzar: p.forzar, local: destino.emergencia });
     console.log(`gate ${p.id} --cierre: ${r.nuevos.length} nuevos, ${r.resueltos} resueltos (base ${base.hallazgos.length}, ahora ${r.total})`);
     for (const linea of formatearNuevos(r.nuevos)) console.log(linea);
-    return r.nuevos.length > 0 ? 1 : 0;
+    // Sentinel y autogate son puertas independientes: se corren las dos y el cierre falla si una falla.
+    const auto = correrAutogate(p.id, leerEntrada(p.id), destino.emergencia);
+    for (const linea of lineasAutogate(p.id, auto)) (auto.estado === 'fallo' || auto.estado === 'error' ? console.error : console.log)(linea);
+    return r.nuevos.length > 0 || auto.estado === 'fallo' || auto.estado === 'error' ? 1 : 0;
   } catch (e) {
     console.error(`gate ${p.id}: ${e?.message ?? e}`);
     return 1;
@@ -142,8 +195,7 @@ export async function comandos(argv, raiz = RAIZ) {
     console.error(`comandos: falta <id> del proyecto\n${USO}`);
     return 1;
   }
-  const registro = JSON.parse(readFileSync(rutaConfigPrivada('registro.json', raiz), 'utf8'));
-  const entrada = registro.proyectos.find((x) => x.id === id);
+  const entrada = leerEntrada(id, raiz);
   if (!entrada) {
     console.error(`comandos: '${id}' no está en registro.json`);
     return 1;

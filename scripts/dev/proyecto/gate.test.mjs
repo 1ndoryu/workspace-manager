@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parsearArgsGate, rutaSnapshot, leerComandos, formatearNuevos, RAIZ } from './gate.mjs';
+import { parsearArgsGate, rutaSnapshot, leerComandos, formatearNuevos, decidirAutogate, colaSalida, lineasAutogate, correrAutogate, RAIZ } from './gate.mjs';
 import { emergenciaLocal } from '../../shared/vps.mjs';
 
 /* [por que] Sin VPS (config null) y sin --local el mando no analiza: falla con motivo. Con --local
@@ -63,4 +63,29 @@ test('formatearNuevos imprime archivo:línea, regla y mensaje', () => {
   const lineas = formatearNuevos([{ archivo: 'src/a.ts', linea: 7, ruleId: 'regla-x', mensaje: 'algo' }]);
   assert.deepEqual(lineas, ['  src/a.ts:7  regla-x  algo']);
   assert.deepEqual(formatearNuevos([{ archivo: 'b.ts', ruleId: 'r', mensaje: 'm' }]), ['  b.ts:?  r  m']);
+});
+
+/* [por que] El autogate es obligatorio donde hay `comandos.gate`; lo que no lo tiene se omite con aviso
+ * y no bloquea. En emergencia no corre en el portátil. */
+test('decidirAutogate: corre comandos.gate, omite sin orden y nunca en emergencia', () => {
+  assert.deepEqual(decidirAutogate({ comandos: { gate: 'npm run quality:check' } }, false), { estado: 'pendiente', orden: 'npm run quality:check' });
+  assert.equal(decidirAutogate({ comandos: { gate: null } }, false).estado, 'omitido');
+  assert.equal(decidirAutogate({}, false).estado, 'omitido');
+  assert.equal(decidirAutogate({ comandos: { gate: 'npm test' } }, true).estado, 'omitido');
+  assert.equal(decidirAutogate({ comandos: { lint: 'x' } }, false).estado, 'error');
+});
+
+test('colaSalida devuelve solo las últimas líneas', () => {
+  assert.deepEqual(colaSalida('a\nb\nc\n', 2), ['b', 'c']);
+});
+
+test('lineasAutogate: un fallo muestra la cola y lleva el rc', () => {
+  const lineas = lineasAutogate('x', { estado: 'fallo', rc: 1, orden: 'npm run quality:check', salida: 'uno\ndos' });
+  assert.match(lineas[0], /autogate FALLÓ en la 89 \(rc 1/);
+  assert.deepEqual(lineas.slice(1), ['uno', 'dos']);
+  assert.match(lineasAutogate('x', { estado: 'omitido', motivo: 'm' })[0], /omitido: m/);
+});
+
+test('correrAutogate sin entrada en el registro es un error, no una omisión', () => {
+  assert.equal(correrAutogate('no-existe', undefined, false).estado, 'error');
 });
