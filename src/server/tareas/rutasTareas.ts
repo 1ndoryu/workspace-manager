@@ -14,7 +14,7 @@ import {sincronizarTareasRoadmap, type ProyectoWm} from './sincronizacion/sincro
 import type {SincroniaFondo} from './sincronizacion/sincronia-fondo.js';
 import {escribirRoadmaps} from './escritura/escribir-roadmaps.js';
 import {confirmarBorrado, prepararBorrado, trasGuardar, trasReordenar, type DepsAccionesTab} from './escritura/acciones-tab.js';
-import {validarParche} from './tarea-unitaria.js';
+import {validarParche, type ProyectoPuente} from './tarea-unitaria.js';
 import {estadoTaller} from '../taller/estado.js';
 import {revisarTuneles} from '../taller/tuneles.js';
 
@@ -96,6 +96,29 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
     sincronia?.programar();
   }
 
+  /* [por que] Cada GET de columnas consultaba al servicio TASKS en cada petición: medido 0,6–1,3 s
+   * solo en su 401 sin credenciales, y la tab la pide a menudo. Se cachea unos segundos y las
+   * llamadas a la vez comparten un vuelo. Solo cuenta lo que llegó bien; crear una columna lo
+   * invalida para que aparezca enseguida. */
+  const TTL_PROYECTOS_TASKS_MS = 20_000;
+  let proyectosTasks: {ts: number; datos: ProyectoPuente[]} | null = null;
+  let vueloProyectosTasks: Promise<ProyectoPuente[]> | null = null;
+  function proyectosTasksCacheados(): Promise<ProyectoPuente[]> {
+    if (proyectosTasks && Date.now() - proyectosTasks.ts < TTL_PROYECTOS_TASKS_MS) {
+      return Promise.resolve(proyectosTasks.datos);
+    }
+    vueloProyectosTasks ??= puente
+      .proyectos()
+      .then((datos) => {
+        proyectosTasks = {ts: Date.now(), datos};
+        return datos;
+      })
+      .finally(() => {
+        vueloProyectosTasks = null;
+      });
+    return vueloProyectosTasks;
+  }
+
   /* [por que] Un `red` suele ser el túnel caído, y es justo el fallo que ve la
    * usuaria en la tab: se pide al supervisor que revise (solo repara proyectos
    * que la 89 tiene en marcha) sin bloquear esta respuesta. El estado del taller
@@ -136,8 +159,12 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
       try {
         const proyectos = await sincronizarColumnas({
           wm: await leerWm(),
-          task: await puente.proyectos(),
-          crear: (legacyId, entrada) => puente.crearProyecto(legacyId, entrada.nombre, entrada.clave),
+          task: await proyectosTasksCacheados(),
+          crear: async (legacyId, entrada) => {
+            const id = await puente.crearProyecto(legacyId, entrada.nombre, entrada.clave);
+            proyectosTasks = null; /* la columna nueva no puede esperar al TTL */
+            return id;
+          },
         });
         json(res, 200, {proyectos});
       } catch (e) {

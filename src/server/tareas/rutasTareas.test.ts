@@ -159,6 +159,26 @@ void describe('/api/tareas', () => {
     assert.deepEqual(llamadas, ['proyectos', `crearProyecto:${columnas[0].legacyId}`]);
   });
 
+  void it('GET proyectos cachea el listado de TASKS y lo invalida al crear una columna', async () => {
+    const llamadas: string[] = [];
+    const sinColumna = manejarCon(
+      fakePuente({llamadas, proyectos: async () => {
+        llamadas.push('proyectos');
+        return [];
+      }}),
+    );
+    await llamar(sinColumna, '/api/tareas/proyectos', 'GET');
+    /* Tras crear la columna el listado vuelve a pedirse: la nueva no puede esperar al TTL. */
+    await llamar(sinColumna, '/api/tareas/proyectos', 'GET');
+    assert.equal(llamadas.filter((x) => x === 'proyectos').length, 2);
+
+    const conColumna: string[] = [];
+    const cacheado = manejarCon(fakePuente({llamadas: conColumna}));
+    await llamar(cacheado, '/api/tareas/proyectos', 'GET');
+    await llamar(cacheado, '/api/tareas/proyectos', 'GET');
+    assert.equal(conColumna.filter((x) => x === 'proyectos').length, 1);
+  });
+
   void it('POST reordenar rechaza lote invalido sin tocar TASKS', async () => {
     const llamadas: string[] = [];
     const manejar = manejarCon(fakePuente({llamadas}), {movimientos: []});
