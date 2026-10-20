@@ -171,7 +171,7 @@ test('comando local: sin ssh, cd al árbol de trabajo y el candado de carga pesa
   const rutas = rutasRemotas(config, 'P', 'main');
   const orden = comandoLocal(config, rutas, '/srv/taller/P', ['check']);
   assert.doesNotMatch(orden, /\bssh\b/);
-  assert.match(orden, /cd '\/home\/dev\/taller\/P'/);
+  assert.match(orden, /cd '\/srv\/taller\/P'/);
   assert.match(orden, new RegExp(`CARGO_TARGET_DIR='${rutas.target}'`));
   assert.match(orden, new RegExp(`${config.lockWrapper} cargo 'check'`));
 });
