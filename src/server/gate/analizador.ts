@@ -31,6 +31,8 @@ import {
   podarAnalisis,
 } from './analisis/almacen.js';
 import { separarVigencia } from './vigencia.js';
+import { PUERTO_PROCESOS } from '../plataforma/procesos.js';
+import type { PuertoProcesos } from '../plataforma/procesos.js';
 import { datoError, montarAnalisis } from './analisis/reporte.js';
 import {
   checkoutVarsense,
@@ -111,8 +113,8 @@ async function intentar(f: () => Promise<ResultadoSpawn | null>): Promise<[Resul
 }
 
 /* Análisis local del proyecto: sentinel y varsense en paralelo. */
-async function analizarEnLocal(p: Proyecto): Promise<AnalisisSentinel> {
-  const [res, resVs] = await Promise.all([correrSentinel(p.ruta), correrVarsense(p.ruta)]);
+async function analizarEnLocal(p: Proyecto, puerto: PuertoProcesos): Promise<AnalisisSentinel> {
+  const [res, resVs] = await Promise.all([correrSentinel(p.ruta, puerto), correrVarsense(p.ruta, puerto)]);
   return montarAnalisis(p, res, resVs);
 }
 
@@ -122,9 +124,9 @@ const AVISO_EMERGENCIA =
 /* [por que] `--local` es la emergencia de AGENTS §1 (VPS caída): analiza aquí y marca el dato
  * con su aviso. Quien lo llama no lo guarda ni lo reutiliza, así que un análisis de emergencia
  * nunca pasa por análisis normal. */
-async function analizarEmergencia(p: Proyecto): Promise<AnalisisSentinel> {
+async function analizarEmergencia(p: Proyecto, puerto: PuertoProcesos): Promise<AnalisisSentinel> {
   try {
-    return { ...(await analizarEnLocal(p)), aviso: AVISO_EMERGENCIA };
+    return { ...(await analizarEnLocal(p, puerto)), aviso: AVISO_EMERGENCIA };
   } catch (err) {
     return { ...datoError(p.clave, mensaje(err)), aviso: AVISO_EMERGENCIA };
   }
@@ -134,8 +136,8 @@ async function analizarEmergencia(p: Proyecto): Promise<AnalisisSentinel> {
  * en la 89 y, si esta no responde, queda en 'error' con su motivo. No hay reintento en
  * el portátil: ese reintento era carga pesada en la laptop (AGENTS §1), y el fallo se ve
  * en el tablero en lugar de esconderse en un análisis local. */
-async function analizarConModo(p: Proyecto): Promise<AnalisisSentinel> {
-  if (modoAnalisis(p.clave) !== 'taller') return analizarEnLocal(p);
+async function analizarConModo(p: Proyecto, puerto: PuertoProcesos): Promise<AnalisisSentinel> {
+  if (modoAnalisis(p.clave) !== 'taller') return analizarEnLocal(p, puerto);
   return analizarEnTaller(p);
 }
 
@@ -172,10 +174,18 @@ async function analizarEnTaller(p: Proyecto): Promise<AnalisisSentinel> {
  * proyecto declara varsense y el runtime esta provisionado, ambos corren en
  * paralelo y los reportes se unen (hallazgos tagueados por fuente). Si solo
  * varsense falla, sentinel sigue valiendo y el estado varsense queda en el
- * campo `varsense` (nunca rompe el analisis). */
+ * campo `varsense` (nunca rompe el analisis).
+ * [por que] `puerto` es la costura para tests: solo afecta a la corrida local. La caché
+ * y el vuelo compartido siguen por clave de proyecto, así que un puerto falso debe usar
+ * `forzar` y una clave propia para no mezclarse con un análisis real. */
 const enVuelo = new Map<string, Promise<AnalisisSentinel>>();
-export async function analizarProyecto(p: Proyecto, forzar = false, emergencia = false): Promise<AnalisisSentinel> {
-  if (emergencia) return analizarEmergencia(p);
+export async function analizarProyecto(
+  p: Proyecto,
+  forzar = false,
+  emergencia = false,
+  puerto: PuertoProcesos = PUERTO_PROCESOS,
+): Promise<AnalisisSentinel> {
+  if (emergencia) return analizarEmergencia(p, puerto);
   const clave = p.clave;
   /* [por que] La clave guardada incluye el árbol de trabajo (huellaArbol), no solo HEAD: un
    * cambio sin commitear invalida el análisis. Sin huella (git falla o demasiados cambios)
@@ -189,7 +199,7 @@ export async function analizarProyecto(p: Proyecto, forzar = false, emergencia =
     /* [por que] Cualquier fallo del despacho queda en 'error' (nunca rompe el snapshot). */
     let dato: AnalisisSentinel;
     try {
-      dato = await analizarConModo(p);
+      dato = await analizarConModo(p, puerto);
     } catch (err) {
       dato = datoError(clave, mensaje(err));
     }
@@ -207,7 +217,7 @@ export async function analizarProyecto(p: Proyecto, forzar = false, emergencia =
  * análisis, el resultado no describe la huella de partida. */
 const cacheGate = new Map<string, { huella: string; dato: AnalisisSentinel }>();
 export async function analizarParaGate(p: Proyecto, forzar = false, emergencia = false): Promise<AnalisisSentinel> {
-  if (emergencia) return analizarEmergencia(p);
+  if (emergencia) return analizarEmergencia(p, PUERTO_PROCESOS);
   const huella = await huellaArbol(p.ruta, frescoDe(p));
   const previo = cacheGate.get(p.clave);
   if (!forzar && huella !== null && previo?.huella === huella) return previo.dato;
