@@ -22,6 +22,7 @@ import {
   huellaLock,
 } from './remoto/comandos.js';
 import { copiarEntradas, mensaje, type SalidaSsh, ssh } from './ssh.js';
+import { NOMBRE_QUALITY_TOOLS } from '../../plataforma/rutas.js';
 
 /* Puerto de E/S remota: la VPS (ssh), la copia de fuentes y el flush de Mutagen. [por que]
  * Separarlo permite probar el flujo sin VPS; el default es la implementación real. */
@@ -45,7 +46,7 @@ const TIMEOUT_DOCTOR_MS = 60_000;
 
 /* Directorios que no se recorren al buscar repos anidados. */
 const DIRS_NO_RECORRIDOS = new Set([
-  'node_modules', 'target', 'dist', 'build', '.git', '.quality-tools', '.quality-reports', '.sentinel',
+  'node_modules', 'target', 'dist', 'build', '.git', NOMBRE_QUALITY_TOOLS, '.quality-reports', '.sentinel',
 ]);
 
 export interface RepoAnidado {

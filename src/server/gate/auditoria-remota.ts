@@ -32,7 +32,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { leerConfigArea } from '../configArea.js';
-import { RAIZ_AREA } from '../plataforma/rutas.js';
+import { NOMBRE_QUALITY_TOOLS, RAIZ_AREA } from '../plataforma/rutas.js';
 import { type ConfigRemota, leerConfigRemota } from './herramientas/config.js';
 import { comillas, enviarArbol, type SalidaRemota, sshTexto } from './herramientas/ssh.js';
 import { tarReal } from './herramientas/tar.js';
@@ -49,7 +49,7 @@ const PESADAS = new Set([
   'node_modules',
   'target',
   '.git',
-  '.quality-tools',
+  NOMBRE_QUALITY_TOOLS,
   '.sentinel',
   'data',
   'uploads',

@@ -35,9 +35,12 @@ export const RAIZ_AREA = process.env.WS_AREA_ROOT || dirname(RAIZ_REPO);
  * `data/` queda fuera de él; un solo sitio evita que cada módulo arme su propia ruta. */
 export const RAIZ_DATOS = join(RAIZ_AREA, 'data');
 
+/* Nombre de esa carpeta: también es la que las listas de exclusión de los escáneres ignoran. */
+export const NOMBRE_QUALITY_TOOLS = '.quality-tools';
+
 /* Checkout compartido de las herramientas de calidad (sentinel, varsense) dentro del área.
  * [por que] Lo escribían a mano cuatro módulos del gate; cambiar la carpeta exigía tocar todos. */
-export const RAIZ_QUALITY_TOOLS = join(RAIZ_AREA, '.quality-tools');
+export const RAIZ_QUALITY_TOOLS = join(RAIZ_AREA, NOMBRE_QUALITY_TOOLS);
 
 /** Carpeta de skills del agente (índice en AGENTS §11). */
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || join(homedir(), '.agents', 'skills');

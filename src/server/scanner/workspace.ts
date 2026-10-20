@@ -10,7 +10,7 @@ import { resumenRoadmap } from './roadmap/roadmap.js';
 import { resumenAgents, agentesGlobales } from './agents.js';
 import { leerConfigArea } from '../configArea.js';
 import { anotarRegistro, leerRegistroOpcional } from '../registro.js';
-import { RAIZ_REPO } from '../plataforma/rutas.js';
+import { NOMBRE_QUALITY_TOOLS, RAIZ_REPO } from '../plataforma/rutas.js';
 import type { EstadoGate, Proyecto, SnapshotWorkspace } from '../../shared/types.js';
 
 /* Carpetas que NUNCA se tratan como proyecto, en cualquier area: no son datos
@@ -25,7 +25,7 @@ const IGNORADAS = new Set([
   'temp',
   'uploads',
   '.sentinel',
-  '.quality-tools',
+  NOMBRE_QUALITY_TOOLS,
   '.archivado',
   'Agente',
   'DOCS',

@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import type { Proyecto } from '../../../shared/types.js';
 import type { GestorAudit } from '../auditoria-remota.js';
 import { fechaLocal } from './audit/parseo.js';
+import { NOMBRE_QUALITY_TOOLS } from '../../plataforma/rutas.js';
 
 /* Carpetas donde puede vivir un lockfile: la raiz y las de primer nivel que no
  * sean vendored ni generadas (esas no son deps del proyecto: tools/,
@@ -19,7 +20,7 @@ import { fechaLocal } from './audit/parseo.js';
  * resultado cambiaba sin avisar. Se leen las carpetas reales, sin bajar mas de
  * un nivel. */
 const NO_VENDORED = new Set([
-  'node_modules', 'tools', '.quality-tools', '.sentinel', 'target', 'dist', 'build', 'vendor', '.git',
+  'node_modules', 'tools', NOMBRE_QUALITY_TOOLS, '.sentinel', 'target', 'dist', 'build', 'vendor', '.git',
 ]);
 
 export function carpetasDePrimerNivel(rutaProyecto: string): string[] {
