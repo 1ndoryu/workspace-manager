@@ -10,7 +10,7 @@ import type { Proyecto } from '../../shared/types.js';
 import { leerArchivo } from '../http.js';
 import { leerSentinelLock } from '../scanner/gate.js';
 import { analizarRoadmap } from '../scanner/roadmap/roadmap.js';
-import { git } from '../scanner/git.js';
+import { PUERTO_GIT, type PuertoGit } from '../scanner/git.js';
 import { diferenciasPlantilla, leerPolitica } from '../guardian/configuracion/politica.js';
 import type { LecturaPlantilla } from '../guardian/configuracion/plantilla.js';
 import type { DatosArea, DatosProyecto, EstadoGuard, PlanActivo, RamaSuelta } from './tipos.js';
@@ -83,8 +83,8 @@ function estadoGuard(ruta: string, clave: string, plantilla: LecturaPlantilla): 
 
 /* Ramas no integradas en main, locales y remotas. `--no-merged=main` falla si no hay
  * main: entonces no hay base contra la que medir y no se listan ramas. */
-function ramasSueltas(ruta: string): RamaSuelta[] {
-  const salida = git(ruta, [
+function ramasSueltas(ruta: string, puerto: PuertoGit = PUERTO_GIT): RamaSuelta[] {
+  const salida = puerto.git(ruta, [
     'for-each-ref',
     '--no-merged=main',
     '--format=%(refname)%09%(committerdate:unix)',

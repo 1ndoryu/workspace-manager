@@ -61,6 +61,17 @@ export function gitAsync(ruta: string, args: string[]): Promise<string | null> {
   });
 }
 
+/** Puerto de git: lo que el escáner necesita de git, sin depender del proceso concreto.
+ * [por que] Con el puerto, quien lee estado (rutas, salud, pruebas) puede inyectar una
+ * salida fija en vez de lanzar git; `PUERTO_GIT` es la implementación por defecto. */
+export interface PuertoGit {
+  git(ruta: string, args: string[]): string | null;
+  gitAsync(ruta: string, args: string[]): Promise<string | null>;
+}
+
+/** Implementación por defecto del puerto: el git real del sistema. */
+export const PUERTO_GIT: PuertoGit = { git, gitAsync };
+
 /** Rama primaria declarada por el proyecto (AGENTS.md / sentinel.config.json), nunca inferir 'main'. */
 export function ramaPrimariaDeclarada(ruta: string): string {
   const config = join(ruta, 'sentinel.config.json');
@@ -131,25 +142,31 @@ const ARGS_LOG = ['log', '-1', '--format=%H%x09%ci%x09%s'];
 const ARGS_REMOTO = ['remote', 'get-url', 'origin'];
 
 /** Estado completo de un repo (sincrono). El escaneo del workspace usa `estadoGitAsync`. */
-export function estadoGit(ruta: string): EstadoGit {
-  const status = git(ruta, ARGS_STATUS) ?? '';
-  const log = git(ruta, ARGS_LOG);
+export function estadoGit(ruta: string, puerto: PuertoGit = PUERTO_GIT): EstadoGit {
+  const status = puerto.git(ruta, ARGS_STATUS) ?? '';
+  const log = puerto.git(ruta, ARGS_LOG);
   const directo = leerRemotoDirecto(ruta);
-  return construirEstadoGit(ruta, status, log, directo !== undefined ? directo : git(ruta, ARGS_REMOTO));
+  return construirEstadoGit(ruta, status, log, directo !== undefined ? directo : puerto.git(ruta, ARGS_REMOTO), puerto);
 }
 
 /** Igual que `estadoGit` pero sin bloquear: los git de varios repos pueden correr a la vez.
  * [por que] Mismo resultado; solo cambia que la espera no congela el event loop. */
-export async function estadoGitAsync(ruta: string): Promise<EstadoGit> {
-  const status = (await gitAsync(ruta, ARGS_STATUS)) ?? '';
-  const log = await gitAsync(ruta, ARGS_LOG);
+export async function estadoGitAsync(ruta: string, puerto: PuertoGit = PUERTO_GIT): Promise<EstadoGit> {
+  const status = (await puerto.gitAsync(ruta, ARGS_STATUS)) ?? '';
+  const log = await puerto.gitAsync(ruta, ARGS_LOG);
   const directo = leerRemotoDirecto(ruta);
-  const remoto = directo !== undefined ? directo : await gitAsync(ruta, ARGS_REMOTO);
-  return construirEstadoGit(ruta, status, log, remoto);
+  const remoto = directo !== undefined ? directo : await puerto.gitAsync(ruta, ARGS_REMOTO);
+  return construirEstadoGit(ruta, status, log, remoto, puerto);
 }
 
 /* Arma el estado con la salida de git ya leida. No lanza procesos propios. */
-function construirEstadoGit(ruta: string, status: string, ultimoCommit: string | null, remoto: string | null): EstadoGit {
+function construirEstadoGit(
+  ruta: string,
+  status: string,
+  ultimoCommit: string | null,
+  remoto: string | null,
+  puerto: PuertoGit,
+): EstadoGit {
   /* [por que] `git rev-parse --abbrev-ref HEAD` devuelve "HEAD" tanto en detached
    * como en repo vacio (unborn, sin commits). La cabecera de `status --branch`
    * los distingue (`## HEAD (no branch)`, `## No commits yet on <rama>`), asi que
@@ -182,7 +199,7 @@ function construirEstadoGit(ruta: string, status: string, ultimoCommit: string |
     ahead: info.ahead,
     behind: info.behind,
     cambios: contarCambios(cuerpo),
-    worktreesOrfanos: worktreesOrfanos(ruta),
+    worktreesOrfanos: worktreesOrfanos(ruta, puerto),
     submodulos,
     ultimoCommit: commit,
   };
@@ -213,12 +230,12 @@ function contarCambios(status: string): EstadoGit['cambios'] {
  * apunta a una ubicacion inexistente (git los marcaria 'prunable').
  * [por que] `git worktree prune` no es necesario para detectar: se lee la
  * lista porcelana y se valida la existencia real; el escaner SOLO reporta. */
-function worktreesOrfanos(ruta: string): string[] {
+function worktreesOrfanos(ruta: string, puerto: PuertoGit): string[] {
   /* [por que] Sin `<gitdir>/worktrees/` no hay worktrees secundarios, asi que no
    * puede haber huerfanos: se evita un proceso git por repo (~43 ms medidos). */
   const gitdir = gitdirDe(ruta);
   if (gitdir && !existsSync(join(commondirDe(gitdir), 'worktrees'))) return [];
-  const salida = git(ruta, ['worktree', 'list', '--porcelain']);
+  const salida = puerto.git(ruta, ['worktree', 'list', '--porcelain']);
   if (!salida) return [];
   const raizNorm = normalize(ruta).toLowerCase();
   const orfanos: string[] = [];
@@ -305,11 +322,11 @@ function parsearShortstat(salida: string | null): { archivos: number; insercione
 }
 
 /* Un lado del sync: lista de commits + stat agregado del rango. */
-function leerLado(ruta: string, rangoLog: string, rangoDiff: string): LadoSync {
+function leerLado(ruta: string, rangoLog: string, rangoDiff: string, puerto: PuertoGit): LadoSync {
   const commits = parsearCommits(
-    git(ruta, ['log', rangoLog, `--max-count=${MAX_COMMITS_LADO}`, '--format=%H%x09%ci%x09%s']),
+    puerto.git(ruta, ['log', rangoLog, `--max-count=${MAX_COMMITS_LADO}`, '--format=%H%x09%ci%x09%s']),
   );
-  const stat = parsearShortstat(git(ruta, ['diff', '--shortstat', rangoDiff]));
+  const stat = parsearShortstat(puerto.git(ruta, ['diff', '--shortstat', rangoDiff]));
   return { commits, ...stat };
 }
 
@@ -327,10 +344,10 @@ function estadoArchivo(x: string, y: string): ArchivoLocal['estado'] {
 /* Detalle de sincronizacion de un repo para la tab repos (289A-6): que se
  * va a subir (upstream..HEAD), que hay por traer (HEAD..upstream) y que hay
  * sin commitear (porcelain). Solo lectura: log/diff/status, sin fetch. */
-export function detalleSync(ruta: string): Omit<DetalleRepoSync, 'clave'> {
-  const upstream = git(ruta, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']);
+export function detalleSync(ruta: string, puerto: PuertoGit = PUERTO_GIT): Omit<DetalleRepoSync, 'clave'> {
+  const upstream = puerto.git(ruta, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']);
   if (upstream === null) {
-    const locales = leerLocales(ruta);
+    const locales = leerLocales(ruta, puerto);
     return {
       sinUpstream: true,
       salientes: { commits: [], archivos: 0, inserciones: 0, borrados: 0 },
@@ -340,14 +357,14 @@ export function detalleSync(ruta: string): Omit<DetalleRepoSync, 'clave'> {
   }
   return {
     sinUpstream: false,
-    salientes: leerLado(ruta, `${upstream}..HEAD`, `${upstream}...HEAD`),
-    entrantes: leerLado(ruta, `HEAD..${upstream}`, `HEAD...${upstream}`),
-    locales: leerLocales(ruta),
+    salientes: leerLado(ruta, `${upstream}..HEAD`, `${upstream}...HEAD`, puerto),
+    entrantes: leerLado(ruta, `HEAD..${upstream}`, `HEAD...${upstream}`, puerto),
+    locales: leerLocales(ruta, puerto),
   };
 }
 
-function leerLocales(ruta: string): DetalleRepoSync['locales'] {
-  const status = git(ruta, ['status', '--porcelain']) ?? '';
+function leerLocales(ruta: string, puerto: PuertoGit): DetalleRepoSync['locales'] {
+  const status = puerto.git(ruta, ['status', '--porcelain']) ?? '';
   const archivos: ArchivoLocal[] = [];
   for (const linea of status.split('\n')) {
     if (!linea || archivos.length >= MAX_ARCHIVOS_LOCALES) break;

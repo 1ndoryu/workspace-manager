@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test, { after } from 'node:test';
-import { detectarGit, estadoGit, estadoGitAsync } from './git.js';
+import { detectarGit, estadoGit, estadoGitAsync, PUERTO_GIT, type PuertoGit } from './git.js';
 import { raizTemporales } from '../plataforma/temporales.js';
 
 const BASE = mkdtempSync(join(raizTemporales(), 'wm-git-test-'));
@@ -202,4 +202,30 @@ test('detectarGit: una carpeta dentro de un repo cuenta como repo', () => {
   /* git reconocería la carpeta por estar dentro del árbol de trabajo; es la
    * pregunta que antes costaba un proceso por carpeta. */
   assert.equal(detectarGit(dentro).esRepo, true);
+});
+
+/* [por que] El puerto existe para inyectar salidas de git sin lanzar procesos: aquí
+ * el puerto cuenta las consultas y reenvía al git real, así que el resultado no cambia. */
+test('estadoGit: consulta a git solo a través del puerto inyectado', async () => {
+  const repo = repoNuevo('repo-puerto-espia');
+  const consultas: string[] = [];
+  const espia: PuertoGit = {
+    git: (ruta, args) => (consultas.push(args[0]), PUERTO_GIT.git(ruta, args)),
+    gitAsync: (ruta, args) => (consultas.push(args[0]), PUERTO_GIT.gitAsync(ruta, args)),
+  };
+  assert.deepEqual(estadoGit(repo, espia), estadoGit(repo));
+  assert.deepEqual(await estadoGitAsync(repo, espia), estadoGit(repo));
+  assert.ok(consultas.includes('status'), `consultas=${consultas}`);
+});
+
+/* Puerto falso sin repo real: la cabecera de `status` llega fija y se lee tal cual. */
+test('estadoGit: con un puerto falso lee la cabecera que le den', () => {
+  const falso: PuertoGit = {
+    git: (_ruta, args) => (args[0] === 'status' ? '## trabajo...origin/trabajo [ahead 3]' : null),
+    gitAsync: async (_ruta, args) => (args[0] === 'status' ? '## trabajo...origin/trabajo [ahead 3]' : null),
+  };
+  const ruta = join(BASE, 'no-existe-repo-falso');
+  const e = estadoGit(ruta, falso);
+  assert.equal(e.rama, 'trabajo');
+  assert.equal(e.ahead, 3);
 });
