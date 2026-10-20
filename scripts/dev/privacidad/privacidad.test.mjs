@@ -11,8 +11,8 @@ const reglas = (texto, ruta = 'a.md', extra = []) => hallazgosEnTexto(texto, { r
 
 test('detecta rutas de usuario de Windows y de Linux', () => {
   assert.deepEqual(reglas('ruta C:\\Users\\usuario\\doc // privacidad:ignorar'), []);
-  assert.deepEqual(reglas('mira C:\\Users\\usuario\\doc'), ['ruta-usuario-windows']);
-  assert.deepEqual(reglas('cd /home/usuario/taller'), ['ruta-home-linux']);
+  assert.deepEqual(reglas('mira C:\\Users\\perfil\\doc'), ['ruta-usuario-windows']);
+  assert.deepEqual(reglas('cd /home/perfil/taller'), ['ruta-home-linux']);
 });
 
 test('no marca rutas genéricas sin nombre de usuario', () => {
@@ -69,7 +69,7 @@ test('términos con caracteres de regex se escapan', () => {
 });
 
 test('el hallazgo oculta el dato: nunca lo repite completo', () => {
-  const [h] = hallazgosEnTexto('ruta C:\\Users\\usuario\\doc', { ruta: 'a.md' });
+  const [h] = hallazgosEnTexto('ruta C:\\Users\\perfil\\doc', { ruta: 'a.md' });
   assert.ok(!h.fragmento.includes('Ana'));
 });
 
