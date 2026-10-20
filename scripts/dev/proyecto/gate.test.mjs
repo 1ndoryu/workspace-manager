@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parsearArgsGate, rutaSnapshot, leerComandos, formatearNuevos, decidirAutogate, colaSalida, lineasAutogate, correrAutogate, RAIZ } from './gate.mjs';
+import { parsearArgsGate, rutaSnapshot, leerComandos, formatearNuevos, decidirAutogate, colaSalida, lineasAutogate, correrAutogate, ordenSubmodulosReplica, RAIZ } from './gate.mjs';
 import { emergenciaLocal } from '../../shared/vps.mjs';
 
 /* [por que] Sin VPS (config null) y sin --local el mando no analiza: falla con motivo. Con --local
@@ -19,8 +19,8 @@ test('emergenciaLocal: con VPS va a remoto; sin VPS falla salvo con --local', ()
 });
 
 test('parsearArgsGate exige id y exactamente un modo', () => {
-  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--inicio']), { id: 'agente-tiempo-real', modo: 'inicio', forzar: false, local: false });
-  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--cierre']), { id: 'agente-tiempo-real', modo: 'cierre', forzar: false, local: false });
+  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--inicio']), { id: 'agente-tiempo-real', modo: 'inicio', forzar: false, local: false, tarea: undefined });
+  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--cierre']), { id: 'agente-tiempo-real', modo: 'cierre', forzar: false, local: false, tarea: undefined });
   assert.equal(parsearArgsGate(['agente-tiempo-real', '--cierre', '--forzar']).forzar, true);
   assert.equal(parsearArgsGate(['agente-tiempo-real', '--cierre', '--local']).local, true);
   assert.ok(parsearArgsGate([]).error);
@@ -88,4 +88,32 @@ test('lineasAutogate: un fallo muestra la cola y lleva el rc', () => {
 
 test('correrAutogate sin entrada en el registro es un error, no una omisión', () => {
   assert.equal(correrAutogate('no-existe', undefined, false).estado, 'error');
+});
+
+/* [10AA-3] La réplica de la 89 no sincroniza `.git`: el HEAD de los submódulos de herramientas
+ * se queda viejo y su `git status` da por modificado todo lo que Mutagen copió. El gate de la 89
+ * verifica el checkout por git, así que hay que alinearlo antes. `reset --mixed` mueve HEAD y el
+ * índice sin tocar el árbol de trabajo (lo que Mutagen copió se queda como está). */
+test('ordenSubmodulosReplica alinea cada submódulo al pin sin tocar el árbol', () => {
+  const orden = ordenSubmodulosReplica('/srv/taller/proyecto', {
+    tools: {
+      sentinel: { sourcePath: 'tools/sentinel', commit: 'a'.repeat(40) },
+      varsense: { sourcePath: '.quality-tools/varsense', commit: 'b'.repeat(40) },
+    },
+  });
+  assert.match(orden, /git -C '\/srv\/taller\/proyecto\/tools\/sentinel' rev-parse HEAD/);
+  assert.match(orden, /git -C '\/srv\/taller\/proyecto\/tools\/sentinel' reset --mixed 'a{40}'/);
+  assert.match(orden, /\.quality-tools\/varsense/);
+  // [por que] Nada de `checkout`: el árbol de trabajo es el que Mutagen acaba de copiar del portátil.
+  assert.doesNotMatch(orden, /git -C '[^']*' checkout/);
+});
+
+test('ordenSubmodulosReplica ignora lo que no puede verificar y no inventa orden', () => {
+  assert.equal(ordenSubmodulosReplica('/srv/p', { tools: {} }), null);
+  assert.equal(ordenSubmodulosReplica('/srv/p', null), null);
+  // Sin commit o sin sourcePath no hay nada que alinear.
+  assert.equal(ordenSubmodulosReplica('/srv/p', { tools: { x: { sourcePath: 'tools/x' } } }), null);
+  // Un sourcePath con metacaracteres de shell no se interpola jamás.
+  const inyectado = ordenSubmodulosReplica('/srv/p', { tools: { x: { sourcePath: "tools/x'; rm -rf /", commit: 'c'.repeat(40) } } });
+  assert.equal(inyectado, null);
 });

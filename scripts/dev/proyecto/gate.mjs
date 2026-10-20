@@ -122,6 +122,55 @@ export function lineasAutogate(id, a) {
   return [`gate ${id} --cierre: autogate no ejecutado: ${a.motivo}`];
 }
 
+/* [10AA-3] Submódulos de herramientas en la réplica de la 89.
+ *
+ * Mutagen NO sincroniza `.git` (está en `sync.ignorar`), así que el HEAD de cada submódulo se
+ * queda en el commit del día en que se clonó y su `git status` da por modificado todo el árbol
+ * que Mutagen acaba de copiar. El gate de la 89 verifica el checkout de la herramienta por git
+ * (`rev-parse`, `status`, `git archive`), así que sin esto muere con «checkout modificado» antes
+ * de analizar nada, y el fallo no tiene nada que ver con el código del proyecto.
+ *
+ * `reset --mixed` mueve HEAD y el índice SIN tocar el árbol de trabajo: lo que Mutagen copió se
+ * queda como está y pasa a compararse contra el commit fijado. Best-effort: si el commit no está
+ * en el remoto de la 89, se avisa y se sigue — el proyecto ya declara esa réplica con
+ * `GLORY_TALLER=1` y relaja allí lo que solo el repo padre puede probar. */
+export function ordenSubmodulosReplica(dirRemoto, manifiesto) {
+  const tools = manifiesto?.tools ?? {};
+  const seguros = Object.values(tools).filter(
+    t => typeof t?.sourcePath === 'string' && /^[\w./-]+$/.test(t.sourcePath) && /^[0-9a-f]{40}$/.test(t?.commit ?? ''),
+  );
+  if (seguros.length === 0) return null;
+  const pasos = seguros.map(t => {
+    const dir = `${dirRemoto}/${t.sourcePath}`;
+    const pin = t.commit;
+    return [
+      `if [ -d '${dir}/.git' ] && [ "$(git -C '${dir}' rev-parse HEAD 2>/dev/null)" != '${pin}' ]; then`,
+      `  git -C '${dir}' fetch --quiet origin >/dev/null 2>&1;`,
+      `  if git -C '${dir}' cat-file -e '${pin}^{commit}' 2>/dev/null; then`,
+      `    git -C '${dir}' reset --mixed '${pin}' >/dev/null;`,
+      `  else echo "[replica] ${t.sourcePath}: el pin ${pin} no está en el remoto de la 89; se deja como estaba" >&2; fi;`,
+      'fi',
+    ].join('\n');
+  });
+  return pasos.join('\n');
+}
+
+export function asegurarSubmodulosReplica(config, dirRemoto, carpeta) {
+  const ruta = join(carpeta, 'quality-tools.json');
+  if (!existsSync(ruta)) return null;
+  let manifiesto;
+  try {
+    manifiesto = JSON.parse(readFileSync(ruta, 'utf8'));
+  } catch {
+    return null;
+  }
+  const orden = ordenSubmodulosReplica(dirRemoto, manifiesto);
+  if (!orden) return null;
+  const r = ejecutarEnVps(config, dirRemoto, ['bash', '-c', orden], { capturar: true });
+  // Best-effort declarado: no cambia el resultado del gate, solo evita que falle por metadata ajena.
+  return r.status === 0 ? null : `no se pudieron alinear los submódulos de la réplica (exit ${r.status})`;
+}
+
 /* Corre el autogate en la VPS por la misma vía que los tests (cm-heavy, réplica en <dirRemotoBase>/<id>).
  * [por que] Un script propio no invoca npm por su cuenta: el wrapper de la VPS es el que pone el candado
  * de carga pesada y el PATH del taller (AGENTS §2). */
@@ -132,7 +181,10 @@ export function correrAutogate(id, entrada, emergencia, tarea) {
   const config = cargarTaller();
   if (!config) return { estado: 'error', motivo: 'sin VPS configurada (config/taller.json)' };
   const carpeta = rutaAbsDe(entrada);
-  const r = ejecutarEnVps(config, dirRemotoDe(config, id, carpeta, carpeta), ['sh', '-c', d.orden], { capturar: true });
+  const dirRemoto = dirRemotoDe(config, id, carpeta, carpeta);
+  const avisoReplica = asegurarSubmodulosReplica(config, dirRemoto, carpeta);
+  if (avisoReplica) process.stderr.write(`[gate] ${id}: ${avisoReplica}\n`);
+  const r = ejecutarEnVps(config, dirRemoto, ['sh', '-c', d.orden], { capturar: true });
   const aviso = mensajeSinVps(r.status, config.host);
   if (aviso) return { estado: 'error', motivo: aviso };
   return { estado: r.status === 0 ? 'ok' : 'fallo', rc: r.status, orden: d.orden, salida: r.stdout ?? '' };
