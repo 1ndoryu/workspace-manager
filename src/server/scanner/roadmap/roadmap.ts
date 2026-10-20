@@ -58,9 +58,17 @@ export interface SubtareaRoadmap {
   propiedades: PropiedadesTarea;
 }
 
-/* IDs usados en el area: {DD}{M}{A}-{N} (297A-4, 19AA-4), H-<dominio>-<n>-<m> (H-F12-14) y
- * fases cortas (F0, T7, S17, R2). */
-const RE_ID = /\b(?:\d{2,3}[A-C][A-Z]?-\d+|[A-Z]-[A-Z]+\d+-\d+|[A-Z]{1,3}\d+)\b/;
+/* IDs usados en el area: {DD}{M}{A}-{N} (297A-4, 19AA-4), H-<dominio>-<n>-<m> (H-F12-14),
+ * fases cortas (F0, T7, S17, R2, A3d) y los esquemas propios de cada proyecto, que D8 permite
+ * (OP-49c en opencode-propio, A3b-verif en varsense).
+ * [por que] RE_ID no valida el ID de una tarea —eso lo da la forma canonica, con el ID entre
+ * comillas invertidas— sino que reconoce «aqui hay un ID» para las lineas mal escritas (heading,
+ * bullet sin casilla, tabla). Con el patron viejo un proyecto con esquema propio no veia
+ * detectadas sus tareas mal escritas: medido el 2026-10-20, 42 IDs reales del area se le escapaban
+ * (33 OP-nn de opencode-propio y 9 numeros sueltos de RESTAURANTE).
+ * Los numeros sueltos NO se admiten a proposito: un `1` es indistinguible de cualquier cifra en
+ * prosa y convertiria en «tarea en tabla» o «tarea sin casilla» media docena de lineas legitimas. */
+const RE_ID = /\b(?:\d{2,3}[A-C][A-Z]?-\d+|[A-Z]-[A-Z]+\d+-\d+|[A-Z]{1,4}-?\d+[a-z]?(?:-[A-Za-z0-9]+)?)\b/;
 
 /* Tarea canonica: casilla sin marcar, ID entre comillas invertidas y titulo. */
 const RE_TAREA = /^[-*] \[ \] `([^`]+)`\s*(?:—|–|-|:)?\s*(.*)$/;

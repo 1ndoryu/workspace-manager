@@ -209,6 +209,23 @@ describe('roadmap: IDs', () => {
   it('el tope de tareas del tablero son 60, y no recorta en silencio', () => {
     assert.equal(TOPE_TAREAS, 60);
   });
+
+  /* [por que] D8 permite que un proyecto tenga esquema propio de IDs (OP-49c en opencode-propio,
+   * A3b-verif en varsense). RE_ID no valida el ID de una tarea, pero sí decide si una línea mal
+   * escrita «tiene un ID»: con el patrón viejo, la tarea mal escrita de un proyecto con esquema
+   * propio pasaba desapercibida. Medido el 2026-10-20: 42 IDs reales del área se le escapaban. */
+  it('reconoce los esquemas propios al detectar una tarea mal escrita', () => {
+    const a = analizarRoadmap('## Pendientes\n\n- `OP-49c` — **Algo.**\n- `A3b-verif` — **Otra.**\n');
+    assert.deepEqual(a.problemas.map((p) => p.motivo), ['tarea sin casilla', 'tarea sin casilla']);
+  });
+
+  /* [por que] Un `1` suelto es indistinguible de cualquier cifra en prosa: admitirlo convertiría en
+   * «tarea en tabla» o «tarea sin casilla» media docena de líneas legítimas. Queda fuera a
+   * propósito; los 9 IDs así de RESTAURANTE se arreglan en su roadmap, no aquí. */
+  it('una cifra suelta no basta para parecer una tarea', () => {
+    assert.deepEqual(analizarRoadmap('## Pendientes\n\n- `1` — **Algo.**\n').problemas, []);
+    assert.deepEqual(analizarRoadmap('## Pendientes\n\n| 1 | Otra |\n').problemas, []);
+  });
 });
 
 describe('roadmap: secciones', () => {
