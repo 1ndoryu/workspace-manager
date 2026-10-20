@@ -45,7 +45,17 @@ export function PiezasSitio({ sitio, pedir: pedirPieza = piezaVps }: {
   sitio: string;
   pedir?: PedirPieza;
 }) {
-  const [piezas, setPiezas] = useState<Record<string, EstadoPieza>>({});
+  /* [por que] Las piezas ya resueltas son de UN sitio: se guardan junto al suyo y, al cambiar de
+   * fila, se leen como si no hubiera ninguna. Sin esta guarda el detalle del sitio nuevo enseñaba
+   * el log del anterior hasta volver a pedirlo (el efecto de abajo solo corta lo que sigue en
+   * vuelo, no lo ya resuelto). */
+  const [caja, setCaja] = useState<{ sitio: string; piezas: Record<string, EstadoPieza> }>({
+    sitio,
+    piezas: {},
+  });
+  const piezas = caja.sitio === sitio ? caja.piezas : {};
+  const setPiezas = (f: (prev: Record<string, EstadoPieza>) => Record<string, EstadoPieza>) =>
+    setCaja((c) => ({ sitio, piezas: f(c.sitio === sitio ? c.piezas : {}) }));
   const controles = useRef(new Map<string, AbortController>());
 
   /* Al desmontar (cambio de sitio, cierre del detalle): aborta lo que
