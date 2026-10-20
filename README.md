@@ -270,7 +270,9 @@ excepción explícita y visible.
 npm run privacidad
 ```
 
-Para que corra en cada commit, activa el hook versionado en `.githooks/` (una vez por clon):
+Para que corra en cada commit, `npm install` activa el hook versionado en `.githooks/`
+(script `prepare`, `scripts/dev/activar-hooks.mjs`; fuera de un repo Git no hace nada).
+Si no has instalado dependencias, actívalo a mano una vez por clon:
 
 ```bash
 git config core.hooksPath .githooks

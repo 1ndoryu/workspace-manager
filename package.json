@@ -32,7 +32,8 @@
     "quality:cert:test": "node scripts/dev/ejecutar-tests.mjs node --test scripts/quality/certificacion.test.mjs",
     "privacidad": "node scripts/dev/privacidad.mjs",
     "privacidad:historial": "node scripts/dev/privacidad.mjs --historial",
-    "privacidad:test": "node scripts/dev/ejecutar-tests.mjs node --test scripts/dev/privacidad.test.mjs"
+    "privacidad:test": "node scripts/dev/ejecutar-tests.mjs node --test scripts/dev/privacidad.test.mjs",
+    "prepare": "node scripts/dev/activar-hooks.mjs"
   },
   "dependencies": {
     "axios": "^1.7.0",
