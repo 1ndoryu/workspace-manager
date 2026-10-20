@@ -14,11 +14,14 @@ OPERADOR="${OPERADOR:-${SUDO_USER:-}}"
 : "${OPERADOR:?define OPERADOR (usuario dueño de ~/taller)}"
 DIR_WG=/etc/wireguard
 IFAZ=wg0
-PUERTO_WG=51820
+PUERTO_WG="${PUERTO_WG:-51820}"
 # Direcciones de la VPN: obligatorias por entorno, sin valor de nuestra red incrustado.
 IP_SERVIDOR="${WG_IP_SERVIDOR:?define WG_IP_SERVIDOR (IP/prefijo de wg0 en este servidor)}"
 IP_PEER="${PEER_IP:?define PEER_IP (IP del laptop dentro de la VPN)}"
-LOG=/home/$OPERADOR/taller/_logs/root-taller-89.log
+# [por que] Con `sudo bash`, $HOME es /root: la carpeta del operador se lee de passwd, no de $HOME.
+HOME_OPERADOR="$(getent passwd "$OPERADOR" | cut -d: -f6)"
+: "${HOME_OPERADOR:?no existe el usuario OPERADOR=$OPERADOR en passwd}"
+LOG="$HOME_OPERADOR/taller/_logs/root-taller-89.log"
 
 [ "$(id -u)" -eq 0 ] || { echo "Ejecutar con sudo." >&2; exit 1; }
 mkdir -p "$(dirname "$LOG")"
@@ -70,7 +73,7 @@ else
 fi
 
 # 5. Docker: solo lectura (F5). No se hace prune ni se borra nada.
-docker system df -v > "/home/$OPERADOR/taller/_logs/f5-docker-df-$(date +%F).txt"
+docker system df -v > "$HOME_OPERADOR/taller/_logs/f5-docker-df-$(date +%F).txt"
 echo "docker system df guardado en _logs/f5-docker-df-$(date +%F).txt"
 
 echo "-- wg show (sin claves privadas)"; wg show "$IFAZ" | grep -v 'private key' || true

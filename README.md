@@ -188,17 +188,17 @@ node scripts/dev/dev.mjs <subcomando> [args]
 
 ### Artefactos entre proyectos
 
-Un proyecto puede **empotrar** el artefacto de compilación de otro: hoy `MN-Escritorio` mete el
-`frontend/dist` de `MN-Inmobiliaria` dentro del `.exe`. Eso se declara en la ficha del consumidor
+Un proyecto puede **empotrar** el artefacto de compilación de otro: por ejemplo, un escritorio
+mete el `frontend/dist` de su web dentro del `.exe`. Eso se declara en la ficha del consumidor
 (campo `consumeArtefacto` de `config/registro.json`, que no se versiona) y el manager avisa cuando
 queda por detrás, para que el cambio de un proyecto no deje viejo el producto de otro en silencio:
 
 ```json
 "consumeArtefacto": {
-  "proyecto": "MN-Inmobiliaria",
+  "proyecto": "mi-proyecto",
   "ruta": "frontend/dist",
   "producto": "x86_64-pc-windows-msvc/release/mn-escritorio.exe",
-  "instalado": "C:/Users/<usuario>/Apps/MN-Escritorio/mn-escritorio.exe"
+  "instalado": "<RUTA_DEL_AREA>/Apps/mi-escritorio/mn-escritorio.exe"
 }
 ```
 

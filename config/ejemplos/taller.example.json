@@ -42,9 +42,9 @@
   },
   "proyectos": {
     "proyecto-1": {
-      "basedatos": "bd_inmobiliaria",
+      "basedatos": "bd_<PROYECTO>",
       "bdRama": {
-        "semilla": "scripts/fixtures/seed-test-inmobiliaria.sql"
+        "semilla": "scripts/fixtures/seed-test-<PROYECTO>.sql"
       },
       "bdDesdeLocal": {
         "verificar": [
@@ -55,7 +55,7 @@
       }
     },
     "proyecto-2": {
-      "basedatos": "kamples"
+      "basedatos": "<proyecto>"
     },
     "proyecto-3": {
       "basedatos": "bd_<PROYECTO>",

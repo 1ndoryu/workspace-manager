@@ -102,7 +102,10 @@ done | paste -sd, -)
 # cloudflared: versión, modo del token del túnel y si el conector está vivo.
 CF_VER=$(timeout 2 cloudflared --version 2>/dev/null | awk '{print $3}')
 if [ -n "$CF_VER" ]; then CF_VER_J=$(json_str "$CF_VER"); else CF_VER_J=null; fi
-CF_MODO=$(stat -c %a "$HOME/.config/cloudflared/mn-dev.env" 2>/dev/null)
+# [por que] El nombre del fichero de entorno del túnel es de cada taller: va por WM_CLOUDFLARED_ENV.
+# Sin ella no se lee el modo y queda null (degradación, no fallo).
+CF_MODO=""
+[ -n "${WM_CLOUDFLARED_ENV:-}" ] && CF_MODO=$(stat -c %a "$WM_CLOUDFLARED_ENV" 2>/dev/null)
 if [ -n "$CF_MODO" ]; then CF_MODO_J=$(json_str "$CF_MODO"); else CF_MODO_J=null; fi
 CF_VIVA=false
 pgrep -u "$USUARIO" -x cloudflared >/dev/null 2>&1 && CF_VIVA=true

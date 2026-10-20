@@ -84,7 +84,7 @@ export function slug(rama) {
 /* [por que] Mutagen rechaza los nombres de sesión con espacios («invalid session name:
  * invalid name character at index 15: ' '») y los ids del taller los llevan («PROYECTO TASKS»),
  * así que un proyecto con espacio en el nombre no se podía subir. Se normaliza a [A-Za-z0-9._-].
- * Los ids normales (MN-Inmobiliaria, KAMPLES) no cambian. Misma regla, en TypeScript, en
+ * Los ids normales (p. ej. `mi-proyecto`) no cambian. Misma regla, en TypeScript, en
  * src/shared/taller/sesiones.ts: al tocar una, tocar la otra. */
 export function slugSesion(valor) {
   return String(valor).replace(/[^A-Za-z0-9._-]+/g, '-');
