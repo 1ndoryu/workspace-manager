@@ -21,7 +21,7 @@ describe('leerEnvTareas', () => {
       [
         '# credenciales del puente',
         'TASKS_BASE_URL=http://127.0.0.1:14190',
-        'TASKS_EMAIL=admin@nakomi.studio',
+        'TASKS_EMAIL=admin@example.com',
         'TASKS_PASSWORD=secreta',
         'OTRA_CLAVE=no',
         'TASKS_EMAIL_VACIA=',
@@ -29,7 +29,7 @@ describe('leerEnvTareas', () => {
     );
     assert.deepEqual(leerEnvTareas(ruta), {
       TASKS_BASE_URL: 'http://127.0.0.1:14190',
-      TASKS_EMAIL: 'admin@nakomi.studio',
+      TASKS_EMAIL: 'admin@example.com',
       TASKS_PASSWORD: 'secreta',
     });
   });

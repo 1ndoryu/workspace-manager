@@ -15,13 +15,13 @@ test('ficha con host de la 89 y modo build: corre en vps89 y lleva despliegue', 
         id: 'NAKOMI',
         host: 'dev89',
         modo: 'build',
-        despliegue: { proveedor: 'coolify', vps: '66', sitio: 'nakomi', dominio: 'https://task.nakomi.studio' },
+        despliegue: { proveedor: 'coolify', vps: '66', sitio: 'ejemplo', dominio: 'https://task.example.com' },
       },
     ],
   };
   const [p] = anotarRegistro([proyecto('NAKOMI')], registro);
   assert.deepEqual(p.ejecucion, { donde: 'vps89', modo: 'build' });
-  assert.equal(p.despliegue?.sitio, 'nakomi');
+  assert.equal(p.despliegue?.sitio, 'ejemplo');
 });
 
 test('ficha sin host corre en el laptop; modo desconocido queda null', () => {
@@ -56,14 +56,14 @@ test('urls: dev en la 89 por el puerto local del túnel y producción por su dom
         puertosLocales: [14190, 14191],
         healths: [{ puerto: 4190, ruta: '/api/health' }, { puerto: 4191, ruta: '/' }],
         build: { puertos: [4190], puertosLocales: [14190], healths: [{ puerto: 4190, ruta: '/' }] },
-        despliegue: { proveedor: 'coolify', vps: '66', sitio: 'tasks', dominio: 'https://task.nakomi.studio' },
+        despliegue: { proveedor: 'coolify', vps: '66', sitio: 'tasks', dominio: 'https://task.example.com' },
       },
     ],
   };
   const [p] = anotarRegistro([proyecto('TASKS')], registro);
   assert.deepEqual(p.urls, [
     { donde: 'vps89', url: 'http://tareas.localhost:14190' },
-    { donde: 'produccion', url: 'https://task.nakomi.studio' },
+    { donde: 'produccion', url: 'https://task.example.com' },
   ]);
 });
 

@@ -49,7 +49,7 @@ test('detecta tokens con forma conocida y asignaciones de secretos', () => {
 });
 
 test('el correo público no es dato personal', () => {
-  assert.deepEqual(reglas('autor: andoryyu@gmail.com'), []);
+  assert.deepEqual(reglas('autor: persona@example.com'), []);
 });
 
 test('la línea con la marca de excepción no se reporta', () => {
