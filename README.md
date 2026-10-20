@@ -184,6 +184,32 @@ node scripts/dev/dev.mjs <subcomando> [args]
 | `cierre <id>` | Puerta de cierre de una tarea. |
 | `alta <id\|carpeta>` | Lista de alta de un proyecto nuevo (en seco salvo `--aplicar`). |
 | `comandos <id>` | Imprime el contrato de comandos del proyecto. |
+| `artefactos [--json]` | Qué proyecto consume el artefacto compilado de otro, y si está al día. |
+
+### Artefactos entre proyectos
+
+Un proyecto puede **empotrar** el artefacto de compilación de otro: hoy `MN-Escritorio` mete el
+`frontend/dist` de `MN-Inmobiliaria` dentro del `.exe`. Eso se declara en la ficha del consumidor
+(campo `consumeArtefacto` de `config/registro.json`, que no se versiona) y el manager avisa cuando
+queda por detrás, para que el cambio de un proyecto no deje viejo el producto de otro en silencio:
+
+```json
+"consumeArtefacto": {
+  "proyecto": "MN-Inmobiliaria",
+  "ruta": "frontend/dist",
+  "producto": "x86_64-pc-windows-msvc/release/mn-escritorio.exe",
+  "instalado": "C:/Users/<usuario>/Apps/MN-Escritorio/mn-escritorio.exe"
+}
+```
+
+`ruta` es lo consumido, relativa al proyecto consumido; `producto`, lo producido, relativo al
+`target` remoto del consumidor; `instalado` es opcional (la copia fuera del taller, en el portátil)
+y solo sirve para comprobar que lo instalado es lo compilado. Se comparan hechos que ya existen, sin
+sello propio: el archivo **más nuevo del árbol** consumido contra el `mtime` del producto (no el
+`mtime` del directorio, que Vite no toca) y el `sha256` del producto contra el del instalado.
+Veredictos: `al-dia`, `desactualizado` (el producto no embebe lo nuevo), `sin-producto`,
+`sin-instalar`, `instalado-distinto`, `sin-dato`. `doctor` lo suma como aviso (exit 2, degradado) y
+la consola lo muestra en el proyecto consumidor. **No reconstruye ni instala solo.**
 
 ## Funciona con o sin taller
 
