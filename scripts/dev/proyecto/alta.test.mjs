@@ -90,6 +90,17 @@ test('stack: sin manifiesto falla; con package.json detecta node', () => {
   assert.match(r.detalle, /node/);
 });
 
+test('stack: un manifiesto en subcarpeta (pulse/Cargo.toml) cuenta; scripts/ no', () => {
+  const anidado = nuevoDir();
+  mkdirSync(join(anidado, 'pulse'));
+  escribir(anidado, 'pulse/Cargo.toml', '[package]');
+  assert.match(comprobarStack(anidado).detalle, /rust/);
+  const soloScripts = nuevoDir();
+  mkdirSync(join(soloScripts, 'scripts'));
+  escribir(soloScripts, 'scripts/package.json', '{}');
+  assert.equal(comprobarStack(soloScripts).ok, false);
+});
+
 test('readme: sin README propone crearlo en el bloque docs', () => {
   const dir = nuevoDir();
   const r = comprobarReadme(dir, 'demo');

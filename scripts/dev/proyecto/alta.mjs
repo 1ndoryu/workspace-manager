@@ -52,8 +52,23 @@ function gitOk(ruta, args) {
   }
 }
 
+/* Subcarpetas que pueden tener un manifiesto propio (p. ej. `pulse/Cargo.toml` en glory-pulse).
+ * [por que] Antes solo se miraba la raíz: glory-pulse salía «sin manifiesto» aunque su gate ya
+ * compila `pulse/Cargo.toml` (falso positivo del alta). Se excluyen las que nunca son un stack del proyecto. */
+const NO_STACK = new Set(['node_modules', 'target', 'dist', 'logs', 'docs', 'scripts', 'Agente']);
+function subcarpetasDeStack(ruta) {
+  try {
+    return readdirSync(ruta, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !d.name.startsWith('.') && !NO_STACK.has(d.name))
+      .map((d) => join(ruta, d.name));
+  } catch {
+    return [];
+  }
+}
+
 export function comprobarStack(ruta) {
-  const stacks = [...new Set(MANIFIESTOS.filter(([f]) => existsSync(join(ruta, f))).map(([, s]) => s))];
+  const dirs = [ruta, ...subcarpetasDeStack(ruta)];
+  const stacks = [...new Set(dirs.flatMap((d) => MANIFIESTOS.filter(([f]) => existsSync(join(d, f))).map(([, s]) => s)))];
   if (stacks.length) return ok('stack', stacks.join(', '));
   return fallo('stack', 'sin manifiesto de stack', 'añade el manifiesto de tu stack (package.json, Cargo.toml…)');
 }
