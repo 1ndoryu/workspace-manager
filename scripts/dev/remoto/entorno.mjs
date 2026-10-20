@@ -37,7 +37,7 @@ export function validarHostRemoto(entrada, config, override) {
   const remotos = puertosRemotosDe(entrada);
   // [por que] Lista vacía = proyecto sin servicio (solo análisis/tests en la 89): sin puertos, su réplica es lo que se sirve.
   if (!Array.isArray(remotos) || remotos.some((p) => !Number.isInteger(p) || p < 1024 || p > 65535)) {
-    return 'puertos remotos: lista de puertos (1024-65535), no vacía';
+    return 'puertos remotos: lista de puertos (1024-65535); [] = solo análisis';
   }
   const protegidos = remotos.filter((p) => PUERTOS_PROTEGIDOS.has(p));
   if (protegidos.length) return `puertos protegidos ${protegidos.join(',')} no se reenvian al laptop`;
