@@ -12,7 +12,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VpsAgenteSnapshot } from '../../../shared/types.js';
 import { guardarJson, guardarTexto, leerJson, leerTexto } from '../../../shared/vista/storage.js';
-import { bajarVentana, suscribirVentana } from '../../../shared/platform/plataforma.js';
+import {
+  bajarDocumento,
+  bajarVentana,
+  suscribirDocumento,
+  suscribirVentana,
+} from '../../../shared/platform/plataforma.js';
 import {
   MAX_MUESTRAS_RECURSOS,
   RETENCION_RECURSOS_MS,
@@ -105,11 +110,12 @@ export function useRecursosVps(snap: VpsAgenteSnapshot | null, tab = 'vps') {
     const alVolver = () => {
       if (document.visibilityState === 'visible') traerBase();
     };
-    /* [por que] `visibilitychange` es de `document`, no de `window`: el helper de ventana no lo tipa. */
-    document.addEventListener('visibilitychange', alVolver);
+    /* [por que] `visibilitychange` es de `document`, no de `window`: va por el helper de
+     * documento (`suscribirDocumento`), que es el que tipa sus eventos. */
+    suscribirDocumento('visibilitychange', alVolver);
     return () => {
       vivo = false;
-      document.removeEventListener('visibilitychange', alVolver);
+      bajarDocumento('visibilitychange', alVolver);
     };
   }, [tab]);
 
