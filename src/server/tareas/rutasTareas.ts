@@ -9,8 +9,9 @@ import {json, leerBody} from '../http.js';
 import type {ErrorKanban} from './nucleo/tipos.js';
 import {esIdValido, validarLote} from './nucleo/validaciones.js';
 import {crearPuenteTareas, puenteTareas, type PuenteTareas} from './puente-tareas.js';
-import {sincronizarColumnas, type EntradaWm} from './sincronizar-proyectos.js';
-import {sincronizarTareasRoadmap, type ProyectoWm} from './sincronizar-tareas.js';
+import {sincronizarColumnas, type EntradaWm} from './sincronizacion/sincronizar-proyectos.js';
+import {sincronizarTareasRoadmap, type ProyectoWm} from './sincronizacion/sincronizar-tareas.js';
+import {escribirRoadmaps} from './escritura/escribir-roadmaps.js';
 import {validarParche} from './tarea-unitaria.js';
 import {estadoTaller} from '../taller/estado.js';
 import {revisarTuneles} from '../taller/tuneles.js';
@@ -128,6 +129,22 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
     if (ruta === '/api/tareas/sincronizar' && req.method === 'POST') {
       try {
         const informe = await sincronizarTareasRoadmap(
+          { proyectos: leerProyectos, puente },
+          { seco: url.searchParams.get('seco') === '1' },
+        );
+        json(res, 200, informe);
+      } catch (e) {
+        responder(res, e);
+      }
+      return true;
+    }
+    /* Escritura TASK -> roadmap (20AA-10 F3). Antes de tocar un archivo ajeno
+     * hace copia verificada y anota el cambio; en seco (`?seco=1`) solo cuenta.
+     * Los conflictos (no se sabe quien cambio despues) vuelven en `avisos` y no
+     * se escribe nada de esa tarea. */
+    if (ruta === '/api/tareas/escribir-roadmap' && req.method === 'POST') {
+      try {
+        const informe = await escribirRoadmaps(
           { proyectos: leerProyectos, puente },
           { seco: url.searchParams.get('seco') === '1' },
         );

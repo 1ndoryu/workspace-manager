@@ -18,6 +18,7 @@ import type {
 import {crearHttpNativo} from './transporte/transporte-tareas.js';
 import {pedirProyectosPuente} from './proyectos-puente.js';
 import {mapearErrorTarea, type ParcheTarea, type ProyectoPuente} from './tarea-unitaria.js';
+import {completarParche} from './escritura/parche-completo.js';
 import {configPuenteViva, type ConfigPuente} from './entorno/config-puente.js';
 
 const RUTA_LOGIN = '/api/auth/login';
@@ -285,6 +286,18 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
     }
   }
 
+  /* El parche de una edicion parcial, completado con lo guardado (20AA-10).
+   * [por que] El PUT de TASK es de reemplazo: sin `payload` borra el espejo del roadmap y sin
+   * `proyectoId` saca la tarjeta de su columna (ver `escritura/parche-completo.ts`). El que ya manda el
+   * payload entero —F2— no necesita relectura. TASK no tiene GET por id, asi que la tarea se busca
+   * en la columna que declara el parche; si no esta, es un alta y no hay nada que conservar. */
+  async function conLoGuardado(legacyId: number, parche: ParcheTarea): Promise<ParcheTarea> {
+    if (parche.payload !== undefined || typeof parche.proyectoId !== 'number') return parche;
+    const tareas = await cliente().listarTareasProyecto(parche.proyectoId);
+    const hallada = tareas.find((t) => t.item.id === legacyId);
+    return hallada === undefined ? parche : completarParche(hallada.item, parche);
+  }
+
   return {
     estado(): EstadoPuente {
       if (cfg().base === '') {
@@ -319,7 +332,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
         if (!esIdValido(legacyId)) {
           throw {codigo: 'validacion', mensaje: 'legacyId debe ser un entero positivo'} satisfies ErrorKanban;
         }
-        const datos = await pedirApi('tasks', 'PUT', legacyId, {...parche});
+        const datos = await pedirApi('tasks', 'PUT', legacyId, {...(await conLoGuardado(legacyId, parche))});
         if (typeof datos !== 'object' || datos === null || typeof (datos as {id?: unknown}).id !== 'number') {
           throw {codigo: 'servidor', mensaje: 'Respuesta inesperada del servidor'} satisfies ErrorKanban;
         }

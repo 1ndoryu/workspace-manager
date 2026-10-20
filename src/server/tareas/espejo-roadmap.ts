@@ -11,27 +11,22 @@
  * [gotcha] `parentId` solo vale si el padre es raiz y la tarea escrita no tiene hijos
  * (`src/repositories/productivity.rs:119-149`): la profundidad es 2, y por eso el padre se emite
  * antes que sus subtareas. */
-import { createHash } from 'node:crypto';
 import { PRIORIDADES_TAREA, URGENCIAS_TAREA } from '../../shared/tareas/tareasTab.js';
 import type { PropiedadesTarea, TareaRoadmap } from '../scanner/roadmap/roadmap.js';
+import {
+  CLAVE_ESPEJO,
+  contenidoDe,
+  espejoDeItem,
+  huellaDeTarea,
+  huellaDeTexto,
+  idRoadmapDeItem,
+  payloadPropio,
+  textoDeTitulo,
+  type EspejoContenido,
+} from './escritura/contenido-tarea.js';
 import type { ItemVersionado } from './nucleo/tipos.js';
-import { generarIdLibre } from './sincronizar-proyectos.js';
+import { generarIdLibre } from './sincronizacion/sincronizar-proyectos.js';
 import type { ParcheTarea } from './tarea-unitaria.js';
-
-/* Claves que TASK fija el mismo en `payload_for_storage` (productivity.rs:92): si viajaran en
- * nuestro payload, o las pisaria el, o le impedirian deducirlas. */
-const CLAVES_RESERVADAS = [
-  'id',
-  'texto',
-  'completado',
-  'prioridad',
-  'urgencia',
-  'proyectoId',
-  'parentId',
-  'orden',
-] as const;
-
-export const CLAVE_ESPEJO = 'roadmap';
 
 /* Lo que el espejo guarda en `payload.roadmap`: el lado del archivo tal como estaba cuando el
  * puente lo escribio. F3 lo usara para saber quien cambio por ultima vez. */
@@ -44,15 +39,6 @@ export interface EspejoRoadmap {
   escritoEn: string;
   mtimeArchivo: string | null;
   espejo: EspejoContenido;
-}
-
-export interface EspejoContenido {
-  texto: string;
-  prioridad: string | null;
-  urgencia: string | null;
-  etiquetas: string[];
-  dependeDe: string[];
-  fechas: Record<string, string>;
 }
 
 export interface AccionEspejo {
@@ -88,80 +74,12 @@ export interface DepsPlanEspejo {
   ocupados: Set<number>;
 }
 
-/* Texto plano de un titulo del roadmap: fuera los marcadores de negrita (en TASK el texto es
- * texto) y los espacios de mas. */
-export function textoDeTitulo(titulo: string): string {
-  return titulo.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
-}
-
-function propiedadesTexto(p: PropiedadesTarea): string {
-  const pares: string[] = [];
-  for (const clave of ['prioridad', 'urgencia', 'creada', 'pospuesta', 'completada'] as const) {
-    const v = p[clave];
-    if (v !== undefined) pares.push(`${clave}=${v}`);
-  }
-  if (p.etiquetas !== undefined) pares.push(`etiquetas=${p.etiquetas.join(',')}`);
-  if (p.dependeDe !== undefined) pares.push(`depende-de=${p.dependeDe.join(',')}`);
-  return pares.join(' ');
-}
-
-/* Huella de la tarea en el archivo: su linea y su linea de propiedades, nada mas.
- * [por que] Es lo que dice si el lado del archivo cambio desde la ultima escritura del puente. Las
- * subtareas NO entran: tienen su propia huella, y meterlas aqui haria que cambiar una subtarea
- * reescribiera al padre y le moviera el `updated_at`, que es justo lo que F3 lee para decidir
- * quien cambio por ultima vez. */
-export function huellaDeTarea(t: TareaRoadmap): string {
-  const partes = [textoDeTitulo(t.titulo), propiedadesTexto(t.propiedades)];
-  return createHash('sha256').update(partes.join('\n'), 'utf8').digest('hex').slice(0, 16);
-}
-
-/* Lo que el item de TASK trae de payload propio: todo menos las claves que TASK fija y nuestro
- * espejo. Es lo que hay que devolverle en el PUT para no borrarselo. */
-export function payloadPropio(item: Record<string, unknown>): Record<string, unknown> {
-  const propio: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(item)) {
-    if ((CLAVES_RESERVADAS as readonly string[]).includes(k)) continue;
-    if (k === CLAVE_ESPEJO) continue;
-    propio[k] = v;
-  }
-  return propio;
-}
-
-/* Espejo guardado en un item, o null si la tarea no la creo el puente. */
-export function espejoDeItem(item: Record<string, unknown>): Record<string, unknown> | null {
-  const v = item[CLAVE_ESPEJO];
-  return typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
-}
-
-/* ID del roadmap que el item declara, o null si la tarea no viene del roadmap. */
-export function idRoadmapDeItem(item: Record<string, unknown>): string | null {
-  const e = espejoDeItem(item);
-  const id = e?.id;
-  return typeof id === 'string' && id !== '' ? id : null;
-}
-
 function esRaiz(item: Record<string, unknown>): boolean {
   return item.parentId === null || item.parentId === undefined;
 }
 
 function textoDeItem(item: Record<string, unknown>): string {
   return typeof item.texto === 'string' ? item.texto.trim() : '';
-}
-
-function contenidoDe(p: PropiedadesTarea, texto: string): EspejoContenido {
-  const fechas: Record<string, string> = {};
-  for (const clave of ['creada', 'pospuesta', 'completada'] as const) {
-    const v = p[clave];
-    if (v !== undefined) fechas[clave] = v;
-  }
-  return {
-    texto,
-    prioridad: p.prioridad ?? null,
-    urgencia: p.urgencia ?? null,
-    etiquetas: p.etiquetas ?? [],
-    dependeDe: p.dependeDe ?? [],
-    fechas,
-  };
 }
 
 /* Elige entre lo que dice el roadmap y lo que ya tenia TASK. [por que] Si el roadmap no dice
@@ -290,10 +208,7 @@ function planSubtareas(
     if (existente === null && i < hijos.length && libres.has(hijos[i])) existente = hijos[i];
     if (existente !== null) libres.delete(existente);
 
-    const huella = createHash('sha256')
-      .update(`${texto}\n${propiedadesTexto(s.propiedades)}`, 'utf8')
-      .digest('hex')
-      .slice(0, 16);
+    const huella = huellaDeTexto(texto, s.propiedades);
     const guardado = existente === null ? null : espejoDeItem(existente.item);
     if (existente !== null && guardado?.huella === huella) continue;
 

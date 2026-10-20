@@ -9,11 +9,11 @@
  * TASK hay que partir del roadmap que hay ahora en el disco. */
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { analizarRoadmap } from '../scanner/roadmap/roadmap.js';
-import type { TareaRoadmap } from '../scanner/roadmap/roadmap.js';
-import { planEspejo, type PlanEspejo } from './espejo-roadmap.js';
-import type { PuenteTareas } from './puente-tareas.js';
-import type { ErrorKanban } from './nucleo/tipos.js';
+import { analizarRoadmap } from '../../scanner/roadmap/roadmap.js';
+import type { TareaRoadmap } from '../../scanner/roadmap/roadmap.js';
+import { planEspejo, type PlanEspejo } from '../espejo-roadmap.js';
+import type { PuenteTareas } from '../puente-tareas.js';
+import type { ErrorKanban } from '../nucleo/tipos.js';
 
 /* Proyecto del workspace tal como lo necesita la sincronizacion: la clave del tablero, su
  * nombre y su carpeta (de donde sale su roadmap.md). */

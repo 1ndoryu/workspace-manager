@@ -139,6 +139,49 @@ void describe('puente-tareas', () => {
     assert.deepEqual(JSON.parse(String(llamadas[1].init.body)), {texto: 'nuevo', completado: true});
   });
 
+  /* [20AA-10] El PUT de TASK es de reemplazo: la edicion parcial del tab manda solo lo que se toco
+   * y, sin relectura, se llevaria por delante el espejo del roadmap y la columna. Medido en vivo el
+   * 2026-10-20 sobre `19AA-1` de glory-pulse. */
+  void it('actualizar relee la tarea y no le borra el espejo ni la columna (20AA-10)', async () => {
+    const GUARDADA = {
+      id: 5,
+      item: {
+        id: 5, texto: 'nuevo', prioridad: null, urgencia: 'normal', proyectoId: 7,
+        parentId: null, orden: 4, completado: false,
+        roadmap: {id: '20AA-1', huella: 'h', espejo: {texto: 'nuevo'}},
+      },
+      updatedAt: 'hoy',
+    };
+    const DEVUELTA = {id: 5, item: {...GUARDADA.item, prioridad: 'alta'}, updatedAt: 'ahora'};
+    const {llamadas, puente} = fakes([LOGIN_OK, resp(200, {tareas: [GUARDADA]}), resp(200, DEVUELTA)]);
+    const got = await puente.actualizar(5, {texto: 'nuevo', prioridad: 'alta', proyectoId: 7});
+    assert.deepEqual(got, DEVUELTA);
+    assert.ok(llamadas[1].url.endsWith('/api/projects/7/tasks'));
+    const cuerpo = JSON.parse(String(llamadas[2].init.body)) as Record<string, unknown>;
+    assert.deepEqual(cuerpo.payload, {roadmap: {id: '20AA-1', huella: 'h', espejo: {texto: 'nuevo'}}});
+    assert.equal(cuerpo.proyectoId, 7);
+    assert.equal(cuerpo.orden, 4);
+    assert.equal(cuerpo.completado, false);
+    assert.equal(cuerpo.urgencia, 'normal');
+    assert.equal(cuerpo.prioridad, 'alta');
+  });
+
+  void it('actualizar no relee cuando el llamante manda el payload entero (F2)', async () => {
+    const mio = {roadmap: {id: '20AA-1', huella: 'nueva'}};
+    const {llamadas, puente} = fakes([LOGIN_OK, resp(200, {id: 5, item: {}, updatedAt: 'hoy'})]);
+    await puente.actualizar(5, {texto: 'nuevo', proyectoId: 7, payload: mio});
+    assert.equal(llamadas.length, 2);
+    assert.ok(llamadas[1].url.endsWith('/api/tasks/5'));
+    assert.deepEqual((JSON.parse(String(llamadas[1].init.body)) as {payload: unknown}).payload, mio);
+  });
+
+  void it('actualizar no relee cuando la tarea no esta en la columna: es un alta (20AA-10)', async () => {
+    const {llamadas, puente} = fakes([LOGIN_OK, resp(200, {tareas: []}), resp(200, {id: 5, item: {}, updatedAt: 'hoy'})]);
+    await puente.actualizar(5, {texto: 'nueva', proyectoId: 7, orden: 0});
+    assert.equal(llamadas.length, 3);
+    assert.deepEqual(JSON.parse(String(llamadas[2].init.body)), {texto: 'nueva', proyectoId: 7, orden: 0});
+  });
+
   void it('actualizar mapea 404 a no-encontrado (07AA-15)', async () => {
     const {puente} = fakes([LOGIN_OK, resp(404, {message: 'no hay'})]);
     await assert.rejects(puente.actualizar(5, {texto: 'x'}), (e: unknown) => (e as {codigo: string}).codigo === 'no-encontrado');

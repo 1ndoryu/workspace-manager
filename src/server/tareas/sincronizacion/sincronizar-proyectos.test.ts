@@ -1,5 +1,5 @@
 /* Test del sync WM->TASKS (08AA-6): se corre con
- * `node node_modules/tsx/dist/cli.mjs --test src/server/tareas/sincronizar-proyectos.test.ts`.
+ * `node node_modules/tsx/dist/cli.mjs --test src/server/tareas/sincronizacion/sincronizar-proyectos.test.ts`.
  * Dependencias inyectadas: ningun test toca TASKS. */
 import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';

@@ -6,8 +6,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { analizarRoadmap, type TareaRoadmap } from '../scanner/roadmap/roadmap.js';
+import { huellaDeTarea, textoDeTitulo } from './escritura/contenido-tarea.js';
+import { planEspejo, type DepsPlanEspejo } from './espejo-roadmap.js';
 import type { ItemVersionado } from './nucleo/tipos.js';
-import { huellaDeTarea, planEspejo, textoDeTitulo, type DepsPlanEspejo } from './espejo-roadmap.js';
 
 const tareas = (texto: string): TareaRoadmap[] => analizarRoadmap(texto).tareas;
 
