@@ -39,6 +39,29 @@ let mapaSitios: Map<string, InfoSitio> = new Map();
 let mapaSitiosTs = 0;
 const MAPA_SITIOS_MS = 600_000;
 
+/* Listado de sitios: dos llamadas al CLI de la VPS (básico y detallado), cada una del orden de
+ * un segundo. [por que] Sin caché cada petición del tablero las relanzaba: medido 2–3 s por
+ * petición, y lo mismo al repetirla. Se guarda 20 s y, si ya vuela, la llamada se comparte; no
+ * se guarda si el listado básico falló, para no servir un error como dato. */
+const SITIOS_TTL_MS = 20_000;
+let listadoSitios: { ts: number; datos: [VpsPieza, VpsPieza] } | null = null;
+let vueloSitios: Promise<[VpsPieza, VpsPieza]> | null = null;
+
+function listadoSitiosCacheado(): Promise<[VpsPieza, VpsPieza]> {
+  if (listadoSitios && Date.now() - listadoSitios.ts < SITIOS_TTL_MS) return Promise.resolve(listadoSitios.datos);
+  vueloSitios ??= (async (): Promise<[VpsPieza, VpsPieza]> => {
+    const datos: [VpsPieza, VpsPieza] = await Promise.all([
+      pieza(() => listarSitios(false), true),
+      pieza(() => listarSitios(true), true),
+    ]);
+    if (datos[0].ok) listadoSitios = { ts: Date.now(), datos };
+    return datos;
+  })().finally(() => {
+    vueloSitios = null;
+  });
+  return vueloSitios;
+}
+
 /* Semilla local desde settings.json (nombre/dominio/stackUuid por sitio):
  * instantanea y completa sin SSH ni binario. Solo se extraen esos tres
  * campos: los secretos del archivo jamas salen de aqui. La ruta se resuelve
@@ -190,10 +213,7 @@ export async function manejarRutasVps(
       json(res, 503, { error: 'sin-binario', ayuda: dondeBuscarBinario() });
       return true;
     }
-    const [base, detalle] = await Promise.all([
-      pieza(() => listarSitios(false), true),
-      pieza(() => listarSitios(true), true),
-    ]);
+    const [base, detalle] = await listadoSitiosCacheado();
     const filas = base.ok ? parsearListado(String(base.datos), false) : [];
     const reales = new Map(
       (detalle.ok ? parsearListado(String(detalle.datos), true) : []).map((s) => [s.nombre, s]),
