@@ -21,6 +21,7 @@
     "sync:gate": "tsx scripts/sync-gate-schema.mjs",
     "sync:quality": "tsx scripts/quality-sync.mjs",
     "check": "npm run type-check",
+    "test": "node scripts/dev/ejecutar-tests.mjs npx tsx --test \"src/**/*.test.ts\" \"scripts/**/*.test.mjs\"",
     "quality:doctor": "node scripts/quality/doctor.mjs --json",
     "quality:setup": "node scripts/quality/quality-setup.mjs",
     "quality:lock": "node scripts/quality/lock-generator.mjs",
