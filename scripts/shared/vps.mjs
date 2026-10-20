@@ -70,9 +70,13 @@ export function dirRemotoDeHerramienta(config, nombre, commit) {
 
 /* Línea de shell para la VPS: entra en `dir` y ejecuta `argv` bajo el candado de carga pesada.
  * [por que] `config.preludio` (opcional, en taller.json) prepara el PATH del equipo remoto
- * (p. ej. el gestor de node); `bash -lc` no siempre lo carga. */
+ * (p. ej. el gestor de node); `bash -lc` no siempre lo carga.
+ * [por que 10AA-3] GLORY_TALLER=1 declara que la orden corre en el taller: la carpeta de la
+ * 89 es un espejo de Mutagen que NO sincroniza `.git` (está en `sync.ignorar`), así que allí
+ * el historial del workspace no es la fuente de verdad y las herramientas que lo consultan
+ * (adaptador de calidad de los proyectos) tienen que saberlo. En el portátil no se pone. */
 export function comandoEnVps(config, dir, argv) {
-  const interno = `${config.preludio ?? ''}cd ${shQuote(dir)} && ${argv.map(shQuote).join(' ')}`;
+  const interno = `${config.preludio ?? ''}export GLORY_TALLER=1; cd ${shQuote(dir)} && ${argv.map(shQuote).join(' ')}`;
   return `${config.lockWrapper} bash -lc ${shQuote(interno)}`;
 }
 

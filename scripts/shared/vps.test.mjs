@@ -69,6 +69,9 @@ test('comandoEnVps: usa el candado y el preludio de la configuración, y entra e
   assert.match(cmd, /\/srv\/taller\/proyecto/);
   assert.match(cmd, /npm/);
   assert.match(cmd, /build/);
+  // [por que 10AA-3] Toda orden en la 89 va marcada como taller: su `.git` es un espejo
+  // de Mutagen que no se sincroniza y no vale como fuente de verdad.
+  assert.match(cmd, /export GLORY_TALLER=1;/);
 });
 
 test('comandoEnVps: sin preludio en la configuración no añade nada al comando', () => {
