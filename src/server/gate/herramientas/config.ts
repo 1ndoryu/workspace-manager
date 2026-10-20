@@ -18,15 +18,6 @@ const RUTA_REGISTRO = join(RAIZ_WM, 'config', 'registro.json');
  * describe el papel, no el nombre de un host concreto. */
 export type ModoAnalisis = 'local' | 'taller';
 
-/* ¿`analisisEn` del registro pide el taller? Vale el papel (`taller`) o el alias del
- * host que declara taller.json. [por qué] Antes el conjunto llevaba el alias de una
- * máquina concreta incrustado: en otro entorno ese alias no existe, y una
- * configuración ya escrita con él dejaba de entenderse. El papel siempre vale; el
- * alias, solo si es el del taller declarado. */
-function pideTaller(valor: string, taller: TallerAnalisis | null): boolean {
-  return valor === 'taller' || valor === hostTaller(taller);
-}
-
 export interface ConfigRemota {
   host: string;
   dirRemotoBase: string;
@@ -66,7 +57,7 @@ export function leerConfigRemota(entorno: NodeJS.ProcessEnv = process.env): Conf
   /* [por que] Sin taller.json el error dice el motivo, no el ENOENT de la ruta: es el texto
    * que ven el análisis y la auditoría de un proyecto del taller. */
   const taller = leerTallerSiExiste();
-  if (!taller) throw new Error('sin taller configurado (falta config/taller.json o no es JSON válido)');
+  if (!taller) throw new Error('sin VPS configurada (falta config/taller.json o no es JSON válido)');
   return configRemotaDe(taller, tmpAudit);
 }
 
@@ -123,51 +114,21 @@ export function cloudflaredEnvDe(t: TallerAnalisis | null = leerTallerSiExiste()
   return typeof ruta === 'string' && ruta.startsWith('/') && !ruta.includes('\n') ? ruta : null;
 }
 
-/* Modo de análisis de un proyecto. [por que] Antes solo miraba `analisisEn` del
- * registro, así que un proyecto del taller se analizaba en el portátil por omisión:
- * el análisis es trabajo pesado y el reparto del área lo manda a la 89. Ahora, si hay
- * taller y el proyecto corre en él, el análisis va a la 89. `analisisEn` del registro
- * sigue mandando en los dos sentidos (`"taller-ejemplo"` y `"local"`), para poder forzar uno
- * concreto. Un proyecto del taller con el taller apagado NO baja al portátil: ver abajo.
- * Un proyecto sin marca de taller es local con o sin taller.
- * [por que `host` y no el bloque `proyectos` de taller.json] Ese bloque declara la BD
- * del taller, no el alta: un proyecto puede correr allí sin base de datos. proyecto-ejemplo
- * era justo eso — `host: "taller-ejemplo"` en el registro y sin entrada en `proyectos`— y se
- * analizaba en el portátil. La señal de «vive en el taller» es la misma que usa la
- * conformidad (`leerRegistroConformidad`): el `host` del registro. */
+/* Modo de análisis de un proyecto: la 89 ('taller') salvo que el registro diga `analisisEn: "local"`.
+ * [por que] El análisis es trabajo pesado y AGENTS §1 lo manda a la 89. Antes, un proyecto sin
+ * marca caía en el portátil y cada análisis nuevo cargaba la laptop. Ahora la única vía al portátil
+ * es esa marca explícita en el registro. Sin VPS no baja: el análisis queda en error con su motivo
+ * («sin VPS configurada») y el tablero lo muestra. */
 export function modoAnalisisEn(
-  registro: { proyectos?: Array<{ id?: unknown; analisisEn?: unknown; host?: unknown }> },
+  registro: { proyectos?: Array<{ id?: unknown; analisisEn?: unknown }> },
   clave: string,
-  taller: TallerAnalisis | null = null,
 ): ModoAnalisis {
   const entrada = registro.proyectos?.find((x) => x.id === clave);
-  if (entrada?.analisisEn === 'local') return 'local';
-  /* [por que] Sin taller.json no hay 89, pero el proyecto sigue siendo del taller: queda en
-   * 'taller' y su análisis, doctor y auditoría dicen «sin taller configurado» con el motivo.
-   * Bajarlo a local lo metía en el portátil, que no ejecuta proyectos del taller (AGENTS §1).
-   * El manager sin VPS sigue entero: los proyectos sin marca son locales. */
-  if (!taller) return declaraTaller(entrada) ? 'taller' : 'local';
-  /* [por que] Con taller, corre en la 89 si lo pide `analisisEn` o si su `host` es el alias
-   * del taller. Un `host` ajeno no es esta VPS: queda local. No hay modo por defecto que lo
-   * baje al portátil: el análisis va a la 89 (AGENTS §1). */
-  const pide = typeof entrada?.analisisEn === 'string' && pideTaller(entrada.analisisEn, taller);
-  return pide || enHostDelTaller(entrada, taller) ? 'taller' : 'local';
-}
-
-/* ¿El `host` del registro es el alias de la VPS que declara taller.json? */
-function enHostDelTaller(entrada: { host?: unknown } | undefined, taller: TallerAnalisis): boolean {
-  const host = typeof entrada?.host === 'string' ? entrada.host.trim() : '';
-  return host !== '' && host === hostTaller(taller);
-}
-
-/* Marca de proyecto del taller en el registro: `host` o un `analisisEn` distinto de 'local'. */
-function declaraTaller(entrada: { analisisEn?: unknown; host?: unknown } | undefined): boolean {
-  if (typeof entrada?.host === 'string' && entrada.host.trim()) return true;
-  return typeof entrada?.analisisEn === 'string';
+  return entrada?.analisisEn === 'local' ? 'local' : 'taller';
 }
 
 export function modoAnalisis(clave: string): ModoAnalisis {
-  return modoAnalisisEn(JSON.parse(readFileSync(RUTA_REGISTRO, 'utf8')), clave, leerTallerSiExiste());
+  return modoAnalisisEn(JSON.parse(readFileSync(RUTA_REGISTRO, 'utf8')), clave);
 }
 
 /* Ruta remota del proyecto: <dirRemotoBase>/<clave>. La clave no puede traer barras ni

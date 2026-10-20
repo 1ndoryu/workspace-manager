@@ -89,7 +89,7 @@ async function correrAudit(p: Proyecto, lock: LockDetectado, enLa89: boolean): P
    * envio falla, queda en 'error' con su motivo y NO se reintenta en local: auditar
    * en el portatil es carga pesada (AGENTS §1), igual que en `analizador.ts`. Sin
    * taller configurado un proyecto del taller tampoco baja al portatil: el error dice
-   * el motivo («sin taller configurado»). Sin marca de taller el audit es local. */
+   * el motivo («sin VPS configurada»). Solo `analisisEn: "local"` lo audita en el portatil. */
   const falloRemoto = enLa89 ? await prepararRemoto(p.ruta, lock.gestor) : null;
   if (falloRemoto !== null) {
     return sinDatos(base, 'error', `audit en el taller no arrancó: ${falloRemoto.slice(0, 120)}`);

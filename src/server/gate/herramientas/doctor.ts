@@ -47,7 +47,7 @@ export async function doctorConModo(
    * lo trae), no un fallo. Se dice sin soltar la ruta de un fichero que falta. El mismo
    * null cubre un JSON inválido, así que el mensaje lo nombra también. */
   if (leerTallerSiExiste() === null) {
-    return sinDiagnostico('no hay taller configurado (o taller.json no es JSON válido)');
+    return sinDiagnostico('sin VPS configurada (o taller.json no es JSON válido)');
   }
 
   let cfg: ConfigRemota;

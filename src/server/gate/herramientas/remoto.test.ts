@@ -133,70 +133,25 @@ test('huellaFuentes: cambia con el contenido de las entradas, no con el mtime', 
   }
 });
 
-test('modoAnalisisEn: el taller solo con analisisEn exacto; por defecto local', () => {
+/* [por que] Análisis a la 89 por defecto (AGENTS §1). El portátil solo con `analisisEn: "local"`
+ * explícito en el registro; cualquier otro valor, incluido el alias antiguo, va a la 89. */
+test('modoAnalisisEn: la 89 por defecto; local solo con analisisEn "local"', () => {
   const registro = {
     proyectos: [
       { id: 'sistema-legado', analisisEn: 'taller' },
       { id: 'sitio-api' },
+      { id: 'catalogo-web', host: 'taller-ejemplo' },
       { id: 'otro', analisisEn: 'otro-alias' },
+      { id: 'portatil', analisisEn: 'local' },
     ],
   };
-  const taller = { host: 'taller-ejemplo' };
-  assert.equal(modoAnalisisEn(registro, 'sistema-legado', taller), 'taller');
-  assert.equal(modoAnalisisEn(registro, 'sitio-api', taller), 'local');
-  assert.equal(modoAnalisisEn(registro, 'otro', taller), 'local');
-  assert.equal(modoAnalisisEn(registro, 'no-existe', taller), 'local');
-  assert.equal(modoAnalisisEn({}, 'sistema-legado', taller), 'local');
-});
-
-/* [por que] Sin taller.json el proyecto del taller sigue siendo del taller: queda en 'taller'
- * y su análisis explica «sin taller configurado». Bajarlo a local lo metía en el portátil
- * (AGENTS §1). */
-test('modoAnalisisEn: sin taller, analisisEn "taller" sigue en taller con su motivo', () => {
-  const registro = { proyectos: [{ id: 'sistema-legado', analisisEn: 'taller' }] };
-  assert.equal(modoAnalisisEn(registro, 'sistema-legado', null), 'taller');
   assert.equal(modoAnalisisEn(registro, 'sistema-legado'), 'taller');
-});
-
-/* [por que] El alias del host fue el valor con el que se escribio `analisisEn` antes de
- * que el modo se llamara por su papel: las configuraciones ya hechas tienen que seguir
- * valiendo, pero el alias lo declara taller.json, no el codigo. Sin taller declarado no
- * hay alias que valga (testigo: el mismo valor con otro host es local). */
-test('modoAnalisisEn: el alias del taller declarado pide el taller', () => {
-  const registro = { proyectos: [{ id: 'proyecto-a', analisisEn: 'taller-ejemplo' }] };
-  assert.equal(modoAnalisisEn(registro, 'proyecto-a', { host: 'taller-ejemplo' }), 'taller');
-  assert.equal(modoAnalisisEn(registro, 'proyecto-a', { host: 'otra-maquina' }), 'local');
-  assert.equal(modoAnalisisEn(registro, 'proyecto-a', null), 'taller', 'sin taller, la marca sigue siendo del taller');
-});
-
-/* Correr en el taller es lo que manda: un proyecto con `host` en el registro se analiza
- * alli aunque `analisisEn` no diga nada. Y `analisisEn` sigue pudiendo forzar los dos
- * lados. */
-test('modoAnalisisEn: un proyecto que corre en el taller analiza en el taller', () => {
-  const registro = { proyectos: [{ id: 'catalogo-web', host: 'taller-ejemplo' }, { id: 'sistema-legado', host: 'taller-ejemplo', analisisEn: 'local' }] };
-  const taller = { host: 'taller-ejemplo' };
-  assert.equal(modoAnalisisEn(registro, 'catalogo-web', taller), 'taller');
-  assert.equal(modoAnalisisEn(registro, 'sistema-legado', taller), 'local', 'analisisEn local manda sobre el host');
-});
-
-/* [por que] La senal es `host`, no el bloque `proyectos` de taller.json: ese bloque
- * declara la BD del taller y sistema-legado corria alli sin base de datos, asi que su
- * analisis (259 hallazgos) se quedaba en el portatil. */
-test('modoAnalisisEn: el bloque de BD del taller no decide donde se analiza', () => {
-  const registro = { proyectos: [{ id: 'sistema-legado', host: 'taller-ejemplo' }, { id: 'SIN-HOST' }] };
-  const taller = { host: 'taller-ejemplo', proyectos: { 'SIN-HOST': { basedatos: 'x' } } };
-  assert.equal(modoAnalisisEn(registro, 'sistema-legado', taller), 'taller', 'corre en la 89 aunque no tenga BD alli');
-  assert.equal(modoAnalisisEn(registro, 'SIN-HOST', taller), 'local', 'una BD declarada no basta si no corre alli');
-});
-
-/* Sin taller el manager sigue entero en local para los proyectos sin marca (clon recién
- * hecho, no es un error). Los del taller no bajan al portátil: quedan en 'taller'. */
-test('modoAnalisisEn: sin taller, sin marca local y con marca del taller no baja al portátil', () => {
-  const registro = { proyectos: [{ id: 'catalogo-web', host: 'taller-ejemplo' }, { id: 'sitio-api' }] };
-  assert.equal(modoAnalisisEn(registro, 'catalogo-web', null), 'taller', 'host declarado: del taller');
-  assert.equal(modoAnalisisEn(registro, 'sitio-api', null), 'local', 'sin marca: local con o sin taller');
-  assert.equal(modoAnalisisEn(registro, 'catalogo-web', { host: 'otra-maquina' }), 'local', 'un host ajeno no es el taller');
-  assert.equal(modoAnalisisEn(registro, 'catalogo-web', { host: 'taller-ejemplo' }), 'taller');
+  assert.equal(modoAnalisisEn(registro, 'sitio-api'), 'taller', 'sin marca: la 89');
+  assert.equal(modoAnalisisEn(registro, 'catalogo-web'), 'taller');
+  assert.equal(modoAnalisisEn(registro, 'otro'), 'taller', 'un alias ajeno tampoco baja al portátil');
+  assert.equal(modoAnalisisEn(registro, 'portatil'), 'local', 'la única excepción explícita');
+  assert.equal(modoAnalisisEn(registro, 'no-existe'), 'taller');
+  assert.equal(modoAnalisisEn({}, 'sitio-api'), 'taller');
 });
 
 test('hostTaller: el alias lo declara la config, y sin ella no hay host', () => {

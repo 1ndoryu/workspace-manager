@@ -53,9 +53,9 @@ npm run dev      # front, por defecto en 127.0.0.1:5175
 ```
 
 Requisitos: Node 24 o superior y Git (cada proyecto del área es un repositorio).
-Sin `config/taller.json`, los proyectos sin marca de taller corren en la propia
-máquina, y los que la tienen quedan con su motivo («sin taller configurado»); ver
-«Funciona con o sin taller».
+Sin `config/taller.json` el análisis no corre en la propia máquina: queda en error con el
+motivo («sin VPS configurada»). Los proyectos analizan en la 89 salvo que el registro
+diga `analisisEn: "local"`; ver «Funciona con o sin taller».
 
 Para producción: `npm run build` compila el front; `npm run build:server` compila el
 backend a `dist-server/` y `npm run server:compilado` lo arranca.
@@ -223,16 +223,15 @@ El manager distingue dos papeles, y esa separación es el eje del diseño:
   ejecutar. Lo pesado.
 
 Sin `config/taller.json`, o con el taller apagado, todo lo local sigue
-funcionando: mapa, repos, documentos, tareas, config, y el análisis de los
-proyectos que corren en el portátil. Los proyectos de taller (con `host` del taller
-o `analisisEn: "taller"` en el registro) **no se analizan en el
-portátil**: su análisis, su doctor y su arranque quedan con el motivo
-(`sin taller configurado`, `el taller no respondió`) en vez de caer en silencio
-en la máquina local. Es a propósito: el portátil edita, y lo pesado va a la 89.
+funcionando: mapa, repos, documentos, tareas y config. El análisis de los proyectos
+**va a la 89 por defecto**: sin VPS no baja al portátil, queda en error con el motivo
+(`sin VPS configurada`, `el taller no respondió`) y el tablero lo muestra. Es a
+propósito: el portátil edita, y lo pesado va a la 89.
 
 Para activarlo basta con rellenar `config/taller.json` (host y directorio base). Dónde
-se analiza cada proyecto lo marca `config/registro.json`: su `host` igual al alias del
-taller, o `analisisEn: "taller"`. `analisisEn: "local"` fuerza el análisis en el portátil.
+se analiza cada proyecto lo marca `config/registro.json`: solo `analisisEn: "local"`
+fuerza el análisis en el portátil; cualquier otro caso, incluido el `host` del taller,
+va a la 89.
 
 ## Pruebas
 
