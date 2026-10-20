@@ -169,12 +169,18 @@ export function useMapaV2(): UseMapaV2 {
     });
   }
 
+  /* Captura del puntero: se toma cuando el gesto YA es un gesto (arrastre pasado el umbral o
+   * pinza), nunca al apoyar el dedo. [por que] Con captura desde el `pointerdown` el navegador
+   * entrega el `click` al SVG que captura y no a la caja: el click de la caja no llegaba casi
+   * nunca. Capturando despues, el click sigue siendo de la caja y el arrastre no se pierde al
+   * salir del SVG. Solo con eventos reales: los sinteticos (tests) no tienen puntero activo y
+   * `setPointerCapture` lanzaria excepcion. */
+  function capturar(ev: ReactPointerEvent<SVGSVGElement>) {
+    if (ev.isTrusted) ev.currentTarget.setPointerCapture(ev.pointerId);
+  }
+
   function iniciarArrastre(ev: ReactPointerEvent<SVGSVGElement>) {
     punteros.current.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    /* [por que] Captura solo con eventos reales: los sinteticos (tests) no
-     * tienen puntero activo y setPointerCapture lanzaria excepcion. Con
-     * captura, el arrastre sigue aunque el puntero salga del SVG. */
-    if (ev.isTrusted) ev.currentTarget.setPointerCapture(ev.pointerId);
 
     /* Dos dedos: manda la pinza, no el arrastre. */
     if (punteros.current.size >= 2) {
@@ -182,6 +188,7 @@ export function useMapaV2(): UseMapaV2 {
       pendiente.current = null;
       pinza.current = separacionPunteros();
       movido.current = true;
+      capturar(ev);
       setArrastrando(false);
       setHover(null);
       setTooltipPos(null);
@@ -225,6 +232,7 @@ export function useMapaV2(): UseMapaV2 {
       const dist = separacionPunteros();
       const centro = centroPunteros();
       if (dist === null || centro === null) return;
+      capturar(ev);
       if (pinza.current > 0 && dist > 0) zoomEn(dist / pinza.current, centro);
       pinza.current = dist;
       return;
@@ -236,6 +244,8 @@ export function useMapaV2(): UseMapaV2 {
     if (!movido.current) {
       if (Math.abs(dx) + Math.abs(dy) < UMBRAL_ARRASTRE) return;
       movido.current = true;
+      /* Ya es un arrastre, no un click: a partir de aqui el puntero se captura. */
+      capturar(ev);
     }
     pendiente.current = { dx, dy };
     if (fotograma.current === null) fotograma.current = requestAnimationFrame(aplicarPendiente);
