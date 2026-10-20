@@ -2,24 +2,19 @@
  * [por que] La pestaña Guardián edita sentinel.config.json y lote-extra.md de
  * cualquier proyecto: no debe seguir symlinks, no debe truncar el fichero si
  * la escritura falla a medias y no debe pisar una edición ajena hecha entre la
- * lectura y el guardado (concurrencia optimista con hash). */
-import { createHash, randomBytes } from 'node:crypto';
+ * lectura y el guardado (concurrencia optimista con hash). [19AA-13] La parte pura
+ * (hash, EOL, diferencia por bloque) vive en escritura/puro.ts y se reexporta aquí. */
+import { randomBytes } from 'node:crypto';
 import { lstatSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { eolDe, hashDe, type Eol } from './escritura/puro.js';
 
-export type Eol = '\r\n' | '\n';
+export { diffLineas, eolDe, hashDe } from './escritura/puro.js';
+export type { BloqueDiff, Eol } from './escritura/puro.js';
 
 export type LecturaFichero =
   | { estado: 'ausente' }
   | { estado: 'invalido'; motivo: string }
   | { estado: 'ok'; contenido: string; eol: Eol; hash: string };
-
-export function hashDe(texto: string): string {
-  return createHash('sha256').update(texto, 'utf8').digest('hex');
-}
-
-export function eolDe(texto: string): Eol {
-  return texto.includes('\r\n') ? '\r\n' : '\n';
-}
 
 /* Lee un fichero regular. [por que] lstat antes de leer: un symlink dentro de
  * un proyecto podría apuntar fuera del área y el tablero lo editaría. */
@@ -53,30 +48,4 @@ export function escribirAtomico(ruta: string, contenido: string): void {
     }
     throw err;
   }
-}
-
-/* Diferencia por bloque: recorta el prefijo y el sufijo comunes. Basta para
- * mostrar un cambio de JSON (pocas líneas cambian) sin dependencia de diff. */
-export interface BloqueDiff {
-  /* Línea de inicio (1-based) del bloque en el texto original. */
-  desde: number;
-  quitar: string[];
-  poner: string[];
-}
-
-export function diffLineas(antes: string, despues: string): BloqueDiff | null {
-  const a = antes.split(/\r?\n/u);
-  const b = despues.split(/\r?\n/u);
-  let prefijo = 0;
-  while (prefijo < a.length && prefijo < b.length && a[prefijo] === b[prefijo]) prefijo++;
-  let sufijo = 0;
-  while (
-    sufijo < a.length - prefijo &&
-    sufijo < b.length - prefijo &&
-    a[a.length - 1 - sufijo] === b[b.length - 1 - sufijo]
-  ) sufijo++;
-  const quitar = a.slice(prefijo, a.length - sufijo);
-  const poner = b.slice(prefijo, b.length - sufijo);
-  if (quitar.length === 0 && poner.length === 0) return null;
-  return { desde: prefijo + 1, quitar, poner };
 }
