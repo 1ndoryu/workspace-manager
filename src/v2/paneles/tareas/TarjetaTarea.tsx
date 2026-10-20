@@ -49,6 +49,10 @@ export interface ArrastreTarjeta {
 
 export interface TarjetaGestos {
   arrastrable: boolean;
+  /* Hay una operacion en vuelo: la casilla no admite otra. [por que no basta
+   * `arrastrable`] Una subtarea no se arrastra nunca, pero si se marca: atar el
+   * `disabled` de la casilla al arrastre dejaba las subtareas sin poder completar. */
+  ocupada: boolean;
   resaltada: boolean;
   enVuelo: boolean;
   urlTareas: string | null;
@@ -129,7 +133,7 @@ export function TarjetaTarea({ tarea, gestos: g, sub = false }: TarjetaTareaProp
       <Button
         className="tareasCasilla"
         activo={hecha}
-        disabled={!g.arrastrable}
+        disabled={g.ocupada}
         aria-pressed={hecha}
         aria-label={hecha ? `reabrir ${texto}` : `completar ${texto}`}
         title={hecha ? `reabrir ${texto}` : `completar ${texto}`}

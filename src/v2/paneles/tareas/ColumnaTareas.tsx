@@ -133,6 +133,7 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
                 tarea={raiz}
                 gestos={{
                   arrastrable: !ocupada,
+                  ocupada,
                   resaltada: sobre === raiz.legacyId,
                   enVuelo: p.moviendo === `${p.legacyId}:${raiz.legacyId}`,
                   urlTareas: p.urlTareas,
@@ -158,6 +159,7 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
                   sub
                   gestos={{
                     arrastrable: false,
+                    ocupada,
                     resaltada: false,
                     enVuelo: p.moviendo === `${p.legacyId}:${h.legacyId}`,
                     urlTareas: p.urlTareas,
