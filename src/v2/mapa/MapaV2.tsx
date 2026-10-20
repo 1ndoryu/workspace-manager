@@ -9,10 +9,8 @@ import { ETIQUETA_ESTADO, estadoProyecto } from '../estado.js';
 import { disponer } from './geometria/disposicion.js';
 import { claveEnlace, puntoSalida, rutasDe } from './geometria/rutas.js';
 import {
-  TILE,
   pathCuadricula,
   degradadoBorde,
-  posicionGrid,
   textoRuta,
   verticesParedDer,
   verticesParedIzq,
@@ -26,13 +24,11 @@ import { ElegirUrl } from './ElegirUrl.js';
 import { TooltipMapa } from './TooltipMapa.js';
 import { useMapaV2 } from './useMapaV2.js';
 import { urlsVivas, useConexiones } from '../useConexiones.js';
+/* Escena, geometría de la cuadrícula y etiquetas en subcarpeta (límite de 300 líneas). */
+import { calcularRango, escenaOrdenada, libresDe } from './MapaV2/escena.js';
+import { ALTO_HUB, EXT, calcularBase, calcularViewBox } from './MapaV2/vista.js';
+import { EtiquetasMapa } from './MapaV2/EtiquetasMapa.js';
 import './mapaV2.css';
-
-/* Los nodos de ubicacion son cajas mas altas que las de proyecto: se leen como
- * "plataformas" a las que se conectan. */
-const ALTO_HUB = TILE.altoPared * 2;
-
-const corto = (t: string) => (t.length > 14 ? `${t.slice(0, 13)}…` : t);
 
 export function MapaV2() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
@@ -102,78 +98,21 @@ export function MapaV2() {
 
   /* Escena en orden de pintado iso: lo mas lejano (col+fila menor) primero,
    * para que las cajas cercanas tapen a las lejanas. */
-  const escena = useMemo(() => {
-    const items = [
-      ...colocados.map((c) => ({ tipo: 'proyecto' as const, col: c.col, fila: c.fila, p: c.p })),
-      ...hubs.map((h) => ({ tipo: 'hub' as const, col: h.col, fila: h.fila, h })),
-    ];
-    return items.sort((a, b) => a.col + a.fila - (b.col + b.fila) || a.col - b.col);
-  }, [colocados, hubs]);
+  const escena = useMemo(() => escenaOrdenada(colocados, hubs), [colocados, hubs]);
 
   /* Rutas por el suelo (camino mas corto por los pasillos): en rutas.ts. */
   const rutas = useMemo(() => rutasDe(colocados, hubs, enlaces, troncales), [colocados, hubs, enlaces, troncales]);
 
   /* Claves sin ninguna linea: no corren en ningun sitio y el mapa las atenua, igual que su
    * cuadro en la lista de proyectos. Una sola regla para la caja y para su nombre. */
-  const libres = useMemo(() => {
-    const conLinea = new Set(enlaces.map((e) => e.clave));
-    return new Set(colocados.filter((c) => !conLinea.has(c.p.clave)).map((c) => c.p.clave));
-  }, [colocados, enlaces]);
+  const libres = useMemo(() => libresDe(colocados, enlaces), [colocados, enlaces]);
 
-  /* Rango de celdas ocupadas por cajas y nodos (para extender la cuadricula). */
-  const rangoCeldas = useMemo(() => {
-    if (escena.length === 0) return null;
-    const cols = escena.map((g) => g.col);
-    const filas = escena.map((g) => g.fila);
-    return {
-      minCol: Math.min(...cols),
-      maxCol: Math.max(...cols),
-      minFila: Math.min(...filas),
-      maxFila: Math.max(...filas),
-    };
-  }, [escena]);
+  /* Rango de celdas ocupadas (para extender la cuadricula, EXT celdas a cada lado). */
+  const rangoCeldas = useMemo(() => calcularRango(escena), [escena]);
 
-  /* Cuadricula extendida EXT celdas mas alla del contenido en cada direccion.
-   * Como la extension es simetrica (misma EXT por los 4 lados), el centro de
-   * la cuadricula coincide con el centro de las cajas y queda centrada. */
-  const EXT = 6;
-
-  /* viewBox base (zoom 1, sin pan): bbox de la cuadricula extendida + margen.
-   * [por que] Separado del viewBox final porque el arrastre solo necesita el
-   * centro base para desplazarlo. Al ser la extension simetrica, el centro
-   * coincide con el centro de las cajas. */
-  const base = useMemo(() => {
-    if (!rangoCeldas) return null;
-    const margen = 80;
-    const w = TILE.ancho / 2;
-    const h = TILE.alto / 2;
-    const { minCol, maxCol, minFila, maxFila } = rangoCeldas;
-    // Lineas de rejilla en offsets 0.5; esquinas del rombo extremo.
-    const minX = (minCol - EXT - 0.5 - (maxFila + EXT + 0.5)) * w;
-    const maxX = (maxCol + EXT + 0.5 - (minFila - EXT - 0.5)) * w;
-    const minY = (minCol - EXT - 0.5 + minFila - EXT - 0.5) * h;
-    const maxY = (maxCol + EXT + 0.5 + maxFila + EXT + 0.5) * h;
-    const anchoBase = maxX - minX + margen * 2;
-    const altoBase = maxY - minY + margen * 2;
-    return {
-      cx: minX - margen + anchoBase / 2,
-      cy: minY - margen + altoBase / 2,
-      anchoBase,
-      altoBase,
-    };
-  }, [rangoCeldas]);
-
-  /* viewBox final: centro desplazado por pan y escalado por zoom alrededor
-   * del centro (no de la esquina) para mantener el mapa centrado al
-   * acercar/alejar. */
-  const viewBox = useMemo(() => {
-    if (!base) return '0 0 100 100';
-    const ancho = base.anchoBase / zoom;
-    const alto = base.altoBase / zoom;
-    const cx = base.cx + pan.x;
-    const cy = base.cy + pan.y;
-    return `${cx - ancho / 2} ${cy - alto / 2} ${ancho} ${alto}`;
-  }, [base, zoom, pan]);
+  /* Centro base del viewBox (zoom 1, sin pan) y el viewBox final con zoom y pan. */
+  const base = useMemo(() => calcularBase(rangoCeldas), [rangoCeldas]);
+  const viewBox = useMemo(() => calcularViewBox(base, zoom, pan), [base, zoom, pan]);
 
   return (
     <div className="mapaV2">
@@ -301,34 +240,8 @@ export function MapaV2() {
             </g>
           );
         })}
-        {/* Nombres en capa final: ninguna caja posterior los tapa. */}
-        {hubs.filter((h) => h.id === hubSobre).map((h) => (
-          <text
-            key={`e-${h.id}`}
-            x={posicionGrid(h.col, h.fila).x}
-            y={posicionGrid(h.col, h.fila).y - ALTO_HUB - TILE.alto / 2 - 5}
-            textAnchor="middle"
-            className="mapaV2HubEtiqueta"
-          >
-            {h.etiqueta} · {h.total}
-          </text>
-        ))}
-        {/* Proyectos */}
-        {/* Nombre tumbado sobre la cara superior, con la proyeccion 2:1 del suelo. */}
-        {colocados.map(({ p, col, fila }) => {
-          const c = posicionGrid(col, fila);
-          return (
-            <text
-              key={`n-${p.clave}`}
-              transform={`translate(${c.x} ${c.y - TILE.altoPared}) matrix(1 -0.5 1 0.5 0 0)`}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              className={`mapaV2NombreProyecto${libres.has(p.clave) ? ' mapaV2NombreProyecto--libre' : ''}`}
-            >
-              {corto(p.id)}
-            </text>
-          );
-        })}
+        {/* Etiquetas en capa final: ninguna caja posterior las tapa. */}
+        <EtiquetasMapa hubs={hubs} hubSobre={hubSobre} colocados={colocados} libres={libres} />
       </svg>
 
       <ControlesMapa acercar={acercar} alejar={alejar} />

@@ -6,47 +6,13 @@
  * sigue el mismo patron que AppV2 (logger central, no console directo). */
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Proyecto, UrlDestino } from '../../shared/types.js';
-import { guardarJson, leerJson } from '../../shared/vista/storage.js';
-
-/* Estado del mapa persistido entre recargas (zoom y posicion de arrastre).
- * [por que] El usuario pidio que al recargar la pagina no se pierdan. Se
- * guarda en localStorage; si no hay nada o el almacenamiento no esta
- * disponible, se parte del estado por defecto. */
-interface EstadoMapaGuardado {
-  zoom: number;
-  pan: { x: number; y: number };
-}
-
-const CLAVE_ESTADO = 'mapaV2:estado';
-
-const ZOOM_MIN = 1;
-const ZOOM_MAX = 4;
-const ZOOM_PASO = 0.5;
+/* Zoom y persistencia en módulos propios (límite de 300 líneas); el hook conserva la interacción. */
+import { ZOOM_PASO, limitarZoom } from './mapaV2Zoom.js';
+import { estadoGuardado, guardarEstadoMapa } from './mapaV2Persistencia.js';
 
 /* Cuanto tiene que moverse el puntero (px de pantalla) para que sea un arrastre y no un
  * click. Por debajo, el click de la caja sigue contando. */
 const UMBRAL_ARRASTRE = 4;
-
-function limitarZoom(z: number): number {
-  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
-}
-
-function estadoGuardado(): EstadoMapaGuardado | null {
-  const d = leerJson<Partial<EstadoMapaGuardado>>(
-    CLAVE_ESTADO,
-    '[mapaV2] no se pudo leer el estado guardado:',
-  );
-  if (
-    !d ||
-    typeof d.zoom !== 'number' ||
-    !d.pan ||
-    typeof d.pan.x !== 'number' ||
-    typeof d.pan.y !== 'number'
-  ) {
-    return null;
-  }
-  return { zoom: d.zoom, pan: { x: d.pan.x, y: d.pan.y } };
-}
 
 /* Leido una sola vez por carga de pagina para inicializar zoom y pan. */
 const estadoInicial = estadoGuardado();
@@ -85,11 +51,7 @@ export function useMapaV2(): UseMapaV2 {
 
   /* Persiste zoom y pan en cada cambio para sobrevivir a recargas. */
   useEffect(() => {
-    guardarJson(
-      CLAVE_ESTADO,
-      { zoom: vista.zoom, pan: vista.pan } satisfies EstadoMapaGuardado,
-      '[mapaV2] no se pudo guardar el estado del mapa:',
-    );
+    guardarEstadoMapa({ zoom: vista.zoom, pan: vista.pan });
   }, [vista]);
 
   const [arrastrando, setArrastrando] = useState(false);

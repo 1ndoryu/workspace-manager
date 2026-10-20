@@ -9,7 +9,7 @@ import {
 } from './historialSitios.js';
 import { guardarTexto, leerTexto } from '../../shared/vista/storage.js';
 import { bajarVentana, suscribirVentana } from '../../shared/platform/plataforma.js';
-import { RANGOS } from '../paneles/vps/PanelVpsRecursos.js';
+import { RANGOS } from '../paneles/vps/vpsRecursosSeries.js';
 import type { VpsAgenteSnapshot } from '../../shared/types.js';
 /* [07AA-4] Base persistente del servidor: se fusiona con la cola viva para
  * que el detalle sobreviva a recargas y cambios de origen. */
