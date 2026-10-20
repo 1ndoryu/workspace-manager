@@ -24,11 +24,11 @@ const vivo = (): Promise<boolean> => Promise.resolve(true);
 test('tunelesDelRegistro: solo proyectos con host, túnel y puertos', () => {
   const salida = tunelesDelRegistro({
     proyectos: [
-      { id: 'con-locales', host: 'dev89', puertosRemotos: [4190, 4191], puertosLocales: [14190, 14191] },
-      { id: 'sin-locales', host: 'dev89', puertosRemotos: [3103, 5176] },
-      { id: 'sin-tunel', host: 'dev89', puertosRemotos: [3110], tunelSsh: false },
+      { id: 'con-locales', host: 'taller-ejemplo', puertosRemotos: [4190, 4191], puertosLocales: [14190, 14191] },
+      { id: 'sin-locales', host: 'taller-ejemplo', puertosRemotos: [3103, 5176] },
+      { id: 'sin-tunel', host: 'taller-ejemplo', puertosRemotos: [3110], tunelSsh: false },
       { id: 'local', puertos: [5175] },
-      { id: 'sin-puertos', host: 'dev89' },
+      { id: 'sin-puertos', host: 'taller-ejemplo' },
       { id: 'sin-host', puertosRemotos: [4190] },
     ],
   });

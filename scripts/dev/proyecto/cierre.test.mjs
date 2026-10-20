@@ -180,8 +180,8 @@ test('procesos: el túnel ssh gestionado del proyecto no cuenta como dev server'
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
   const puerto = srv.address().port;
   // Testigo: el mismo listener sin túnel sí falla; así el pase depende del túnel, no del puerto.
-  const entrada = { id: 'x', host: 'dev89', puertos: [puerto] };
-  const tunel = { creado: true, imagen: 'ssh.exe', cmd: `ssh -N -L ${puerto}:127.0.0.1:${puerto} dev89` };
+  const entrada = { id: 'x', host: 'taller-ejemplo', puertos: [puerto] };
+  const tunel = { creado: true, imagen: 'ssh.exe', cmd: `ssh -N -L ${puerto}:127.0.0.1:${puerto} taller-ejemplo` };
   try {
     const conTunel = await comprobarProcesos([puerto], null, entrada, async () => [tunel]);
     assert.equal(conTunel.ok, true);

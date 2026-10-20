@@ -26,7 +26,7 @@ import { errorFormaTaller89, funcionMutagen, parsearHistorial, SCRIPT_MUTAGEN, s
 /* Reexporta la parte pura para que los importadores (y los tests) no cambien. */
 export { parsearHistorial, sesionesMutagenMalas } from './estadoParseo.js';
 
-/* Alias SSH del taller. [por que] Antes era la constante 'dev89' incrustada: el alias
+/* Alias SSH del taller. [por que] Antes era la constante 'taller-ejemplo' incrustada: el alias
  * de la máquina de una persona, que en otro entorno no existe. Lo declara taller.json
  * (`host`), que es privado; sin ese fichero no hay taller que leer y se dice. */
 const SONDA_TALLER = '$HOME/bin/taller-estado';

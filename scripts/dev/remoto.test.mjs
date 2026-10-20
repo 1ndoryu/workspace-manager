@@ -33,10 +33,10 @@ import {
   variablesDistintas,
 } from './remoto.mjs';
 
-const config = { host: 'dev89', lockWrapper: 'cm-heavy' };
+const config = { host: 'taller-ejemplo', lockWrapper: 'cm-heavy' };
 const entrada = {
   id: 'P',
-  host: 'dev89',
+  host: 'taller-ejemplo',
   puertos: [3001],
   boton: [['cargo', 'run', '--release']],
   precompilar: [['cargo', 'build', '--release']],
@@ -45,7 +45,7 @@ const entrada = {
 test('esEntradaRemota: solo con host no vacío', () => {
   assert.equal(esEntradaRemota({}), false);
   assert.equal(esEntradaRemota({ host: '' }), false);
-  assert.equal(esEntradaRemota({ host: 'dev89' }), true);
+  assert.equal(esEntradaRemota({ host: 'taller-ejemplo' }), true);
 });
 
 test('validarHostRemoto rechaza otro host, requiere y puertos protegidos', () => {
@@ -61,16 +61,16 @@ test('argsTunel: reenvio solo a loopback, fail-closed y sin multiplexar', () => 
   assert.ok(args.includes('ControlMaster=no'));
   assert.ok(args.includes('ControlPath=none'));
   assert.ok(args.includes('127.0.0.1:3001:127.0.0.1:3001'));
-  assert.equal(args.at(-1), 'dev89');
+  assert.equal(args.at(-1), 'taller-ejemplo');
 });
 
 test('tunelEsNuestro: exige ssh, host y el reenvio del puerto', () => {
-  const cmd = `ssh -N -L 127.0.0.1:3001:127.0.0.1:3001 dev89`;
+  const cmd = `ssh -N -L 127.0.0.1:3001:127.0.0.1:3001 taller-ejemplo`;
   assert.equal(tunelEsNuestro({ creado: 1, imagen: 'ssh.exe', cmd }, config, entrada), true);
-  assert.equal(tunelEsNuestro({ creado: 1, imagen: 'ssh.exe', cmd: 'ssh -N -L 127.0.0.1:4000:127.0.0.1:4000 dev89' }, config, entrada), false);
+  assert.equal(tunelEsNuestro({ creado: 1, imagen: 'ssh.exe', cmd: 'ssh -N -L 127.0.0.1:4000:127.0.0.1:4000 taller-ejemplo' }, config, entrada), false);
   assert.equal(tunelEsNuestro({ creado: 1, imagen: 'node.exe', cmd }, config, entrada), false);
   assert.equal(tunelEsNuestro(null, config, entrada), false);
-  assert.deepEqual(marcadorTunel(config, entrada), ['dev89', '127.0.0.1:3001:127.0.0.1:3001']);
+  assert.deepEqual(marcadorTunel(config, entrada), ['taller-ejemplo', '127.0.0.1:3001:127.0.0.1:3001']);
 });
 
 test('comandoRemotoUp: cargo sin cm-heavy (el candado es solo del build), target propio e idempotente', () => {
@@ -144,7 +144,7 @@ test('pidsEscuchandoLocal: solo escuchas loopback de nuestros puertos, no conexi
 });
 
 test('variablesDistintas: detecta valores distintos o ausentes; ignora el resto del entorno', () => {
-  const environ = 'PATH=/usr/bin\nPORT=5199\nDATABASE_URL=postgres://x\nHOME=/srv/casa\n';
+  const environ = 'PATH=/usr/bin\nPORT=5199\nDATABASE_URL=postgres://x\nHOME=/home/ejemplo\n';
   assert.deepEqual(variablesDistintas(environ, { PORT: '5199', DATABASE_URL: 'postgres://x' }), []);
   assert.deepEqual(variablesDistintas(environ, { PORT: '3110' }), ['PORT']);
   assert.deepEqual(variablesDistintas(environ, { PORT: '5199', SQLX_OFFLINE: 'true' }), ['SQLX_OFFLINE']);
@@ -168,10 +168,10 @@ test('puertosLocales: el túnel abre el puerto local y deja el remoto; validaci�
   assert.ok(args.includes('127.0.0.1:3210:127.0.0.1:3110'));
   assert.ok(args.includes('127.0.0.1:5299:127.0.0.1:5199'));
   assert.equal(args.includes('127.0.0.1:3110:127.0.0.1:3110'), false);
-  assert.deepEqual(marcadorTunel(config, conLocales), ['dev89', '127.0.0.1:3210:127.0.0.1:3110', '127.0.0.1:5299:127.0.0.1:5199']);
-  assert.equal(tunelEsNuestro({ creado: 1, imagen: 'ssh.exe', cmd: 'ssh -N -L 127.0.0.1:3210:127.0.0.1:3110 -L 127.0.0.1:5299:127.0.0.1:5199 dev89' }, config, conLocales), true);
+  assert.deepEqual(marcadorTunel(config, conLocales), ['taller-ejemplo', '127.0.0.1:3210:127.0.0.1:3110', '127.0.0.1:5299:127.0.0.1:5199']);
+  assert.equal(tunelEsNuestro({ creado: 1, imagen: 'ssh.exe', cmd: 'ssh -N -L 127.0.0.1:3210:127.0.0.1:3110 -L 127.0.0.1:5299:127.0.0.1:5199 taller-ejemplo' }, config, conLocales), true);
   // Túnel de la versión anterior: contiene los dos marcadores nuevos más un reenvío de sobra al 3102.
-  assert.equal(tunelEsNuestro({ creado: 1, imagen: 'ssh.exe', cmd: 'ssh -N -L 127.0.0.1:3210:127.0.0.1:3110 -L 127.0.0.1:5299:127.0.0.1:5199 -L 127.0.0.1:3202:127.0.0.1:3102 dev89' }, config, conLocales), false);
+  assert.equal(tunelEsNuestro({ creado: 1, imagen: 'ssh.exe', cmd: 'ssh -N -L 127.0.0.1:3210:127.0.0.1:3110 -L 127.0.0.1:5299:127.0.0.1:5199 -L 127.0.0.1:3202:127.0.0.1:3102 taller-ejemplo' }, config, conLocales), false);
   assert.equal(comandoRemotoUp(config, rutas, 'P', 3110, ['npm', 'run', 'dev']).includes('3210'), false);
   assert.match(validarHostRemoto({ ...conLocales, puertosLocales: [3210] }, config), /puertosLocales debe tener/);
   assert.match(validarHostRemoto({ ...conLocales, puertosLocales: [3210, 3210] }, config), /repetidos/);
@@ -344,7 +344,7 @@ test('tunelSsh: false no reenvía y la sonda va por el loopback de la 89; valore
 
 // --- Modo del proyecto (16AA-18): `build` sirve el front desde el backend, sin vite ---
 const fichaBuild = {
-  host: 'dev89',
+  host: 'taller-ejemplo',
   modo: 'build',
   puertos: [3105, 5182],
   boton: [['npm', 'run', 'dev:back'], ['npm', 'run', 'dev:front']],
@@ -406,7 +406,7 @@ test('urlsServidas: en un proyecto remoto imprime el puerto del túnel, no el de
   // PROYECTO TASKS: el dev escucha 4190/4191 en la 89 y aquí llega por 14190/14191. Imprimir el
   // remoto daba un enlace muerto (medido el 2026-10-19); en modo build manda el bloque `build`.
   const tareas = {
-    host: 'dev89',
+    host: 'taller-ejemplo',
     modo: 'build',
     dominio: 'tareas.localhost',
     puertos: [4190, 4191],
@@ -427,22 +427,22 @@ test('urlsServidas: en un proyecto remoto imprime el puerto del túnel, no el de
 test('tunelDePuertosNuestros: reconoce el túnel huérfano del otro modo, no los ajenos', () => {
   const proc = (cmd, imagen = 'ssh.exe') => ({ creado: 'x', cmd, imagen });
   const locales = [3110, 5199, 20241];
-  const viejo = `ssh -N -L 127.0.0.1:3110:127.0.0.1:3110 -L 127.0.0.1:5199:127.0.0.1:5199 -L 127.0.0.1:20241:127.0.0.1:20241 dev89`;
+  const viejo = `ssh -N -L 127.0.0.1:3110:127.0.0.1:3110 -L 127.0.0.1:5199:127.0.0.1:5199 -L 127.0.0.1:20241:127.0.0.1:20241 taller-ejemplo`;
   // Un reenvío de más: `tunelEsNuestro` lo rechaza (solo mira el modo efectivo), este lo acepta.
   assert.equal(tunelEsNuestro(proc(viejo), config, { puertos: [3110, 20241] }), false);
   assert.equal(tunelDePuertosNuestros(proc(viejo), config, locales), true);
   // Ajeno: otro host, otro binario, un puerto local fuera de la lista o sin reenvíos.
-  assert.equal(tunelDePuertosNuestros(proc(viejo.replace('dev89', 'otro')), config, locales), false);
+  assert.equal(tunelDePuertosNuestros(proc(viejo.replace('taller-ejemplo', 'otro')), config, locales), false);
   assert.equal(tunelDePuertosNuestros(proc(viejo, 'sshfs.exe'), config, locales), false);
   assert.equal(tunelDePuertosNuestros(proc(viejo.replace('127.0.0.1:5199', '127.0.0.1:9999')), config, locales), false);
-  assert.equal(tunelDePuertosNuestros(proc('ssh -N dev89'), config, locales), false);
+  assert.equal(tunelDePuertosNuestros(proc('ssh -N taller-ejemplo'), config, locales), false);
   assert.equal(tunelDePuertosNuestros(null, config, locales), false);
   // Sin bind explícito (`-L 3110:127.0.0.1:3110`), que es como lo escribe `ssh -f`: el caso real
   // del túnel huérfano de MN, que se quedaba ocupando el 3110 local.
-  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:127.0.0.1:3110 dev89'), config, [3110, 20241]), true);
+  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:127.0.0.1:3110 taller-ejemplo'), config, [3110, 20241]), true);
   // Y `remotos` acota el otro extremo: un reenvío a un puerto ajeno al proyecto no es nuestro.
-  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:127.0.0.1:3110 dev89'), config, [3110], [20241]), false);
-  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:203.0.113.9:3110 dev89'), config, [3110]), false);
+  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:127.0.0.1:3110 taller-ejemplo'), config, [3110], [20241]), false);
+  assert.equal(tunelDePuertosNuestros(proc('ssh -f -N -L 3110:203.0.113.9:3110 taller-ejemplo'), config, [3110]), false);
 });
 
 test('validarHostRemoto: en build valida el bloque build, no el del dev', () => {

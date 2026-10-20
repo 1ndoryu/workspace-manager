@@ -166,7 +166,7 @@ test('sincronización: directorio antes que la sesión; envío forzado al final'
 });
 
 /* [10AA-3] Dentro de la 89 no hay a dónde hacer ssh: el árbol de trabajo ya es la réplica. Sin esta
- * rama, la etapa de Rust del gate moría con «Could not resolve hostname dev89» desde la propia 89. */
+ * rama, la etapa de Rust del gate moría con «Could not resolve hostname taller-ejemplo» desde la propia 89. */
 test('comando local: sin ssh, cd al árbol de trabajo y el candado de carga pesada intacto', () => {
   const rutas = rutasRemotas(config, 'P', 'main');
   const orden = comandoLocal(config, rutas, '/srv/taller/P', ['check']);

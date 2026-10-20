@@ -387,8 +387,8 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun, extr
   }
 
   /* [10AA-3] Ya estamos en la 89: aquí `cwd` ES la réplica, así que no hay nada que sincronizar
-   * ni a dónde hacer ssh. Antes se lanzaba el `ssh dev89` igual, y desde la propia 89 ese nombre no
-   * resuelve: el gate de calidad fallaba en su etapa de Rust («Could not resolve hostname dev89»)
+   * ni a dónde hacer ssh. Antes se lanzaba el `ssh taller-ejemplo` igual, y desde la propia 89 ese nombre no
+   * resuelve: el gate de calidad fallaba en su etapa de Rust («Could not resolve hostname taller-ejemplo»)
    * y el error parecía del código del proyecto. El candado de carga pesada se mantiene. */
   if (esVps()) return correr('bash', ['-lc', comandoLocal(config, rutas, cwd, args, nombreBd, preparar, extra)], { dryRun, cwd, heredar: true }).status;
 

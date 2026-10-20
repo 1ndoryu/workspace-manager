@@ -7,7 +7,7 @@
  * necesita para clasificar una ficha con `host` (el tunel ssh ocupa su puerto
  * local), y definirlos dos veces los desincronizaria. remoto.mjs los reexporta. */
 
-// [por que] Con espacios sobrantes (" dev89 ") no es un alias válido: el mismo criterio que config.ts.
+// [por que] Con espacios sobrantes (" taller-ejemplo ") no es un alias válido: el mismo criterio que config.ts.
 export function esEntradaRemota(entrada) {
   return typeof entrada?.host === 'string' && entrada.host.trim() !== '';
 }

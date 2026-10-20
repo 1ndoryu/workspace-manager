@@ -13,7 +13,7 @@ test('ficha con host de la 89 y modo build: corre en vps89 y lleva despliegue', 
     proyectos: [
       {
         id: 'NAKOMI',
-        host: 'dev89',
+        host: 'taller-ejemplo',
         modo: 'build',
         despliegue: { proveedor: 'coolify', vps: '66', sitio: 'ejemplo', dominio: 'https://task.example.com' },
       },
@@ -33,7 +33,7 @@ test('ficha sin host corre en el laptop; modo desconocido queda null', () => {
 
 test('proyecto sin ficha queda intacto', () => {
   const original = proyecto('suelto');
-  const [p] = anotarRegistro([original], { proyectos: [{ id: 'otro', host: 'dev89' }] });
+  const [p] = anotarRegistro([original], { proyectos: [{ id: 'otro', host: 'taller-ejemplo' }] });
   assert.equal(p.ejecucion, undefined);
   assert.equal(p.despliegue, undefined);
 });
@@ -48,7 +48,7 @@ test('urls: dev en la 89 por el puerto local del túnel y producción por su dom
     proyectos: [
       {
         id: 'TASKS',
-        host: 'dev89',
+        host: 'taller-ejemplo',
         dominio: 'tareas.localhost',
         modo: 'build',
         puertos: [4190, 4191],
@@ -91,7 +91,7 @@ test('urls: sin health de raíz manda el último puerto declarado', () => {
 });
 
 test('urls: ficha sin puertos ni despliegue no inventa ninguna URL', () => {
-  const registro = { proyectos: [{ id: 'varsense', host: 'dev89', modo: 'dev' }] };
+  const registro = { proyectos: [{ id: 'varsense', host: 'taller-ejemplo', modo: 'dev' }] };
   const [p] = anotarRegistro([proyecto('varsense')], registro);
   assert.equal(p.urls, undefined);
 });

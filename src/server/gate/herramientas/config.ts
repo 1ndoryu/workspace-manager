@@ -91,7 +91,7 @@ export function leerTallerSiExiste(): TallerAnalisis | null {
 }
 
 /* Host SSH del taller, o null si no hay taller configurado. [por que] Antes era la
- * constante 'dev89' repartida por el código: el alias de la máquina de una persona
+ * constante 'taller-ejemplo' repartida por el código: el alias de la máquina de una persona
  * concreta. El nombre lo declara taller.json, que es privado y no se versiona. */
 export function hostTaller(t: TallerAnalisis | null = leerTallerSiExiste()): string | null {
   const host = t?.host;
@@ -115,12 +115,12 @@ export function bdTrabajoDe(t: TallerAnalisis | null = leerTallerSiExiste()): st
  * registro, así que un proyecto del taller se analizaba en el portátil por omisión:
  * el análisis es trabajo pesado y el reparto del área lo manda a la 89. Ahora, si hay
  * taller y el proyecto corre en él, el análisis va a la 89. `analisisEn` del registro
- * sigue mandando en los dos sentidos (`"dev89"` y `"local"`), para poder forzar uno
+ * sigue mandando en los dos sentidos (`"taller-ejemplo"` y `"local"`), para poder forzar uno
  * concreto. Un proyecto del taller con el taller apagado NO baja al portátil: ver abajo.
  * Un proyecto sin marca de taller es local con o sin taller.
  * [por que `host` y no el bloque `proyectos` de taller.json] Ese bloque declara la BD
  * del taller, no el alta: un proyecto puede correr allí sin base de datos. proyecto-ejemplo
- * era justo eso — `host: "dev89"` en el registro y sin entrada en `proyectos`— y se
+ * era justo eso — `host: "taller-ejemplo"` en el registro y sin entrada en `proyectos`— y se
  * analizaba en el portátil. La señal de «vive en el taller» es la misma que usa la
  * conformidad (`leerRegistroConformidad`): el `host` del registro. */
 export function modoAnalisisEn(
