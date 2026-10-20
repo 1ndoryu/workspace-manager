@@ -21,7 +21,7 @@ import {
 import { CONFIG_PRIVADA, FICHA, ssh } from './test-utils.mjs';
 
 test('validarIgnoradoSistema: imagen exige nombre .exe sin ruta y excluyente con exe/pid/servicio', () => {
-  const ok = { imagen: 'SvrWCF.exe', motivo: 'BDP-Net TPV, exe oculto' };
+  const ok = { imagen: 'SvrWCF.exe', motivo: 'proveedor-tpv TPV, exe oculto' };
   assert.doesNotThrow(() => validarIgnoradoSistema(ok, 't'));
   assert.throws(() => validarIgnoradoSistema({ imagen: 'C:\\Bdp-Net\\SvrWCF.exe', motivo: 'ruta no vale' }, 't'));
   assert.throws(() => validarIgnoradoSistema({ imagen: 'SvrWCF.exe', pid: 21252, motivo: 'dos claves' }, 't'));

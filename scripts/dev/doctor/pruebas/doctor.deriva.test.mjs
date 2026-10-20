@@ -139,69 +139,69 @@ test('paresTunel: los pares de los dos modos, en orden, sin `puertosLocales` loc
   // Sin `puertosRemotos` el remoto es `puertos`, y sin locales el local es el remoto.
   assert.deepEqual(paresTunel({ puertos: [3105] }), [[3105, 3105]]);
   // Sin puertos no hay pares (una ficha remota sin `build` ni `puertos`).
-  assert.deepEqual(paresTunel({ host: 'dev89' }), []);
+  assert.deepEqual(paresTunel({ host: 'taller-remoto' }), []);
 });
 
 test('reenviosTunel: lee `-L` con y sin bind explicito, y con localhost', () => {
-  assert.deepEqual(reenviosTunel('ssh -N -L 3110:127.0.0.1:3110 dev89'), [[3110, 3110]]);
-  assert.deepEqual(reenviosTunel('ssh -N -L 127.0.0.1:13110:127.0.0.1:3110 dev89'), [[13110, 3110]]);
-  assert.deepEqual(reenviosTunel('ssh -N -L 12024:localhost:20241 dev89'), [[12024, 20241]]);
-  assert.deepEqual(reenviosTunel('ssh -N -L 3110:127.0.0.1:3110 -L 5199:127.0.0.1:5199 dev89'), [
+  assert.deepEqual(reenviosTunel('ssh -N -L 3110:127.0.0.1:3110 taller-remoto'), [[3110, 3110]]);
+  assert.deepEqual(reenviosTunel('ssh -N -L 127.0.0.1:13110:127.0.0.1:3110 taller-remoto'), [[13110, 3110]]);
+  assert.deepEqual(reenviosTunel('ssh -N -L 12024:localhost:20241 taller-remoto'), [[12024, 20241]]);
+  assert.deepEqual(reenviosTunel('ssh -N -L 3110:127.0.0.1:3110 -L 5199:127.0.0.1:5199 taller-remoto'), [
     [3110, 3110],
     [5199, 5199],
   ]);
   // `-R` (saliente) no es un reenvio local, y sin `-L` no hay nada.
-  assert.deepEqual(reenviosTunel('ssh -N -R 3102:127.0.0.1:3102 dev89'), []);
+  assert.deepEqual(reenviosTunel('ssh -N -R 3102:127.0.0.1:3102 taller-remoto'), []);
   assert.deepEqual(reenviosTunel(undefined), []);
 });
 
 test('tunelDeEntrada: el tunel declarado es suyo; uno con un reenvio de mas, no', () => {
   // Los dos tuneles de la ficha (dev en 3110/5199) y los del modo build.
-  assert.equal(tunelDeEntrada(ssh('ssh -N -L 3110:127.0.0.1:3110 dev89'), FICHA), true);
-  assert.equal(tunelDeEntrada(ssh('ssh -N -L 5199:127.0.0.1:5199 dev89'), FICHA), true);
-  assert.equal(tunelDeEntrada(ssh('ssh -N -L 13110:127.0.0.1:3110 dev89'), FICHA), true);
-  assert.equal(tunelDeEntrada(ssh('ssh -N -L 12024:127.0.0.1:20241 dev89'), FICHA), true);
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 3110:127.0.0.1:3110 taller-remoto'), FICHA), true);
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 5199:127.0.0.1:5199 taller-remoto'), FICHA), true);
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 13110:127.0.0.1:3110 taller-remoto'), FICHA), true);
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 12024:127.0.0.1:20241 taller-remoto'), FICHA), true);
   // Un reenvio que la ficha no declara no es el tunel de la ficha.
-  assert.equal(tunelDeEntrada(ssh('ssh -N -L 3110:127.0.0.1:3110 -L 9999:127.0.0.1:9999 dev89'), FICHA), false);
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 3110:127.0.0.1:3110 -L 9999:127.0.0.1:9999 taller-remoto'), FICHA), false);
   // De otra maquina no es nuestro.
   assert.equal(tunelDeEntrada(ssh('ssh -N -L 3110:127.0.0.1:3110 dev66'), FICHA), false);
   // Un proceso que no es ssh, o sin linea de comando, no es un tunel.
-  assert.equal(tunelDeEntrada({ creado: true, imagen: 'node.exe', cmd: 'ssh -N -L 3110:127.0.0.1:3110 dev89' }, FICHA), false);
+  assert.equal(tunelDeEntrada({ creado: true, imagen: 'node.exe', cmd: 'ssh -N -L 3110:127.0.0.1:3110 taller-remoto' }, FICHA), false);
   assert.equal(tunelDeEntrada({ creado: true, imagen: 'ssh.exe' }, FICHA), false);
   // Y una entrada local no tiene tunel.
-  assert.equal(tunelDeEntrada(ssh('ssh -N -L 8787:127.0.0.1:8787 dev89'), { puertos: [8787] }), false);
+  assert.equal(tunelDeEntrada(ssh('ssh -N -L 8787:127.0.0.1:8787 taller-remoto'), { puertos: [8787] }), false);
 });
 
 test('tunelDeQuien: nombra la ficha del tunel y null si no es de nadie', () => {
-  assert.equal(tunelDeQuien(ssh('ssh -N -L 13110:127.0.0.1:3110 dev89'), [FICHA])?.id, 'X');
+  assert.equal(tunelDeQuien(ssh('ssh -N -L 13110:127.0.0.1:3110 taller-remoto'), [FICHA])?.id, 'X');
   // Testigo: el mismo barrido si reconoce el tunel de la ficha, asi que el
   // null de la lab no es un «no existe» ciego.
-  assert.equal(tunelDeQuien(ssh('ssh -N -L 12024:127.0.0.1:20241 dev89'), [FICHA])?.id, 'X');
+  assert.equal(tunelDeQuien(ssh('ssh -N -L 12024:127.0.0.1:20241 taller-remoto'), [FICHA])?.id, 'X');
   // Los tres tuneles de la lab no son de ninguna ficha: siguen siendo lo que son.
-  assert.equal(tunelDeQuien(ssh('ssh -N -L 13103:127.0.0.1:3103 dev89'), [FICHA]), null);
-  assert.equal(tunelDeQuien(ssh('ssh -N -L 14190:127.0.0.1:4190 dev89'), [FICHA]), null);
+  assert.equal(tunelDeQuien(ssh('ssh -N -L 13103:127.0.0.1:3103 taller-remoto'), [FICHA]), null);
+  assert.equal(tunelDeQuien(ssh('ssh -N -L 14190:127.0.0.1:4190 taller-remoto'), [FICHA]), null);
 });
 
 // [por que] netstat atribuye el 3105 a un pid muerto (padre de `ssh -f`): el
 // túnel vivo se reconoce por su reenvío, no por el pid del listener.
 test('tunelDeListener: un listener con pid muerto es el túnel vivo de su ficha', () => {
-  const RESTAURANTE = { id: 'RESTAURANTE', host: 'dev89', puertos: [3105] };
-  const vivos = [ssh('ssh -f -N -L 127.0.0.1:3105:127.0.0.1:3105 dev89')];
-  assert.equal(tunelDeListener(3105, vivos, [RESTAURANTE])?.id, 'RESTAURANTE');
+  const proyectoA = { id: 'proyecto-a', host: 'taller-remoto', puertos: [3105] };
+  const vivos = [ssh('ssh -f -N -L 127.0.0.1:3105:127.0.0.1:3105 taller-remoto')];
+  assert.equal(tunelDeListener(3105, vivos, [proyectoA])?.id, 'proyecto-a');
   // Otro puerto no es ese túnel.
-  assert.equal(tunelDeListener(3110, vivos, [RESTAURANTE, FICHA]), null);
+  assert.equal(tunelDeListener(3110, vivos, [proyectoA, FICHA]), null);
   // Un túnel con un reenvío de más no es el de la ficha, aunque ocupe el puerto.
-  const extra = [ssh('ssh -N -L 3105:127.0.0.1:3105 -L 9999:127.0.0.1:9999 dev89')];
-  assert.equal(tunelDeListener(3105, extra, [RESTAURANTE]), null);
+  const extra = [ssh('ssh -N -L 3105:127.0.0.1:3105 -L 9999:127.0.0.1:9999 taller-remoto')];
+  assert.equal(tunelDeListener(3105, extra, [proyectoA]), null);
   // Sin túneles vivos, nada que atribuir (lo que no es túnel sigue como huérfano).
-  assert.equal(tunelDeListener(3105, [], [RESTAURANTE]), null);
+  assert.equal(tunelDeListener(3105, [], [proyectoA]), null);
 });
 
 test('paresTunel: `tunelesExtra` añade el puente del gateway (33110 -> 3110 de la 89)', () => {
   const conPuente = { ...FICHA, tunelesExtra: [[33110, 3110]] };
   assert.ok(paresTunel(conPuente).some(([l, r]) => l === 33110 && r === 3110));
   // El puente es del proyecto aunque el local (33110) no salga de sus puertos.
-  const puente = ssh('ssh -N -o ControlMaster=no -L 33110:127.0.0.1:3110 -R 3102:127.0.0.1:3102 dev89');
+  const puente = ssh('ssh -N -o ControlMaster=no -L 33110:127.0.0.1:3110 -R 3102:127.0.0.1:3102 taller-remoto');
   assert.equal(tunelDeEntrada(puente, conPuente), true);
   // Sin declararlo no es suyo: asi salia huerfano «(sin proyecto)» en 16AA-20.
   assert.equal(tunelDeEntrada(puente, FICHA), false);

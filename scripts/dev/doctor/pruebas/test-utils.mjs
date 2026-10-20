@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { rutaConfigPrivada } from '../../../shared/rutas.mjs';
 
 /* [por que] Tres tests de este fichero validan la config privada REAL (la que
- * declara MN-Inmobiliaria, BDP-Net y las VPS). Esa config no se versiona, asi
+ * declara proyecto-a, proyecto-b y las VPS). Esa config no se versiona, asi
  * que en un clon ajeno no existe: se saltan en vez de fallar, y donde si esta
  * siguen vigilando que el registro concuerde con el taller. */
 export const HAY_CONFIG_PRIVADA = existsSync(rutaConfigPrivada('registro.json'));
@@ -17,7 +17,7 @@ export const CONFIG_PRIVADA = { skip: HAY_CONFIG_PRIVADA ? false : 'sin config p
 
 export const FICHA = {
   id: 'X',
-  host: 'dev89',
+  host: 'taller-remoto',
   puertos: [3110, 5199, 3102],
   puertosRemotos: [3110, 5199, 20241],
   healths: [
@@ -29,7 +29,7 @@ export const FICHA = {
   build: {
     puertos: [3110, 20241],
     puertosLocales: [13110, 12024],
-    healths: [{ puerto: 3110, ruta: '/', marcador: '<title>MN Inmobiliaria' }],
+    healths: [{ puerto: 3110, ruta: '/', marcador: '<title>Proyecto Demo' }],
     boton: [['cargo', 'run'], ['cloudflared', 'run']],
     construirFront: [['npm', 'run', 'build']],
   },

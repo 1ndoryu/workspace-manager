@@ -103,8 +103,8 @@ test('esSistemaIgnorado: servicio de Windows por nombre, exe oculto (SurfaceBrok
   assert.equal(esSistemaIgnorado(9200, { exe: null, cmd: '' }, lista, null), false);
 });
 
-test('esSistemaIgnorado: imagen por nombre .exe, exe oculto (TpvNet.exe de BDP-Net)', () => {
-  const lista = [{ imagen: 'TpvNet.exe', motivo: 'BDP-Net TPV, exe oculto sin elevar' }];
+test('esSistemaIgnorado: imagen por nombre .exe, exe oculto (TpvNet.exe de proveedor-tpv)', () => {
+  const lista = [{ imagen: 'TpvNet.exe', motivo: 'proveedor-tpv TPV, exe oculto sin elevar' }];
   assert.equal(esSistemaIgnorado(22312, { exe: null, cmd: null, imagen: 'TpvNet.exe' }, lista), true);
   assert.equal(esSistemaIgnorado(22312, { exe: null, cmd: null, imagen: 'tpvnet.EXE' }, lista), true);
   assert.equal(esSistemaIgnorado(22312, { exe: null, cmd: null, imagen: 'Otro.exe' }, lista), false);
