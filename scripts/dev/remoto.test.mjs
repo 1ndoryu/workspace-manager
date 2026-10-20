@@ -1,8 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   analizarEscucha,
   argsTunel,
+  borrarRegistro,
   comandoConstruirFront,
   comandoNpmCi,
   comandoPrecompilar,
@@ -13,6 +18,7 @@ import {
   contenidoEnvRemoto,
   diferenciasConteos,
   desviosDeConteos,
+  DIR_SUPERVISAR,
   entradaEfectiva,
   esEntradaRemota,
   localesTodos,
@@ -26,6 +32,7 @@ import {
   pidsEscuchandoLocal,
   puertosTodos,
   rutaLogNpmCi,
+  rutaRegistro,
   tunelDePuertosNuestros,
   tunelEsNuestro,
   urlsServidas,
@@ -103,6 +110,75 @@ test('comandoRemotoUp: comando no cargo no pasa por cm-heavy', () => {
   const cmd = comandoRemotoUp(config, rutas, 'P', 3001, ['npm', 'run', 'dev']);
   assert.equal(cmd.includes('cm-heavy'), false);
   assert.ok(cmd.includes('fnm/aliases/default/bin'));
+});
+
+// --- Supervision (plan-supervision-proyectos-2026-10-20) -----------------------------
+// El registro es el contrato entre `Arranque up` y `taller-vigilante.sh`: si cambia el formato,
+// el vigilante deja de ver los proyectos y nada avisa. De ahi que se compruebe la ida y la vuelta.
+
+const rutasSup = { dirRemoto: '/srv/taller/P', dirLogs: '/srv/taller/_logs/P', target: '/var/tmp/glory-target/P_main' };
+
+// El contenido va entrecomillado para el shell remoto; se deshace el escapado de `shQuote`
+// (una comilla simple dentro se escribe '\'') para quedarse con el texto tal cual.
+function registroDe(cmd) {
+  const contenido = cmd
+    .match(/printf '%s' '(.*)' > /s)[1]
+    .replaceAll("'\\''", "'");
+  const campos = {};
+  for (const linea of contenido.split('\n')) {
+    const m = linea.match(/^([A-Z]+)='([A-Za-z0-9+/=]*)'$/);
+    if (m) campos[m[1]] = Buffer.from(m[2], 'base64').toString('utf8');
+  }
+  return { contenido, campos };
+}
+
+test('comandoRemotoUp sin supervisar: no graba registro ni mete bucle (el comportamiento de siempre)', () => {
+  const cmd = comandoRemotoUp(config, rutasSup, 'P', 3001, ['npm', 'run', 'dev']);
+  assert.equal(cmd.includes('supervisar'), false);
+  assert.equal(cmd.includes('while :'), false);
+  assert.ok(cmd.includes('dev-P-3001'));
+});
+
+test('comandoRemotoUp supervisado: bucle de reinicio con espera creciente y registro por sesion', () => {
+  const cmd = comandoRemotoUp(config, rutasSup, 'P', 3001, ['npm', 'run', 'dev'], {}, true);
+  assert.ok(cmd.includes('n=0; while :; do'));
+  // El proceso corre en el bucle y su salida sigue yendo al mismo log de siempre.
+  assert.ok(cmd.includes('/srv/taller/_logs/P/dev-up-P-3001.log'));
+  // [por que] El registro va DESPUES de crear la sesion: si el arranque falla no debe quedar nada
+  // que el vigilante resucite por su cuenta.
+  assert.ok(cmd.indexOf('tmux new-session') < cmd.indexOf('printf'));
+  assert.ok(cmd.includes(`mkdir -p ${DIR_SUPERVISAR}`));
+  assert.ok(cmd.includes('chmod 600'));
+  assert.ok(cmd.includes(`${DIR_SUPERVISAR}/dev-P-3001.sh`));
+});
+
+test('el registro dice como recrear la sesion: sesion, directorio y el argumento de tmux', () => {
+  const cmd = comandoRemotoUp(config, rutasSup, 'P', 3001, ['npm', 'run', 'dev'], {}, true);
+  const { campos } = registroDe(cmd);
+  assert.equal(campos.SESION, 'dev-P-3001');
+  assert.equal(campos.DIR, '/srv/taller/P');
+  assert.equal(campos.PROYECTO, 'P');
+  assert.equal(campos.PUERTO, '3001');
+  // El argumento se guarda YA escapado: el vigilante lo repite tal cual, sin volver a escaparlo.
+  assert.ok(campos.ARGUMENTO.startsWith('bash -lc '));
+  assert.ok(campos.ARGUMENTO.includes('while :'));
+});
+
+test('el vigilante lee el registro con su sed de lista blanca (ida y vuelta del contrato)', () => {
+  const cmd = comandoRemotoUp(config, rutasSup, 'P', 3001, ['npm', 'run', 'dev'], {}, true);
+  const { contenido } = registroDe(cmd);
+  const ruta = join(mkdtempSync(join(tmpdir(), 'vigilante-')), 'dev-P-3001.sh');
+  writeFileSync(ruta, contenido);
+  // Misma expresion que scripts/remoto/taller-vigilante.sh: solo lineas `CLAVE='base64'`.
+  const valor = (clave) => execFileSync('sed', ['-n', `s/^${clave}='\\([A-Za-z0-9+/=]*\\)'$/\\1/p`, ruta]).toString().trim();
+  assert.equal(Buffer.from(valor('SESION'), 'base64').toString('utf8'), 'dev-P-3001');
+  assert.equal(Buffer.from(valor('DIR'), 'base64').toString('utf8'), '/srv/taller/P');
+  assert.ok(Buffer.from(valor('ARGUMENTO'), 'base64').toString('utf8').includes('while :'));
+});
+
+test('borrarRegistro: solo el de esa sesion, en el mismo comando que la mata', () => {
+  assert.equal(borrarRegistro('P', 3001), `rm -f ${DIR_SUPERVISAR}/dev-P-3001.sh`);
+  assert.ok(rutaRegistro('dev-P-3001').endsWith('/dev-P-3001.sh'));
 });
 
 test('analizarEscucha: solo loopback no es publico; 0.0.0.0, * y [::] sí', () => {

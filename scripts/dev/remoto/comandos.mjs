@@ -18,14 +18,72 @@ const SQLX_OFFLINE = 'SQLX_OFFLINE=true ';
 // Una sesion tmux por puerto. Idempotente: si la sesion ya existe, no hace nada.
 // env (registro + DATABASE_URL): el proceso lo recibe en la línea de comando, que gana al .env. Nombres validados en validarHostRemoto.
 
-export function comandoRemotoUp(config, rutas, id, puerto, boton, env = {}) {
+// Registro de supervision (plan-supervision-proyectos-2026-10-20): dice como se arranco cada
+// sesion, para que el vigilante pueda repetirlo sin saber arrancar proyectos por su cuenta.
+// [por que] En ~/.local/share/taller/ y no en /var/tmp ni en ~/.cache: cm-sweep barre esos dos
+// sin umbral y se llevaria el registro por delante (AGENTS §1).
+
+export const DIR_SUPERVISAR = '$HOME/.local/share/taller/supervisar';
+
+// Un registro por sesion, con el nombre de la sesion: asi `stop` borra exactamente el suyo.
+export const rutaRegistro = (sesion) => `${DIR_SUPERVISAR}/${sesion}.sh`;
+
+// El borrado viaja en el MISMO comando que mata la sesion, y antes: si se matara primero, el
+// vigilante podria recrearla entre las dos ordenes y el `stop` no pararia nada.
+export const borrarRegistro = (id, puerto) => `rm -f ${DIR_SUPERVISAR}/${sesionTmux(id, puerto)}.sh`;
+
+// Bucle de reinicio dentro de la propia sesion: recupera en segundos, sin esperar al cron.
+// [por que] La espera crece con los fallos seguidos (10 s ... 60 s) para no girar en caliente
+// sobre un build roto; si el proceso llego a durar un minuto, el fallo es nuevo y vuelve a la
+// espera corta. Cada vuelta deja su linea en el log: se ve, no se esconde.
+
+const bucleSupervisado = (base, log) => [
+  'n=0; while :; do',
+  `inicio=$(date +%s); ${base} >> ${shQuote(log)} 2>&1; dur=$(( $(date +%s) - inicio ));`,
+  '[ "$dur" -ge 60 ] && n=0; n=$((n+1)); [ "$n" -gt 6 ] && n=6; espera=$((n*10));',
+  `echo "[supervisar] el proceso termino tras \${dur}s; reintento en \${espera}s" >> ${shQuote(log)};`,
+  'sleep "$espera"; done',
+].join(' ');
+
+// El registro lo lee taller-vigilante.sh (bash, sin jq). Los valores van en base64 para poder
+// leerlos con un `sed` de lista blanca: ni comillas ni escapes que interpretar.
+// [por que] Se guarda el argumento de tmux YA escapado, no el comando en crudo: el vigilante lo
+// repite tal cual y no hay una segunda rutina de escapado que pueda divergir de esta.
+
+function comandoRegistrar(sesion, rutas, id, puerto, argumento) {
+  const b64 = (texto) => Buffer.from(texto, 'utf8').toString('base64');
+  const contenido = [
+    '# Registro de supervision del taller. Lo escribe Arranque up; lo lee taller-vigilante.sh.',
+    '# Valores en base64, uno por linea: se leen con un sed de lista blanca, sin evaluar nada.',
+    `PROYECTO='${b64(id)}'`,
+    `PUERTO='${b64(String(puerto))}'`,
+    `SESION='${b64(sesion)}'`,
+    `DIR='${b64(rutas.dirRemoto)}'`,
+    `ARGUMENTO='${b64(argumento)}'`,
+    '',
+  ].join('\n');
+  const ruta = rutaRegistro(sesion);
+  return `mkdir -p ${DIR_SUPERVISAR} && printf '%s' ${shQuote(contenido)} > ${ruta} && chmod 600 ${ruta}`;
+}
+
+// `supervisar` (bandera de la ficha) deja el arranque grabado y mete el proceso en un bucle de
+// reinicio. Sin la bandera nada cambia: es opt-in porque cada proyecto supervisado ocupa memoria
+// de forma permanente.
+
+export function comandoRemotoUp(config, rutas, id, puerto, boton, env = {}, supervisar = false) {
   const log = `${rutas.dirLogs}/dev-up-${id}-${puerto}.log`;
-  const interno = `${PATH_NODE}${SQLX_OFFLINE}${SIN_RUSTC_WRAPPER}${prefijoEnv(env)}CARGO_TARGET_DIR=${shQuote(rutas.target)} ${boton.map(shQuote).join(' ')} >> ${shQuote(log)} 2>&1`;
+  const base = `${PATH_NODE}${SQLX_OFFLINE}${SIN_RUSTC_WRAPPER}${prefijoEnv(env)}CARGO_TARGET_DIR=${shQuote(rutas.target)} ${boton.map(shQuote).join(' ')}`;
+  const interno = supervisar ? bucleSupervisado(base, log) : `${base} >> ${shQuote(log)} 2>&1`;
   const sesion = sesionTmux(id, puerto);
-  return [
+  const argumento = `bash -lc ${shQuote(interno)}`;
+  const partes = [
     `mkdir -p ${shQuote(rutas.dirLogs)}`,
-    `(tmux has-session -t ${shQuote(sesion)} 2>/dev/null || tmux new-session -d -s ${shQuote(sesion)} -c ${shQuote(rutas.dirRemoto)} ${shQuote(`bash -lc ${shQuote(interno)}`)})`,
-  ].join(' && ');
+    `(tmux has-session -t ${shQuote(sesion)} 2>/dev/null || tmux new-session -d -s ${shQuote(sesion)} -c ${shQuote(rutas.dirRemoto)} ${shQuote(argumento)})`,
+  ];
+  // Despues de crear la sesion: si el arranque falla, no queda un registro que el vigilante
+  // resucite por su cuenta.
+  if (supervisar) partes.push(comandoRegistrar(sesion, rutas, id, puerto, argumento));
+  return partes.join(' && ');
 }
 
 // Precompilación: el build en frío (minutos) corre antes del tmux y deja el target listo para `cargo run`.

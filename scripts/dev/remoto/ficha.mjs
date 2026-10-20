@@ -3,7 +3,7 @@
 import { rutasRemotas, shQuote } from '../../remoto/rcargo.mjs';
 import { localesDeModo, puertosRemotosDe } from '../doctor.mjs';
 
-import { comandoSesiones, sesionTmux } from './comandos.mjs';
+import { borrarRegistro, comandoSesiones, sesionTmux } from './comandos.mjs';
 import { entornoRemoto } from './entorno.mjs';
 import { leerEstado } from './estado.mjs';
 import { esperarSonda, esperarSondaRemota, pidDeEscucha, variablesDistintas } from './sondas.mjs';
@@ -31,11 +31,15 @@ export function pararSesiones(config, id, ficha) {
 }
 
 
+// [por que] El registro de supervision se borra antes de matar la sesion: si la sesion muriera
+// primero, el vigilante la recrearia al minuto siguiente y el `stop` no pararia nada. Va por
+// puerto (no por proyecto) porque `up` para subconjuntos: matar de mas dejaria sin registro a
+// sesiones que siguen vivas.
 export function pararSesionesPuertos(config, id, puertos) {
   const comando = puertos
     .map((p) => {
       const s = shQuote(sesionTmux(id, p));
-      return `tmux send-keys -t ${s} C-c 2>/dev/null; sleep 2; tmux kill-session -t ${s} 2>/dev/null; true`;
+      return `${borrarRegistro(id, p)}; tmux send-keys -t ${s} C-c 2>/dev/null; sleep 2; tmux kill-session -t ${s} 2>/dev/null; true`;
     })
     .join('; ');
   return sshRemoto(config, comando);

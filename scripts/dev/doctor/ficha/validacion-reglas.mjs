@@ -9,7 +9,7 @@ import { entradaEfectiva, puertoDeSaludValido, validarBloqueBuild } from '../sis
 
 // [por que 06AA-1] Campos admitidos por el registro: cualquier otro es error de escritura.
 // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-const CONOCIDAS = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto', 'sinServicio']);
+const CONOCIDAS = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto', 'sinServicio', 'supervisar']);
 
 // [por que 06AA-1] Un aviso sin id no tiene a quien anotarse: solo con id valido se puede marcar la entrada.
 export const idValido = (e) => typeof e.id === 'string' && e.id.length > 0;
@@ -25,10 +25,12 @@ export function motivoClaveDesconocida(e) {
   return k === undefined ? null : `registro: clave desconocida '${k}' en '${e.id}'`;
 }
 
-// [por que] envTareas, tokenPulse e higieneRust son banderas del proyecto:
+// [por que] envTareas, tokenPulse, higieneRust y supervisar son banderas del proyecto:
 // antes se deducian comparando `id` con un nombre concreto; ahora las declara el registro.
+// [por que] `supervisar` la lee el `up` remoto (ciclo.mjs) para grabar el arranque y meter el
+// proceso en un bucle de reinicio; el vigilante de la 89 repite lo grabado.
 export function motivoBanderas(e) {
-  const k = ['envTareas', 'tokenPulse', 'higieneRust'].find((c) => c in e && typeof e[c] !== 'boolean');
+  const k = ['envTareas', 'tokenPulse', 'higieneRust', 'supervisar'].find((c) => c in e && typeof e[c] !== 'boolean');
   return k === undefined ? null : `registro: '${e.id}' ${k} debe ser booleano`;
 }
 

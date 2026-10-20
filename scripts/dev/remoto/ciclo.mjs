@@ -188,8 +188,10 @@ export async function upRemoto(config, id, entrada, args = []) {
     if (!libre.ok) return { codigo: 1, resumen: `up ${id}: ${libre.motivo}: NO verde` };
   }
   const remotos = puertosRemotosDe(entrada);
+  // La bandera vive en la ficha cruda (no en el bloque del modo): supervisar no depende de dev o build.
+  const supervisar = ficha.supervisar === true;
   for (const [i, p] of remotos.entries()) {
-    const r = await sshRemoto(config, comandoRemotoUp(config, rutas, id, p, (entrada.botonRemoto ?? entrada.boton)[i], prep.env));
+    const r = await sshRemoto(config, comandoRemotoUp(config, rutas, id, p, (entrada.botonRemoto ?? entrada.boton)[i], prep.env, supervisar));
     if (!r.ok) return { codigo: 1, resumen: `up ${id}: arranque remoto fallo (puerto ${p}): ${r.error}` };
   }
   const limiteMs = entrada.arranqueMs ?? 60_000;

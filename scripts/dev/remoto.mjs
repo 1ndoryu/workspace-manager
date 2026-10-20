@@ -29,7 +29,7 @@
  * los consumidores de este modulo ya los importaban de este archivo. */
 export { esEntradaRemota, entradaEfectiva, MODO_POR_DEFECTO, modoDe, urlsServidas } from './doctor.mjs';
 
-export { comandoConstruirFront, comandoNpmCi, comandoPrecompilar, comandoRemotoUp, comandoSondaRemota, rutaLogNpmCi } from './remoto/comandos.mjs';
+export { borrarRegistro, comandoConstruirFront, comandoNpmCi, comandoPrecompilar, comandoRemotoUp, comandoSondaRemota, DIR_SUPERVISAR, rutaLogNpmCi, rutaRegistro } from './remoto/comandos.mjs';
 
 export { analizarEscucha, pidDeEscucha, pidsEscuchandoLocal, variablesDistintas } from './remoto/sondas.mjs';
 
