@@ -70,11 +70,13 @@ export function leerConfigRemota(entorno: NodeJS.ProcessEnv = process.env): Conf
   return configRemotaDe(taller, tmpAudit);
 }
 
-/* Parte de taller.json que decide DÓNDE se analiza: el alias del host del taller. El
- * registro dice de qué proyecto se trata y en qué máquina corre. */
+/* Parte de taller.json que lee el manager: el alias del host del taller (dónde se
+ * analiza) y los datos del dev público (dónde vive el token de su túnel). El registro
+ * dice de qué proyecto se trata y en qué máquina corre. */
 export interface TallerAnalisis {
   host?: unknown;
   proyectos?: unknown;
+  devPublico?: unknown;
 }
 
 /* Lee taller.json, o null si no existe o no es JSON. [por que] Sin taller el manager
@@ -107,6 +109,18 @@ export function bdTrabajoDe(t: TallerAnalisis | null = leerTallerSiExiste()): st
     if (p?.bdDesdeLocal !== undefined && typeof bd === 'string' && /^[A-Za-z0-9_]+$/.test(bd)) return bd;
   }
   return null;
+}
+
+/* Fichero de entorno del túnel de cloudflared del taller (`devPublico.envToken`). La ruta
+ * la declara la config privada porque es de la máquina, no del código. [por que] 20AA-21: la
+ * sonda de la 89 ya sabía leerlo por `WM_CLOUDFLARED_ENV`, pero el manager no se lo pasaba,
+ * así que publicaba `tokenModo: null` siempre y la conformidad marcaba «sin fichero de token»
+ * aunque el fichero existiera con modo 600. Ruta absoluta: la sonda hace `stat` sin expandir
+ * la virgulilla. Solo se acepta si es una ruta absoluta: va a la línea de comandos de un `ssh`. */
+export function cloudflaredEnvDe(t: TallerAnalisis | null = leerTallerSiExiste()): string | null {
+  const d = t?.devPublico as { envToken?: unknown } | undefined;
+  const ruta = d?.envToken;
+  return typeof ruta === 'string' && ruta.startsWith('/') && !ruta.includes('\n') ? ruta : null;
 }
 
 /* Modo de análisis de un proyecto. [por que] Antes solo miraba `analisisEn` del

@@ -20,7 +20,7 @@ import { leerRegistroConformidad } from './registroConformidad.js';
 import { NOMBRE_MANAGER } from '../plataforma/rutas.js';
 import { BIN_SSH } from '../plataforma/sistema/binarios.js';
 import { escuchasConProceso, obtenerSistemaLocal } from '../plataforma/sistema/sistemaLocal.js';
-import { bdTrabajoDe, hostTaller, leerConfigRemota } from '../gate/herramientas/config.js';
+import { bdTrabajoDe, cloudflaredEnvDe, hostTaller, leerConfigRemota, leerTallerSiExiste, type TallerAnalisis } from '../gate/herramientas/config.js';
 import { errorFormaTaller89, funcionMutagen, parsearHistorial, SCRIPT_MUTAGEN, sesionesMutagenMalas } from './estadoParseo.js';
 
 /* Reexporta la parte pura para que los importadores (y los tests) no cambien. */
@@ -62,6 +62,18 @@ function correr(archivo: string, args: string[], timeoutMs: number): Promise<{ s
 
 /* ---------- VPS 89 (sonda por SSH) ---------- */
 
+/* Argumentos de la sonda: las dos variables que no van en el código. Puro y exportado para poder
+ * probar lo que de verdad se rompió (20AA-21): la ruta del token del túnel tiene que llegar por
+ * entorno. [por que] El nombre de la BD de trabajo es del proyecto y la ruta del token es de la
+ * máquina; sin la segunda, la sonda no puede leer el modo del token y publica `null`, que la
+ * conformidad leía como «falta el fichero». */
+export function argsSondaTaller(t: TallerAnalisis | null = leerTallerSiExiste()): string[] {
+  return [
+    'env', `TALLER_BD_TRABAJO=${bdTrabajoDe(t) ?? ''}`, `WM_CLOUDFLARED_ENV=${cloudflaredEnvDe(t) ?? ''}`,
+    SONDA_TALLER,
+  ];
+}
+
 async function leerTaller89(): Promise<{ t89: EstadoTaller89 | null; motivo?: string }> {
   const host = hostTaller();
   if (!host) return { t89: null, motivo: 'sin taller configurado (falta `host` en la config privada)' };
@@ -70,8 +82,7 @@ async function leerTaller89(): Promise<{ t89: EstadoTaller89 | null; motivo?: st
     '-o', 'ConnectTimeout=10',
     '-o', 'ServerAliveInterval=30',
     host,
-    // [por que] El nombre de la BD de trabajo es del proyecto, no del código: llega por entorno.
-    'env', `TALLER_BD_TRABAJO=${bdTrabajoDe() ?? ''}`, SONDA_TALLER,
+    ...argsSondaTaller(),
   ], TIMEOUT_SSH_MS);
   if (r.error) return { t89: null, motivo: r.error };
   let crudo: unknown;

@@ -188,6 +188,17 @@ describe('conformidad del taller: público (P0, P1, P2)', () => {
     assert.ok(ids(con({ cloudflared: { version: '1', tokenModo: null, viva: true } })).includes('P2'));
   });
 
+  /* [por que] 20AA-21: `tokenModo: null` no distingue «no hay fichero» de «no se pudo leer»
+   * (la sonda también lo publica null si no recibe la ruta por entorno), así que el detalle no
+   * puede afirmar que falte. El texto mentía y hacía buscar un fichero que sí estaba. */
+  it('P2: sin modo leído no se afirma que falte el fichero', () => {
+    const r = evaluarConformidad(con({ cloudflared: { version: '1', tokenModo: null, viva: true } }));
+    const p2 = r.find((h) => h.id === 'P2');
+    assert.ok(p2);
+    assert.match(p2.detalle, /sin leer/);
+    assert.doesNotMatch(p2.detalle, /sin fichero/);
+  });
+
   it('P1/P2: un dev público parado no se exige ni se sondea', () => {
     const parado: EntradaConformidad = {
       ...con({ tmux: [], cloudflared: { version: null, tokenModo: null, viva: false } }),

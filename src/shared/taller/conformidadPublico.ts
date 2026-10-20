@@ -53,16 +53,18 @@ export function fallaPublico(e: EntradaConformidad): Hallazgo[] {
 }
 
 /* P2: el conector de Cloudflare vive en la 89 y su token va con modo 0600. Solo se exige
- * si hay hostnames públicos con dev levantado; sin ellos no hay túnel que vigilar. */
+ * si hay hostnames públicos con dev levantado; sin ellos no hay túnel que vigilar.
+ * [por que] 20AA-21: `tokenModo: null` no significa «no hay fichero» —la sonda también lo
+ * publica null cuando no recibe la ruta por entorno—, así que el detalle no lo afirma. */
 export function fallaConector(e: EntradaConformidad, t: EstadoTaller89): Hallazgo | null {
   if (hostsActivos(e.registro, t).length === 0) return null;
   const av: string[] = [];
   if (!t.cloudflared.viva) av.push('cloudflared no está vivo');
-  if (t.cloudflared.tokenModo === null) av.push('sin fichero de token');
+  if (t.cloudflared.tokenModo === null) av.push('modo del token del túnel sin leer');
   else if (t.cloudflared.tokenModo !== '600') av.push(`token con modo ${t.cloudflared.tokenModo}`);
   if (!av.length) return null;
   return {
     id: 'P2', ambito: 'publico', severidad: 'error', detalle: av.join('; '),
-    remedio: 'Token de cloudflared en ~/.config/cloudflared/*.env con modo 0600; conector vivo con Arranque up.',
+    remedio: 'Token de cloudflared en ~/.config/cloudflared/*.env con modo 0600, declarado en taller.json (`devPublico.envToken`) para que la sonda lo lea; conector vivo con Arranque up.',
   };
 }

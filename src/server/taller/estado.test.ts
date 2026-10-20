@@ -4,7 +4,7 @@
  * es lo único que impide que un dev quede expuesto, y no debe depender de la red. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parsearHistorial, pedirPublico, sesionesMutagenMalas } from './estado.js';
+import { argsSondaTaller, parsearHistorial, pedirPublico, sesionesMutagenMalas } from './estado.js';
 import { leerRegistroConformidad } from './registroConformidad.js';
 
 /* Línea de estado.jsonl con la forma que escribe `taller-estado --registrar`. */
@@ -120,4 +120,33 @@ test('Registro: las sesiones dev de MN salen de host + puertos remotos', () => {
   assert.ok(r.puertosLocalesPublicos.includes(3110));
   assert.ok(!r.puertosLocalesPublicos.includes(5199));
   assert.ok(r.sitiosRust.some((s) => s.buildMode === 'builder'));
+});
+
+/* [por que] 20AA-21: lo que se rompió no fue la lectura de la config sino el cableado — la sonda
+ * de la 89 ya sabía leer `WM_CLOUDFLARED_ENV`, pero el manager no se la pasaba, así que publicaba
+ * `tokenModo: null` siempre y la conformidad marcaba «sin fichero de token» aunque el fichero
+ * existiera con modo 600. Estas pruebas fijan el argv exacto que se envía por `ssh`. */
+test('argsSondaTaller: pasa por entorno el nombre de la BD y la ruta del token del túnel', () => {
+  const ruta = '/srv/cloudflared/tunel.env';
+  const t = {
+    proyectos: { MN: { basedatos: 'glory_backend_inmobiliaria', bdDesdeLocal: { verificar: [] } } },
+    devPublico: { envToken: ruta },
+  };
+  assert.deepEqual(argsSondaTaller(t), [
+    'env',
+    'TALLER_BD_TRABAJO=glory_backend_inmobiliaria',
+    `WM_CLOUDFLARED_ENV=${ruta}`,
+    '$HOME/bin/taller-estado',
+  ]);
+});
+
+test('argsSondaTaller: una ruta que no vale no se cuela en la línea de comandos del ssh', () => {
+  const conRuta = (envToken: unknown) => argsSondaTaller({ devPublico: { envToken } });
+  const vacia = (envToken: unknown) => conRuta(envToken).includes('WM_CLOUDFLARED_ENV=');
+  /* Relativa: la sonda hace `stat` sin expandir la virgulilla. Con salto de línea: sería una
+   * segunda orden dentro del argv. Y sin taller configurado no hay ruta que ofrecer. */
+  assert.ok(vacia('~/.config/cloudflared/tunel.env'));
+  assert.ok(vacia('/srv/cloudflared\ntunel.env'));
+  assert.ok(vacia(null));
+  assert.ok(!vacia('/srv/cloudflared/tunel.env'), 'una ruta válida sí llega');
 });
