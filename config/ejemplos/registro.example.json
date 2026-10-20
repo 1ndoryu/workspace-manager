@@ -47,7 +47,7 @@
         "proyecto-2"
       ],
       "comandos": {
-        "gate": null,
+        "gate": "DISPLAY=:99 TMPDIR=/var/tmp npm run quality:check",
         "typecheck": "npm run type-check",
         "build": "npm run build",
         "test-archivo": "node node_modules/tsx/dist/cli.mjs --test <archivo>"
