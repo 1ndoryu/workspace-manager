@@ -88,6 +88,9 @@ export function AppV2() {
       }
     >
       <main className="v2Contenido">
+        {/* [por que] Un unico h1 oculto a la vista: da a lectores de pantalla el titulo
+         * de la pagina sin cambiar la apariencia. */}
+        <h1 className="v2SoloLector">Workspace Manager</h1>
         {/* [por que] Nav dentro del contenido (con el padding del marco) para
          * que quede alineado con los demas paneles y sea un panel con caja,
          * no una barra pegada al borde superior. */}

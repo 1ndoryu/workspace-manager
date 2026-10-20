@@ -199,6 +199,19 @@ html {
     scrollbar-color: var(--v2-texto) transparent;
 }
 
+/* Texto solo para lectores de pantalla: ocupa 1px y no se ve. */
+.v2SoloLector {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* Estados de carga y error monocromos. */
 .v2Cargando,
 .v2Error {

@@ -85,10 +85,12 @@ type SeccionProps = {
 export function Seccion({ titulo, acciones, fallo = false, children }: SeccionProps) {
   return (
     <div className={`cajaSeccion${fallo ? ' cajaSeccion--fallo' : ''}`}>
-      <h4 className="cajaSeccionTitulo">
+      {/* [por que] h2: el titulo de la app es el h1 (AppV2); h4 saltaba niveles y
+       * dejaba la estructura de encabezados sin sentido para lectores de pantalla. */}
+      <h2 className="cajaSeccionTitulo">
         <span className="cajaSeccionNombre">{titulo}</span>
         {acciones}
-      </h4>
+      </h2>
       {children}
     </div>
   );
