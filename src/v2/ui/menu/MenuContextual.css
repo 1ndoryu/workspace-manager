@@ -31,3 +31,12 @@
   padding: 5px 10px;
   cursor: pointer;
 }
+
+/* Sin grises (monocromo estricto): la opcion bajo el raton se invierte. Lo usan
+ * los menus contextuales y, con su layout propio, las opciones del mapa. */
+.menuContextualItem:hover,
+.menuContextualItem:focus-visible {
+  background: var(--v2-texto);
+  color: var(--v2-invertido);
+  outline: none;
+}

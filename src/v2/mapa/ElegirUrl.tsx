@@ -6,6 +6,8 @@ import { useEffect, type CSSProperties } from 'react';
 import type { UrlDestino } from '../../shared/types.js';
 import { abrirPestana, bajarDocumento, suscribirDocumento } from '../../shared/platform/plataforma.js';
 import { ETIQUETA_HUB } from './geometria/disposicion.js';
+// [por que] La opcion usa la receta compartida de menu (colores, hover monocromo).
+import '../ui/menu/MenuContextual.css';
 
 interface Props {
   id: string;
@@ -50,7 +52,7 @@ export function ElegirUrl({ id, urls, posicion, onCerrar }: Props) {
           key={u.url}
           type="button"
           role="menuitem"
-          className="mapaV2ElegirItem"
+          className="menuContextualItem mapaV2ElegirItem"
           onClick={() => {
             abrirPestana(u.url);
             onCerrar();

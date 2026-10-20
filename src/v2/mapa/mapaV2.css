@@ -300,29 +300,14 @@
     opacity: 0.7;
 }
 
+/* [por que] Solo layout: la especificacion visual (fondo, borde, color, hover) es
+ * .menuContextualItem, la receta compartida que comparte el elemento en el TSX. */
 .mapaV2ElegirItem {
     display: flex;
     flex-direction: column;
     gap: 2px;
     width: 100%;
-    background: none;
-    border: none;
-    border-radius: 0;
-    font: inherit;
-    font-size: var(--v2-textSm);
-    color: var(--v2-texto);
-    text-align: left;
-    padding: 5px 10px;
     cursor: pointer;
-}
-
-/* Sin grises (monocromo estricto): la opcion bajo el raton se invierte, como las
- * opciones de menu de Button.css. */
-.mapaV2ElegirItem:hover,
-.mapaV2ElegirItem:focus-visible {
-    background: var(--v2-texto);
-    color: var(--v2-invertido);
-    outline: none;
 }
 
 /* El sitio va atenuado; sobre el negro del hover tambien tiene que leerse. */
