@@ -11,6 +11,8 @@ import { RAIZ, formatearNuevos, pedir, rutaSnapshot } from './gate.mjs';
 import { avisoTaller } from '../taller/taller-aviso.mjs';
 import { rutaConfigPrivada } from '../../shared/rutas.mjs';
 import { BIN_GIT } from '../../shared/binarios.mjs';
+import { procesosSshVivos } from '../doctor/sistema/procesos.mjs';
+import { tunelDeListener } from '../doctor/sistema/puertos.mjs';
 
 /* Tablero y opencode-propio: nunca se cuentan como procesos propios del proyecto
  * (AGENTS §5 y §9.2). */
@@ -173,20 +175,28 @@ function escucha(puerto) {
 }
 
 /* `aceptados` = { puertos, motivo } del registro: procesos que la usuaria decidió mantener.
+ * `entrada` = la ficha del proyecto: su túnel ssh gestionado por Arranque no es un dev server.
+ * `procesosSsh` se inyecta en las pruebas (por defecto, los ssh vivos del sistema).
  * [por que] Se listan en el detalle, no se ocultan: la excepción queda visible en cada cierre. */
-export async function comprobarProcesos(puertos = [], aceptados = null) {
+export async function comprobarProcesos(puertos = [], aceptados = null, entrada = null, procesosSsh = procesosSshVivos) {
   const propios = puertos.filter((p) => !PUERTOS_PROTEGIDOS.includes(p));
   const excepcion = aceptados?.puertos ?? [];
   const excluidos = propios.filter((p) => excepcion.includes(p));
-  const vivos = [];
+  const escuchando = [];
   for (const p of propios) {
     if (excepcion.includes(p)) continue;
-    if (await escucha(p)) vivos.push(p);
+    if (await escucha(p)) escuchando.push(p);
   }
-  const nota = excluidos.length
-    ? ` (excepción aceptada: ${excluidos.join(', ')} — ${aceptados.motivo})`
-    : '';
-  if (vivos.length === 0) return ok('procesos-propios', `ningún puerto propio escuchando${nota}`);
+  // [por que] El túnel que abre `Arranque up` escucha en el puerto local del proyecto: es el mando, no un proceso huérfano.
+  const sshVivos = escuchando.length && entrada ? await procesosSsh() : [];
+  const tuneles = escuchando.filter((p) => tunelDeListener(p, sshVivos, [entrada]) !== null);
+  const vivos = escuchando.filter((p) => !tuneles.includes(p));
+  const nota = [
+    excluidos.length ? `excepción aceptada: ${excluidos.join(', ')} — ${aceptados.motivo}` : '',
+    tuneles.length ? `túnel gestionado: ${tuneles.join(', ')}` : '',
+  ].filter(Boolean);
+  const sufijo = nota.length ? ` (${nota.join('; ')})` : '';
+  if (vivos.length === 0) return ok('procesos-propios', `ningún puerto propio escuchando${sufijo}`);
   return fallo(
     'procesos-propios',
     `escuchan: ${vivos.join(', ')}`,
@@ -251,7 +261,7 @@ export async function cierre(argv, raiz = RAIZ) {
       checks.push(omitida('ramas-sueltas', 'sin Git'));
     }
     checks.push(comprobarRoadmap(ruta, tarea));
-    checks.push(await comprobarProcesos(entrada.puertos, entrada.procesosAceptados));
+    checks.push(await comprobarProcesos(entrada.puertos, entrada.procesosAceptados, entrada));
     checks.push(await comprobarGate(id));
 
     for (const c of checks) {

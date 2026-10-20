@@ -175,6 +175,24 @@ test('procesos: puertos protegidos no cuentan; puerto propio libre pasa', async 
   assert.equal(c.ok, true);
 });
 
+test('procesos: el túnel ssh gestionado del proyecto no cuenta como dev server', async () => {
+  const srv = net.createServer();
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const puerto = srv.address().port;
+  // Testigo: el mismo listener sin túnel sí falla; así el pase depende del túnel, no del puerto.
+  const entrada = { id: 'x', host: 'dev89', puertos: [puerto] };
+  const tunel = { creado: true, imagen: 'ssh.exe', cmd: `ssh -N -L ${puerto}:127.0.0.1:${puerto} dev89` };
+  try {
+    const conTunel = await comprobarProcesos([puerto], null, entrada, async () => [tunel]);
+    assert.equal(conTunel.ok, true);
+    assert.match(conTunel.detalle, new RegExp(`túnel gestionado: ${puerto}`));
+    const sinTunel = await comprobarProcesos([puerto], null, entrada, async () => []);
+    assert.equal(sinTunel.ok, false);
+  } finally {
+    await new Promise((r) => srv.close(r));
+  }
+});
+
 test('procesos: un puerto propio escuchando falla con su número', async () => {
   const srv = net.createServer();
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
