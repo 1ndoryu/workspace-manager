@@ -232,6 +232,10 @@ export async function main(argv) {
   let establecidas = [];
   if (!errorSensor) ({ escucha, establecidas, errorSensor } = await escuchaRobusta());
   const tomadoEn = new Date().toISOString();
+  /* [por que 2026-10-20] Los artefactos (SSH a la 89, ~3 s medidos) solo dependen del
+   * registro: se lanzan antes de clasificar y se esperan al armar el informe, en vez de
+   * sumar su tiempo al de clasificar. */
+  const artefactos = detectarArtefactos(registro);
   let clasif = { proyectos: [], huerfanos: [] };
   if (!errorSensor) {
     try {
@@ -246,7 +250,7 @@ export async function main(argv) {
   // MN-Escritorio no embeba el front nuevo no puede tumbar el chequeo del
   // tablero. Es lo unico del informe que sale a la 89 (~2,7 s medidos), sobre un
   // doctor que ya tarda ~23 s y que el servidor cachea 60 s.
-  const informe = { version: 1, tomadoEn, snapshotEn, ttlMs: TTL_MS, errorSensor, compartidos: detectarCompartidos(registro), rust: detectarRust(registro), artefactos: await detectarArtefactos(registro), derivaEnv: detectarDerivaEnv(registro), ...clasif };
+  const informe = { version: 1, tomadoEn, snapshotEn, ttlMs: TTL_MS, errorSensor, compartidos: detectarCompartidos(registro), rust: detectarRust(registro), artefactos: await artefactos, derivaEnv: detectarDerivaEnv(registro), ...clasif };
 
   if (conAssert) {
     const fallos = [];
