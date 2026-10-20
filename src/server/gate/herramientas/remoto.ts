@@ -21,7 +21,15 @@ import {
   huellaFuentes,
   huellaLock,
 } from './remoto/comandos.js';
-import { copiarEntradas, mensaje, ssh } from './ssh.js';
+import { copiarEntradas, mensaje, type SalidaSsh, ssh } from './ssh.js';
+
+/* Puerto de E/S remota: la VPS (ssh), la copia de fuentes y el flush de Mutagen. [por que]
+ * Separarlo permite probar el flujo sin VPS; el default es la implementación real. */
+export interface PuertoRemoto {
+  ssh(cfg: ConfigRemota, comando: string, timeout: number): Promise<SalidaSsh>;
+  copiar(origenLocal: string, cfg: ConfigRemota, base: string, entradas: string[]): Promise<void>;
+  flush(clave: string, cfg: ConfigRemota): Promise<void>;
+}
 
 const execFileAsync = promisify(execFile);
 
@@ -103,12 +111,15 @@ export async function sincronizar(clave: string, cfg: ConfigRemota): Promise<voi
   }
 }
 
+/* Implementación real del puerto remoto. */
+export const PUERTO_REMOTO: PuertoRemoto = { ssh, copiar: copiarEntradas, flush: sincronizar };
+
 /* Deja la réplica del proyecto al día y devuelve su ruta en la 89. [por que] Tanto
  * el análisis como el doctor tienen que ver el árbol local actual: sin el flush
  * leerían la réplica de hace un rato. */
-export async function prepararReplica(clave: string, cfg: ConfigRemota): Promise<string> {
+export async function prepararReplica(clave: string, cfg: ConfigRemota, puerto: PuertoRemoto = PUERTO_REMOTO): Promise<string> {
   const raiz = rutaRemota(cfg, clave);
-  await sincronizar(clave, cfg);
+  await puerto.flush(clave, cfg);
   return raiz;
 }
 
@@ -141,6 +152,7 @@ async function prepararRuntimeRemoto(
   cfg: ConfigRemota,
   nombre: NombreRuntime,
   local: FuentesRuntime,
+  puerto: PuertoRemoto = PUERTO_REMOTO,
 ): Promise<{ base: string; cli: string }> {
   const { entradas, salida, cli: relCli } = RUNTIMES[nombre];
   const base = rutaRuntimeRemota(cfg, clave, nombre);
@@ -148,18 +160,18 @@ async function prepararRuntimeRemoto(
   const marca = `${base}/.fuentes-sha`;
   const huella = huellaFuentes(local.base, [...entradas]);
   const npm = `${posix.dirname(cfg.nodeRemoto)}/npm`;
-  const estado = await ssh(cfg, comandoEstado({ base, marca, huella, cli }), TIMEOUT_SONDA_MS);
+  const estado = await puerto.ssh(cfg, comandoEstado({ base, marca, huella, cli }), TIMEOUT_SONDA_MS);
   if (estado.stdout.trim() === 'ok' && !estado.fallo) return { base, cli };
 
-  const limpiar = await ssh(cfg, comandoLimpiar(base, [...entradas, salida]), TIMEOUT_SONDA_MS);
+  const limpiar = await puerto.ssh(cfg, comandoLimpiar(base, [...entradas, salida]), TIMEOUT_SONDA_MS);
   /* [por que] El fallo puede ser de conexión, no de la limpieza: se nombra el paso y el host. */
   if (limpiar.fallo) throw new Error(`no se pudo preparar ${nombre} en ${cfg.host} (paso de limpieza): ${limpiar.fallo}`);
   try {
-    await copiarEntradas(local.base, cfg, base, [...entradas]);
+    await puerto.copiar(local.base, cfg, base, [...entradas]);
   } catch (err) {
     throw new Error(`copia de ${nombre} a ${cfg.host}: ${mensaje(err)}`);
   }
-  const compila = await ssh(
+  const compila = await puerto.ssh(
     cfg,
     comandoCompilar({
       base,
@@ -182,10 +194,11 @@ async function prepararSentinelRemoto(
   clave: string,
   cfg: ConfigRemota,
   rutaLocal: string,
+  puerto: PuertoRemoto = PUERTO_REMOTO,
 ): Promise<{ ws: string; cli: string; env: Record<string, string>; version: string }> {
   const local = fuentesSentinel(rutaLocal);
   if (!local) throw new Error(`fuentes de sentinel no encontradas para ${rutaLocal}`);
-  const { base, cli } = await prepararRuntimeRemoto(clave, cfg, 'sentinel', local);
+  const { base, cli } = await prepararRuntimeRemoto(clave, cfg, 'sentinel', local, puerto);
   const ws = rutaRemota(cfg, clave);
   const env = { GLORY_SENTINEL_SOURCE_PATH: base, GLORY_VARSENSE_SOURCE_PATH: rutaRuntimeRemota(cfg, clave, 'varsense') };
   return { ws, cli, env, version: local.version };
@@ -193,9 +206,14 @@ async function prepararSentinelRemoto(
 
 /* Sentinel en la 89. Lanza si no hay fuentes locales, si la copia falla o si no se
  * obtiene reporte. */
-export async function correrSentinelRemoto(clave: string, cfg: ConfigRemota, rutaLocal: string): Promise<ResultadoSpawn> {
-  const rt = await prepararSentinelRemoto(clave, cfg, rutaLocal);
-  const r = await ssh(cfg, comandoAnalisis({ env: rt.env, node: cfg.nodeRemoto, cli: rt.cli, verbo: 'analyze', workspace: rt.ws }), TIMEOUT_ANALISIS_MS);
+export async function correrSentinelRemoto(
+  clave: string,
+  cfg: ConfigRemota,
+  rutaLocal: string,
+  puerto: PuertoRemoto = PUERTO_REMOTO,
+): Promise<ResultadoSpawn> {
+  const rt = await prepararSentinelRemoto(clave, cfg, rutaLocal, puerto);
+  const r = await puerto.ssh(cfg, comandoAnalisis({ env: rt.env, node: cfg.nodeRemoto, cli: rt.cli, verbo: 'analyze', workspace: rt.ws }), TIMEOUT_ANALISIS_MS);
   const dato = parsearReporte(r.stdout);
   if (!dato) throw new Error(`sentinel en ${cfg.host} no devolvió reporte${r.fallo ? `: ${r.fallo}` : ''}`);
   return { version: rt.version, commit: null, dato };
@@ -205,10 +223,15 @@ export async function correrSentinelRemoto(clave: string, cfg: ConfigRemota, rut
  * mira su evidencia de release: es trabajo de la máquina donde vive el proyecto. Vacía
  * la réplica aquí, porque el doctor no pasa por analizador.ts y debe ver el mismo árbol
  * que el análisis. Acotado a 2000 caracteres: es un resumen para el panel. */
-export async function correrDoctorRemoto(clave: string, cfg: ConfigRemota, rutaLocal: string): Promise<string> {
-  await prepararReplica(clave, cfg);
-  const rt = await prepararSentinelRemoto(clave, cfg, rutaLocal);
-  const r = await ssh(cfg, comandoDoctor({ env: rt.env, node: cfg.nodeRemoto, cli: rt.cli, workspace: rt.ws }), TIMEOUT_DOCTOR_MS);
+export async function correrDoctorRemoto(
+  clave: string,
+  cfg: ConfigRemota,
+  rutaLocal: string,
+  puerto: PuertoRemoto = PUERTO_REMOTO,
+): Promise<string> {
+  await prepararReplica(clave, cfg, puerto);
+  const rt = await prepararSentinelRemoto(clave, cfg, rutaLocal, puerto);
+  const r = await puerto.ssh(cfg, comandoDoctor({ env: rt.env, node: cfg.nodeRemoto, cli: rt.cli, workspace: rt.ws }), TIMEOUT_DOCTOR_MS);
   const salida = r.stdout.trim();
   if (!salida) throw new Error(`sentinel doctor en ${cfg.host} no devolvió diagnóstico${r.fallo ? `: ${r.fallo}` : ''}`);
   return salida.slice(0, 2000);
@@ -217,17 +240,22 @@ export async function correrDoctorRemoto(clave: string, cfg: ConfigRemota, rutaL
 /* Varsense en la 89: compila sus fuentes allí igual que sentinel. Lanza ante cualquier
  * fallo: a diferencia del local, no conserva sentinel con varsense caído; el análisis
  * remoto entero queda en 'error'. */
-export async function correrVarsenseRemoto(clave: string, cfg: ConfigRemota, rutaLocal: string): Promise<ResultadoSpawn> {
+export async function correrVarsenseRemoto(
+  clave: string,
+  cfg: ConfigRemota,
+  rutaLocal: string,
+  puerto: PuertoRemoto = PUERTO_REMOTO,
+): Promise<ResultadoSpawn> {
   const local = fuentesVarsense();
   if (!local) throw new Error('fuentes de varsense no encontradas (falta src/ o package.json)');
-  const { base, cli } = await prepararRuntimeRemoto(clave, cfg, 'varsense', local);
+  const { base, cli } = await prepararRuntimeRemoto(clave, cfg, 'varsense', local, puerto);
   const ws = rutaRemota(cfg, clave);
   /* Repos anidados: la réplica no los lleva marcados (Mutagen ignora `.git`) y
    * varsense los recorrería enteros, mientras el portátil los salta. */
-  const marcas = await ssh(cfg, comandoMarcasRepos(ws, reposAnidados(rutaLocal)), TIMEOUT_SONDA_MS);
+  const marcas = await puerto.ssh(cfg, comandoMarcasRepos(ws, reposAnidados(rutaLocal)), TIMEOUT_SONDA_MS);
   if (marcas.fallo) throw new Error(`marcas de repos anidados en ${cfg.host}: ${marcas.fallo}`);
   const env = { GLORY_SENTINEL_SOURCE_PATH: rutaRuntimeRemota(cfg, clave, 'sentinel'), GLORY_VARSENSE_SOURCE_PATH: base };
-  const r = await ssh(cfg, comandoAnalisis({ env, node: cfg.nodeRemoto, cli, verbo: 'all', workspace: ws }), TIMEOUT_ANALISIS_MS);
+  const r = await puerto.ssh(cfg, comandoAnalisis({ env, node: cfg.nodeRemoto, cli, verbo: 'all', workspace: ws }), TIMEOUT_ANALISIS_MS);
   const dato = parsearReporte(r.stdout);
   if (!dato) throw new Error(`varsense en ${cfg.host} no devolvió reporte${r.fallo ? `: ${r.fallo}` : ''}`);
   return { version: local.version, commit: null, dato };

@@ -16,8 +16,8 @@ import {
   huellaFuentes,
   huellaLock,
 } from './remoto/comandos.js';
-import { reposAnidados } from './remoto.js';
-import { configRemotaDe, hostTaller, modoAnalisisEn, rutaRemota, rutaRuntimeRemota } from './config.js';
+import { prepararReplica, type PuertoRemoto, reposAnidados } from './remoto.js';
+import { type ConfigRemota, configRemotaDe, hostTaller, modoAnalisisEn, rutaRemota, rutaRuntimeRemota } from './config.js';
 import { comillas } from './ssh.js';
 
 const CFG_OK = {
@@ -271,4 +271,23 @@ test('comandoMarcasRepos: escribe la marca del fichero y crea la del directorio'
 test('comandoMarcasRepos: cita el contenido para que no ejecute nada', () => {
   const cmd = comandoMarcasRepos('/x', [{ ruta: 'a', marca: '$(rm -rf /)' }]);
   assert.ok(cmd.includes(`'$(rm -rf /)'`), 'el contenido va entre comillas simples');
+});
+
+/* [por que] El puerto falso prueba el flujo sin VPS ni sesión de Mutagen: prepararReplica
+ * debe vaciar la cola con la clave y el cfg, una sola vez, y devolver la ruta de la réplica. */
+test('prepararReplica: vacía la cola por el puerto y devuelve la ruta de la réplica', async () => {
+  const cfg: ConfigRemota = { host: 'taller-ejemplo', dirRemotoBase: '/srv/taller-ejemplo', nodeRemoto: '/usr/bin/node', mutagen: 'mutagen', tmpAudit: '/tmp/wm-audit' };
+  const llamadas: Array<{ clave: string; cfg: ConfigRemota }> = [];
+  const falso: PuertoRemoto = {
+    ssh: async () => ({ stdout: '', fallo: null }),
+    copiar: async () => {},
+    flush: async (clave, cfgRecibida) => {
+      llamadas.push({ clave, cfg: cfgRecibida });
+    },
+  };
+  const ruta = await prepararReplica('proyecto-ejemplo', cfg, falso);
+  assert.equal(ruta, `${cfg.dirRemotoBase}/proyecto-ejemplo`);
+  assert.equal(llamadas.length, 1, 'flush se llama una vez');
+  assert.equal(llamadas[0].clave, 'proyecto-ejemplo');
+  assert.equal(llamadas[0].cfg, cfg);
 });
