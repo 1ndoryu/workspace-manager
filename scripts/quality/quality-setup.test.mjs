@@ -23,7 +23,7 @@ const SETUP = path.join(AQUI, 'quality-setup.mjs');
 
 /* Mismo criterio que quality-setup.mjs: la clave lleva el ejecutor real de este equipo. */
 function ejecutorDeEsteEquipo() {
-  return decidirDonde([], cargarTaller(), os.hostname()).donde === 'local' ? 'local' : 'vps89';
+  return decidirDonde([], cargarTaller(), os.hostname()).donde === 'local' ? 'local' : 'taller';
 }
 /* Los temporales del área van a C:\tmp (laptop) o /var/tmp (89), nunca a %TEMP%. */
 const BASE_TMP = process.env.QUALITY_TEST_TMP ?? (process.platform === 'win32' ? 'C:\\tmp' : '/var/tmp');

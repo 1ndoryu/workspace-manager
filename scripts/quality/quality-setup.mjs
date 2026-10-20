@@ -72,7 +72,8 @@ try {
 }
 if (destino.aviso) process.stderr.write(`[quality:setup] ${destino.aviso}\n`);
 // [por que] `ejecutor` dice DÓNDE se compiló: en la VPS (también si este equipo ES la VPS) o en local por emergencia.
-const ejecutor = destino.donde === 'local' ? 'local' : 'vps89';
+// [por que] Nombre genérico: el taller puede ser cualquier VPS; el nombre concreto va en config/taller.json.
+const ejecutor = destino.donde === 'local' ? 'local' : 'taller';
 
 /* Carpeta en la 89 donde compilar `source`: la réplica del consumidor si el checkout cuelga de él;
  * si es un checkout compartido (p. ej. `.quality-tools/<tool>` fuera del proyecto), su carpeta por commit. */
