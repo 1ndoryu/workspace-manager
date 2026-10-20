@@ -21,6 +21,10 @@ export const RAIZ_AREA = process.env.WS_AREA_ROOT || dirname(RAIZ_REPO);
 
 /** Carpeta de skills del agente (índice en AGENTS §11). */
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || join(homedir(), '.agents', 'skills');
+/** Carpeta de herramientas de calidad dentro del área (gemelo de NOMBRE_QUALITY_TOOLS de src/server/plataforma/rutas.ts). */
+export const NOMBRE_QUALITY_TOOLS = '.quality-tools';
+/** Carpeta que agrupa las réplicas de herramientas en la 89 (`_quality-tools/<proyecto>/`). */
+export const NOMBRE_QUALITY_TOOLS_REMOTO = '_quality-tools';
 
 /** Carpeta que instala GlorySentinel bajo %LOCALAPPDATA% (gemelo de `NOMBRE_SENTINEL` de src/server/plataforma/rutas.ts). */
 export const NOMBRE_SENTINEL = 'GlorySentinel';

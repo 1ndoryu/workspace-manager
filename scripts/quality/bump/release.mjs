@@ -2,13 +2,13 @@
  * consumidor. */
 import fs from 'node:fs';
 import path from 'node:path';
-import { RAIZ_AREA } from '../../shared/rutas.mjs';
+import { NOMBRE_QUALITY_TOOLS, RAIZ_AREA } from '../../shared/rutas.mjs';
 import { BIN_GIT } from '../../shared/binarios.mjs';
 import { AQUI } from './ajustes.mjs';
 import { comando, ejecutar, leerJson } from './utilidades.mjs';
 
 export function objetivoDelRelease(tool, { commit, version, source }) {
-  const fuente = path.resolve(source ?? path.join(RAIZ_AREA, '.quality-tools', tool));
+  const fuente = path.resolve(source ?? path.join(RAIZ_AREA, NOMBRE_QUALITY_TOOLS, tool));
   if (!fs.existsSync(fuente)) {
     throw new Error(`no existe el checkout de referencia ${fuente}; pasa --source o provisiona el área`);
   }
@@ -46,7 +46,7 @@ export function pasosDe(consumidor, config, configSentinel) {
      * propagando otra tool: el CLI de varsense no tiene subcomando doctor
      * y el fallback imprimia "Uso:" (fallo falso en GLORYINSPECTOR/PORT). */
     const cfgDoctor = configSentinel ?? config;
-    const provision = path.resolve(consumidor.dir, cfgDoctor?.provisionPath ?? '.quality-tools');
+    const provision = path.resolve(consumidor.dir, cfgDoctor?.provisionPath ?? NOMBRE_QUALITY_TOOLS);
     const cli = typeof cfgDoctor?.cli === 'string' && cfgDoctor.cli ? path.join(provision, cfgDoctor.cli) : null;
     doctor = cli && fs.existsSync(cli) ? { argv: [process.execPath, cli, 'doctor', '--json'], enProyecto: false, remota } : null;
   }

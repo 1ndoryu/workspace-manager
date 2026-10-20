@@ -10,6 +10,7 @@ import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { FLAG_LOCAL, cargarTaller, decidirDonde, dirRemotoDe, ejecutarEnVps, mensajeSinVps } from '../shared/vps.mjs';
+import { NOMBRE_QUALITY_TOOLS_REMOTO } from '../shared/rutas.mjs';
 
 /* import.meta.dirname no existe en Node 18 (el SSH no interactivo de la 89 lo usa): se deriva de la URL. */
 const raiz = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -23,7 +24,7 @@ function cliDeSentinel() {
   const relCli = sentinel.cli ?? 'out/cli/index.js';
   const candidatos = [
     join(resolve(raiz, sentinel.sourcePath), relCli),
-    join(resolve(raiz, '..', '_quality-tools', basename(raiz), 'sentinel'), relCli),
+    join(resolve(raiz, '..', NOMBRE_QUALITY_TOOLS_REMOTO, basename(raiz), 'sentinel'), relCli),
   ];
   const cli = candidatos.find((c) => existsSync(c));
   if (cli === undefined) {

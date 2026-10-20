@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, posix } from 'node:path';
 
-import { RAIZ_AREA } from '../../shared/rutas.mjs';
+import { NOMBRE_QUALITY_TOOLS_REMOTO, RAIZ_AREA } from '../../shared/rutas.mjs';
 import { dirRemotoDe, ejecutarEnVps, mensajeSinVps } from '../../shared/vps.mjs';
 
 const VARSENSE_CLI = join(RAIZ_AREA, '.quality-tools/varsense/dist/cli/index.js');
@@ -28,7 +28,7 @@ export function correrLocal(repo) {
  * Las rutas de los hallazgos son remotas; por eso se devuelve `repoEjecucion` para recortarlas. */
 export function correrEnVps(id, repo, taller) {
   const dir = dirRemotoDe(taller, id, repo, repo);
-  const cli = posix.join(taller.dirRemotoBase, '_quality-tools', id, 'varsense/dist/cli/index.js');
+  const cli = posix.join(taller.dirRemotoBase, NOMBRE_QUALITY_TOOLS_REMOTO, id, 'varsense/dist/cli/index.js');
   const r = ejecutarEnVps(taller, dir, ['node', cli, 'all', '--workspace', dir, '--format', 'json'], { capturar: true });
   const aviso = mensajeSinVps(r.status, taller.host);
   if (aviso) {

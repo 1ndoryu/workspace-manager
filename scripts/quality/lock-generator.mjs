@@ -19,7 +19,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { BIN_GIT } from '../shared/binarios.mjs';
-import { NOMBRE_SENTINEL } from '../shared/rutas.mjs';
+import { NOMBRE_QUALITY_TOOLS, NOMBRE_SENTINEL } from '../shared/rutas.mjs';
 
 const LOCK_FILE = 'sentinel.lock.json';
 
@@ -83,7 +83,7 @@ async function inspectAnalyzers(workspace) {
   const manifest = JSON.parse(await readFile(path.join(workspace, 'quality-tools.json'), 'utf8'));
   const results = {};
   for (const [name, config] of Object.entries(manifest.tools || {})) {
-    const toolRoot = path.resolve(workspace, config.provisionPath ?? '.quality-tools');
+    const toolRoot = path.resolve(workspace, config.provisionPath ?? NOMBRE_QUALITY_TOOLS);
     const sourceRoot = (await resolveConfiguredSourcePath(workspace, config)) ?? toolRoot;
     if (!config.cli) throw new Error(`${name}: falta config.cli`);
     const cliPath = path.join(toolRoot, config.cli);

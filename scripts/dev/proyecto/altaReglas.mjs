@@ -3,6 +3,7 @@
  * a releer las comprobaciones. */
 
 import { resolve } from 'node:path';
+import { NOMBRE_QUALITY_TOOLS } from '../../shared/rutas.mjs';
 
 export const ok = (nombre, detalle) => ({ nombre, ok: true, detalle });
 export const fallo = (nombre, detalle, accion, plan = {}) => ({ nombre, ok: false, detalle, accion, ...plan });
@@ -18,7 +19,7 @@ export const MANIFIESTOS = [
   ['go.mod', 'go'],
 ];
 export const AGENTS_PROPIOS = ['AGENTS.md', 'CLAUDE.md'];
-export const IGNORAR_CSS = new Set(['node_modules', 'target', 'dist', '.git', '.quality-tools', 'tools', '.quality-reports', '.runtime']);
+export const IGNORAR_CSS = new Set(['node_modules', 'target', 'dist', '.git', NOMBRE_QUALITY_TOOLS, 'tools', '.quality-reports', '.runtime']);
 export const ROADMAP_PLANTILLA = '# Roadmap\n\nTrabajo abierto y orden de ejecución. Historial en `Agente/completados/`; planes en `Agente/planes/` (AGENTS §7.1).\n';
 export const MENSAJES = {
   docs: 'chore(alta): README, roadmap y Agente/ mínimos (10AA-2 F10)',
