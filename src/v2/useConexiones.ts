@@ -3,7 +3,7 @@
  * de proyectos pinta ese mismo color en su cuadro de estado: si cada vista decidiera por su
  * cuenta, el mapa y el panel acabarían diciendo cosas distintas del mismo proyecto (AGENTS §5). */
 import { useMemo } from 'react';
-import type { Proyecto } from '../shared/types.js';
+import type { Proyecto, UrlDestino } from '../shared/types.js';
 import { useWorkspaceStore } from '../hooks/useWorkspace.js';
 import { destinosDe, type IdHub } from './mapa/geometria/disposicion.js';
 import { useProduccionViva } from './vps/useProduccionViva.js';
@@ -21,6 +21,21 @@ export interface Conexiones {
 /* [por que] Estable: `?? []` crearía un array nuevo en cada render y las dependencias de los
  * memos (y el efecto de producción) se dispararían en bucle mientras no haya instantánea. */
 const SIN_PROYECTOS: Proyecto[] = [];
+
+/* URLs de los sitios donde el proyecto corre AHORA, en el orden del mapa. [por que] El
+ * snapshot trae todas las direcciones posibles y `destinos` dice cuáles están vivas: lo
+ * consumen el tooltip y el click de la caja, para que no decidan cosas distintas. */
+export function urlsVivas(
+  urls: UrlDestino[] | undefined,
+  destinos: readonly string[],
+): UrlDestino[] {
+  if (!urls || destinos.length === 0) return [];
+  const porSitio = new Map(urls.map((u) => [u.donde, u]));
+  return destinos.flatMap((d) => {
+    const u = porSitio.get(d as UrlDestino['donde']);
+    return u ? [u] : [];
+  });
+}
 
 export function useConexiones(): Conexiones {
   const snapshot = useWorkspaceStore((s) => s.snapshot);

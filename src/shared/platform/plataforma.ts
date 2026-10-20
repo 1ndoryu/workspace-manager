@@ -37,6 +37,13 @@ export function bajarVentana<K extends keyof WindowEventMap>(
   window.removeEventListener(tipo, oyente as EventListener, opciones);
 }
 
+/* Abre una URL en una pestana nueva. [por que] El acceso al navegador va por esta
+ * capa, para que los componentes no toquen `window` directamente. `noopener` corta el
+ * enlace con la pestana de origen: la URL la elige el registro, no nosotros. */
+export function abrirPestana(url: string): void {
+  window.open(url, '_blank', 'noopener');
+}
+
 export function suscribirDocumento<K extends keyof DocumentEventMap>(
   tipo: K,
   oyente: (e: DocumentEventMap[K]) => void,

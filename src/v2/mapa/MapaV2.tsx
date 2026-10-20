@@ -2,8 +2,9 @@
  * sin sombras, sin bold. [por que] Reglas de diseño del front v2: los estados
  * se diferencian con patrones de relleno/borde, no con color. La logica de
  * interaccion (zoom, pan, arrastre, hover, tooltip) vive en useMapaV2. */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Proyecto } from '../../shared/types.js';
+import { abrirPestana } from '../../shared/platform/plataforma.js';
 import { ETIQUETA_ESTADO, estadoProyecto } from '../estado.js';
 import { disponer } from './geometria/disposicion.js';
 import { claveEnlace, puntoSalida, rutasDe } from './geometria/rutas.js';
@@ -21,9 +22,10 @@ import { useWorkspaceStore } from '../../hooks/useWorkspace.js';
 import { EnlaceSuelo, NodoMapa, Troncales } from './NodoMapa.js';
 import { BordeDev } from './BordeDev.js';
 import { ControlesMapa } from './ControlesMapa.js';
+import { ElegirUrl } from './ElegirUrl.js';
 import { TooltipMapa } from './TooltipMapa.js';
 import { useMapaV2 } from './useMapaV2.js';
-import { useConexiones } from '../useConexiones.js';
+import { urlsVivas, useConexiones } from '../useConexiones.js';
 import './mapaV2.css';
 
 /* Los nodos de ubicacion son cajas mas altas que las de proyecto: se leen como
@@ -42,6 +44,8 @@ export function MapaV2() {
     arrastrando,
     hover,
     tooltipPos,
+    abrirEn,
+    setAbrirEn,
     svgRef,
     acercar,
     alejar,
@@ -56,7 +60,38 @@ export function MapaV2() {
   const proyectos = snapshot?.proyectos ?? [];
 
   /* Quien corre y a donde: la misma respuesta que usa la lista para pintar sus cuadros. */
-  const { enMarcha, enProd } = useConexiones();
+  const { enMarcha, enProd, destinos } = useConexiones();
+
+  /* Click en una caja: abre el proyecto donde corre. Una sola direccion se abre directa; con
+   * varias hay que elegir. [por que] Sin ninguna no hay nada que abrir, y entonces el click
+   * selecciona, como antes: una caja parada no puede quedarse sin respuesta. */
+  const activar = useCallback(
+    (p: Proyecto, posicion: { x: number; y: number }) => {
+      const urls = urlsVivas(p.urls, destinos.get(p.clave) ?? []);
+      if (urls.length === 0) {
+        seleccionar(p.id);
+        return;
+      }
+      if (urls.length === 1) {
+        abrirPestana(urls[0].url);
+        return;
+      }
+      setHover(null);
+      setTooltipPos(null);
+      setAbrirEn({ id: p.id, urls, x: posicion.x, y: posicion.y });
+    },
+    [destinos, seleccionar, setAbrirEn, setHover, setTooltipPos],
+  );
+
+  /* Estable: si cambiara en cada render, el efecto de cierre de ElegirUrl se reinstalaria
+   * constantemente y el pointerdown del propio menu lo cerraria. */
+  const cerrarAbrirEn = useCallback(() => setAbrirEn(null), [setAbrirEn]);
+
+  /* Centro de la caja en pantalla: posicion de partida cuando el click llega por teclado. */
+  const centroDe = (el: SVGGElement) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  };
 
   /* Nodo bajo el raton: solo entonces se muestra su nombre. */
   const [hubSobre, setHubSobre] = useState<string | null>(null);
@@ -223,9 +258,10 @@ export function MapaV2() {
             <g
               key={p.id}
               className={`mapaV2Tile mapaV2Tile--${estado}${libre ? ' mapaV2Tile--libre' : ''}`}
-              onClick={() => {
-                /* Arrastrar empezo encima de esta caja: soltar no es seleccionar. */
-                if (!huboArrastre()) seleccionar(p.id);
+              onClick={(e) => {
+                /* Arrastrar empezo encima de esta caja: soltar no es un click. */
+                if (huboArrastre()) return;
+                activar(p, { x: e.clientX, y: e.clientY });
               }}
               onContextMenu={(e) => {
                 if (arrastrando) return;
@@ -244,7 +280,9 @@ export function MapaV2() {
               tabIndex={0}
               aria-label={`${p.id}, ${ETIQUETA_ESTADO[estado]}`}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') seleccionar(p.id);
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                activar(p, centroDe(e.currentTarget));
               }}
             >
               {borde && (
@@ -296,6 +334,15 @@ export function MapaV2() {
       <ControlesMapa acercar={acercar} alejar={alejar} />
 
       {hover && tooltipPos && <TooltipMapa proyecto={hover} posicion={tooltipPos} />}
+
+      {abrirEn && (
+        <ElegirUrl
+          id={abrirEn.id}
+          urls={abrirEn.urls}
+          posicion={{ x: abrirEn.x, y: abrirEn.y }}
+          onCerrar={cerrarAbrirEn}
+        />
+      )}
     </div>
   );
 }

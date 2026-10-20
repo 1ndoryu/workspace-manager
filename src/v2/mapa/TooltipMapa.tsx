@@ -3,9 +3,9 @@
  * en el panel de detalle, y el tooltip tapaba el mapa. Se posiciona con
  * variables CSS para no reflowar el SVG en cada movimiento del raton. */
 import { useMemo, type CSSProperties } from 'react';
-import type { Proyecto, UrlDestino } from '../../shared/types.js';
+import type { Proyecto } from '../../shared/types.js';
 import { anchoVentana } from '../../shared/platform/plataforma.js';
-import { useConexiones } from '../useConexiones.js';
+import { urlsVivas, useConexiones } from '../useConexiones.js';
 
 interface Props {
   proyecto: Proyecto;
@@ -16,20 +16,10 @@ interface Props {
  * numero para que no se salga por la derecha. */
 const ANCHO_TIP = 280;
 
-/* URLs de los sitios donde el proyecto corre ahora, en el orden del mapa.
- * [por que] `destinos` es la misma fuente viva que usan mapa y lista: si corre
- * en dos sitios, salen las dos direcciones; si no corre en ninguno, ninguna. */
-function urlsVivas(urls: UrlDestino[] | undefined, destinos: readonly string[]): string[] {
-  if (!urls || destinos.length === 0) return [];
-  const porSitio = new Map(urls.map((u) => [u.donde, u.url]));
-  return destinos.flatMap((d) => {
-    const url = porSitio.get(d as UrlDestino['donde']);
-    return url ? [url] : [];
-  });
-}
-
 export function TooltipMapa({ proyecto: hover, posicion }: Props) {
   const { destinos } = useConexiones();
+  /* `urlsVivas` es la misma que decide a donde abre el click: si corre en dos
+   * sitios salen las dos direcciones; si no corre en ninguno, ninguna. */
   const urls = useMemo(
     () => urlsVivas(hover.urls, destinos.get(hover.clave) ?? []),
     [hover.urls, destinos, hover.clave],
@@ -50,9 +40,9 @@ export function TooltipMapa({ proyecto: hover, posicion }: Props) {
       {urls.length === 0 ? (
         <div className="mapaV2TooltipUrl mapaV2TooltipUrl--apagada">no corre ahora mismo</div>
       ) : (
-        urls.map((url) => (
-          <div key={url} className="mapaV2TooltipUrl">
-            {url}
+        urls.map((u) => (
+          <div key={u.url} className="mapaV2TooltipUrl">
+            {u.url}
           </div>
         ))
       )}

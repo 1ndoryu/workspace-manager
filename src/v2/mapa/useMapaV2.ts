@@ -5,7 +5,7 @@
  * deja el componente como puro render + calculo derivado. La persistencia
  * sigue el mismo patron que AppV2 (logger central, no console directo). */
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import type { Proyecto } from '../../shared/types.js';
+import type { Proyecto, UrlDestino } from '../../shared/types.js';
 import { guardarJson, leerJson } from '../../shared/vista/storage.js';
 
 /* Estado del mapa persistido entre recargas (zoom y posicion de arrastre).
@@ -57,6 +57,10 @@ export interface UseMapaV2 {
   arrastrando: boolean;
   hover: Proyecto | null;
   tooltipPos: { x: number; y: number } | null;
+  /* Eleccion pendiente de destino: el proyecto corre en varios sitios y hay que decir cual.
+   * Null cuando no hay ninguna pregunta abierta. */
+  abrirEn: { id: string; urls: UrlDestino[]; x: number; y: number } | null;
+  setAbrirEn: (v: { id: string; urls: UrlDestino[]; x: number; y: number } | null) => void;
   svgRef: React.RefObject<SVGSVGElement>;
   acercar: () => void;
   alejar: () => void;
@@ -91,6 +95,7 @@ export function useMapaV2(): UseMapaV2 {
   const [arrastrando, setArrastrando] = useState(false);
   const [hover, setHover] = useState<Proyecto | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [abrirEn, setAbrirEn] = useState<{ id: string; urls: UrlDestino[]; x: number; y: number } | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
   /* Estado del arrastre en curso: punto de agarre en pixeles de pantalla, pan inicial y la
@@ -290,6 +295,8 @@ export function useMapaV2(): UseMapaV2 {
     arrastrando,
     hover,
     tooltipPos,
+    abrirEn,
+    setAbrirEn,
     svgRef,
     acercar: () => setVista((v) => ({ ...v, zoom: limitarZoom(v.zoom + ZOOM_PASO) })),
     alejar: () => setVista((v) => ({ ...v, zoom: limitarZoom(v.zoom - ZOOM_PASO) })),

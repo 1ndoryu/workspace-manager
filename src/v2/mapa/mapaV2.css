@@ -278,3 +278,65 @@
 .mapaV2TooltipUrl--apagada {
     opacity: 0.7;
 }
+
+/* Eleccion de destino (click en una caja que corre en varios sitios): flotante en el
+ * punto del click, como el menu contextual. La superficie es .v2Superficie. */
+.mapaV2Elegir {
+    position: fixed;
+    --mapa-tip-x: 0px;
+    --mapa-tip-y: 0px;
+    left: var(--mapa-tip-x);
+    top: var(--mapa-tip-y);
+    z-index: 1000;
+    min-width: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mapaV2ElegirTitulo {
+    padding: 5px 10px;
+    font-size: var(--v2-textMini);
+    opacity: 0.7;
+}
+
+.mapaV2ElegirItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    background: none;
+    border: none;
+    border-radius: 0;
+    font: inherit;
+    font-size: var(--v2-textSm);
+    color: var(--v2-texto);
+    text-align: left;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+/* Sin grises (monocromo estricto): la opcion bajo el raton se invierte, como las
+ * opciones de menu de Button.css. */
+.mapaV2ElegirItem:hover,
+.mapaV2ElegirItem:focus-visible {
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    outline: none;
+}
+
+/* El sitio va atenuado; sobre el negro del hover tambien tiene que leerse. */
+.mapaV2ElegirItem:hover .mapaV2ElegirSitio,
+.mapaV2ElegirItem:focus-visible .mapaV2ElegirSitio {
+    opacity: 1;
+}
+
+.mapaV2ElegirSitio {
+    font-size: var(--v2-textMini);
+    opacity: 0.7;
+}
+
+/* Las URLs pueden ser largas: se parten en vez de estirar la caja. */
+.mapaV2ElegirUrl {
+    overflow-wrap: anywhere;
+}
