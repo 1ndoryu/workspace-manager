@@ -6,6 +6,10 @@
  * pares y dejan una celda vacia entre ellas como separacion. Asi cada rombo de
  * la rejilla es del tamano de la caja, la caja se asienta en su celda y escala sin ajustes. */
 
+/* [por que] Import de tipo: se borra al compilar, asi que no crea ciclo con disposicion.ts,
+ * que a su vez importa `textoRuta` de aqui. */
+import type { IdHub } from './disposicion.js';
+
 export interface PuntoIso {
   x: number;
   y: number;
@@ -111,6 +115,14 @@ export const COLOR_HUB: Record<string, string> = {
   vps89: 'var(--mapa-vps89)',
   produccion: 'var(--mapa-produccion)',
 };
+
+/** Los dos colores del degradado de un proyecto, para pintarlo fuera del mapa (el cuadro de la
+ * lista de proyectos). Mismos colores y misma regla de segunda punta que `degradadoBorde`: con una
+ * sola conexión el degradado se apaga hacia el borde neutro. `null` = sin conexiones. */
+export function coloresDeConexion(destinos: readonly IdHub[]): [string, string] | null {
+  if (destinos.length === 0) return null;
+  return [COLOR_HUB[destinos[0]], destinos[1] ? COLOR_HUB[destinos[1]] : 'var(--v2-borde)'];
+}
 
 /** Degradado del borde de una caja, del color de cada linea que le llega.
  * Eje: arranca por el lado por donde SALE cada linea (su primer tramo, `punto`)

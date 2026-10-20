@@ -72,6 +72,17 @@
     outline: none;
 }
 
+/* Sin conexiones: el proyecto no corre en ningun sitio y su caja se atenua,
+ * igual que su cuadro en la lista. El foco la devuelve a plena opacidad para
+ * que el teclado siga viendo donde esta. */
+.mapaV2Tile--libre {
+    opacity: 0.4;
+}
+
+.mapaV2Tile--libre:focus-visible {
+    opacity: 1;
+}
+
 /* [por que] Quitar el anillo a secas dejaba la caja SIN ninguna senal de foco
  * por teclado: `tabIndex={0}` la hace alcanzable y no habia sustituto. El foco
  * se dibuja con el trazo de la propia caja y no con un outline porque la caja
@@ -124,13 +135,9 @@
     pointer-events: none;
 }
 
-/* Colores por ubicacion (unica excepcion a la regla monocroma, a peticion del
- * usuario): la linea y el nodo comparten color; el halo marca lo que esta en marcha. */
-.mapaV2 {
-    --mapa-laptop: #3b82f6;
-    --mapa-vps89: #f59e0b;
-    --mapa-produccion: #e11d6a;
-}
+/* Colores por ubicacion: la linea y el nodo comparten color; el halo marca lo que esta en
+ * marcha. [por que] Viven en `:root` (variables-v2.css) y no aqui: la lista de proyectos pinta
+ * los mismos colores en su cuadro de estado y esta fuera del arbol de `.mapaV2`. */
 
 /* Nodos de ubicacion: cajas altas y macizas (plataformas a las que se conectan
  * los proyectos). Solo el techo capta el raton, para mostrar el nombre al pasar. */
@@ -171,6 +178,11 @@
     font-size: var(--v2-textNano);
     font-weight: normal;
     pointer-events: none;
+}
+
+/* El nombre sigue a su caja: sin conexiones, atenuado como ella. */
+.mapaV2NombreProyecto--libre {
+    opacity: 0.4;
 }
 
 /* Lineas de conexion pegadas al suelo, siempre continuas: el color dice a que

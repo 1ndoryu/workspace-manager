@@ -36,6 +36,13 @@ export interface Enlace {
   directo?: boolean;
 }
 
+/* Nombre de cada nodo, para leerlo fuera del mapa (lista de proyectos, tooltip). */
+export const ETIQUETA_HUB: Record<IdHub, string> = {
+  laptop: 'Laptop',
+  vps89: 'VPS 89',
+  produccion: 'Producción',
+};
+
 /* Enlace fijo entre dos nodos (laptop-VPS 89, VPS 89-producción). */
 export interface Troncal {
   de: IdHub;
@@ -91,8 +98,10 @@ function destinoDe(p: Proyecto, vivos: ReadonlySet<string>, enProd: ReadonlySet<
   return enProd.has(p.clave) ? 'produccion' : 'libre';
 }
 
-/* Todos los nodos a los que se enlaza: ejecución en marcha y/o producción. */
-function destinosDe(p: Proyecto, vivos: ReadonlySet<string>, enProd: ReadonlySet<string>): IdHub[] {
+/* Todos los nodos a los que se enlaza: ejecución en marcha y/o producción.
+ * [por que] Exportada: la lista de proyectos pinta el mismo color que el mapa, y para eso
+ * necesita la misma respuesta que `disponer` (una regla, un origen; AGENTS §5). */
+export function destinosDe(p: Proyecto, vivos: ReadonlySet<string>, enProd: ReadonlySet<string>): IdHub[] {
   const ds: IdHub[] = [];
   if (p.ejecucion && vivos.has(p.clave)) ds.push(p.ejecucion.donde);
   if (enProd.has(p.clave) && !ds.includes('produccion')) ds.push('produccion');
@@ -126,9 +135,9 @@ export function disponer(
    * se reparten alrededor de su nodo y las líneas se quedan cortas. */
   const c = Math.round(lado / 4) * 2;
   const hubs: Hub[] = [
-    { id: 'laptop', etiqueta: 'Laptop', col: c - 4, fila: c + 2, total: 0 },
-    { id: 'vps89', etiqueta: 'VPS 89', col: c, fila: c - 4, total: 0 },
-    { id: 'produccion', etiqueta: 'Producción', col: c + 4, fila: c + 2, total: 0 },
+    { id: 'laptop', etiqueta: ETIQUETA_HUB.laptop, col: c - 4, fila: c + 2, total: 0 },
+    { id: 'vps89', etiqueta: ETIQUETA_HUB.vps89, col: c, fila: c - 4, total: 0 },
+    { id: 'produccion', etiqueta: ETIQUETA_HUB.produccion, col: c + 4, fila: c + 2, total: 0 },
   ];
   const anclas: Record<IdHub, Celda> = { laptop: hubs[0], vps89: hubs[1], produccion: hubs[2] };
 

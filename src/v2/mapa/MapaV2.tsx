@@ -23,7 +23,7 @@ import { BordeDev } from './BordeDev.js';
 import { ControlesMapa } from './ControlesMapa.js';
 import { TooltipMapa } from './TooltipMapa.js';
 import { useMapaV2 } from './useMapaV2.js';
-import { useProduccionViva } from '../vps/useProduccionViva.js';
+import { useConexiones } from '../useConexiones.js';
 import './mapaV2.css';
 
 /* Los nodos de ubicacion son cajas mas altas que las de proyecto: se leen como
@@ -34,7 +34,6 @@ const corto = (t: string) => (t.length > 14 ? `${t.slice(0, 13)}…` : t);
 
 export function MapaV2() {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
-  const dev = useWorkspaceStore((s) => s.dev);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const abrirMenuContextual = useWorkspaceStore((s) => s.abrirMenuContextual);
   const {
@@ -57,18 +56,8 @@ export function MapaV2() {
 
   const proyectos = snapshot?.proyectos ?? [];
 
-  /* Claves con servicio en marcha (05AA-4): su enlace con la ubicacion brilla.
-   * [por que] Solo bajo-mando = probe verde real; parado/deriva/sin-boton
-   * no brillan. Excepcion explicita del usuario a la regla monocroma. */
-  const enMarcha = useMemo(() => {
-    const set = new Set<string>();
-    for (const d of dev?.proyectos ?? []) {
-      if (d.estado === 'bajo-mando') set.add(d.clave);
-    }
-    return set;
-  }, [dev]);
-
-  const enProd = useProduccionViva(proyectos);
+  /* Quien corre y a donde: la misma respuesta que usa la lista para pintar sus cuadros. */
+  const { enMarcha, enProd } = useConexiones();
 
   /* Nodo bajo el raton: solo entonces se muestra su nombre. */
   const [hubSobre, setHubSobre] = useState<string | null>(null);
@@ -89,6 +78,13 @@ export function MapaV2() {
 
   /* Rutas por el suelo (camino mas corto por los pasillos): en rutas.ts. */
   const rutas = useMemo(() => rutasDe(colocados, hubs, enlaces, troncales), [colocados, hubs, enlaces, troncales]);
+
+  /* Claves sin ninguna linea: no corren en ningun sitio y el mapa las atenua, igual que su
+   * cuadro en la lista de proyectos. Una sola regla para la caja y para su nombre. */
+  const libres = useMemo(() => {
+    const conLinea = new Set(enlaces.map((e) => e.clave));
+    return new Set(colocados.filter((c) => !conLinea.has(c.p.clave)).map((c) => c.p.clave));
+  }, [colocados, enlaces]);
 
   /* Rango de celdas ocupadas por cajas y nodos (para extender la cuadricula). */
   const rangoCeldas = useMemo(() => {
@@ -219,13 +215,15 @@ export function MapaV2() {
             punto: puntoSalida(rutas.get(claveEnlace(e))!),
           }));
           const borde = degradadoBorde(col, fila, lineas);
+          /* Sin lineas = no corre en ningun sitio: la caja se atenua, igual que su cuadro en la lista. */
+          const libre = libres.has(p.clave);
           const idBorde = `mapaV2Borde-${col}-${fila}`;
           /* Trazo como atributo SVG: las reglas CSS de la caja no lo pisan. */
           const trazoBorde = borde ? `url(#${idBorde})` : undefined;
           return (
             <g
               key={p.id}
-              className={`mapaV2Tile mapaV2Tile--${estado}`}
+              className={`mapaV2Tile mapaV2Tile--${estado}${libre ? ' mapaV2Tile--libre' : ''}`}
               onClick={() => {
                 if (!modoArrastre) seleccionar(p.id);
               }}
@@ -287,7 +285,7 @@ export function MapaV2() {
               transform={`translate(${c.x} ${c.y - TILE.altoPared}) matrix(1 -0.5 1 0.5 0 0)`}
               textAnchor="middle"
               dominantBaseline="middle"
-              className="mapaV2NombreProyecto"
+              className={`mapaV2NombreProyecto${libres.has(p.clave) ? ' mapaV2NombreProyecto--libre' : ''}`}
             >
               {corto(p.id)}
             </text>
