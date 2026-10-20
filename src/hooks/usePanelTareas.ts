@@ -2,14 +2,11 @@
  * 08AA-6 + alta por modal 08AA-7 + optimista/cache 08AA-8): estado + carga
  * + movimientos.
  * [por que] Extraido antes de nacer (leccion usePanelRepos): el componente
- * renderiza, el hook posee el reducer y los thunks. Un solo useReducer
- * (cero useState) para no rozar usestate-excesivo. Cola en serie con ref
- * (08AA-8: el modal cierra al instante y dos altas rapidas ya no caben en
- * un single-flight que descarta; la segunda espera su turno en vez de
- * perderse). La carga inicial pinta la foto local y revalida en fondo
- * (stale-while-revalidate: la fresca tardaba ~4s por 18 columnas en
- * serie); las columnas se piden en paralelo y cada `cargado` refresca la
- * foto.
+ * renderiza, el hook posee los efectos, la cola y las llamadas. El reductor y
+ * el estado viven en panelTareasEstado.ts (sin IO). La carga inicial pinta la
+ * foto local y revalida en fondo (stale-while-revalidate: la fresca tardaba ~4s
+ * por 18 columnas en serie); las columnas se piden en paralelo y cada `cargado`
+ * refresca la foto.
  * [D2] El orden de las tareas se escribe en TASKS via bulk y se relee tras
  * cada movimiento (la recarga es la prueba de persistencia en la UI); las
  * COLUMNAS son fijas del proxy (08AA-6: el servidor sincroniza WM->TASKS,
@@ -37,102 +34,12 @@ import {
   actualizarTarea,
   columnasTareas,
   eliminarTarea,
+  estadoSincroniaTareas,
   estadoTareas,
   proyectoTareas,
   reordenarTareas,
 } from '../v2/tareas/apiTareas.js';
-
-interface EstadoPanelTareas {
-  columnas: ColumnaTab[];
-  tareas: Record<number, TareaTab[]>;
-  estado: TareasEstado | null;
-  cargando: boolean;
-  error: string | null;
-  /* Lo que salio a medias: la tarjeta se guardo en TASK y el roadmap del proyecto no (20AA-10
-   * F3b). No es un fallo del tab —por eso no comparte canal con `error`— pero tampoco puede
-   * desaparecer: es el unico sitio donde se ve que el archivo quedo desincronizado. */
-  aviso: string | null;
-  moviendo: string | null;
-  /* Abrir una tarea desde la consola (20AA-10 F5). Son dos campos y no uno porque entre la
-   * peticion y el destaque hace falta la columna cargada: la peticion llega del store con lo unico
-   * que la consola conoce —el `clave` del repo y el ID del roadmap— y solo se puede resolver
-   * contra listas que ya esten ahi. Consumirla antes de resolverla la perderia. */
-  peticionDestacada: { clave: string; roadmapId: string } | null;
-  /* La tarjeta ya resuelta (columna de TASK + id legacy) o null si la peticion no encontro
-   * tarjeta. */
-  destacada: { columna: number; legacyId: number } | null;
-  /* La peticion no encontro tarjeta: el roadmap y TASK no coinciden (tarea creada a mano en el
-   * archivo y aun no espejada, o TASK caido). Se dice, no se abre una tab muda. */
-  avisoDestacada: string | null;
-}
-
-type AccionTareas =
-  | { tipo: 'cargando' }
-  | { tipo: 'cache'; foto: CacheTareasTab }
-  | { tipo: 'cargado'; estado: TareasEstado; columnas: ColumnaTab[]; tareas: Record<number, TareaTab[]> }
-  | { tipo: 'fallo'; error: string }
-  | { tipo: 'aviso'; aviso: string | null }
-  | { tipo: 'moviendo'; clave: string }
-  | { tipo: 'movido' }
-  | { tipo: 'optimista'; columna: number; tarea: TareaTab }
-  | { tipo: 'descartar'; columna: number; legacyId: number }
-  | { tipo: 'peticionDestacada'; peticion: { clave: string; roadmapId: string } | null }
-  | { tipo: 'destacada'; destino: { columna: number; legacyId: number } | null; roadmapId: string };
-
-const ESTADO_INICIAL: EstadoPanelTareas = {
-  columnas: [],
-  tareas: {},
-  estado: null,
-  cargando: false,
-  error: null,
-  aviso: null,
-  moviendo: null,
-  peticionDestacada: null,
-  destacada: null,
-  avisoDestacada: null,
-};
-
-function reductor(prev: EstadoPanelTareas, a: AccionTareas): EstadoPanelTareas {
-  switch (a.tipo) {
-    case 'cargando':
-      return { ...prev, cargando: true, error: null };
-    case 'cache':
-      /* La foto pinta al instante pero sigue cargando (el fondo revalida):
-       * la tab ya renderiza filas porque estado/columnas/tareas existen. */
-      return { ...prev, cargando: true, error: null, estado: a.foto.estado, columnas: a.foto.columnas, tareas: a.foto.tareas };
-    case 'cargado':
-      return { ...prev, cargando: false, error: null, estado: a.estado, columnas: a.columnas, tareas: a.tareas };
-    case 'fallo':
-      return { ...prev, cargando: false, moviendo: null, error: a.error, aviso: null };
-    case 'aviso':
-      return { ...prev, aviso: a.aviso };
-    case 'moviendo':
-      return { ...prev, moviendo: a.clave, error: null };
-    case 'movido':
-      return { ...prev, moviendo: null };
-    case 'optimista':
-      return { ...prev, tareas: { ...prev.tareas, [a.columna]: [...(prev.tareas[a.columna] ?? []), a.tarea] } };
-    case 'descartar':
-      return {
-        ...prev,
-        tareas: { ...prev.tareas, [a.columna]: (prev.tareas[a.columna] ?? []).filter((t) => t.legacyId !== a.legacyId) },
-      };
-    case 'peticionDestacada':
-      return { ...prev, peticionDestacada: a.peticion };
-    case 'destacada':
-      /* [por que se limpia la peticion aqui] Ya esta resuelta (con tarjeta o sin ella): dejarla
-       * puesta volveria a resolverla en cada recarga y el destaque no se podria soltar. */
-      return {
-        ...prev,
-        peticionDestacada: null,
-        destacada: a.destino,
-        avisoDestacada:
-          a.destino === null
-            ? `no hay tarjeta de ${a.roadmapId} en el tab (el roadmap y TASK no coinciden todavía)`
-            : null,
-      };
-  }
-}
+import { ESTADO_INICIAL, avisoDeSincronia, reductor } from './tareas/panelTareasEstado.js';
 
 /* Foto local (08AA-8): clave unica, lectura validada, escritura best-effort
  * (el boundary storage.ts ya traga cuota/modo-privado en silencio). */
@@ -144,6 +51,11 @@ const CLAVE_CACHE_TAREAS = 'wm.tareas.cache.v1';
  * mano, aunque el tunel ya estuviera de vuelta. La espera es mas larga que el
  * breaker del puente (30 s) para no gastar peticiones en balde. */
 const REINTENTO_MS = 15_000;
+
+/* Cada cuanto se pregunta por la ultima pasada de la sincronia (20AA-10 F6). No hace falta mas
+ * fino: lo que se pinta es un estado, no el progreso; con trabajo aplazado las pasadas van cada
+ * 1,5 s y en un sondeo ya se ve el final. */
+const SONDEO_SINCRONIA_MS = 10_000;
 
 function leerFoto(): CacheTareasTab | null {
   return restaurarCacheTareas(leerJson<unknown>(CLAVE_CACHE_TAREAS));
@@ -229,6 +141,28 @@ export function usePanelTareas() {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noDisponible]);
+
+  /* Sondeo de la sincronia de fondo (20AA-10 F6). Va en su propio efecto, sin depender de la
+   * carga: la sincronia corre por detras del escaneo y de los gestos, y su estado puede cambiar
+   * sin que la tab haya recargado nada. Un fallo del sondeo no se pinta: la tab ya tiene su
+   * `error` para lo que le impide funcionar, y quedarse sin la noticia de la sincronia no es eso. */
+  useEffect(() => {
+    let vivo = true;
+    const mirar = async (): Promise<void> => {
+      try {
+        const e = await estadoSincroniaTareas();
+        if (vivo) dispatch({ tipo: 'sincronia', aviso: e.activa ? avisoDeSincronia(e) : null });
+      } catch {
+        /* Sin noticia: se queda el ultimo aviso, que es lo que se sabia. */
+      }
+    };
+    void mirar();
+    const id = setInterval(() => void mirar(), SONDEO_SINCRONIA_MS);
+    return () => {
+      vivo = false;
+      clearInterval(id);
+    };
+  }, []);
 
   /* Abrir una tarea desde la consola (20AA-10 F5). El store deja la peticion y se suelta aqui en
    * cuanto entra al reducer: si siguiera puesta, cada recarga —y cada vuelta a la tab— volveria a
