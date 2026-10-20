@@ -23,28 +23,45 @@ const API = URL_API;
 export const CLAVES_COMANDOS = ['gate', 'test-archivo', 'typecheck', 'build'];
 const USO = `uso:
   gate <id> --inicio     guarda la línea base de hallazgos antes de la tarea
-  gate <id> --cierre     lista solo los hallazgos nuevos frente a la base y corre el autogate
-                         (comandos.gate, en la 89; sin orden se omite con aviso)
+  gate <id> --cierre [--tarea <ID>]   hallazgos nuevos frente a la base + autogate
+                         (comandos.gate, en la 89; sin orden se omite con aviso;
+                          --tarea pasa el ID al gate del proyecto: sin él, el autogate
+                          no sabe qué tarea se cierra)
                          (+ --forzar: re-analiza aunque el árbol no haya cambiado)
                          (+ --local: emergencia, VPS caída; analiza aquí, sin caché, con aviso)
   comandos <id>          contrato de comandos del proyecto (registro.json)`;
 
-/* Argumentos de `gate`: <id>, exactamente uno de --inicio / --cierre y, opcionales, --forzar y --local. */
+/* Argumentos de `gate`: <id>, exactamente uno de --inicio / --cierre y, opcionales,
+ * --forzar, --local y --tarea <ID>. */
 export function parsearArgsGate(argv) {
   const [id, ...resto] = argv;
   if (!id || id.startsWith('--')) return { error: 'falta <id> del proyecto' };
   const conocidas = ['--inicio', '--cierre', '--forzar', '--local'];
-  const extra = resto.filter((a) => !conocidas.includes(a));
+  const extra = resto.filter((a, i) => !conocidas.includes(a) && a !== '--tarea' && resto[i - 1] !== '--tarea');
   if (extra.length) return { error: `opción no reconocida: ${extra[0]}` };
   const inicio = resto.includes('--inicio');
   const cierre = resto.includes('--cierre');
   if (inicio === cierre) return { error: 'elige exactamente uno: --inicio o --cierre' };
+  const iTarea = resto.indexOf('--tarea');
+  const tarea = iTarea >= 0 ? resto[iTarea + 1] : undefined;
+  if (iTarea >= 0 && (!tarea || tarea.startsWith('--'))) return { error: '--tarea necesita un <ID>' };
   return {
     id,
     modo: inicio ? 'inicio' : 'cierre',
     forzar: resto.includes('--forzar'),
     local: resto.includes('--local'),
+    tarea,
   };
+}
+
+/* Orden del autogate con la tarea de la sesión detrás. [por que 10AA-3] El contrato
+ * de la ficha (`npm run gate:check`) no puede saber qué tarea se está cerrando, y sin
+ * el id el gate del proyecto aborta o analiza contra una tarea que no existe: el
+ * autogate no podía pasar nunca en RESTAURANTE ni en WANDORIUS. Con npm hace falta el
+ * separador `--` para que el id llegue al script y no a npm. */
+export function ordenAutogate(comando, tarea) {
+  if (!tarea) return comando;
+  return /^npm(\.cmd)?\s+run\s/.test(comando) ? `${comando} -- ${tarea}` : `${comando} ${tarea}`;
 }
 
 /* Ruta del snapshot de un proyecto. La clave es la carpeta del proyecto
@@ -83,13 +100,13 @@ export function leerEntrada(id, raiz = RAIZ) {
 /* Decide si el autogate (`comandos.gate`) corre. Sin contrato o sin orden se omite con aviso:
  * no bloquea a los proyectos que no tienen autogate. En emergencia (`--local`) no corre en el
  * portátil, porque los tests van a la 89 (AGENTS §1). */
-export function decidirAutogate(entrada, emergencia) {
+export function decidirAutogate(entrada, emergencia, tarea) {
   if (entrada?.comandos === undefined) return { estado: 'omitido', motivo: 'sin contrato de comandos en registro.json' };
   const r = leerComandos(entrada.comandos);
   if (r.error) return { estado: 'error', motivo: r.error };
   if (!r.comandos.gate) return { estado: 'omitido', motivo: 'sin comandos.gate en registro.json' };
   if (emergencia) return { estado: 'omitido', motivo: 'emergencia --local: el autogate no corre en el portátil; pásalo en la 89' };
-  return { estado: 'pendiente', orden: r.comandos.gate };
+  return { estado: 'pendiente', orden: ordenAutogate(r.comandos.gate, tarea) };
 }
 
 /* Últimas líneas de la salida: un fallo se lee desde el final. */
@@ -108,9 +125,9 @@ export function lineasAutogate(id, a) {
 /* Corre el autogate en la VPS por la misma vía que los tests (cm-heavy, réplica en <dirRemotoBase>/<id>).
  * [por que] Un script propio no invoca npm por su cuenta: el wrapper de la VPS es el que pone el candado
  * de carga pesada y el PATH del taller (AGENTS §2). */
-export function correrAutogate(id, entrada, emergencia) {
+export function correrAutogate(id, entrada, emergencia, tarea) {
   if (!entrada) return { estado: 'error', motivo: `'${id}' no está en registro.json` };
-  const d = decidirAutogate(entrada, emergencia);
+  const d = decidirAutogate(entrada, emergencia, tarea);
   if (d.estado !== 'pendiente') return d;
   const config = cargarTaller();
   if (!config) return { estado: 'error', motivo: 'sin VPS configurada (config/taller.json)' };
@@ -180,7 +197,7 @@ export async function gate(argv) {
     console.log(`gate ${p.id} --cierre: ${r.nuevos.length} nuevos, ${r.resueltos} resueltos (base ${base.hallazgos.length}, ahora ${r.total})`);
     for (const linea of formatearNuevos(r.nuevos)) console.log(linea);
     // Sentinel y autogate son puertas independientes: se corren las dos y el cierre falla si una falla.
-    const auto = correrAutogate(p.id, leerEntrada(p.id), destino.emergencia);
+    const auto = correrAutogate(p.id, leerEntrada(p.id), destino.emergencia, p.tarea);
     for (const linea of lineasAutogate(p.id, auto)) (auto.estado === 'fallo' || auto.estado === 'error' ? console.error : console.log)(linea);
     return r.nuevos.length > 0 || auto.estado === 'fallo' || auto.estado === 'error' ? 1 : 0;
   } catch (e) {
