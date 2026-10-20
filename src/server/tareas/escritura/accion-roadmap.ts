@@ -12,18 +12,48 @@
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { RAIZ_REPO } from '../../plataforma/rutas.js';
-import { analizarRoadmap, type PropiedadesTarea } from '../../scanner/roadmap/roadmap.js';
+import {
+  analizarRoadmap,
+  type AnalisisRoadmap,
+  type PropiedadesTarea,
+  type SubtareaRoadmap,
+  type TareaRoadmap,
+} from '../../scanner/roadmap/roadmap.js';
 import { apuntarHistorial, copiaPrevia, escribirAtomico, hashTexto } from './escritura-roadmap.js';
 import { aplicarPlan, diferencias, type CambioArchivo, type TareaAescribir } from './plan-archivo.js';
 import { contenidoDe, textoDeTitulo, type EspejoContenido } from './contenido-tarea.js';
-import { entradaCompletado, indiceCompletado, insertarTarea, quitarTarea, reordenarTareas, siguienteId } from './accion-archivo.js';
+import {
+  buscarSubtarea,
+  entradaCompletado,
+  huecoDeSubtarea,
+  indiceCompletado,
+  insertarSubtarea,
+  insertarTarea,
+  quitarSubtarea,
+  quitarTarea,
+  reordenarTareas,
+  reescribirSubtarea,
+  siguienteId,
+  tituloCanonico,
+  type SubtareaNueva,
+} from './accion-archivo.js';
 import { leerDelDisco, partir, type LecturaRoadmap } from './escribir-roadmaps.js';
 
 /* Seccion donde aterriza una tarea creada o reabierta desde el tab: es la zona de tareas del
  * protocolo y la misma que declara el espejo de F2. */
 export const SECCION_NUEVAS = 'Pendientes';
 
-export type AccionTab = 'crear' | 'editar' | 'cerrar' | 'reabrir' | 'borrar' | 'reordenar';
+export type AccionTab = 'crear' | 'editar' | 'cerrar' | 'reabrir' | 'borrar' | 'reordenar' | 'crear-sub' | 'editar-sub' | 'borrar-sub';
+
+/* Lo que hace falta para escribir una subtarea: lo mismo que una tarea menos el ID, que no tiene. */
+export type { SubtareaNueva } from './accion-archivo.js';
+
+/* Como se refiere el espejo a una subtarea: por su texto (el emparejado bueno) y por su hueco
+ * entre las hermanas (el de respaldo, cuando el texto cambio desde la ultima vez). */
+export interface RefSubtarea {
+  texto: string;
+  hueco: number | null;
+}
 
 /* Proyecto del workspace tal como lo necesitan las acciones: su clave de tablero y su carpeta. */
 export interface ProyectoRoadmap {
@@ -96,7 +126,9 @@ function abrir(deps: DepsAccionRoadmap, p: ProyectoRoadmap, accion: AccionTab): 
 }
 
 /* Copia, escribe y anota. [por que se reanaliza el texto nuevo] Para el historial hace falta la
- * linea en la que quedo la tarea, y solo el analisis del texto que se acaba de escribir lo sabe. */
+ * linea en la que quedo la tarea, y solo el analisis del texto que se acaba de escribir lo sabe.
+ * [por que `situar`] Una subtarea no tiene ID con el que buscarse en el analisis: quien la escribe
+ * sabe donde la dejo y lo dice aqui. */
 function escribir(
   ctx: Contexto,
   p: ProyectoRoadmap,
@@ -104,11 +136,14 @@ function escribir(
   nuevas: string[],
   cambios: CambioArchivo[],
   id: string | null,
+  situar?: (a: AnalisisRoadmap) => number | null,
 ): ResultadoAccion {
   const texto = nuevas.join(ctx.eol);
   const { ruta } = copiaPrevia(ctx.raizRepo, p.clave, ctx.archivo, ctx.lectura.texto, ctx.ahora);
   escribirAtomico(ctx.archivo, texto, hashTexto(ctx.lectura.texto));
-  const linea = id === null ? null : (analizarRoadmap(texto).tareas.find((t) => t.id === id)?.linea ?? null);
+  const analisis = analizarRoadmap(texto);
+  const linea =
+    id === null ? null : (situar?.(analisis) ?? analisis.tareas.find((t) => t.id === id)?.linea ?? null);
   if (cambios.length > 0) {
     const at = ctx.ahora.toISOString();
     apuntarHistorial(
@@ -303,7 +338,108 @@ export function reabrirEnRoadmap(
   return aviso === null ? res : { ...res, aviso };
 }
 
+/* --- Subtareas (F4) -------------------------------------------------------------------------
+ * Una subtarea no tiene ID en el archivo: se identifica por su texto entre las hermanas y, si el
+ * texto cambio, por su hueco. Es el mismo emparejado que hace la otra direccion (`planSubtareas`),
+ * y tiene que serlo: si cada lado eligiera distinto, uno reescribiria lo que el otro dejo. */
+
+/* La etiqueta con la que el espejo nombra una subtarea, igual que en la otra direccion. */
+function etiqueta(idPadre: string, hueco: number): string {
+  return `${idPadre}#${hueco + 1}`;
+}
+
+/* El hueco que codifica una etiqueta `padre#n`. [por que] Quien acaba de escribir la subtarea no
+ * sabe en que hueco quedo hasta que la busca; la etiqueta que devuelve la accion lo dice, y este es
+ * el unico sitio donde se lee. */
+export function huecoDeEtiqueta(id: string): number | null {
+  const m = id.match(/#(\d+)$/u);
+  return m === null ? null : Number(m[1]) - 1;
+}
+
+type AbiertoPadre = { ok: true; ctx: Contexto; padre: TareaRoadmap } | { ok: false; resultado: ResultadoAccion };
+
+/* Abre el roadmap y resuelve la tarea padre. Un solo sitio para el «no esta» de las tres acciones. */
+function abrirPadre(deps: DepsAccionRoadmap, p: ProyectoRoadmap, accion: AccionTab, idPadre: string): AbiertoPadre {
+  const a = abrir(deps, p, accion);
+  if (!a.ok) return a;
+  const padre = a.ctx.lectura.tareas.find((x) => x.id === idPadre);
+  if (padre === undefined) return { ok: false, resultado: sinEfecto(accion, p, 'no-esta-en-el-roadmap', idPadre) };
+  return { ok: true, ctx: a.ctx, padre };
+}
+
+/* Alta: la subtarea va al final del bloque de su padre. */
+export function crearSubtarea(
+  deps: DepsAccionRoadmap,
+  p: ProyectoRoadmap,
+  idPadre: string,
+  nueva: SubtareaNueva,
+): ResultadoAccion {
+  const a = abrirPadre(deps, p, 'crear-sub', idPadre);
+  if (!a.ok) return a.resultado;
+  const { ctx, padre } = a;
+  const puesto = insertarSubtarea(ctx.lineas, padre, nueva);
+  const hueco = padre.subtareas.length;
+  const etiquetaSub = etiqueta(idPadre, hueco);
+  const cambios: CambioArchivo[] = [{ id: etiquetaSub, campo: 'subtarea-crear', antes: null, despues: nueva.texto }];
+  return escribir(ctx, p, 'crear-sub', puesto.lineas, cambios, etiquetaSub, () => puesto.linea);
+}
+
+/* Edicion: el texto, sus propiedades y su casilla. La linea del padre no se toca. */
+export function editarSubtarea(
+  deps: DepsAccionRoadmap,
+  p: ProyectoRoadmap,
+  idPadre: string,
+  ref: RefSubtarea,
+  nueva: SubtareaNueva,
+): ResultadoAccion {
+  const a = abrirPadre(deps, p, 'editar-sub', idPadre);
+  if (!a.ok) return a.resultado;
+  const { ctx, padre } = a;
+  const s = buscarSubtarea(padre, ref);
+  if (s === null) return sinEfecto('editar-sub', p, 'no-esta-la-subtarea', idPadre);
+  const hueco = huecoDeSubtarea(padre, s);
+  const etiquetaSub = etiqueta(idPadre, hueco < 0 ? 0 : hueco);
+  const cambios = cambiosDeSubtarea(etiquetaSub, s, nueva);
+  if (cambios.length === 0) return sinEfecto('editar-sub', p, 'sin-cambios', etiquetaSub);
+  const lineas = reescribirSubtarea(ctx.lineas, s, nueva);
+  return escribir(ctx, p, 'editar-sub', lineas, cambios, etiquetaSub, () => s.linea);
+}
+
+/* Borrado: se va la subtarea, con su linea de propiedades si la lleva. */
+export function borrarSubtarea(
+  deps: DepsAccionRoadmap,
+  p: ProyectoRoadmap,
+  idPadre: string,
+  ref: RefSubtarea,
+): ResultadoAccion {
+  const a = abrirPadre(deps, p, 'borrar-sub', idPadre);
+  if (!a.ok) return a.resultado;
+  const { ctx, padre } = a;
+  const s = buscarSubtarea(padre, ref);
+  if (s === null) return sinEfecto('borrar-sub', p, 'no-esta-la-subtarea', idPadre);
+  const hueco = huecoDeSubtarea(padre, s);
+  const etiquetaSub = etiqueta(idPadre, hueco < 0 ? 0 : hueco);
+  const cambios: CambioArchivo[] = [{ id: etiquetaSub, campo: 'subtarea-borrar', antes: s.titulo, despues: null }];
+  return escribir(ctx, p, 'borrar-sub', quitarSubtarea(ctx.lineas, s), cambios, etiquetaSub);
+}
+
+/* Lo que cambio en una subtarea, campo a campo. El estado de la casilla va aparte: no es una
+ * propiedad de la linea «·», es la casilla, y el historial tiene que decir cual de las dos. */
+function cambiosDeSubtarea(etiquetaSub: string, s: SubtareaRoadmap, nueva: SubtareaNueva): CambioArchivo[] {
+  const cambios = diferencias(
+    contenidoDe(s.propiedades, textoDeTitulo(s.titulo)),
+    contenidoDe(nueva.propiedades, nueva.texto),
+    etiquetaSub,
+  );
+  const ahora = nueva.completada === true;
+  if (s.completada !== ahora) {
+    cambios.push({ id: etiquetaSub, campo: 'completada', antes: String(s.completada), despues: String(ahora) });
+  }
+  return cambios;
+}
+
 /* Reordenar: los IDs en el orden que manda el tab. Solo se mueven los bloques mencionados, dentro
+
  * de su seccion, y la prosa de la seccion se queda donde estaba. */
 export function reordenarRoadmap(deps: DepsAccionRoadmap, p: ProyectoRoadmap, ids: string[]): ResultadoAccion {
   const a = abrir(deps, p, 'reordenar');

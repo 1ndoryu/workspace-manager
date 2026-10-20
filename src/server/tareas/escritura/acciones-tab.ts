@@ -10,21 +10,36 @@
  * [por que hay avisos que no lo son] «sin cambios», «ya esta» y «mismo orden» significan que el
  * archivo ya decia lo que la accion pedia. Se callan para no llenar la tab de ruido; el resto
  * —falta el archivo, falta la seccion, no esta la tarea— si sube a la respuesta. */
-import { type PropiedadesTarea } from '../../scanner/roadmap/roadmap.js';
-import { contenidoDe, contenidoDeItem, huellaDeTarea, idRoadmapDeItem, payloadPropio, textoDeTitulo, URGENCIA_POR_DEFECTO } from './contenido-tarea.js';
+import { type PropiedadesTarea, type TareaRoadmap } from '../../scanner/roadmap/roadmap.js';
+import {
+  contenidoDe,
+  contenidoDeItem,
+  espejoDeItem,
+  huellaDeTarea,
+  huellaDeTexto,
+  idRoadmapDeItem,
+  payloadPropio,
+  textoDeTitulo,
+  URGENCIA_POR_DEFECTO,
+} from './contenido-tarea.js';
 import { completarParche } from './parche-completo.js';
 import { leerDelDisco, type LecturaRoadmap } from './escribir-roadmaps.js';
 import {
   borrarDelRoadmap,
+  borrarSubtarea,
   cerrarEnRoadmap,
   crearEnRoadmap,
+  crearSubtarea,
   editarEnRoadmap,
+  editarSubtarea,
+  huecoDeEtiqueta,
   reabrirEnRoadmap,
   reordenarRoadmap,
   SECCION_NUEVAS,
   type AccionTab,
   type DepsAccionRoadmap,
   type ProyectoRoadmap,
+  type RefSubtarea,
   type ResultadoAccion,
 } from './accion-roadmap.js';
 import type { EspejoRoadmap } from '../espejo-roadmap.js';
@@ -141,6 +156,99 @@ function espejoDeAlta(deps: DepsAccionesTab, p: ProyectoRoadmap, id: string): Es
   };
 }
 
+/* --- Subtareas (F4) -------------------------------------------------------------------------
+ * Una subtarea de TASK es una linea sangrada bajo el bloque de su padre. [por que hay que buscar al
+ * padre] El ID del roadmap lo lleva el padre: la subtarea trae el suyo en `parentId`, y sin el padre
+ * no se sabe en que linea del archivo vive. Si el padre no viene del roadmap, la subtarea tampoco
+ * tiene casa en el archivo. */
+
+/* A que subtarea del archivo se refiere un item de TASK: por el texto y el hueco que el espejo
+ * guardo la ultima vez. */
+function refDeSubtarea(item: Record<string, unknown>): RefSubtarea {
+  const e = espejoDeItem(item);
+  const contenido = e?.espejo;
+  const texto =
+    typeof contenido === 'object' && contenido !== null && typeof (contenido as Record<string, unknown>).texto === 'string'
+      ? ((contenido as Record<string, unknown>).texto as string)
+      : '';
+  return { texto, hueco: typeof e?.hueco === 'number' ? e.hueco : null };
+}
+
+/* El espejo de una subtarea que acaba de escribirse, releido del archivo. [por que se relee] La
+ * huella tiene que ser la de la linea tal como quedo: si el titulo llevaba punto o el texto se
+ * recorto, la huella de la linea y la de TASK tienen que coincidir o la pasada siguiente
+ * reescribiria lo que esta bien. */
+function espejoDeSubtarea(
+  deps: DepsAccionesTab,
+  p: ProyectoRoadmap,
+  idPadre: string,
+  hueco: number | null,
+): EspejoRoadmap | null {
+  const lectura = leer(deps, p.ruta);
+  const padre = lectura?.tareas.find((x) => x.id === idPadre);
+  if (lectura === null || padre === undefined) return null;
+  const s = hueco !== null && hueco >= 0 && hueco < padre.subtareas.length ? padre.subtareas[hueco] : padre.subtareas.at(-1);
+  if (s === undefined) return null;
+  const texto = textoDeTitulo(s.titulo);
+  return {
+    id: idPadre,
+    proyecto: p.clave,
+    archivo: 'roadmap.md',
+    seccion: SECCION_NUEVAS,
+    huella: huellaDeTexto(texto, s.propiedades),
+    escritoEn: new Date((deps.ahora ?? Date.now)()).toISOString(),
+    mtimeArchivo: lectura.mtimeMs === null ? null : new Date(lectura.mtimeMs).toISOString(),
+    espejo: contenidoDe(s.propiedades, texto),
+    sub: true,
+    padre: idPadre,
+    hueco: padre.subtareas.findIndex((x) => x.linea === s.linea),
+  };
+}
+
+/* El parche con el que repetir el PUT de una subtarea para grabar su espejo. */
+function repetirSubtarea(item: ItemVersionado, espejo: EspejoRoadmap): ParcheTarea {
+  return completarParche(item.item, {
+    texto: typeof item.item.texto === 'string' ? item.item.texto : '',
+    payload: { ...payloadPropio(item.item), roadmap: espejo },
+  });
+}
+
+/* Lo que hay que hacer con la subtarea que se acaba de guardar en TASK. */
+async function trasGuardarSubtarea(deps: DepsAccionesTab, columna: number, item: ItemVersionado): Promise<EscrituraTab> {
+  const parentId = typeof item.item.parentId === 'number' ? item.item.parentId : null;
+  if (parentId === null) return VACIO;
+  let p: ProyectoRoadmap | null = null;
+  try {
+    p = await proyectoDeColumna(deps, columna);
+    if (p === null) return VACIO;
+    const enTask = await deps.puente.listar(columna);
+    const idPadre = idRoadmapDeItem(enTask.find((x) => x.id === parentId)?.item ?? {});
+    /* El padre no viene del roadmap (una tarjeta de TASK con subtareas propias): no hay linea. */
+    if (idPadre === null) return VACIO;
+    const d = depsRoadmap(deps);
+    const texto = typeof item.item.texto === 'string' ? item.item.texto : '';
+    const conEspejo = espejoDeItem(item.item)?.sub === true;
+
+    const r = conEspejo
+      ? editarSubtarea(d, p, idPadre, refDeSubtarea(item.item), {
+          texto,
+          propiedades: propiedadesDeItem(item.item),
+          /* Marcar una subtarea no la saca del roadmap: escribe su casilla. Su padre sigue abierto,
+           * y el archivo tiene que poder decir que pasos de esa tarea ya estan hechos. */
+          completada: item.item.completado === true,
+        })
+      : texto.trim() === ''
+        ? null
+        : crearSubtarea(d, p, idPadre, { texto, propiedades: propiedadesDeItem(item.item), completada: item.item.completado === true });
+    if (r === null) return VACIO;
+    if (!r.escribio) return { roadmap: resumen(r), repetir: null };
+    const espejo = espejoDeSubtarea(deps, p, idPadre, huecoDeEtiqueta(r.id ?? ''));
+    return { roadmap: resumen(r), repetir: espejo === null ? null : repetirSubtarea(item, espejo) };
+  } catch (e) {
+    return { roadmap: fallo('editar-sub', p, null, e), repetir: null };
+  }
+}
+
 /* Despues de un PUT en TASK: alta, cierre, reapertura o edicion. El parche dice que se toco; el
  * item, que quedo guardado. [por que `completado` manda] El front solo lo manda cuando la usuaria
  * marco o desmarco la casilla, asi que su presencia es la intencion; su valor, cual de las dos. */
@@ -150,9 +258,10 @@ export async function trasGuardar(
   item: ItemVersionado,
   parche: ParcheTarea,
 ): Promise<EscrituraTab> {
-  /* Las subtareas van dentro de su padre en el roadmap (F4): mientras no se escriban, una
-   * subtarea de TASK no tiene linea propia que tocar. */
-  if (item.item.parentId !== null && item.item.parentId !== undefined) return VACIO;
+  /* Las subtareas van dentro de su padre en el roadmap: otra linea, otro camino. */
+  if (item.item.parentId !== null && item.item.parentId !== undefined) {
+    return trasGuardarSubtarea(deps, columna, item);
+  }
   const id = idRoadmapDeItem(item.item);
   let p: ProyectoRoadmap | null = null;
   try {
@@ -183,11 +292,13 @@ export async function trasGuardar(
 
 /* Borrado, paso 1: averiguar que linea del roadmap hay que quitar. Va antes del DELETE porque
  * despues la tarea ya no esta y no hay nada que leer; TASK no tiene GET por id, asi que la columna
- * tiene que venir en la peticion. */
-export interface BorradoPendiente {
-  proyecto: ProyectoRoadmap;
-  id: string;
-}
+ * tiene que venir en la peticion.
+ * [por que dos formas] Una subtarea y su padre no se borran igual: de la subtarea se va su linea
+ * sangrada, y del padre el bloque entero. Y el espejo de una subtarea lleva el ID del padre, asi
+ * que confundirlos se llevaria por delante la tarea de la que forma parte. */
+export type BorradoPendiente =
+  | { tipo: 'tarea'; proyecto: ProyectoRoadmap; id: string }
+  | { tipo: 'subtarea'; proyecto: ProyectoRoadmap; idPadre: string; ref: RefSubtarea };
 
 export async function prepararBorrado(
   deps: DepsAccionesTab,
@@ -196,23 +307,35 @@ export async function prepararBorrado(
 ): Promise<BorradoPendiente | null> {
   const p = await proyectoDeColumna(deps, columna);
   if (p === null) return null;
-  const item = (await deps.puente.listar(columna)).find((x) => x.id === legacyId)?.item;
+  const enTask = await deps.puente.listar(columna);
+  const item = enTask.find((x) => x.id === legacyId)?.item;
   if (item === undefined) return null;
+  const parentId = typeof item.parentId === 'number' ? item.parentId : null;
+  if (parentId !== null) {
+    const idPadre = idRoadmapDeItem(enTask.find((x) => x.id === parentId)?.item ?? {});
+    /* Subtarea de una tarjeta que no viene del roadmap: no hay linea que borrar. */
+    return idPadre === null ? null : { tipo: 'subtarea', proyecto: p, idPadre, ref: refDeSubtarea(item) };
+  }
   const id = idRoadmapDeItem(item);
   /* Tarea de TASK que no viene del roadmap: no hay linea que borrar. */
-  return id === null ? null : { proyecto: p, id };
+  return id === null ? null : { tipo: 'tarea', proyecto: p, id };
 }
 
 /* Borrado, paso 2: quitar la linea. [por que no lanza] El borrado en TASK ya ocurrio; que el
  * archivo falle se cuenta como aviso, no se convierte en un 500 que haga creer que no se borro. */
 export function confirmarBorrado(deps: DepsAccionesTab, pendiente: BorradoPendiente): ResultadoTab {
+  const d = depsRoadmap(deps);
   try {
-    return resumen(borrarDelRoadmap(depsRoadmap(deps), pendiente.proyecto, pendiente.id));
+    return resumen(
+      pendiente.tipo === 'tarea'
+        ? borrarDelRoadmap(d, pendiente.proyecto, pendiente.id)
+        : borrarSubtarea(d, pendiente.proyecto, pendiente.idPadre, pendiente.ref),
+    );
   } catch (e) {
     return {
-      accion: 'borrar',
+      accion: pendiente.tipo === 'tarea' ? 'borrar' : 'borrar-sub',
       proyecto: pendiente.proyecto.nombre,
-      id: pendiente.id,
+      id: pendiente.tipo === 'tarea' ? pendiente.id : pendiente.idPadre,
       linea: null,
       escribio: false,
       aviso: `roadmap-no-escrito: ${e instanceof Error ? e.message : 'desconocido'}`,

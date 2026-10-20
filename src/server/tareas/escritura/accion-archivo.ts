@@ -5,7 +5,7 @@
  * los demas, y el protocolo (D8) se rompe con una linea `·` colgando.
  * [por que lo que no es una tarea se queda donde esta] La prosa de una seccion es de quien la
  * escribio: reordenar mueve bloques de tarea entre sus huecos, nunca la prosa de en medio. */
-import type { PropiedadesTarea, TareaRoadmap } from '../../scanner/roadmap/roadmap.js';
+import type { PropiedadesTarea, SubtareaRoadmap, TareaRoadmap } from '../../scanner/roadmap/roadmap.js';
 import { lineaPropiedades } from './plan-archivo.js';
 import { contenidoDe } from './contenido-tarea.js';
 
@@ -13,6 +13,12 @@ import { contenidoDe } from './contenido-tarea.js';
 const RE_TAREA_NIVEL = /^[-*] \[[ xX]\] /;
 const RE_ENCABEZADO = /^#{1,6} /;
 const RE_ENCABEZADO_SECCION = /^## /;
+
+/* Sangria de una subtarea y de su linea de propiedades: la forma que lee el parser (2 y 4). */
+const SANGRIA_SUB = 2;
+const SANGRIA_PROPS_SUB = 4;
+/* Linea de propiedades de una subtarea, por su sangria. */
+const RE_PROPS_SUB = /^\s{4}·/;
 
 export interface Bloque {
   /* Indices 0-based, `hasta` excluido y sin las lineas en blanco del final. */
@@ -108,6 +114,80 @@ export function insertarTarea(
   const antes = hueco > cabecera + 1 ? [''] : [];
   const salida = [...lineas.slice(0, hueco), ...antes, ...bloque, ...lineas.slice(hueco)];
   return { lineas: salida, linea: hueco + antes.length + 1 };
+}
+
+/* El bloque de una subtarea: su linea y, si la lleva pegada, la de propiedades. [por que pegada] El
+ * parser solo admite la «·» de una subtarea inmediatamente despues de ella y a cuatro espacios; en
+ * cuanto hay otra linea en medio, deja de ser suya. */
+export function bloqueDeSubtarea(lineas: string[], s: SubtareaRoadmap): Bloque {
+  const desde = Math.max(0, s.linea - 1);
+  return { desde, hasta: RE_PROPS_SUB.test(lineas[desde + 1] ?? '') ? desde + 2 : desde + 1 };
+}
+
+/* Las lineas de una subtarea nueva. La casilla va sangrada dos espacios y el titulo en negrita (el
+ * parser no admite subtareas sin negrita: sin ella es cuerpo en prosa). */
+export function lineasDeSubtarea(texto: string, p: PropiedadesTarea, completada = false): string[] {
+  const props = lineaPropiedades(contenidoDe(p, texto), SANGRIA_PROPS_SUB);
+  const titulo = `${' '.repeat(SANGRIA_SUB)}- [${completada ? 'x' : ' '}] **${tituloCanonico(texto)}.**`;
+  return props === null ? [titulo] : [titulo, props];
+}
+
+export interface SubtareaNueva {
+  texto: string;
+  propiedades: PropiedadesTarea;
+  completada?: boolean;
+}
+
+/* Añade la subtarea al final del bloque de su tarea. [por que al final] El orden de las subtareas
+ * es el que tienen en el archivo: insertarla en medio moveria las que ya estaban, y el espejo
+ * (que las empareja por posicion) las leeria como cambiadas todas. Devuelve tambien en que linea
+ * quedo, para el historial. */
+export function insertarSubtarea(
+  lineas: string[],
+  t: TareaRoadmap,
+  nueva: SubtareaNueva,
+): { lineas: string[]; linea: number } {
+  const { hasta } = bloqueDeTarea(lineas, t);
+  const bloque = lineasDeSubtarea(nueva.texto, nueva.propiedades, nueva.completada ?? false);
+  return { lineas: [...lineas.slice(0, hasta), ...bloque, ...lineas.slice(hasta)], linea: hasta + 1 };
+}
+
+export function quitarSubtarea(lineas: string[], s: SubtareaRoadmap): string[] {
+  const { desde, hasta } = bloqueDeSubtarea(lineas, s);
+  return [...lineas.slice(0, desde), ...lineas.slice(hasta)];
+}
+
+/* Reescribe la subtarea: su casilla (marcada o no), su titulo y su linea de propiedades. [por que
+ * no vale `aplicarPlan`] Aquel escribe el titulo de una tarea con su «·» a dos espacios; la
+ * subtarea tiene otra forma, y ademas su estado no vive en las propiedades sino en la casilla. */
+export function reescribirSubtarea(lineas: string[], s: SubtareaRoadmap, nueva: SubtareaNueva): string[] {
+  const { desde } = bloqueDeSubtarea(lineas, s);
+  const salida = [...lineas];
+  salida[desde] = `${' '.repeat(SANGRIA_SUB)}- [${nueva.completada === true ? 'x' : ' '}] **${tituloCanonico(nueva.texto)}.**`;
+  const props = lineaPropiedades(contenidoDe(nueva.propiedades, nueva.texto), SANGRIA_PROPS_SUB);
+  const hay = RE_PROPS_SUB.test(salida[desde + 1] ?? '');
+  if (props === null) {
+    if (hay) salida.splice(desde + 1, 1);
+    return salida;
+  }
+  if (hay) salida[desde + 1] = props;
+  else salida.splice(desde + 1, 0, props);
+  return salida;
+}
+
+/* Indice de una subtarea entre las de su tarea: es el `hueco` con el que el espejo la referencia. */
+export function huecoDeSubtarea(t: TareaRoadmap, s: SubtareaRoadmap): number {
+  return t.subtareas.findIndex((x) => x.linea === s.linea);
+}
+
+/* La subtarea a la que se refiere el espejo: por su texto entre las hermanas y, si el texto cambio,
+ * por su hueco. Es el mismo emparejado que hace `planSubtareas` en la otra direccion (F2): si cada
+ * lado eligiera distinto, el uno reescribiria lo que el otro acaba de dejar. */
+export function buscarSubtarea(t: TareaRoadmap, ref: { texto: string; hueco: number | null }): SubtareaRoadmap | null {
+  const porTexto = t.subtareas.filter((s) => tituloCanonico(s.titulo) === tituloCanonico(ref.texto));
+  if (porTexto.length === 1) return porTexto[0] ?? null;
+  if (ref.hueco !== null && ref.hueco >= 0 && ref.hueco < t.subtareas.length) return t.subtareas[ref.hueco] ?? null;
+  return null;
 }
 
 /* Reordena los bloques de las tareas mencionadas dentro de su seccion. Las tareas que no vienen en

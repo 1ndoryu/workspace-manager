@@ -211,8 +211,10 @@ export function planArchivo(d: DepsPlanArchivo): PlanArchivo {
 
 /* La linea de propiedades del protocolo, o null si no hay nada que decir (y entonces la linea,
  * si existe, se quita). El orden es el del protocolo, no el de llegada: dos pasadas seguidas
- * tienen que producir el mismo texto. */
-export function lineaPropiedades(c: EspejoContenido): string | null {
+ * tienen que producir el mismo texto.
+ * [por que la sangria] La indentacion dice de quien es la linea (parser: 2 la tarea, 4 su
+ * subtarea), asi que la misma funcion sirve para las dos. */
+export function lineaPropiedades(c: EspejoContenido, sangria = 2): string | null {
   const pares: string[] = [];
   if (c.prioridad !== null && c.prioridad !== '') pares.push(`prioridad: ${c.prioridad}`);
   if (c.urgencia !== null && c.urgencia !== '') pares.push(`urgencia: ${c.urgencia}`);
@@ -222,7 +224,7 @@ export function lineaPropiedades(c: EspejoContenido): string | null {
   }
   if (c.etiquetas.length > 0) pares.push(`etiquetas: ${c.etiquetas.join(', ')}`);
   if (c.dependeDe.length > 0) pares.push(`depende-de: ${c.dependeDe.join(', ')}`);
-  return pares.length === 0 ? null : `  · ${pares.join(' · ')}`;
+  return pares.length === 0 ? null : `${' '.repeat(sangria)}· ${pares.join(' · ')}`;
 }
 
 /* La linea de la tarea con el texto nuevo. [por que] Se conserva la forma del original —su

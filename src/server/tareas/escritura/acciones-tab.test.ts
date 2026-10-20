@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { analizarRoadmap } from '../../scanner/roadmap/roadmap.js';
-import { espejoDeItem, huellaDeTarea } from './contenido-tarea.js';
+import { espejoDeItem, huellaDeTarea, huellaDeTexto } from './contenido-tarea.js';
 import {
   confirmarBorrado,
   prepararBorrado,
@@ -38,6 +38,9 @@ const CUERPO = [
   '- Nada.',
   '',
 ].join('\n');
+
+/* El mismo roadmap con una subtarea escrita bajo `20AA-1`: es lo que hay que editar y borrar. */
+const CON_SUB = CUERPO.replace('  · prioridad: alta\n', '  · prioridad: alta\n  - [ ] **Su subtarea.**\n');
 
 interface Taller {
   raiz: string;
@@ -84,6 +87,34 @@ function espejado(id: number, roadmapId: string, campos: Record<string, unknown>
 /* Una tarjeta de TASK que no nacio del roadmap: sin `payload.roadmap`. */
 function sinEspejo(id: number): ItemVersionado {
   return { id, item: { proyectoId: COLUMNA, parentId: null, texto: 'De TASK.' }, updatedAt: '2026-10-20T12:00:00.000Z' };
+}
+
+/* La subtarea de TASK tal como la deja el puente: con su espejo, que lleva el ID del padre. */
+function subtareaDe(id: number, padreId: number, campos: Record<string, unknown>, hueco = 0, textoEspejo = 'Su subtarea.'): ItemVersionado {
+  return {
+    id,
+    item: {
+      proyectoId: COLUMNA,
+      parentId: padreId,
+      orden: hueco,
+      texto: 'Su subtarea.',
+      ...campos,
+      roadmap: {
+        id: '20AA-1',
+        proyecto: 'proyecto',
+        archivo: 'roadmap.md',
+        seccion: 'Pendientes',
+        huella: huellaDeTexto(textoEspejo, {}),
+        escritoEn: '2026-10-20T12:00:00.000Z',
+        mtimeArchivo: null,
+        espejo: { texto: textoEspejo, prioridad: null, urgencia: null, etiquetas: [], dependeDe: [], fechas: {} },
+        sub: true,
+        padre: '20AA-1',
+        hueco,
+      },
+    },
+    updatedAt: '2026-10-20T12:00:00.000Z',
+  };
 }
 
 void describe('acciones-tab', () => {
@@ -165,11 +196,72 @@ void describe('acciones-tab', () => {
     assert.equal(otra.roadmap?.aviso, null);
   });
 
-  void it('una subtarea no toca el archivo: sus lineas las escribe F4', async () => {
-    const t = taller();
-    const item = espejado(9002, '20AA-1', { texto: 'Su subtarea.', parentId: 9001 });
-    assert.deepEqual(await trasGuardar(t.deps, COLUMNA, item, { texto: 'Su subtarea.' }), { roadmap: null, repetir: null });
+  void it('un alta de subtarea escribe la linea sangrada y devuelve el espejo de la subtarea', async () => {
+    const t = taller(CUERPO, [espejado(9001, '20AA-1', { texto: 'Primera.' })]);
+    const item: ItemVersionado = {
+      id: 9002,
+      item: { proyectoId: COLUMNA, parentId: 9001, orden: 1, texto: 'Otra suya.', completado: false },
+      updatedAt: '2026-10-20T12:00:00.000Z',
+    };
+    const r = await trasGuardar(t.deps, COLUMNA, item, { texto: 'Otra suya.', parentId: 9001 });
+    assert.equal(r.roadmap?.accion, 'crear-sub');
+    assert.equal(r.roadmap?.escribio, true);
+    assert.equal(r.roadmap?.id, '20AA-1#1');
+    assert.match(t.leer(), /^ {2}- \[ \] \*\*Otra suya\.\*\*$/m);
+    /* El espejo de la subtarea lleva el ID del padre y su hueco: sin ellos, la proxima edicion no
+     * sabria que linea reescribir. */
+    const espejo = espejoDeItem({ roadmap: (r.repetir?.payload as Record<string, unknown> | undefined)?.roadmap });
+    assert.equal(espejo?.sub, true);
+    assert.equal(espejo?.padre, '20AA-1');
+    assert.equal(espejo?.hueco, 0);
+    assert.equal(espejo?.huella, huellaDeTexto('Otra suya.', {}));
+    /* El PUT repetido es de reemplazo: lleva el texto y la columna, no solo el payload. */
+    assert.equal(r.repetir?.texto, 'Otra suya.');
+    assert.equal(r.repetir?.proyectoId, COLUMNA);
+    assert.equal(r.repetir?.parentId, 9001);
+  });
+
+  void it('marcar una subtarea escribe su casilla, sin sacarla del bloque del padre', async () => {
+    const enTask = [espejado(9001, '20AA-1', { texto: 'Primera.' }), subtareaDe(9002, 9001, { completado: true })];
+    const t = taller(CON_SUB, enTask);
+    const r = await trasGuardar(t.deps, COLUMNA, enTask[1] as ItemVersionado, { texto: 'Su subtarea.', completado: true });
+    assert.equal(r.roadmap?.accion, 'editar-sub');
+    assert.equal(r.roadmap?.escribio, true);
+    assert.match(t.leer(), /^ {2}- \[x\] \*\*Su subtarea\.\*\*$/m);
+    /* La tarea padre sigue pendiente en el archivo, con su linea de propiedades. */
+    assert.match(t.leer(), /- \[ \] `20AA-1` — \*\*Primera\.\*\*\n {2}· prioridad: alta/);
+  });
+
+  void it('editar el texto de una subtarea la encuentra por su hueco y refresca la huella', async () => {
+    const enTask = [espejado(9001, '20AA-1', { texto: 'Primera.' }), subtareaDe(9002, 9001, { texto: 'Su subtarea cambiada.' })];
+    const t = taller(CON_SUB, enTask);
+    const r = await trasGuardar(t.deps, COLUMNA, enTask[1] as ItemVersionado, { texto: 'Su subtarea cambiada.' });
+    assert.equal(r.roadmap?.escribio, true);
+    assert.match(t.leer(), /^ {2}- \[ \] \*\*Su subtarea cambiada\.\*\*$/m);
+    const espejo = espejoDeItem({ roadmap: (r.repetir?.payload as Record<string, unknown> | undefined)?.roadmap });
+    assert.equal(espejo?.huella, huellaDeTexto('Su subtarea cambiada.', {}));
+    assert.equal(espejo?.hueco, 0);
+  });
+
+  void it('una subtarea cuyo padre no viene del roadmap no toca el archivo', async () => {
+    const t = taller(CUERPO, [sinEspejo(9001), subtareaDe(9002, 9001, {})]);
+    const enTask = [sinEspejo(9001), subtareaDe(9002, 9001, {})];
+    const r = await trasGuardar(t.deps, COLUMNA, enTask[1] as ItemVersionado, { texto: 'Su subtarea.' });
+    assert.deepEqual(r, { roadmap: null, repetir: null });
     assert.equal(t.leer(), CUERPO);
+  });
+
+  void it('borrar una subtarea se lleva su linea y deja el bloque del padre entero', async () => {
+    const enTask = [espejado(9001, '20AA-1', { texto: 'Primera.' }), subtareaDe(9002, 9001, {})];
+    const t = taller(CON_SUB, enTask);
+    const pendiente = await prepararBorrado(t.deps, COLUMNA, 9002);
+    assert.equal(pendiente?.tipo, 'subtarea');
+    const r = confirmarBorrado(t.deps, pendiente as NonNullable<typeof pendiente>);
+    assert.equal(r.accion, 'borrar-sub');
+    assert.equal(r.escribio, true);
+    assert.equal(analizarRoadmap(t.leer()).tareas[0]?.subtareas.length, 0);
+    /* El padre sigue donde estaba, con su ID y sus propiedades. */
+    assert.match(t.leer(), /- \[ \] `20AA-1` — \*\*Primera\.\*\*\n {2}· prioridad: alta\n\n- \[ \] `20AA-2`/);
   });
 
   void it('si el puente no responde, el aviso lo dice en vez de tirar la respuesta', async () => {
@@ -184,7 +276,7 @@ void describe('acciones-tab', () => {
     const enTask = [espejado(9001, '20AA-1', { texto: 'Primera.' })];
     const t = taller(CUERPO, enTask);
     const pendiente = await prepararBorrado(t.deps, COLUMNA, 9001);
-    assert.equal(pendiente?.id, '20AA-1');
+    assert.equal(pendiente?.tipo === 'tarea' ? pendiente.id : null, '20AA-1');
     assert.equal(confirmarBorrado(t.deps, pendiente as NonNullable<typeof pendiente>).escribio, true);
     assert.equal(analizarRoadmap(t.leer()).tareas.some((x) => x.id === '20AA-1'), false);
 

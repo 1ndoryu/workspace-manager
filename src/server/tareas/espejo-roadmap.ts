@@ -39,6 +39,13 @@ export interface EspejoRoadmap {
   escritoEn: string;
   mtimeArchivo: string | null;
   espejo: EspejoContenido;
+  /* Solo en una subtarea: `id` es entonces el de su padre (las subtareas no tienen ID propio), y
+   * `hueco` su posicion entre las hermanas, que es como se la vuelve a encontrar si el texto
+   * cambio. [por que tambien `padre`] El `id` ya lo dice; se guarda aparte porque es lo que lee la
+   * otra direccion (`planSubtareas`), y leerlo del mismo sitio en las dos evita que se separen. */
+  sub?: boolean;
+  padre?: string;
+  hueco?: number;
 }
 
 export interface AccionEspejo {

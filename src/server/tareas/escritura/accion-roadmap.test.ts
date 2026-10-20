@@ -9,7 +9,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { analizarRoadmap } from '../../scanner/roadmap/roadmap.js';
 import type { EspejoContenido } from './contenido-tarea.js';
-import { borrarDelRoadmap, cerrarEnRoadmap, crearEnRoadmap, editarEnRoadmap, reabrirEnRoadmap, reordenarRoadmap, type DepsAccionRoadmap, type ProyectoRoadmap } from './accion-roadmap.js';
+import {
+  borrarDelRoadmap,
+  borrarSubtarea,
+  cerrarEnRoadmap,
+  crearEnRoadmap,
+  crearSubtarea,
+  editarEnRoadmap,
+  editarSubtarea,
+  reabrirEnRoadmap,
+  reordenarRoadmap,
+  type DepsAccionRoadmap,
+  type ProyectoRoadmap,
+} from './accion-roadmap.js';
 
 const T = Date.parse('2026-10-20T12:00:00.000Z');
 
@@ -264,6 +276,150 @@ void describe('accion-roadmap', () => {
     const r = reordenarRoadmap(t.deps, t.proyecto, ['20AA-1', '20AA-2']);
     assert.equal(r.escribio, false);
     assert.equal(r.aviso, 'orden-sin-cambios');
+    assert.equal(t.leer(), CUERPO);
+  });
+});
+
+/* Subtareas (20AA-10 F4): la linea sangrada y su linea de propiedades a cuatro espacios. */
+void describe('accion-roadmap: subtareas', () => {
+  void it('crear la deja al final del bloque de su padre, con propiedades a cuatro espacios', () => {
+    const t = taller();
+    const r = crearSubtarea(t.deps, t.proyecto, '20AA-1', { texto: 'Otra suya.', propiedades: { urgencia: 'urgente' } });
+    assert.equal(r.id, '20AA-1#2');
+    assert.equal(r.linea, 6);
+    assert.equal(r.escribio, true);
+    assert.equal(r.aviso, null);
+    assert.deepEqual(t.leer().split('\n').slice(0, 8), [
+      '## Pendientes',
+      '',
+      '- [ ] `20AA-1` — **Primera.**',
+      '  · prioridad: alta',
+      '  - [ ] **Su subtarea.**',
+      '  - [ ] **Otra suya.**',
+      '    · urgencia: urgente',
+      '',
+    ]);
+    /* El analisis no la lee como problema: la forma escrita es la que espera el parser. */
+    const a = analizarRoadmap(t.leer());
+    assert.deepEqual(a.problemas, []);
+    assert.equal(a.tareas[0]?.subtareas.length, 2);
+    assert.equal(a.tareas[0]?.subtareas[1]?.propiedades.urgencia, 'urgente');
+    assert.deepEqual(t.historial()[0], {
+      at: '2026-10-20T12:00:00.000Z',
+      tarea: '20AA-1#2',
+      origen: 'task',
+      campo: 'subtarea-crear',
+      antes: null,
+      despues: 'Otra suya.',
+      sitio: 'roadmap.md:6',
+      autor: 'puente',
+    });
+  });
+
+  void it('crear en un padre sin subtareas la pone pegada a su linea', () => {
+    const t = taller();
+    const r = crearSubtarea(t.deps, t.proyecto, '20AA-2', { texto: 'Suya.', propiedades: {} });
+    assert.equal(r.linea, 8);
+    assert.deepEqual(t.leer().split('\n').slice(6, 9), ['- [ ] `20AA-2` — **Segunda.**', '  - [ ] **Suya.**', '']);
+  });
+
+  void it('editar cambia el texto y las propiedades de la subtarea, no la linea del padre', () => {
+    const t = taller();
+    const r = editarSubtarea(
+      t.deps,
+      t.proyecto,
+      '20AA-1',
+      { texto: 'Su subtarea.', hueco: 0 },
+      { texto: 'Su subtarea cambiada.', propiedades: { prioridad: 'baja' } },
+    );
+    assert.equal(r.escribio, true);
+    assert.equal(r.linea, 5);
+    assert.deepEqual(
+      r.cambios.map((c) => `${c.campo}: ${c.antes} -> ${c.despues}`),
+      ['texto: Su subtarea. -> Su subtarea cambiada.', 'prioridad: null -> baja'],
+    );
+    assert.deepEqual(t.leer().split('\n').slice(2, 6), [
+      '- [ ] `20AA-1` — **Primera.**',
+      '  · prioridad: alta',
+      '  - [ ] **Su subtarea cambiada.**',
+      '    · prioridad: baja',
+    ]);
+  });
+
+  void it('marcar una subtarea escribe la casilla y lo anota como estado, no como propiedad', () => {
+    const t = taller();
+    const r = editarSubtarea(
+      t.deps,
+      t.proyecto,
+      '20AA-1',
+      { texto: 'Su subtarea.', hueco: 0 },
+      { texto: 'Su subtarea.', propiedades: {}, completada: true },
+    );
+    assert.equal(r.escribio, true);
+    assert.deepEqual(r.cambios.map((c) => `${c.campo}: ${c.antes} -> ${c.despues}`), ['completada: false -> true']);
+    assert.match(t.leer(), /^ {2}- \[x\] \*\*Su subtarea\.\*\*$/m);
+    /* Y el analisis la lee marcada, sin sacarla del bloque de su padre. */
+    assert.equal(analizarRoadmap(t.leer()).tareas[0]?.subtareas[0]?.completada, true);
+  });
+
+  void it('editar sin diferencias no toca el archivo', () => {
+    const t = taller();
+    const r = editarSubtarea(
+      t.deps,
+      t.proyecto,
+      '20AA-1',
+      { texto: 'Su subtarea.', hueco: 0 },
+      { texto: 'Su subtarea.', propiedades: {} },
+    );
+    assert.equal(r.escribio, false);
+    assert.equal(r.aviso, 'sin-cambios');
+    assert.equal(t.leer(), CUERPO);
+  });
+
+  void it('si el texto cambio desde la ultima vez, la subtarea se encuentra por su hueco', () => {
+    const t = taller();
+    /* El espejo dice el texto viejo; el archivo ya lo tiene cambiado. El hueco es lo que queda. */
+    const r = editarSubtarea(
+      t.deps,
+      t.proyecto,
+      '20AA-1',
+      { texto: 'Como decia antes.', hueco: 0 },
+      { texto: 'Como dice ahora.', propiedades: {} },
+    );
+    assert.equal(r.escribio, true);
+    assert.match(t.leer(), /^ {2}- \[ \] \*\*Como dice ahora\.\*\*$/m);
+  });
+
+  void it('borrar se lleva la subtarea con su linea de propiedades', () => {
+    const t = taller(CUERPO.replace('  - [ ] **Su subtarea.**', '  - [ ] **Su subtarea.**\n    · prioridad: baja'));
+    const r = borrarSubtarea(t.deps, t.proyecto, '20AA-1', { texto: 'Su subtarea.', hueco: 0 });
+    assert.equal(r.escribio, true);
+    assert.deepEqual(r.cambios.map((c) => `${c.campo}: ${c.antes}`), ['subtarea-borrar: Su subtarea.']);
+    assert.equal(analizarRoadmap(t.leer()).tareas[0]?.subtareas.length, 0);
+    assert.equal(t.leer().includes('prioridad: baja'), false);
+    /* La tarea padre se queda con su linea de propiedades. */
+    assert.match(t.leer(), /- \[ \] `20AA-1` — \*\*Primera\.\*\*\n {2}· prioridad: alta/);
+  });
+
+  void it('una subtarea que no esta lo dice y no toca nada', () => {
+    const t = taller();
+    const r = editarSubtarea(
+      t.deps,
+      t.proyecto,
+      '20AA-1',
+      { texto: 'Fantasma.', hueco: 7 },
+      { texto: 'Fantasma.', propiedades: {} },
+    );
+    assert.equal(r.escribio, false);
+    assert.equal(r.aviso, 'no-esta-la-subtarea');
+    assert.equal(t.leer(), CUERPO);
+  });
+
+  void it('con un padre que no esta en el roadmap no se inventa la subtarea', () => {
+    const t = taller();
+    const r = crearSubtarea(t.deps, t.proyecto, '20AA-9', { texto: 'Suya.', propiedades: {} });
+    assert.equal(r.escribio, false);
+    assert.equal(r.aviso, 'no-esta-en-el-roadmap');
     assert.equal(t.leer(), CUERPO);
   });
 });
