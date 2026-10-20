@@ -21,11 +21,9 @@ export async function prepararRemoto(rutaProyecto: string, gestor: GestorAudit):
 }
 
 /* Si el proyecto se analiza en la 89. `modoAnalisis` lee registro.json, que es
- * configuracion privada: sin el (o ilegible) se audita en local, nunca se falla. */
-export function enTaller(clave: string): boolean {
-  try {
-    return modoAnalisis(clave) === 'taller';
-  } catch {
-    return false;
-  }
+ * configuracion privada. [por que] Un error al leerlo SE PROPAGA: antes se tragaba
+ * y devolvia false, y un proyecto del taller se auditaba en el portatil (AGENTS §1).
+ * Quien llama lo convierte en 'error' con su motivo. */
+export function enTaller(clave: string, modo: typeof modoAnalisis = modoAnalisis): boolean {
+  return modo(clave) === 'taller';
 }

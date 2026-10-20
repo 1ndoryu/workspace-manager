@@ -164,9 +164,17 @@ export function auditarProyecto(p: Proyecto, forzar = false): Promise<AnalisisVu
     if (guardado) return Promise.resolve(guardado);
   }
   return compartirVuelo(enVuelo, p.clave, async (): Promise<AnalisisVulnerabilidades> => {
+    /* [por que] Sin modo legible no sabemos dónde auditar: error visible y NO se guarda
+     * en caché, para que el siguiente intento vuelva a leer el registro. */
+    let enLa89: boolean;
+    try {
+      enLa89 = enTaller(p.clave);
+    } catch (err) {
+      const motivo = err instanceof Error ? err.message : String(err);
+      return sinDatos({ clave: p.clave, gestor: null, lockfile: '' }, 'error', `no se pudo leer el modo de análisis: ${motivo.slice(0, 120)}`);
+    }
     /* En serie: un audit a la vez por proyecto, como el barrido del workspace. */
     const partes: AnalisisVulnerabilidades[] = [];
-    const enLa89 = enTaller(p.clave);
     for (const lock of locks) partes.push(await correrAudit(p, lock, enLa89));
     const dato = agregarAnalisis(p.clave, partes);
     guardarVulnerabilidades(p.clave, fresco, dato);
