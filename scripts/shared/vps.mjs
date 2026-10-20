@@ -96,8 +96,9 @@ export function comandoEnVps(config, dir, argv) {
 
 /* Ejecuta `argv` en la 89 y devuelve el resultado de ssh. `capturar` recoge stdout (análisis)
  * en vez de volcarlo al terminal. `entrada` (Buffer) se envía por stdin (p. ej. un tar).
- * [por que] Con `timeout`: sin él, una orden colgada en la 89 bloqueaba el gate para siempre. */
-export function ejecutarEnVps(config, dir, argv, { capturar = false, entrada } = {}) {
+ * [por que] Con `timeout`: sin él, una orden colgada en la 89 bloqueaba el gate para siempre.
+ * `ejecutor` se inyecta solo para probar el tope sin una VPS delante. */
+export function ejecutarEnVps(config, dir, argv, { capturar = false, entrada, ejecutor = spawnSync } = {}) {
   const opciones = {
     encoding: 'utf8',
     stdio: entrada ? ['pipe', 'inherit', 'inherit'] : capturar ? ['ignore', 'pipe', 'inherit'] : 'inherit',
@@ -106,7 +107,7 @@ export function ejecutarEnVps(config, dir, argv, { capturar = false, entrada } =
     timeout: config.timeoutRemotoMs ?? TIMEOUT_REMOTO_MS,
   };
   if (entrada) opciones.input = entrada;
-  return spawnSync(BIN_SSH, ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', config.host, comandoEnVps(config, dir, argv)], opciones);
+  return ejecutor(BIN_SSH, ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', config.host, comandoEnVps(config, dir, argv)], opciones);
 }
 
 /* ssh devuelve 255 cuando no llega a la VPS; ese caso se nombra aparte del fallo del comando.

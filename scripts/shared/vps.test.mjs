@@ -6,7 +6,7 @@ import path from 'node:path';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
-import { cargarTaller, comandoEnVps, decidirDonde, dentroDe, dirRemotoDe, dirRemotoDeHerramienta, mensajeSinVps } from './vps.mjs';
+import { cargarTaller, comandoEnVps, decidirDonde, dentroDe, dirRemotoDe, dirRemotoDeHerramienta, ejecutarEnVps, mensajeSinVps } from './vps.mjs';
 
 const TALLER = {
   host: 'remoto-ejemplo',
@@ -79,6 +79,24 @@ test('comandoEnVps: usa el candado y el preludio de la configuración, y entra e
 test('comandoEnVps: sin preludio en la configuración no añade nada al comando', () => {
   const sinPreludio = { ...TALLER, preludio: undefined };
   assert.doesNotMatch(comandoEnVps(sinPreludio, '/srv/taller/proyecto', ['true']), /RUTA_EJEMPLO/);
+});
+
+test('ejecutarEnVps: aplica el tope por defecto (30 min) y el de taller.json si lo hay', () => {
+  // [por que] Sin tope una orden colgada bloqueaba el gate; se comprueba que el tope llega a spawnSync.
+  const capturas = [];
+  const ejecutor = (bin, args, opciones) => (capturas.push(opciones), { status: 0 });
+  ejecutarEnVps(TALLER, '/srv/taller/proyecto', ['true'], { ejecutor });
+  ejecutarEnVps({ ...TALLER, timeoutRemotoMs: 5000 }, '/srv/taller/proyecto', ['true'], { ejecutor });
+  assert.equal(capturas[0].timeout, 30 * 60_000);
+  assert.equal(capturas[1].timeout, 5000);
+});
+
+test('ejecutarEnVps: el timeout de spawnSync llega como status null y se nombra', () => {
+  // [por que] Al cortar por tiempo spawnSync devuelve status null y error ETIMEDOUT; mensajeSinVps lo nombra.
+  const ejecutor = () => ({ status: null, error: Object.assign(new Error('spawnSync ssh ETIMEDOUT'), { code: 'ETIMEDOUT' }) });
+  const r = ejecutarEnVps(TALLER, '/srv/taller/proyecto', ['true'], { ejecutor });
+  assert.equal(r.status, null);
+  assert.match(mensajeSinVps(r.status, TALLER.host), /se cortó por tiempo/);
 });
 
 test('mensajeSinVps: 255 de ssh es «no hay VPS»; otros códigos no', () => {
