@@ -120,176 +120,187 @@ export function leerRefreshMs(): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+/* Siembra y refresca el mapa uuid→sitio si está vacío o caducado. [por que] Lo
+ * necesitan /agente y /agente-detalle; antes cada uno llevaba el mismo bloque. */
+function asegurarMapaSitios(): void {
+  if (mapaSitios.size === 0) {
+    sembrarMapaSettings();
+  }
+  if (mapaSitios.size === 0 || Date.now() - mapaSitiosTs > MAPA_SITIOS_MS) {
+    refrescarMapaSitios();
+  }
+}
+
+async function responderConfig(res: ServerResponse): Promise<void> {
+  const rutaBin = rutaBinario();
+  const config: VpsConfig = {
+    refreshMs: leerRefreshMs(),
+    binario: {
+      ruta: rutaBin ?? '(no encontrado)',
+      version: rutaBin ? await versionBinario() : null,
+      ok: rutaBin !== null,
+    },
+  };
+  json(res, 200, config);
+}
+
+/* Snapshot del agente glory-pulse (299A-12 F2): una sola conexión. Sin
+ * PULSE_URL/PULSE_TOKEN el frontend usa legacy (`sin-configurar`). El
+ * token jamás viaja al frontend (vive en agente.ts). */
+async function responderAgente(res: ServerResponse): Promise<void> {
+  const agente = agenteProd();
+  if (!agente) {
+    json(res, 200, { disponible: false, snapshot: null, error: 'sin-configurar' });
+    return;
+  }
+  asegurarMapaSitios();
+  const r = await agente.snapshot();
+  if (r.disponible && r.snapshot) {
+    const contenedores = enriquecerConSitios(r.snapshot.contenedores, mapaSitios);
+    /* [07AA-4] Persiste las sumas por sitio de lo YA servido (cero
+     * consultas extra; best-effort, nunca rompe la respuesta). */
+    historialProd().anotar(contenedores, r.snapshot.ts);
+    json(res, 200, {
+      ...r,
+      snapshot: { ...r.snapshot, contenedores },
+    });
+    return;
+  }
+  json(res, 200, r);
+}
+
+/* [309A-2] Detalle por sitio en una conexión: proxy a
+ * `GET /detalle?sitio=<uuid>` del agente. `uuid` fail-closed (misma
+ * regla que pulse: alfanumérico; el nombre legible lo resuelve el
+ * frontend desde su lista de sitios). Sin agente, `sin-configurar` y
+ * el llamante usa legacy. El legacy `/detalle` queda intacto. */
+async function responderAgenteDetalle(res: ServerResponse, url: URL): Promise<void> {
+  const uuid = url.searchParams.get('uuid') ?? '';
+  if (!/^[A-Za-z0-9]{1,64}$/.test(uuid)) {
+    json(res, 400, { error: 'uuid-invalido' });
+    return;
+  }
+  const agente = agenteProd();
+  if (!agente) {
+    json(res, 200, { disponible: false, detalle: null, error: 'sin-configurar' });
+    return;
+  }
+  asegurarMapaSitios();
+  const r = await agente.detalleSitio(uuid);
+  if (r.disponible && r.detalle) {
+    json(res, 200, {
+      ...r,
+      detalle: {
+        ...r.detalle,
+        contenedores: enriquecerConSitios(r.detalle.contenedores, mapaSitios),
+      },
+    });
+    return;
+  }
+  json(res, 200, r);
+}
+
+async function responderSitios(res: ServerResponse): Promise<void> {
+  if (!rutaBinario()) {
+    json(res, 503, { error: 'sin-binario', ayuda: dondeBuscarBinario() });
+    return;
+  }
+  const [base, detalle] = await listadoSitiosCacheado();
+  const filas = base.ok ? parsearListado(String(base.datos), false) : [];
+  const reales = new Map(
+    (detalle.ok ? parsearListado(String(detalle.datos), true) : []).map((s) => [s.nombre, s]),
+  );
+  const sitios: VpsSitio[] = [];
+  const avisos: VpsAviso[] = [];
+  for (const s of filas) {
+    const real = reales.get(s.nombre);
+    const estado = real?.estadoReal ?? '';
+    const estadoReal = estado || (s.uuid ? 'desconocido' : 'sin-asignar');
+    sitios.push({ ...s, estadoReal });
+    if (!s.uuid) avisos.push({ nombre: s.nombre, problema: 'sin-asignar' });
+    else if (!estado) {
+      avisos.push({
+        nombre: s.nombre,
+        problema: reales.size === 0 ? 'sin-estado-real' : 'estado-desconocido',
+      });
+    }
+  }
+  nombresConocidos = sitios.map((s) => s.nombre);
+  const aviso =
+    !base.ok && !detalle.ok
+      ? 'no se pudo leer el listado (¿VPS inalcanzable?)'
+      : !detalle.ok
+        ? 'sin estado real: el detallado fallo, los estados son desconocidos'
+        : null;
+  json(res, 200, { sitios, avisos, aviso });
+}
+
+async function responderDetalle(res: ServerResponse, url: URL): Promise<void> {
+  const sitio = url.searchParams.get('sitio') ?? '';
+  if (!NOMBRE_OK.test(sitio)) {
+    json(res, 400, { error: 'nombre-invalido', sitio });
+    return;
+  }
+  if (nombresConocidos && !nombresConocidos.includes(sitio)) {
+    json(res, 404, { error: 'sitio-desconocido', sitio });
+    return;
+  }
+  if (!rutaBinario()) {
+    json(res, 503, { error: 'sin-binario' });
+    return;
+  }
+  /* Serie (el puente ya encola a 1): cada pieza cae por separado. El JSON
+   * se sanea de secretos antes de responder (el visor lo muestra todo). */
+  const detalle: VpsDetalle = {
+    sitio,
+    piezas: {
+      salud: await pieza(() => salud(sitio), true),
+      stats: await pieza(async () => sanearJson(await statsJson(sitio))),
+      inspeccion: await pieza(async () => sanearJson(await inspectJson(sitio))),
+      eventos: await pieza(async () => sanearJson(await eventosJson(sitio))),
+      bd: await pieza(async () => sanearJson(await dbStatsJson(sitio))),
+      diagnostico: await pieza(async () => sanearJson(await diagnoseJson(sitio))),
+      logs: await pieza(() => logs(sitio, 100), true),
+    },
+  };
+  json(res, 200, detalle);
+}
+
+async function responderRecursos(res: ServerResponse): Promise<void> {
+  if (!rutaBinario()) {
+    json(res, 503, { error: 'sin-binario' });
+    return;
+  }
+  const texto = await pieza(() => auditoria(), true);
+  const resumen: VpsPieza = texto.ok ? resumirAuditoria(String(texto.datos)) : {
+    ok: false,
+    datos: null,
+    error: 'sin-metricas',
+  };
+  json(res, 200, { piezas: { resumen, texto } });
+}
+
+/* Tabla ruta → respuesta. [por que] Añadir un endpoint es una línea aquí y no otro `if`
+ * dentro de `manejarRutasVps` (principio abierto/cerrado). */
+type Responder = (res: ServerResponse, url: URL) => Promise<void>;
+
+const RESPUESTAS = new Map<string, Responder>([
+  ['/api/vps/config', (res) => responderConfig(res)],
+  ['/api/vps/agente', (res) => responderAgente(res)],
+  ['/api/vps/agente-detalle', (res, url) => responderAgenteDetalle(res, url)],
+  ['/api/vps/sitios', (res) => responderSitios(res)],
+  ['/api/vps/detalle', (res, url) => responderDetalle(res, url)],
+  ['/api/vps/recursos', (res) => responderRecursos(res)],
+]);
+
 export async function manejarRutasVps(
   _req: IncomingMessage,
   res: ServerResponse,
   url: URL,
   ruta: string,
 ): Promise<boolean> {
-  if (ruta === '/api/vps/config') {
-    const rutaBin = rutaBinario();
-    const config: VpsConfig = {
-      refreshMs: leerRefreshMs(),
-      binario: {
-        ruta: rutaBin ?? '(no encontrado)',
-        version: rutaBin ? await versionBinario() : null,
-        ok: rutaBin !== null,
-      },
-    };
-    json(res, 200, config);
-    return true;
-  }
-
-  /* Snapshot del agente glory-pulse (299A-12 F2): una sola conexión. Sin
-   * PULSE_URL/PULSE_TOKEN el frontend usa legacy (`sin-configurar`). El
-   * token jamás viaja al frontend (vive en agente.ts). */
-  if (ruta === '/api/vps/agente') {
-    const agente = agenteProd();
-    if (!agente) {
-      json(res, 200, { disponible: false, snapshot: null, error: 'sin-configurar' });
-      return true;
-    }
-    if (mapaSitios.size === 0) {
-      sembrarMapaSettings();
-    }
-    if (mapaSitios.size === 0 || Date.now() - mapaSitiosTs > MAPA_SITIOS_MS) {
-      refrescarMapaSitios();
-    }
-    const r = await agente.snapshot();
-    if (r.disponible && r.snapshot) {
-      const contenedores = enriquecerConSitios(r.snapshot.contenedores, mapaSitios);
-      /* [07AA-4] Persiste las sumas por sitio de lo YA servido (cero
-       * consultas extra; best-effort, nunca rompe la respuesta). */
-      historialProd().anotar(contenedores, r.snapshot.ts);
-      json(res, 200, {
-        ...r,
-        snapshot: { ...r.snapshot, contenedores },
-      });
-      return true;
-    }
-    json(res, 200, r);
-    return true;
-  }
-
-  /* [309A-2] Detalle por sitio en una conexión: proxy a
-   * `GET /detalle?sitio=<uuid>` del agente. `uuid` fail-closed (misma
-   * regla que pulse: alfanumérico; el nombre legible lo resuelve el
-   * frontend desde su lista de sitios). Sin agente, `sin-configurar` y
-   * el llamante usa legacy. El legacy `/detalle` queda intacto. */
-  if (ruta === '/api/vps/agente-detalle') {
-    const uuid = url.searchParams.get('uuid') ?? '';
-    if (!/^[A-Za-z0-9]{1,64}$/.test(uuid)) {
-      json(res, 400, { error: 'uuid-invalido' });
-      return true;
-    }
-    const agente = agenteProd();
-    if (!agente) {
-      json(res, 200, { disponible: false, detalle: null, error: 'sin-configurar' });
-      return true;
-    }
-    if (mapaSitios.size === 0) {
-      sembrarMapaSettings();
-    }
-    if (mapaSitios.size === 0 || Date.now() - mapaSitiosTs > MAPA_SITIOS_MS) {
-      refrescarMapaSitios();
-    }
-    const r = await agente.detalleSitio(uuid);
-    if (r.disponible && r.detalle) {
-      json(res, 200, {
-        ...r,
-        detalle: {
-          ...r.detalle,
-          contenedores: enriquecerConSitios(r.detalle.contenedores, mapaSitios),
-        },
-      });
-      return true;
-    }
-    json(res, 200, r);
-    return true;
-  }
-
-  if (ruta === '/api/vps/sitios') {
-    if (!rutaBinario()) {
-      json(res, 503, { error: 'sin-binario', ayuda: dondeBuscarBinario() });
-      return true;
-    }
-    const [base, detalle] = await listadoSitiosCacheado();
-    const filas = base.ok ? parsearListado(String(base.datos), false) : [];
-    const reales = new Map(
-      (detalle.ok ? parsearListado(String(detalle.datos), true) : []).map((s) => [s.nombre, s]),
-    );
-    const sitios: VpsSitio[] = [];
-    const avisos: VpsAviso[] = [];
-    for (const s of filas) {
-      const real = reales.get(s.nombre);
-      const estado = real?.estadoReal ?? '';
-      const estadoReal = estado || (s.uuid ? 'desconocido' : 'sin-asignar');
-      sitios.push({ ...s, estadoReal });
-      if (!s.uuid) avisos.push({ nombre: s.nombre, problema: 'sin-asignar' });
-      else if (!estado) {
-        avisos.push({
-          nombre: s.nombre,
-          problema: reales.size === 0 ? 'sin-estado-real' : 'estado-desconocido',
-        });
-      }
-    }
-    nombresConocidos = sitios.map((s) => s.nombre);
-    const aviso =
-      !base.ok && !detalle.ok
-        ? 'no se pudo leer el listado (¿VPS inalcanzable?)'
-        : !detalle.ok
-          ? 'sin estado real: el detallado fallo, los estados son desconocidos'
-          : null;
-    json(res, 200, { sitios, avisos, aviso });
-    return true;
-  }
-
-  if (ruta === '/api/vps/detalle') {
-    const sitio = url.searchParams.get('sitio') ?? '';
-    if (!NOMBRE_OK.test(sitio)) {
-      json(res, 400, { error: 'nombre-invalido', sitio });
-      return true;
-    }
-    if (nombresConocidos && !nombresConocidos.includes(sitio)) {
-      json(res, 404, { error: 'sitio-desconocido', sitio });
-      return true;
-    }
-    if (!rutaBinario()) {
-      json(res, 503, { error: 'sin-binario' });
-      return true;
-    }
-    /* Serie (el puente ya encola a 1): cada pieza cae por separado. El JSON
-     * se sanea de secretos antes de responder (el visor lo muestra todo). */
-    const detalle: VpsDetalle = {
-      sitio,
-      piezas: {
-        salud: await pieza(() => salud(sitio), true),
-        stats: await pieza(async () => sanearJson(await statsJson(sitio))),
-        inspeccion: await pieza(async () => sanearJson(await inspectJson(sitio))),
-        eventos: await pieza(async () => sanearJson(await eventosJson(sitio))),
-        bd: await pieza(async () => sanearJson(await dbStatsJson(sitio))),
-        diagnostico: await pieza(async () => sanearJson(await diagnoseJson(sitio))),
-        logs: await pieza(() => logs(sitio, 100), true),
-      },
-    };
-    json(res, 200, detalle);
-    return true;
-  }
-
-  if (ruta === '/api/vps/recursos') {
-    if (!rutaBinario()) {
-      json(res, 503, { error: 'sin-binario' });
-      return true;
-    }
-    const texto = await pieza(() => auditoria(), true);
-    const resumen: VpsPieza = texto.ok ? resumirAuditoria(String(texto.datos)) : {
-      ok: false,
-      datos: null,
-      error: 'sin-metricas',
-    };
-    json(res, 200, { piezas: { resumen, texto } });
-    return true;
-  }
-
-  return false;
+  const responder = RESPUESTAS.get(ruta);
+  if (!responder) return false;
+  await responder(res, url);
+  return true;
 }
