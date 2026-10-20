@@ -11,7 +11,14 @@ import { guardarJson, leerJson } from '../../shared/vista/storage.js';
 /* Muestra como tupla [t, cpuPct, memMiB]: redondeada al muestrear. */
 export type MuestraSitio = [number, number, number];
 
-export const CLAVE_HISTORIAL_SITIOS = 'workspaceManager:vps-sitios-historial-v1';
+/* [20AA-16] La tab va en la clave: el taller reutiliza este anillo y sus componentes, pero su
+ * historial no puede mezclarse con el de vps (ni al revés). `'vps'` reproduce exactamente la clave
+ * de siempre, así que la tab vps no necesita migración. */
+export function claveHistorialSitios(tab: string): string {
+  return `workspaceManager:${tab}-sitios-historial-v1`;
+}
+
+export const CLAVE_HISTORIAL_SITIOS = claveHistorialSitios('vps');
 export const MAX_MUESTRAS_SITIO = 2000;
 export const INTERVALO_SITIO_MS = 30_000;
 const RETENCION_MS = 7 * 24 * 3600 * 1000;
@@ -27,8 +34,8 @@ function esMuestra(x: unknown): x is MuestraSitio {
   );
 }
 
-export function cargarHistorialSitios(): HistorialSitios {
-  const crudo = leerJson<unknown>(CLAVE_HISTORIAL_SITIOS, 'no se pudo leer el historial por sitio:');
+export function cargarHistorialSitios(clave = CLAVE_HISTORIAL_SITIOS): HistorialSitios {
+  const crudo = leerJson<unknown>(clave, 'no se pudo leer el historial por sitio:');
   if (!crudo || typeof crudo !== 'object' || Array.isArray(crudo)) return {};
   const corte = Date.now() - RETENCION_MS;
   const limpio: HistorialSitios = {};
@@ -97,6 +104,6 @@ export function serieEnRango(muestras: MuestraSitio[], rangoMs: number, ahora: n
   return fuera;
 }
 
-export function guardarHistorialSitios(h: HistorialSitios): void {
-  guardarJson(CLAVE_HISTORIAL_SITIOS, h, 'no se pudo guardar el historial por sitio:');
+export function guardarHistorialSitios(h: HistorialSitios, clave = CLAVE_HISTORIAL_SITIOS): void {
+  guardarJson(clave, h, 'no se pudo guardar el historial por sitio:');
 }

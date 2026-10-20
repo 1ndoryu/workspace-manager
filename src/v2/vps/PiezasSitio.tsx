@@ -9,6 +9,15 @@ import { Button } from '../ui/form/Button.js';
 import { piezaVps } from './apiVps.js';
 import type { VpsPieza } from '../../shared/types.js';
 
+/* De dónde sale una pieza. [20AA-16] El taller pide las mismas 7 piezas a OTRA glory-pulse (la de
+ * la 89, en modo procesos): el componente es el mismo y solo cambia el cliente, que se inyecta en
+ * vez de duplicar el componente. */
+export type PedirPieza = (
+  sitio: string,
+  nombre: string,
+  opts?: { senal?: AbortSignal },
+) => Promise<VpsPieza>;
+
 /* Timeout de UX por pieza: el servidor responde timeout-pieza a los
  * 20 s; aqui se aborta a los 25 s como red de seguridad si el servidor
  * tampoco respondiera (no deberia: su carrera siempre resuelve). */
@@ -32,7 +41,10 @@ function Resultado({ pieza }: { pieza: VpsPieza }) {
   return <pre>{JSON.stringify(pieza.datos, null, 2) ?? '—'}</pre>;
 }
 
-export function PiezasSitio({ sitio }: { sitio: string }) {
+export function PiezasSitio({ sitio, pedir: pedirPieza = piezaVps }: {
+  sitio: string;
+  pedir?: PedirPieza;
+}) {
   const [piezas, setPiezas] = useState<Record<string, EstadoPieza>>({});
   const controles = useRef(new Map<string, AbortController>());
 
@@ -63,7 +75,7 @@ export function PiezasSitio({ sitio }: { sitio: string }) {
     controles.current.set(nombre, ctrl);
     setPiezas((prev) => ({ ...prev, [nombre]: 'cargando' }));
     const expira = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    void piezaVps(sitio, nombre, { senal: ctrl.signal })
+    void pedirPieza(sitio, nombre, { senal: ctrl.signal })
       .then((pieza) => setPiezas((prev) => ({ ...prev, [nombre]: pieza })))
       .catch((err: unknown) =>
         setPiezas((prev) => ({

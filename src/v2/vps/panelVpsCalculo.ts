@@ -11,8 +11,7 @@ import type {
 
 /* % de uso de disco del host desde el resumen del audit (`Disco:
  * ... use=N%`). La forma es `datos desconocido`: se extrae a la
- * defensiva y se devuelve null si el formato cambió. */
-export function extraerDisco(r: VpsRecursos): number | null {
+ * defensiva y se devuelve null si el formato cambió. */export function extraerDisco(r: VpsRecursos): number | null {
   try {
     const pieza = r.piezas?.resumen;
     if (!pieza?.ok) return null;
@@ -26,9 +25,19 @@ export function extraerDisco(r: VpsRecursos): number | null {
   }
 }
 
+/* Clase del estado en la tabla (fase:detalle → running:healthy, degraded:unhealthy…): running =
+ * relleno, degraded = borde, resto (apagado, detenido, sin datos) = atenuado. Vive aquí desde
+ * 20AA-16 porque el panel del taller pinta el mismo lenguaje de estados. */
+export function claseEstado(estado: string): string {
+  if (estado.startsWith('running')) return 'vpsEstado vpsEstado--ok';
+  if (estado.startsWith('degraded')) return 'vpsEstado vpsEstado--mal';
+  return 'vpsEstado vpsEstado--apagado';
+}
+
 /* Peor estado del despliegue para la tabla: degraded manda, luego
- * cualquier no-running; en caso contrario, running. */
-function peorEstado(cs: VpsAgenteContenedor[]): string {
+ * cualquier no-running; en caso contrario, running. Exportada desde 20AA-16: el panel del taller
+ * agrupa distinto (una fila por proyecto del registro) pero el estado se resume igual. */
+export function peorEstado(cs: VpsAgenteContenedor[]): string {
   const deg = cs.find((c) => c.estado.startsWith('degraded'));
   if (deg) return deg.estado;
   const otro = cs.find((c) => !c.estado.startsWith('running'));

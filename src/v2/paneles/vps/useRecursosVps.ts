@@ -15,13 +15,22 @@ import { RANGOS, diezmar } from './vpsRecursosSeries.js';
  * disco físico use otro tamaño). */
 export const SECTOR_BYTES = 512;
 
-const CLAVE_HISTORIAL = 'workspaceManager:vps-recursos-historial-v1';
-const CLAVE_RANGO = 'workspaceManager:vps-recursos-rango-v1';
 const MAX_MUESTRAS = 25000;
 const RETENCION_MS = 7 * 24 * 3600 * 1000;
 
-function leerHistorial(): Muestra[] {
-  const lista = leerJson<unknown>(CLAVE_HISTORIAL, 'no se pudo leer el historial de recursos:');
+/* [20AA-16] La tab va en las claves: el taller reutiliza este mismo cuadro de recursos, pero su
+ * historial no puede mezclarse con el de vps (ni al revés). `'vps'` reproduce exactamente las
+ * claves de siempre, así que la tab vps no necesita migración. */
+function claveHistorial(tab: string): string {
+  return `workspaceManager:${tab}-recursos-historial-v1`;
+}
+
+function claveRango(tab: string): string {
+  return `workspaceManager:${tab}-recursos-rango-v1`;
+}
+
+function leerHistorial(clave: string): Muestra[] {
+  const lista = leerJson<unknown>(clave, 'no se pudo leer el historial de recursos:');
   if (!Array.isArray(lista)) return [];
   const corte = Date.now() - RETENCION_MS;
   const limpias: Muestra[] = [];
@@ -41,15 +50,18 @@ function leerHistorial(): Muestra[] {
   return limpias.slice(-MAX_MUESTRAS);
 }
 
-function leerRango(): string {
-  const r = leerTexto(CLAVE_RANGO);
+function leerRango(clave: string): string {
+  const r = leerTexto(clave);
   if (r && RANGOS.some((x) => x.id === r)) return r;
   return '30m';
 }
 
 /* Cuadro de muestras del rango elegido. `muestras` es un ref: el repintado lo
- * dispara `setVersion` (entra una muestra o cambia el rango). */
-export function useRecursosVps(snap: VpsAgenteSnapshot | null) {
+ * dispara `setVersion` (entra una muestra o cambia el rango). `tab` decide en qué
+ * historial se guarda (vps o taller). */
+export function useRecursosVps(snap: VpsAgenteSnapshot | null, tab = 'vps') {
+  const claveHist = claveHistorial(tab);
+  const claveRng = claveRango(tab);
   const muestras = useRef<Muestra[]>([]);
   const ultimoTs = useRef<number | null>(null);
   const ultimoGuardado = useRef(0);
@@ -57,22 +69,22 @@ export function useRecursosVps(snap: VpsAgenteSnapshot | null) {
    * se repite el anterior para no inventar deltas (plano = sin dato,
    * no cero). */
   const ultimoDisco = useRef<{ r: number; w: number } | null>(null);
-  const [rangoId, setRangoId] = useState<string>(() => leerRango());
+  const [rangoId, setRangoId] = useState<string>(() => leerRango(claveRng));
   /* Contador para repintar cuando entra una muestra o cambia el rango
    * (el ref no repinta solo). */
   const [, setVersion] = useState(0);
 
   /* Historial previo (sobrevive a recargas) + volcado al cerrar. */
   useEffect(() => {
-    muestras.current = leerHistorial();
+    muestras.current = leerHistorial(claveHist);
     setVersion((v) => v + 1);
     const alCerrar = () => {
       /* Cierre sin almacenamiento: se pierde la cola sin romper nada. */
-      guardarJson(CLAVE_HISTORIAL, muestras.current.slice(-MAX_MUESTRAS));
+      guardarJson(claveHist, muestras.current.slice(-MAX_MUESTRAS));
     };
     suscribirVentana('beforeunload', alCerrar);
     return () => bajarVentana('beforeunload', alCerrar);
-  }, []);
+  }, [claveHist]);
 
   /* Muestra nueva por tick de pulse (guardada como tupla redondeada;
    * el localStorage se escribe como mucho cada 30 s para no atascar). */
@@ -100,7 +112,7 @@ export function useRecursosVps(snap: VpsAgenteSnapshot | null) {
     muestras.current = [...muestras.current, nueva].slice(-MAX_MUESTRAS);
     if (Date.now() - ultimoGuardado.current > 30000) {
       ultimoGuardado.current = Date.now();
-      guardarJson(CLAVE_HISTORIAL, muestras.current, 'no se pudo guardar el historial de recursos:');
+      guardarJson(claveHist, muestras.current, 'no se pudo guardar el historial de recursos:');
     }
     setVersion((v) => v + 1);
   }, [snap?.ts]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -108,7 +120,7 @@ export function useRecursosVps(snap: VpsAgenteSnapshot | null) {
   function elegirRango(id: string) {
     setRangoId(id);
     /* Sin almacenamiento: el rango vive solo la sesión. */
-    guardarTexto(CLAVE_RANGO, id);
+    guardarTexto(claveRng, id);
     setVersion((v) => v + 1);
   }
 

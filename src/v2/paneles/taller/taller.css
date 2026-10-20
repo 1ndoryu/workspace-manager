@@ -1,55 +1,22 @@
-/* Panel del taller remoto (S3). Monocromo: el estado se marca con borde y opacidad, no con color. */
-.tallerRejilla {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 8px;
+/* Panel del taller (20AA-16). Misma forma que el de vps: la tabla, los estados, los avisos y los
+ * recursos son los suyos (.vpsTabla, .vpsEstado, .vpsAviso, .vpsLinea, .panelVpsAvisos, en
+ * paneles.css) y aquí solo queda lo propio del taller: nombres que hay que partir en vez de
+ * ensanchar la tabla. Monocromo: el estado se marca con relleno, borde y opacidad, nunca con color. */
+.panelTaller {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-gapPanel);
 }
 
-.tallerLista {
-  margin: 0;
-  display: grid;
-  gap: 2px;
+/* [por que] La sesión tmux (`dev-<slug>-<puerto>`) y el comando del proceso son largos: sin partir
+ * ensanchaban la tabla y desbordaban el detalle. */
+.tallerSesion,
+.tallerComando {
+    overflow-wrap: anywhere;
 }
 
-.tallerFila {
-  display: grid;
-  grid-template-columns: 9rem 1fr;
-  gap: 8px;
-}
-
-.tallerFila dt {
-  opacity: 0.7;
-}
-
-.tallerFila dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.tallerAviso,
-.tallerHallazgo {
-  border: 1px solid currentColor;
-  padding: 4px 8px;
-}
-
-.tallerHallazgo--error {
-  border-width: 2px;
-}
-
-.tallerHallazgos {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.tallerId {
-  font-weight: 600;
-}
-
-.tallerRemedio,
-.tallerDato {
-  opacity: 0.7;
-  margin: 4px 0;
+.tallerComando {
+    opacity: 0.7;
 }

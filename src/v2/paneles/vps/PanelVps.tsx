@@ -13,15 +13,8 @@ import { Caja } from '../../ui/caja/Caja.js';
 import { HistorialSitioDetalle } from '../../vps/HistorialSitioDetalle.js';
 import { PiezasSitio } from '../../vps/PiezasSitio.js';
 import { usePanelVps } from '../../vps/usePanelVps.js';
+import { claseEstado } from '../../vps/panelVpsCalculo.js';
 import '../paneles.css';
-
-/* Fase del estado "fase:detalle" (running:healthy, degraded:unhealthy...):
- * running = relleno, degraded = borde, resto = atenuado. */
-function claseEstado(estado: string): string {
-  if (estado.startsWith('running')) return 'vpsEstado vpsEstado--ok';
-  if (estado.startsWith('degraded')) return 'vpsEstado vpsEstado--mal';
-  return 'vpsEstado vpsEstado--apagado';
-}
 
 /* Rol legible del contenedor: `app-…`/`postgres-…` ya van agrupados bajo su
  * sitio, asi que la fila muestra el rol, no el id. */

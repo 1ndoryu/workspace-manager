@@ -13,6 +13,7 @@ export function VpsRecursosFilas({
   r,
   limite,
   discoPct,
+  notaDisco = 'sin respuesta del audit…',
   hayDiscoHost,
   enRango,
 }: {
@@ -20,6 +21,9 @@ export function VpsRecursosFilas({
   r: Ritmos;
   limite: number;
   discoPct: number | null;
+  /* Qué decir sin % de disco: el origen del dato cambia con la tab (audit de Coolify en vps,
+   * sonda del taller en la 89), así que el texto lo pone quien lo conoce. */
+  notaDisco?: string;
   hayDiscoHost: boolean;
   enRango: Muestra[];
 }) {
@@ -48,7 +52,7 @@ export function VpsRecursosFilas({
       <div className="vpsLinea">
         <div className="vpsFilaDominio">disco del host · audit</div>
         {discoPct === null ? (
-          'sin respuesta del audit…'
+          notaDisco
         ) : (
           <>
             {discoPct}% en uso

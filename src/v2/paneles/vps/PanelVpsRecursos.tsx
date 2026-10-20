@@ -18,14 +18,22 @@ import { RANGOS, ritmos } from './vpsRecursosSeries.js';
 import { useRecursosVps } from './useRecursosVps.js';
 import { VpsRecursosFilas } from './VpsRecursosFilas.js';
 
+/* Props de reutilización (20AA-16): el panel del taller enseña el mismo cuadro con otro historial
+ * (`tab`) y con el disco de la 89, que viene de la sonda del taller y no del audit de Coolify. */
 export function PanelVpsRecursos({
   snap,
   discoPct,
+  tab = 'vps',
+  etiqueta = 'Recursos de la VPS',
+  notaDisco = 'sin respuesta del audit…',
 }: {
   snap: VpsAgenteSnapshot | null;
   discoPct: number | null;
+  tab?: string;
+  etiqueta?: string;
+  notaDisco?: string;
 }) {
-  const { rango, rangoId, enRango, elegirRango } = useRecursosVps(snap);
+  const { rango, rangoId, enRango, elegirRango } = useRecursosVps(snap, tab);
   const r = ritmos(enRango);
   const actual = enRango[enRango.length - 1] ?? null;
   /* El límite por contenedor es la RAM del host (no se suma: se toma el
@@ -41,7 +49,7 @@ export function PanelVpsRecursos({
     <Caja
       titulo="recursos"
       meta={`${rango.etiqueta} · ${enRango.length} muestras`}
-      etiqueta="Recursos de la VPS"
+      etiqueta={etiqueta}
     >
       <div className="vpsLinea">
         <div className="vpsRangos" role="group" aria-label="Rango del historial">
@@ -65,6 +73,7 @@ export function PanelVpsRecursos({
           r={r}
           limite={limite}
           discoPct={discoPct}
+          notaDisco={notaDisco}
           hayDiscoHost={hayDiscoHost}
           enRango={enRango}
         />
