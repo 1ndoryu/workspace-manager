@@ -17,6 +17,14 @@ export interface ParcheTarea {
   proyectoId?: number | null;
   parentId?: number | null;
   orden?: number;
+  /* Payload del item. [por que 20AA-10] En TASK no es opcional: un PUT sin `payload` lo
+   * reemplaza por el objeto canonico vacio y se lleva por delante las claves guardadas
+   * (`src/models/productivity.rs:83` y `repositories/productivity.rs:173`), asi que el espejo
+   * del roadmap manda siempre el payload entero. */
+  payload?: Record<string, unknown>;
+  /* Control de concurrencia optimista: el `updatedAt` que se leyo. Si la app de TASK escribio
+   * entretanto, TASK responde 409 y no se pisa nada. `null` = escritura incondicional. */
+  expectedUpdatedAt?: string | null;
 }
 
 const PRIORIDADES_OK = ['muy_alta', 'alta', 'media', 'baja', 'muy_baja'];
@@ -36,6 +44,12 @@ export function validarParche(parche: unknown): {ok: true; valor: ParcheTarea} |
   if (p.urgencia !== undefined && !URGENCIAS_OK.includes(String(p.urgencia))) errores.push('urgencia-invalida');
   for (const k of ['proyectoId', 'parentId', 'orden'] as const) {
     if (p[k] !== undefined && p[k] !== null && !Number.isInteger(p[k])) errores.push(`${k}-entero`);
+  }
+  if (p.payload !== undefined && (typeof p.payload !== 'object' || p.payload === null || Array.isArray(p.payload))) {
+    errores.push('payload-objeto');
+  }
+  if (p.expectedUpdatedAt !== undefined && p.expectedUpdatedAt !== null && typeof p.expectedUpdatedAt !== 'string') {
+    errores.push('expectedUpdatedAt-texto');
   }
   if (errores.length > 0) return {ok: false, errores};
   return {ok: true, valor: p as unknown as ParcheTarea};

@@ -10,6 +10,7 @@ import type {ErrorKanban} from './nucleo/tipos.js';
 import {esIdValido, validarLote} from './nucleo/validaciones.js';
 import {crearPuenteTareas, puenteTareas, type PuenteTareas} from './puente-tareas.js';
 import {sincronizarColumnas, type EntradaWm} from './sincronizar-proyectos.js';
+import {sincronizarTareasRoadmap, type ProyectoWm} from './sincronizar-tareas.js';
 import {validarParche} from './tarea-unitaria.js';
 import {estadoTaller} from '../taller/estado.js';
 import {revisarTuneles} from '../taller/tuneles.js';
@@ -30,6 +31,9 @@ export interface DepsRutasTareas {
   /* Repos WM en orden de snapshot, ya sin ignorados (produccion: lo sirve
    * index.ts desde `snapshotArea(false)`; tests: lista fija). Puede ser async. */
   leerWm?: () => EntradaWm[] | Promise<EntradaWm[]>;
+  /* Proyectos con su carpeta, para la sincronizacion del roadmap (20AA-10 F2):
+   * la clave empareja con la columna de TASK y la ruta da el roadmap.md. */
+  leerProyectos?: () => ProyectoWm[] | Promise<ProyectoWm[]>;
 }
 
 function esErrorKanban(e: unknown): e is ErrorKanban {
@@ -74,6 +78,7 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
   const puente = deps.puente ?? puenteTareas;
   const leerCuerpo = deps.leerCuerpo ?? leerBody;
   const leerWm = deps.leerWm ?? (() => []);
+  const leerProyectos = deps.leerProyectos ?? (() => []);
 
   /* [por que] Un `red` suele ser el túnel caído, y es justo el fallo que ve la
    * usuaria en la tab: se pide al supervisor que revise (solo repara proyectos
@@ -112,6 +117,21 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
           crear: (legacyId, entrada) => puente.crearProyecto(legacyId, entrada.nombre, entrada.clave),
         });
         json(res, 200, {proyectos});
+      } catch (e) {
+        responder(res, e);
+      }
+      return true;
+    }
+    /* Sincronizacion roadmap -> TASK (20AA-10 F2). En seco (`?seco=1`) cuenta
+     * lo que haria sin escribir nada: es la primera pasada, para mirarla antes
+     * de tocar TASK. No borra nada y no escribe ningun archivo. */
+    if (ruta === '/api/tareas/sincronizar' && req.method === 'POST') {
+      try {
+        const informe = await sincronizarTareasRoadmap(
+          { proyectos: leerProyectos, puente },
+          { seco: url.searchParams.get('seco') === '1' },
+        );
+        json(res, 200, informe);
       } catch (e) {
         responder(res, e);
       }

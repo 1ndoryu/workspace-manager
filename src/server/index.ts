@@ -55,6 +55,10 @@ const MIME: Record<string, string> = {
  * tras el siguiente escaneo). */
 const manejarTareas = crearManejadorTareas({
   leerWm: async () => (await snapshotArea(false)).snapshot.proyectos.map((p) => ({clave: p.clave, nombre: p.id})),
+  /* La sincronizacion del roadmap (20AA-10) necesita ademas la carpeta: el
+   * snapshot la trae y asi no hay que resolver rutas por segunda vez. */
+  leerProyectos: async () =>
+    (await snapshotArea(false)).snapshot.proyectos.map((p) => ({clave: p.clave, nombre: p.id, ruta: p.ruta})),
 });
 
 /* Sirve archivos estaticos del build (dist) o del index.html. */
