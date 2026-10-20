@@ -6,6 +6,7 @@
 export * from './tipos/proyecto.js';
 export * from './tipos/git.js';
 export * from './tipos/vps.js';
+export * from './tipos/recursos.js';
 export * from './tipos/analisis.js';
 export * from './tipos/config.js';
 export * from './tipos/snapshot.js';
