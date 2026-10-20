@@ -129,14 +129,26 @@ install -d -m 755 -o "$USUARIO_TALLER" -g "$USUARIO_TALLER" "$CACHE_SCCACHE" "$T
 cat > /usr/local/bin/cm-heavy <<'EOF'
 #!/usr/bin/env bash
 # Builds pesados de a uno (flock), con techo de memoria y preflight (plan F1, Presupuesto de RAM).
-# MemoryMax=4G es provisional mientras haya agentes residentes. Sale con 75 si no puede ejecutar
-# (memoria o disco): el build no arranca y el mensaje dice qué falta. cm-sweep limpia antes (F5).
+# MemoryMax=4G acota el build: si se pasa, el OOM lo mata DENTRO de su scope y la maquina sigue viva.
+# Por eso el suelo (MIN_MB, 4608) es el techo del build (4G) MAS 512 MB de margen para el resto
+# (Postgres, tmux dev, dockerd, opencode). Bajado de 6144 a 4608 el 2026-10-17 (peticion de la
+# usuaria): 6144 dejaba fuera builds que si caben. No bajar de 4096: por debajo del techo, el build
+# admitido no puede caber nunca y se garantiza el OOM. Sale con 75 si no puede ejecutar (memoria o
+# disco): el build no arranca y el mensaje dice que falta. cm-sweep limpia antes (F5).
 set -euo pipefail
 ESPERA="${CM_HEAVY_ESPERA:-600}"
 MEM_MAX="${CM_HEAVY_MEM_MAX:-4G}"
-MIN_MB="${CM_HEAVY_MIN_MB:-4096}"
+MIN_MB="${CM_HEAVY_MIN_MB:-4608}"
 MIN_DISCO_GB="${CM_HEAVY_MIN_DISK_GB:-15}"
 (($#)) || { echo "uso: cm-heavy <comando...>" >&2; exit 2; }
+# [10AA-3] Reentrante: si un cm-heavy ancestro ya tiene el candado, no se vuelve a pedir. El
+# entorno lo dice (`CM_HEAVY_HELD`), no un intento de `flock`, porque el candado vive en un
+# descriptor heredado y el hijo no puede saber si el que lo tiene es su ancestro o un ajeno.
+# Sin esto, envolver una orden que ya llama a cm-heavy se bloquea contra si misma: el gate de
+# calidad envuelve todo el ssh en cm-heavy y su etapa de Rust vuelve a entrar aqui; el build
+# esperaba 600 s, salia 75 y el fallo parecia del codigo del proyecto. El preflight de memoria
+# tampoco se repite: el ancestro ya lo hizo con el scope que lo acota.
+if [[ -n "${CM_HEAVY_HELD:-}" ]]; then exec "$@"; fi
 exec 9>>/run/lock/cm-heavy.lock
 flock -w "$ESPERA" 9 || { echo "cm-heavy: otro build ocupa el lock tras ${ESPERA} s" >&2; exit 75; }
 DISPONIBLE_MB=$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)
@@ -150,6 +162,8 @@ if ((LIBRE_GB < MIN_DISCO_GB)); then
   exit 75
 fi
 if [[ $EUID -eq 0 ]]; then SR=(systemd-run --scope); else SR=(systemd-run --user --scope); fi
+# La marca viaja con el scope para que los cm-heavy de dentro sepan que ya estan cubiertos.
+export CM_HEAVY_HELD=1
 exec "${SR[@]}" -p "MemoryMax=${MEM_MAX}" -- "$@"
 EOF
 chmod 755 /usr/local/bin/cm-heavy
