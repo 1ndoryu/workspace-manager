@@ -90,15 +90,15 @@ test('accionParaPuerto: nunca mata, y nombra el siguiente paso por caso', () => 
 test('detectarDerivaEnv: PORT no declarado avisa; PORT declarado como auxiliar no', () => {
   const raiz = mkdtempSync(join(raizTemporales(), 'wm-deriva-test-'));
   try {
-    const proyecto-i = join(raiz, 'proyecto-i');
+    const proyectoI = join(raiz, 'proyecto-i');
     const pulse = join(raiz, 'pulse');
-    mkdirSync(proyecto-i);
+    mkdirSync(proyectoI);
     mkdirSync(pulse);
-    writeFileSync(join(proyecto-i, '.env'), 'DATABASE_URL=x\nPORT=3002 # cambiado a mano\n');
-    writeFileSync(join(proyecto-i, '.env.example'), 'PORT=3001\n');
+    writeFileSync(join(proyectoI, '.env'), 'DATABASE_URL=x\nPORT=3002 # cambiado a mano\n');
+    writeFileSync(join(proyectoI, '.env.example'), 'PORT=3001\n');
     writeFileSync(join(pulse, '.env'), 'PORT=3001\n');
     const entradas = new Map([
-      ['proyecto-a', { id: 'proyecto-a', ruta: proyecto-i, puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }],
+      ['proyecto-a', { id: 'proyecto-a', ruta: proyectoI, puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }],
       ['proyecto-b', { id: 'proyecto-b', ruta: pulse, puertos: [3000] }],
     ]);
     const avisos = detectarDerivaEnv({ entradas }, { raiz });
