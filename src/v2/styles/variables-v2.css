@@ -29,7 +29,9 @@
      * la regla monocroma, a peticion de la usuaria, y un solo origen: el mapa los usa en el borde
      * de sus cajas y las lineas, y la lista de proyectos en el cuadro de estado. */
     --mapa-laptop: #3b82f6;
-    --mapa-vps89: #f59e0b;
+    /* [por que] Ambar oscuro: #f59e0b tenia 2,1:1 sobre blanco (no llega a 3:1 para
+     * grafico). #b45309 da ~5:1 y sigue siendo ambar. */
+    --mapa-vps89: #b45309;
     --mapa-produccion: #e11d6a;
 
     /* Tipografia: Departure Mono (misma fuente del proyecto), sin bold */
