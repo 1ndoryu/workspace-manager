@@ -133,8 +133,10 @@ function interpretar(codigo: number, salida: string): ResultadoProbar {
 export async function probarComando(entrada: EntradaProbar, opciones: OpcionesProbar = {}): Promise<ResultadoProbar> {
   validarEntrada(entrada);
   const entorno: NodeJS.ProcessEnv = { ...(opciones.entorno ?? process.env) };
-  delete entorno.GLORY_QUALITY_GATE_LEASE;
-  delete entorno.GLORY_QUALITY_GATE_TOKEN;
+  /* [por que] Se quitan los nombres SENTINEL_* y los legados GLORY_QUALITY_*: Sentinel acepta ambos */
+  for (const clave of ['SENTINEL_GATE_LEASE', 'SENTINEL_GATE_TOKEN', 'GLORY_QUALITY_GATE_LEASE', 'GLORY_QUALITY_GATE_TOKEN']) {
+    delete entorno[clave];
+  }
   entorno.GLORY_GUARD_LOG_DIR = opciones.diarioDir ?? DIARIO_PRUEBAS;
   /* [por que] Va al portátil y no a la 89 (AGENTS §1, excepción de decisión): el guard decide
    * con el Guardián que los shims del portátil consultan y con rutas del portátil (`raiz`), así

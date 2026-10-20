@@ -33,7 +33,7 @@ test('detecta IPs públicas y privadas pero no versiones de lockfile ni localhos
 });
 
 test('una expresión de código con nombre de variable no es un secreto', () => {
-  assert.deepEqual(reglas('token: process.env.GLORY_QUALITY_GATE_TOKEN ?? null'), []);
+  assert.deepEqual(reglas('token: process.env.SENTINEL_GATE_TOKEN ?? null'), []);
 });
 
 test('no toma como IP un número con más octetos', () => {

@@ -114,8 +114,10 @@ export async function ejecutarMantenimiento(
     return { estado: 'error', modo, codigo: null, motivo: 'ya hay una actualización de Sentinel en curso', salida: '' };
   }
   const entorno: NodeJS.ProcessEnv = { ...(opciones.entorno ?? process.env) };
-  delete entorno.GLORY_QUALITY_GATE_LEASE;
-  delete entorno.GLORY_QUALITY_GATE_TOKEN;
+  /* [por que] Se quitan los nombres SENTINEL_* y los legados GLORY_QUALITY_*: Sentinel acepta ambos */
+  for (const clave of ['SENTINEL_GATE_LEASE', 'SENTINEL_GATE_TOKEN', 'GLORY_QUALITY_GATE_LEASE', 'GLORY_QUALITY_GATE_TOKEN']) {
+    delete entorno[clave];
+  }
   enCurso = true;
   try {
     /* [por que] Este comando instala la herramienta Sentinel del portátil (runtime en
