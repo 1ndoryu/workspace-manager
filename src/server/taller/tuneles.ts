@@ -96,6 +96,14 @@ export interface DepsTuneles {
 const enVuelo = new Map<string, Promise<unknown>>();
 const ultimoIntento = new Map<string, number>();
 
+/* [por que] Quien llama a `revisarTuneles` es una ruta HTTP y no puede esperar
+ * minutos: el fallo de la reparación se quedaría sin testigo. Un supervisor que
+ * falla en silencio deja la tab caída y sin pista (pasó: `ID_OK` rechazaba
+ * «PROYECTO TASKS» y nadie se enteró). */
+function avisarFallo(id: string, motivo: string): void {
+  process.stderr.write(`[tuneles] no se pudo reabrir el tunel de "${id}": ${motivo}\n`);
+}
+
 /* Revisa los túneles y repara los que hagan falta. Devuelve los ids reparados en
  * esta pasada; la reparación sigue en segundo plano (un `up` puede tardar
  * minutos y quien llama es una ruta HTTP). */
@@ -117,7 +125,10 @@ export async function revisarTuneles(
     ultimoIntento.set(e.id, ahora());
     reparados.push(e.id);
     const vuelo = reparar(e.id)
-      .catch(() => undefined)
+      .then((r) => {
+        if (r.codigo !== 0) avisarFallo(e.id, `el up salio con codigo ${r.codigo}: ${r.salida.trim().slice(-400)}`);
+      })
+      .catch((err: unknown) => avisarFallo(e.id, err instanceof Error ? err.message : String(err)))
       .finally(() => {
         enVuelo.delete(e.id);
       });

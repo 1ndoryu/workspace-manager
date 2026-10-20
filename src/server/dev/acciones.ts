@@ -25,9 +25,13 @@ export interface ResultadoAccionDev {
   salida: string;
 }
 
-/* Id con la misma forma que el puente (NOMBRE_OK): el CLI ya falla ante
- * id ausente del registro, pero el server no invoca nada sin id valido. */
-const ID_OK = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+/* Forma de un id del registro, no la de NOMBRE_OK: los ids reales llevan
+ * espacio («PROYECTO TASKS»), y con la forma estricta del puente toda accion
+ * sobre ellos moria con «id invalido» — el supervisor de tuneles incluido, en
+ * silencio, porque quien lo llama traga el error. El CLI ya falla cerrado ante
+ * un id ausente del registro, y el argv va sin shell (execFile), asi que el
+ * espacio no es inyeccion: es el nombre. */
+const ID_OK = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,63}$/;
 
 function arranqueMsDe(id: string): number {
   const crudo = JSON.parse(readFileSync(RUTA_REGISTRO, 'utf8')) as {
