@@ -100,6 +100,46 @@ export async function actualizarTarea(legacyId: number, parche: ParcheTareaTab):
   }
 }
 
+/* Sincronia de fondo (20AA-10 F6): que hizo la ultima pasada del roadmap hacia TASK. La tab lo
+ * pide para poder decir lo que salio mal sin que nadie mire un log; `activa: false` (el servidor
+ * no la tiene montada) no es un fallo y no se pinta. */
+export interface EstadoSincroniaTab {
+  activa: boolean;
+  pasadas: number;
+  cuando: string | null;
+  ultimoError: string | null;
+  /* Escrituras que la ultima pasada dejo para la siguiente. */
+  aplazadas: number;
+  /* Tareas que TASK rechazo, con el motivo. */
+  errores: { proyecto: string; motivo: string }[];
+}
+
+export async function estadoSincroniaTareas(): Promise<EstadoSincroniaTab> {
+  try {
+    const { data } = await axios.get('/api/tareas/sincronia');
+    const ultima = data?.ultima as { cuando?: unknown; informe?: unknown } | null | undefined;
+    const informe = (ultima?.informe ?? null) as { detalle?: unknown; aplazadas?: unknown } | null;
+    const detalle = Array.isArray(informe?.detalle) ? informe.detalle : [];
+    const errores: { proyecto: string; motivo: string }[] = [];
+    for (const d of detalle as { proyecto?: unknown; errores?: unknown }[]) {
+      if (!Array.isArray(d?.errores)) continue;
+      for (const e of d.errores as { id?: unknown; motivo?: unknown }[]) {
+        errores.push({ proyecto: String(d.proyecto ?? ''), motivo: String(e?.motivo ?? 'desconocido') });
+      }
+    }
+    return {
+      activa: data?.activa === true,
+      pasadas: typeof data?.pasadas === 'number' ? data.pasadas : 0,
+      cuando: typeof ultima?.cuando === 'string' ? ultima.cuando : null,
+      ultimoError: typeof data?.ultimoError === 'string' ? data.ultimoError : null,
+      aplazadas: typeof informe?.aplazadas === 'number' ? informe.aplazadas : 0,
+      errores,
+    };
+  } catch (err) {
+    throw mensajeFallo('sincronía', err);
+  }
+}
+
 /* Borrado (07AA-15): DELETE al proxy (204 F1, idempotente: repetir da 204,
  * nunca 404 — semántica del frente, no del proxy). La columna viaja porque
  * TASK no tiene GET por id: sin ella el proxy no sabe qué línea del roadmap
