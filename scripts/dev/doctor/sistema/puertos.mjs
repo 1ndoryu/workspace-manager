@@ -161,7 +161,8 @@ export function puertoDeSaludValido(puerto, entrada) {
  * healths y el comando que construye el front. En build el backend sirve `frontend/dist`, así que
  * `construirFront` es obligatorio: sin él el `dist` sería el de la vez anterior y el verde, fingido.
  * Devuelve el motivo del rechazo, o null. */
-const CLAVES_BUILD = ['puertos', 'boton', 'puertosLocales', 'healths', 'construirFront', 'autologinDev'];
+// [por que] distFront: carpeta del front compilado que ciclo.mjs comprueba tras construirFront.
+const CLAVES_BUILD = ['puertos', 'boton', 'puertosLocales', 'healths', 'construirFront', 'autologinDev', 'distFront'];
 
 export function validarBloqueBuild(e) {
   if (e.modo !== undefined && e.modo !== 'dev' && e.modo !== 'build') return `modo '${e.modo}' no valido (dev|build)`;
