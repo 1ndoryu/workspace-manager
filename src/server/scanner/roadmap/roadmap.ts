@@ -6,9 +6,19 @@
  *   - [ ] `ID` — **Titulo.**
  * [gotcha] El analisis es estricto a proposito: lo que no tenga esa forma NO cuenta como tarea
  * (sale como problema de formato) en vez de adivinarse. Las lineas sangradas son sub-pasos de
- * la tarea y se ignoran, igual que los bloques de codigo. */
+ * la tarea, igual que los bloques de codigo.
+ * [por que 20AA-10] El tab y el roadmap son la misma lista de trabajo, asi que el tab escribe en
+ * el archivo las propiedades de la tarea (prioridad, urgencia, fechas, etiquetas, dependencias)
+ * y sus subtareas. Forma (plan-sincronia-tareas-roadmap-2026-10-20):
+ *   - [ ] `ID` — **Titulo.**
+ *     · prioridad: alta · urgencia: urgente · depende-de: 20AA-8
+ *     - [ ] **Subtarea.**          (sangrada dos espacios mas que la tarea)
+ *   Lo ausente son los valores por defecto y NO es un problema: asi el archivo no engorda. Lo que
+ *   si esta escrito y no cuadra (clave desconocida, valor fuera del conjunto, par a medias,
+ *   linea «·» fuera de sitio) es un problema de formato, como los de arriba. */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { PRIORIDADES_TAREA, URGENCIAS_TAREA } from '../../../shared/tareas/tareasTab.js';
 import type { ResumenRoadmap } from '../../../shared/types.js';
 
 /** Secciones fijas del roadmap (D8), en orden. */
@@ -18,8 +28,35 @@ export const SECCIONES_ROADMAP = ['Siguiente bloque', 'Pendientes', 'Bloqueos', 
 export const TOPE_LINEAS_ROADMAP = 400;
 
 /** Tope de IDs/tareas que viajan al tablero. [por que] Acotar la salida (AGENTS §5):
- * un roadmap desbordado no debe engordar el snapshot sin limite. */
-export const TOPE_TAREAS = 40;
+ * un roadmap desbordado no debe engordar el snapshot sin limite.
+ * [por que 60 y no 40] Recorta la lista de tareas, no solo los IDs (`resumenRoadmap`), y lo hacia
+ * en silencio: con 41 pendientes el tablero veia 40 y la tarea 41 no llegaba ni a la consola ni a
+ * TASK. RESTAURANTE ya tiene 36 y el tope de lineas (400) sigue siendo el limite de verdad; el
+ * recorte, cuando ocurre, ahora se dice (comprobacion `roadmap-protocolo`). */
+export const TOPE_TAREAS = 60;
+
+/* Claves de la linea de propiedades, en el orden en que se escriben. */
+export const CLAVES_PROPIEDAD = ['prioridad', 'urgencia', 'creada', 'pospuesta', 'completada', 'etiquetas', 'depende-de'] as const;
+export type ClavePropiedad = (typeof CLAVES_PROPIEDAD)[number];
+
+/** Propiedades que el tab escribe bajo una tarea. Lo ausente es el valor por defecto. */
+export interface PropiedadesTarea {
+  prioridad?: string;
+  urgencia?: string;
+  creada?: string;
+  pospuesta?: string;
+  completada?: string;
+  etiquetas?: string[];
+  dependeDe?: string[];
+}
+
+/** Subtarea de una tarea del roadmap (sangrada bajo ella; no lleva ID). */
+export interface SubtareaRoadmap {
+  titulo: string;
+  completada: boolean;
+  linea: number;
+  propiedades: PropiedadesTarea;
+}
 
 /* IDs usados en el area: {DD}{M}{A}-{N} (297A-4, 19AA-4), H-<dominio>-<n>-<m> (H-F12-14) y
  * fases cortas (F0, T7, S17, R2). */
@@ -36,10 +73,21 @@ const RE_PLAN = /Agente\/planes\/([^\s`)]+\.md)/;
 /* Nombres de seccion que son zona de tareas aunque no sean los canonicos. */
 const RE_ZONA_TAREAS = /pendiente|backlog|tarea|por hacer|cola|desarrollo pendiente/;
 
+/* Linea de propiedades: empieza por «·» y sigue con pares «clave: valor» separados por « · ». */
+const RE_PROPIEDADES = /^\s*·\s*(.+)$/;
+/* Subtarea: casilla sangrada con titulo en negrita (sin negrita es cuerpo en prosa). */
+const RE_SUBTAREA = /^(\s+)[-*] \[([ xX])\] \*\*(.+?)\*\*\s*$/;
+/* Fecha en forma ISO corta: es la que escribe el tab. */
+const RE_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
 export interface TareaRoadmap {
   id: string;
   titulo: string;
   linea: number;
+  /* Propiedades de la linea «·», si la hay. */
+  propiedades: PropiedadesTarea;
+  /* Subtareas sangradas bajo esta tarea, en orden. */
+  subtareas: SubtareaRoadmap[];
 }
 
 /** Linea con pinta de tarea que no cumple la forma del protocolo. */
@@ -61,6 +109,11 @@ export interface AnalisisRoadmap {
   planes: string[];
   /* IDs del documento entero (contexto incluido), como antes. */
   ids: string[];
+}
+
+/* Espacios de sangria al principio de una linea. */
+function sangria(linea: string): number {
+  return linea.match(/^\s*/)?.[0].length ?? 0;
 }
 
 /* Normaliza un titulo de seccion: sin numeracion, sin signos ni emoji, en minusculas y con
@@ -91,6 +144,64 @@ function seccionCanonica(titulo: string): string | null {
   return null;
 }
 
+/* Lee la linea de propiedades de una tarea. [por que] Tolerante con lo que falta —lo ausente es
+ * el valor por defecto y no es problema— y estricto con lo que esta escrito: una propiedad mal
+ * escrita que se ignorara en silencio seria una propiedad perdida, que es justo lo que la usuaria
+ * no quiere. Devuelve lo reconocido y un motivo por cada cosa que no cuadra. */
+function leerPropiedades(resto: string): { propiedades: PropiedadesTarea; motivos: string[] } {
+  const propiedades: PropiedadesTarea = {};
+  const motivos: string[] = [];
+  const trozos = resto
+    .split(' · ')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+  if (trozos.length === 0) return { propiedades, motivos: ['línea de propiedades vacía'] };
+
+  for (const trozo of trozos) {
+    const par = trozo.match(/^([\p{L}-]+)\s*:\s*(.+)$/u);
+    if (!par) {
+      motivos.push('par de propiedades a medias');
+      continue;
+    }
+    const clave = par[1].toLowerCase();
+    const valor = par[2].trim();
+    if (!(CLAVES_PROPIEDAD as readonly string[]).includes(clave)) {
+      motivos.push('propiedad desconocida');
+      continue;
+    }
+    if (clave === 'prioridad' || clave === 'urgencia') {
+      const validos = clave === 'prioridad' ? PRIORIDADES_TAREA : URGENCIAS_TAREA;
+      if (!(validos as readonly string[]).includes(valor)) {
+        motivos.push('valor fuera del conjunto');
+        continue;
+      }
+      if (clave === 'prioridad') propiedades.prioridad = valor;
+      else propiedades.urgencia = valor;
+      continue;
+    }
+    if (clave === 'creada' || clave === 'pospuesta' || clave === 'completada') {
+      if (!RE_FECHA.test(valor)) {
+        motivos.push('fecha con forma inválida');
+        continue;
+      }
+      propiedades[clave] = valor;
+      continue;
+    }
+    /* Etiquetas y dependencias: lista separada por comas. */
+    const lista = valor
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0);
+    if (lista.length === 0) {
+      motivos.push('lista de propiedades vacía');
+      continue;
+    }
+    if (clave === 'etiquetas') propiedades.etiquetas = lista;
+    else propiedades.dependeDe = lista;
+  }
+  return { propiedades, motivos };
+}
+
 /** Analiza el texto de un roadmap con la forma del protocolo. */
 export function analizarRoadmap(texto: string): AnalisisRoadmap {
   const lineas = texto.split(/\r?\n/);
@@ -103,6 +214,12 @@ export function analizarRoadmap(texto: string): AnalisisRoadmap {
   let enTareas = false;
   let enPlanes = false;
   let enCodigo = false;
+  /* Tarea y subtarea en curso, y si ya les llego contenido sangrado: la linea de propiedades va
+   * pegada a la suya, asi que una «·» despues del cuerpo esta fuera de sitio. */
+  let tareaActual: TareaRoadmap | null = null;
+  let subtareaActual: SubtareaRoadmap | null = null;
+  let sangradoTarea = false;
+  let sangradoSubtarea = false;
 
   lineas.forEach((cruda, i) => {
     const linea = cruda.replace(/\s+$/, '');
@@ -132,6 +249,9 @@ export function analizarRoadmap(texto: string): AnalisisRoadmap {
       } else if (enTareas && RE_ZONA_TAREAS.test(normalizar(h[2]))) {
         noCanonicas.push(h[2].trim());
       }
+      /* Un heading cierra el bloque: lo que venga sangrado despues ya no es de la tarea anterior. */
+      tareaActual = null;
+      subtareaActual = null;
       return;
     }
 
@@ -141,14 +261,56 @@ export function analizarRoadmap(texto: string): AnalisisRoadmap {
       return;
     }
 
-    /* Sub-pasos sangrados de una tarea: no son tareas del roadmap. */
-    if (/^\s+\S/.test(linea)) return;
+    /* Linea de propiedades: la indentacion dice de quien es (tarea +2, subtarea +2). */
+    const props = linea.match(RE_PROPIEDADES);
+    if (props) {
+      const deTarea = sangria(linea) === 2 && tareaActual !== null && !sangradoTarea;
+      const deSubtarea = sangria(linea) === 4 && subtareaActual !== null && !sangradoSubtarea;
+      if (deTarea || deSubtarea) {
+        const { propiedades, motivos } = leerPropiedades(props[1]);
+        if (deTarea && tareaActual) {
+          tareaActual.propiedades = propiedades;
+          sangradoTarea = true;
+        } else if (subtareaActual) {
+          subtareaActual.propiedades = propiedades;
+          sangradoSubtarea = true;
+        }
+        for (const motivo of motivos) problemas.push({ linea: n, texto: linea.trim(), motivo });
+      } else {
+        problemas.push({ linea: n, texto: linea.trim(), motivo: 'línea de propiedades fuera de sitio' });
+      }
+      return;
+    }
+
+    /* Lineas sangradas: subtarea de la tarea en curso, o cuerpo en prosa (que se ignora). */
+    if (/^\s+\S/.test(linea)) {
+      const sub = linea.match(RE_SUBTAREA);
+      if (sub && sangria(linea) >= 2) {
+        if (!tareaActual) {
+          problemas.push({ linea: n, texto: linea.trim(), motivo: 'subtarea sin tarea padre' });
+          return;
+        }
+        subtareaActual = { titulo: sub[3].trim(), completada: sub[2].toLowerCase() === 'x', linea: n, propiedades: {} };
+        tareaActual.subtareas.push(subtareaActual);
+        /* La subtarea tambien es contenido de la tarea: su linea «·» ya no es de la tarea. */
+        sangradoTarea = true;
+        sangradoSubtarea = false;
+        return;
+      }
+      sangradoTarea = true;
+      return;
+    }
 
     const casilla = linea.match(RE_CASILLA);
     if (casilla) {
       const tarea = linea.match(RE_TAREA);
-      if (tarea) tareas.push({ id: tarea[1], titulo: tarea[2].trim(), linea: n });
-      else if (casilla[1] === ' ')
+      if (tarea) {
+        tareaActual = { id: tarea[1], titulo: tarea[2].trim(), linea: n, propiedades: {}, subtareas: [] };
+        tareas.push(tareaActual);
+        subtareaActual = null;
+        sangradoTarea = false;
+        sangradoSubtarea = false;
+      } else if (casilla[1] === ' ')
         problemas.push({ linea: n, texto: linea.trim(), motivo: 'casilla sin ID en la forma del protocolo' });
       else
         problemas.push({
@@ -170,6 +332,19 @@ export function analizarRoadmap(texto: string): AnalisisRoadmap {
       problemas.push({ linea: n, texto: linea.trim(), motivo: 'tarea en tabla' });
     }
   });
+
+  /* [por que] El ID es la clave con la que el tab empareja una linea del roadmap con su tarea de
+   * TASK: repetido, dos lineas se disputarian la misma tarea. */
+  const primeraLinea = new Map<string, number>();
+  for (const t of tareas) {
+    if (!primeraLinea.has(t.id)) {
+      primeraLinea.set(t.id, t.linea);
+      continue;
+    }
+    problemas.push({ linea: t.linea, texto: t.id, motivo: 'ID repetido en el roadmap' });
+  }
+  /* En orden de documento: la consola agrupa por motivo y cita `roadmap.md:N`. */
+  problemas.sort((a, b) => a.linea - b.linea);
 
   return {
     tareas,

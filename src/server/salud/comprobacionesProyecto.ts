@@ -4,7 +4,7 @@
 import type { Hallazgo } from '../../shared/salud/salud.js';
 import { SIN_SHIM } from '../guardian/configuracion/politica.js';
 import { esVersionAnterior } from './comprobacionesArea.js';
-import { TOPE_LINEAS_ROADMAP } from '../scanner/roadmap/roadmap.js';
+import { TOPE_LINEAS_ROADMAP, TOPE_TAREAS } from '../scanner/roadmap/roadmap.js';
 import type { Comprobacion, DatosProyecto } from './tipos.js';
 
 const DIA_MS = 86_400_000;
@@ -233,6 +233,16 @@ export const COMPROBACIONES_PROYECTO: Comprobacion<DatosProyecto>[] = [
           severidad: 'aviso',
           mensaje: `${lineas.length} ${motivo}: ${sitios}${lineas.length > 5 ? ' …' : ''}`,
           accion,
+        });
+      }
+      /* [por que 20AA-10] El tope recorta la lista de tareas que llega al tablero y lo hacia sin
+       * decirlo: un pendiente de mas no aparecia en la consola ni en TASK y nadie se enteraba. */
+      if (d.roadmap.tareas.length > TOPE_TAREAS) {
+        hallazgos.push({
+          id: 'roadmap-protocolo',
+          severidad: 'aviso',
+          mensaje: `roadmap.md con ${d.roadmap.tareas.length} pendientes: el tablero solo ve los ${TOPE_TAREAS} primeros`,
+          accion: 'cierra o archiva trabajo abierto: el tope son 60 pendientes (D8 de AGENTS-detalle.md)',
         });
       }
       if (d.roadmap.lineas > TOPE_LINEAS_ROADMAP) {

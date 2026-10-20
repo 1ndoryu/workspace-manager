@@ -8,14 +8,16 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { raizTemporales } from '../../plataforma/temporales.js';
-import { TOPE_LINEAS_ROADMAP, analizarRoadmap, resumenRoadmap } from './roadmap.js';
+import { TOPE_LINEAS_ROADMAP, TOPE_TAREAS, analizarRoadmap, resumenRoadmap } from './roadmap.js';
 
 const motivos = (texto: string): string[] => analizarRoadmap(texto).problemas.map((p) => p.motivo);
 
 describe('roadmap: tarea canonica', () => {
   it('lee ID y titulo de la linea del protocolo', () => {
     const a = analizarRoadmap('# Roadmap — x\n\n## Pendientes\n\n- [ ] `19AA-4` — **Coherencia del mapa.** Cuerpo.\n');
-    assert.deepEqual(a.tareas, [{ id: '19AA-4', titulo: '**Coherencia del mapa.** Cuerpo.', linea: 5 }]);
+    assert.deepEqual(a.tareas, [
+      { id: '19AA-4', titulo: '**Coherencia del mapa.** Cuerpo.', linea: 5, propiedades: {}, subtareas: [] },
+    ]);
     assert.deepEqual(a.problemas, []);
   });
 
@@ -69,6 +71,121 @@ describe('roadmap: lo que no es una tarea', () => {
     const a = analizarRoadmap(texto);
     assert.deepEqual(a.tareas.map((t) => t.id), ['T5']);
     assert.deepEqual(a.problemas, []);
+  });
+});
+
+/* [por que 20AA-10] El tab y el roadmap son la misma lista: el tab escribe las propiedades de la
+ * tarea y sus subtareas en el archivo. Tolerante con lo que falta (es el valor por defecto) y
+ * estricto con lo que esta escrito, para que una propiedad no se pierda en silencio. */
+describe('roadmap: propiedades de la tarea', () => {
+  const conProps = (lineas: string[]): string =>
+    ['# Roadmap — x', '', '## Pendientes', '', '- [ ] `19AA-1` — **Una.**', ...lineas, ''].join('\n');
+
+  it('lee la linea «·» pegada a la tarea', () => {
+    const a = analizarRoadmap(
+      conProps(['  · prioridad: alta · urgencia: urgente · creada: 2026-10-20 · depende-de: 20AA-8']),
+    );
+    assert.deepEqual(a.tareas[0].propiedades, {
+      prioridad: 'alta',
+      urgencia: 'urgente',
+      creada: '2026-10-20',
+      dependeDe: ['20AA-8'],
+    });
+    assert.deepEqual(a.problemas, []);
+  });
+
+  it('las etiquetas son una lista por comas', () => {
+    const a = analizarRoadmap(conProps(['  · etiquetas: tareas, roadmap']));
+    assert.deepEqual(a.tareas[0].propiedades.etiquetas, ['tareas', 'roadmap']);
+  });
+
+  it('sin linea de propiedades no hay problema: son los valores por defecto', () => {
+    const a = analizarRoadmap(conProps(['  Cuerpo en prosa, sin propiedades.']));
+    assert.deepEqual(a.tareas[0].propiedades, {});
+    assert.deepEqual(a.problemas, []);
+  });
+
+  it('la clave desconocida es un problema, no un dato que se tira', () => {
+    assert.deepEqual(motivos(conProps(['  · importancia: mucha'])), ['propiedad desconocida']);
+  });
+
+  it('el valor fuera del conjunto es un problema', () => {
+    assert.deepEqual(motivos(conProps(['  · prioridad: altísima'])), ['valor fuera del conjunto']);
+    assert.deepEqual(motivos(conProps(['  · urgencia: ya'])), ['valor fuera del conjunto']);
+  });
+
+  it('la fecha con otra forma es un problema', () => {
+    assert.deepEqual(motivos(conProps(['  · creada: 20/10/2026'])), ['fecha con forma inválida']);
+  });
+
+  it('el par a medias es un problema', () => {
+    assert.deepEqual(motivos(conProps(['  · prioridad:'])), ['par de propiedades a medias']);
+    assert.deepEqual(motivos(conProps(['  · alta'])), ['par de propiedades a medias']);
+  });
+
+  it('la linea «·» despues del cuerpo esta fuera de sitio', () => {
+    assert.deepEqual(motivos(conProps(['  Cuerpo.', '  · prioridad: alta'])), [
+      'línea de propiedades fuera de sitio',
+    ]);
+  });
+
+  it('la linea «·» sin tarea padre esta fuera de sitio', () => {
+    assert.deepEqual(motivos('## Pendientes\n\n· prioridad: alta\n'), ['línea de propiedades fuera de sitio']);
+  });
+
+  it('dentro de un bloque de codigo no cuenta', () => {
+    const texto = conProps(['```text', '  · prioridad: alta', '```']);
+    assert.deepEqual(analizarRoadmap(texto).problemas, []);
+  });
+});
+
+describe('roadmap: subtareas', () => {
+  it('lee las subtareas sangradas con su estado y sus propiedades', () => {
+    const texto = [
+      '## Pendientes',
+      '',
+      '- [ ] `19AA-1` — **Con subtareas.**',
+      '  · prioridad: alta',
+      '  - [ ] **Leer el parser.**',
+      '    · urgencia: urgente',
+      '  - [x] **Escribir los tests.**',
+      '',
+    ].join('\n');
+    const a = analizarRoadmap(texto);
+    assert.deepEqual(a.tareas[0].subtareas, [
+      { titulo: 'Leer el parser.', completada: false, linea: 5, propiedades: { urgencia: 'urgente' } },
+      { titulo: 'Escribir los tests.', completada: true, linea: 7, propiedades: {} },
+    ]);
+    assert.deepEqual(a.tareas[0].propiedades, { prioridad: 'alta' });
+    assert.deepEqual(a.problemas, []);
+  });
+
+  it('una subtarea sin tarea padre es un problema', () => {
+    assert.deepEqual(motivos('## Pendientes\n\n  - [ ] **Suelta.**\n'), ['subtarea sin tarea padre']);
+  });
+
+  it('las propiedades de la subtarea no son las de la tarea', () => {
+    const texto = ['## Pendientes', '', '- [ ] `T1` — **Una.**', '  - [ ] **Sub.**', '    · prioridad: baja', ''].join('\n');
+    const a = analizarRoadmap(texto);
+    assert.deepEqual(a.tareas[0].propiedades, {});
+    assert.deepEqual(a.tareas[0].subtareas[0].propiedades, { prioridad: 'baja' });
+  });
+});
+
+describe('roadmap: IDs', () => {
+  it('el ID repetido en el mismo roadmap es un problema', () => {
+    const texto = '## Pendientes\n\n- [ ] `T1` — **Una.**\n- [ ] `T1` — **Otra.**\n';
+    const a = analizarRoadmap(texto);
+    assert.deepEqual(a.problemas.map((p) => p.motivo), ['ID repetido en el roadmap']);
+    assert.equal(a.problemas[0].linea, 4);
+  });
+
+  it('el mismo ID en dos proyectos distintos no es nada (la clave es proyecto + ID)', () => {
+    assert.deepEqual(analizarRoadmap('## Pendientes\n\n- [ ] `T1` — **Una.**\n').problemas, []);
+  });
+
+  it('el tope de tareas del tablero son 60, y no recorta en silencio', () => {
+    assert.equal(TOPE_TAREAS, 60);
   });
 });
 
