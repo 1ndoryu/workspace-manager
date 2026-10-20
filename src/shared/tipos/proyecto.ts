@@ -57,6 +57,14 @@ export interface Ejecucion {
   modo: 'dev' | 'build' | null;
 }
 
+/* URL desde la que se abre el proyecto en un sitio donde corre. [por que] El
+ * tooltip del mapa solo ensena la direccion; se deriva de la ficha del registro
+ * (dominio, puertos, host publico) en registro.ts, para que no haya dos reglas. */
+export interface UrlDestino {
+  donde: 'laptop' | 'vps89' | 'produccion';
+  url: string;
+}
+
 /* Despliegue de produccion vinculado a un sitio de Coolify (VPS 66). */
 export interface Despliegue {
   proveedor: 'coolify';
@@ -83,6 +91,8 @@ export interface IdentidadProyecto {
   /* Vinculos del registro: donde corre el dev y su despliegue en Coolify. */
   ejecucion?: Ejecucion;
   despliegue?: Despliegue;
+  /* URLs para abrirlo, una por sitio donde puede correr (dev y/o produccion). */
+  urls?: UrlDestino[];
 }
 
 /* Estado observable de un proyecto (gate, git, resumenes). Subinterface de

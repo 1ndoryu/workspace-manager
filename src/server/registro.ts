@@ -6,7 +6,7 @@
  * El fichero es privado y vive fuera del repo (ver config/ejemplos/). */
 import { readFileSync } from 'node:fs';
 import { rutaConfigPrivada } from './plataforma/rutas.js';
-import type { Despliegue, Ejecucion, Proyecto } from '../shared/tipos/proyecto.js';
+import type { Despliegue, Ejecucion, Proyecto, UrlDestino } from '../shared/tipos/proyecto.js';
 
 /* Forma minima que aqui se usa. El resto del registro (proyectos, vps,
  * ignoradosSistema...) lo interpreta quien lo necesita. */
@@ -43,7 +43,26 @@ interface FichaRegistro {
   host?: string;
   modo?: string;
   buildMode?: string;
+  dominio?: string | null;
   despliegue?: Despliegue;
+  /* Campos de red de la ficha: los mismos que interpreta el tunel del taller
+   * (server/taller/tuneles.ts) para saber por que puerto local se llega a la 89. */
+  puertos?: unknown;
+  puertosRemotos?: unknown;
+  puertosLocales?: unknown;
+  healths?: unknown;
+  /* Sesion de build de la 89: sus propios puertos, healths y locales. */
+  build?: {
+    puertos?: unknown;
+    puertosLocales?: unknown;
+    healths?: unknown;
+  };
+}
+
+/* Health de la ficha: puerto y ruta que se sondean. */
+interface HealthFicha {
+  puerto?: unknown;
+  ruta?: unknown;
 }
 
 /* Vincula cada proyecto con su ficha: donde corre el dev, en que modo y su
@@ -60,6 +79,8 @@ export function anotarRegistro(proyectos: Proyecto[], registro: RegistroArea): P
     if (!ficha) return p;
     const anotado: Proyecto = { ...p, ejecucion: ejecucionDe(ficha) };
     if (ficha.despliegue) anotado.despliegue = ficha.despliegue;
+    const urls = urlsDe(ficha);
+    if (urls.length > 0) anotado.urls = urls;
     return anotado;
   });
 }
@@ -71,6 +92,53 @@ function ejecucionDe(ficha: FichaRegistro): Ejecucion {
     donde: ficha.host ? 'vps89' : 'laptop',
     modo: modo === 'build' || modo === 'dev' ? modo : null,
   };
+}
+
+const numeros = (v: unknown): number[] =>
+  Array.isArray(v) ? v.filter((x): x is number => typeof x === 'number') : [];
+
+/* URLs para abrir el proyecto en cada sitio donde puede correr, derivadas de la
+ * propia ficha. [por que] Es el dato que ensena el tooltip del mapa: si sale de
+ * aqui, no hay una segunda regla de puertos que pueda desviarse. */
+function urlsDe(ficha: FichaRegistro): UrlDestino[] {
+  const urls: UrlDestino[] = [];
+  const dev = urlDeApp(ficha);
+  if (dev) urls.push({ donde: ficha.host ? 'vps89' : 'laptop', url: dev });
+  const dominio = ficha.despliegue?.dominio;
+  if (dominio) urls.push({ donde: 'produccion', url: dominio });
+  return urls;
+}
+
+/* Bloque de la sesion que la ficha declara para `build`: en la 89 el front lo
+ * sirve el backend y el vite de la ficha ya no existe, asi que sus puertos (y
+ * los del tunel) son los que hay que leer. */
+function efectiva(ficha: FichaRegistro): FichaRegistro {
+  const b = ficha.build;
+  if ((ficha.modo ?? ficha.buildMode) !== 'build' || !b) return ficha;
+  return {
+    ...ficha,
+    puertos: b.puertos,
+    puertosRemotos: b.puertos,
+    puertosLocales: b.puertosLocales,
+    healths: b.healths,
+  };
+}
+
+/* URL de la app en el sitio donde corre: mismo criterio que `urlsServidas`
+ * (scripts/dev/doctor/sistema/puertos.mjs), que es lo que imprime `Arranque
+ * open`. [por que] El puerto es el LOCAL —el del tunel si corre en la 89—: el
+ * remoto da un enlace muerto desde el portatil (4190 en PROYECTO TASKS). El
+ * puerto de la app es el que sirve la raiz; sin health de raiz, el ultimo. */
+function urlDeApp(ficha: FichaRegistro): string | null {
+  const ef = efectiva(ficha);
+  const remotos = numeros(ef.puertosRemotos ?? ef.puertos);
+  const locales = numeros(ef.puertosLocales);
+  const healths = Array.isArray(ef.healths) ? (ef.healths as HealthFicha[]) : [];
+  const raiz = healths.find((h) => h.ruta === '/');
+  const puerto = typeof raiz?.puerto === 'number' ? raiz.puerto : remotos.at(-1);
+  if (puerto === undefined) return null;
+  const i = remotos.indexOf(puerto);
+  return `http://${ef.dominio ?? '127.0.0.1'}:${i >= 0 ? (locales[i] ?? remotos[i]) : puerto}`;
 }
 
 /* Marcas (subcadenas, en minusculas) de las apps ajenas al area: las que el

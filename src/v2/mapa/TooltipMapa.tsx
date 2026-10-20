@@ -1,49 +1,60 @@
-/* Tooltip flotante del mapa: datos del proyecto bajo el puntero. Se posiciona
- * con variables CSS para no reflowar el SVG en cada movimiento del raton. */
-import type { CSSProperties } from 'react';
-import type { Proyecto } from '../../shared/types.js';
+/* Tooltip flotante del mapa: nombre del proyecto y la URL de donde corre.
+ * [por que] Solo la direccion: los demas datos (rama, gate, despliegue) ya estan
+ * en el panel de detalle, y el tooltip tapaba el mapa. Se posiciona con
+ * variables CSS para no reflowar el SVG en cada movimiento del raton. */
+import { useMemo, type CSSProperties } from 'react';
+import type { Proyecto, UrlDestino } from '../../shared/types.js';
 import { anchoVentana } from '../../shared/platform/plataforma.js';
+import { useConexiones } from '../useConexiones.js';
 
 interface Props {
   proyecto: Proyecto;
   posicion: { x: number; y: number };
 }
 
+/* Ancho maximo del tooltip (mapaV2Tooltip): el tope de posicion usa el mismo
+ * numero para que no se salga por la derecha. */
+const ANCHO_TIP = 280;
+
+/* URLs de los sitios donde el proyecto corre ahora, en el orden del mapa.
+ * [por que] `destinos` es la misma fuente viva que usan mapa y lista: si corre
+ * en dos sitios, salen las dos direcciones; si no corre en ninguno, ninguna. */
+function urlsVivas(urls: UrlDestino[] | undefined, destinos: readonly string[]): string[] {
+  if (!urls || destinos.length === 0) return [];
+  const porSitio = new Map(urls.map((u) => [u.donde, u.url]));
+  return destinos.flatMap((d) => {
+    const url = porSitio.get(d as UrlDestino['donde']);
+    return url ? [url] : [];
+  });
+}
+
 export function TooltipMapa({ proyecto: hover, posicion }: Props) {
+  const { destinos } = useConexiones();
+  const urls = useMemo(
+    () => urlsVivas(hover.urls, destinos.get(hover.clave) ?? []),
+    [hover.urls, destinos, hover.clave],
+  );
+
   return (
     <div
       className="mapaV2Tooltip"
       style={
         {
-          // [por que] Tope a la derecha: el tooltip de 240 px no se sale de la ventana junto al borde.
-          '--mapa-tip-x': `${Math.min(posicion.x + 14, anchoVentana() - 240)}px`,
+          // [por que] Tope a la derecha: el tooltip no se sale de la ventana junto al borde.
+          '--mapa-tip-x': `${Math.min(posicion.x + 14, anchoVentana() - ANCHO_TIP)}px`,
           '--mapa-tip-y': `${posicion.y + 14}px`,
         } as CSSProperties
       }
     >
       <div className="mapaV2TooltipTitulo">{hover.id}</div>
-      {hover.ejecucion && (
-        <div className="mapaV2TooltipDatos">
-          <div>
-            corre: {hover.ejecucion.donde === 'vps89' ? 'VPS 89' : 'laptop'} · modo {hover.ejecucion.modo ?? 'sin declarar'}
-          </div>
-        </div>
-      )}
-      {hover.despliegue && (
-        <div className="mapaV2TooltipDatos">
-          <div>coolify: {hover.despliegue.sitio} (VPS {hover.despliegue.vps})</div>
-          <div>{hover.despliegue.dominio}</div>
-        </div>
-      )}
-      {hover.esGit && hover.git ? (
-        <div className="mapaV2TooltipDatos">
-          <div>rama: {hover.git.rama}</div>
-          <div>dirty: {hover.git.dirty ? 'sí' : 'no'}</div>
-          <div>ahead: {hover.git.ahead} · behind: {hover.git.behind}</div>
-          {hover.gate?.declarado && <div>gate: sí</div>}
-        </div>
+      {urls.length === 0 ? (
+        <div className="mapaV2TooltipUrl mapaV2TooltipUrl--apagada">no corre ahora mismo</div>
       ) : (
-        <div className="mapaV2TooltipDatos">carpeta (no git)</div>
+        urls.map((url) => (
+          <div key={url} className="mapaV2TooltipUrl">
+            {url}
+          </div>
+        ))
       )}
     </div>
   );
