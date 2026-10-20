@@ -2,8 +2,8 @@
  * [por que] Separada de recoger.ts (19AA-13). */
 import { existsSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { leerArchivo } from '../http.js';
-import type { Entorno } from './entorno.js';
+import { leerArchivo } from '../../http.js';
+import type { Entorno } from '../entorno.js';
 
 /* leerArchivo devuelve null si no existe; '' (vacío) también cuenta como ausente.
  * [por que] La carpeta sale de CARPETA_SKILLS (su unico dueno, con WS_SKILLS_ROOT)

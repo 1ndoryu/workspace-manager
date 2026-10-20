@@ -14,10 +14,10 @@ import { diferenciasPlantilla, leerPolitica } from '../guardian/configuracion/po
 import type { LecturaPlantilla } from '../guardian/configuracion/plantilla.js';
 import type { DatosArea, DatosProyecto, EstadoGuard, PlanActivo, RamaSuelta } from './tipos.js';
 import type { Entorno } from './entorno.js';
-import { medirTmp } from './recoger-tmp.js';
-import { copiasSkill, skillArranque } from './recoger-skill.js';
-import { abiertasDelPlan, encabezados } from './recoger-puro.js';
-export { abiertasDelPlan } from './recoger-puro.js';
+import { medirTmp } from './recoger/tmp.js';
+import { copiasSkill, skillArranque } from './recoger/skill.js';
+import { abiertasDelPlan, encabezados } from './recoger/puro.js';
+export { abiertasDelPlan } from './recoger/puro.js';
 
 const GB = 1024 ** 3;
 /* [por que] Presupuesto de la medición de C:\tmp: `du` tarda minutos; el tablero no
