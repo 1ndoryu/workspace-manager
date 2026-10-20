@@ -71,7 +71,7 @@ export function saludProyectos(forzar = false): Promise<Map<string, ResultadoSal
     async () => {
       const ahora = Date.now();
       const { snapshot } = await snapshotArea(false);
-      const datos = recogerProyectos(snapshot.proyectos, {
+      const datos = await recogerProyectos(snapshot.proyectos, {
         ahora,
         pinArea: leerPinArea(entorno.raizRepo),
         plantilla: leerPlantilla(dirConfigPrivada()),

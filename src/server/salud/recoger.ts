@@ -82,9 +82,11 @@ function estadoGuard(ruta: string, clave: string, plantilla: LecturaPlantilla): 
 }
 
 /* Ramas no integradas en main, locales y remotas. `--no-merged=main` falla si no hay
- * main: entonces no hay base contra la que medir y no se listan ramas. */
-function ramasSueltas(ruta: string, puerto: PuertoGit = PUERTO_GIT): RamaSuelta[] {
-  const salida = puerto.git(ruta, [
+ * main: entonces no hay base contra la que medir y no se listan ramas.
+ * [por que] Asíncrona: con `git` síncrono cada repo bloqueaba el event loop (~210 ms en frío)
+ * y las ramas de la consola, que van en paralelo, acababan en serie. */
+async function ramasSueltas(ruta: string, puerto: PuertoGit = PUERTO_GIT): Promise<RamaSuelta[]> {
+  const salida = await puerto.gitAsync(ruta, [
     'for-each-ref',
     '--no-merged=main',
     '--format=%(refname)%09%(committerdate:unix)',
@@ -157,16 +159,17 @@ function toolchainFrontend(ruta: string): { vite: string | null; typescript: str
 
 /* Datos de todos los proyectos a la vez: los target-dir compartidos solo se ven
  * cruzando proyectos. */
-export function recogerProyectos(
+export async function recogerProyectos(
   proyectos: Proyecto[],
   ctx: { ahora: number; pinArea: string | null; plantilla: LecturaPlantilla; runtimeSentinel: string | null },
-): DatosProyecto[] {
+): Promise<DatosProyecto[]> {
   const targetDirPor = new Map(proyectos.map((p) => [p.clave, targetDirDe(p.ruta)] as const));
   const claves = new Map<string, string[]>();
   for (const [clave, td] of targetDirPor) {
     if (td) claves.set(td, [...(claves.get(td) ?? []), clave]);
   }
-  return proyectos.map((p) => {
+  /* [por que] Los repos se leen a la vez (git asíncrono): el coste se solapa en vez de sumarse. */
+  return Promise.all(proyectos.map(async (p) => {
     const td = targetDirPor.get(p.clave) ?? null;
     const esRust = existsSync(join(p.ruta, 'Cargo.toml'));
     /* [por que] roadmap.md se lee una vez y alimenta el analisis del protocolo y los
@@ -187,14 +190,14 @@ export function recogerProyectos(
       sentinelPin: ctx.pinArea,
       esRuntimeSentinel: p.clave === ctx.runtimeSentinel,
       guard: estadoGuard(p.ruta, p.clave, ctx.plantilla),
-      ramas: ramasSueltas(p.ruta),
+      ramas: await ramasSueltas(p.ruta),
       instruccionesProhibidas: DOCS_PROHIBIDOS.filter((f) => existsSync(join(p.ruta, f))),
       planesActivos: planesActivos(p.ruta, roadmap.planes),
       roadmap,
       enlacesRotos: enlacesRotos(p.ruta, roadmapTexto),
       toolchainFrontend: toolchainFrontend(p.ruta),
     };
-  });
+  }));
 }
 
 function encabezados(texto: string | null): string[] {
