@@ -20,6 +20,7 @@ import { manejarRutasPc } from './rutas/rutasPc.js';
 import { manejarRutasDev } from './rutas/rutasDev.js';
 import { manejarRutasConsola } from './rutas/rutasConsola.js';
 import { manejarRutasTaller } from './taller/rutasTaller.js';
+import { manejarRutasTallerAgente } from './taller/rutasTallerAgente.js';
 import { manejarRutasSalud } from './rutas/salud/rutasSalud.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutas/rutasVps.js';
@@ -215,6 +216,11 @@ export function crearServidor(opciones: OpcionesServidor = {}) {
         }
         /* Estado del taller remoto (/api/taller/estado, S3): viven en taller/rutasTaller.ts. */
         if (await manejarRutasTaller(req, res, url, ruta)) {
+          return;
+        }
+        /* Pulse del taller (/api/taller/agente y /api/taller/pieza, 20AA-16): la tabla y el
+         * detalle del panel, en vivo desde la 89. Viven en taller/rutasTallerAgente.ts. */
+        if (await manejarRutasTallerAgente(req, res, url, ruta)) {
           return;
         }
         /* Salud del entorno y de los proyectos (/api/salud/*, 10AA-2 F8): viven en

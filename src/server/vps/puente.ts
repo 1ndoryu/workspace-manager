@@ -136,12 +136,14 @@ function soltarCarrilList(): void {
 }
 
 /* Redacta pares evidentes de secretos en texto humano (logs/health pueden
- * arrastrarlos). Dominios y UUIDs se conservan: no son secretos. */
+ * arrastrarlos). Dominios y UUIDs se conservan: no son secretos. También las
+ * credenciales embebidas en una URL (`postgres://user:clave@host`), que es como
+ * viaja `DATABASE_URL` en los logs del taller y no lleva ninguna de las palabras
+ * de arriba. */
 export function redactar(texto: string): string {
-  return texto.replace(
-    /(api[_-]?key|token|password|passwd|secret)\s*[:=]\s*(\S+)/gi,
-    '$1=···',
-  );
+  return texto
+    .replace(/(api[_-]?key|token|password|passwd|secret)\s*[:=]\s*(\S+)/gi, '$1=···')
+    .replace(/(\w+:\/\/[^\s:@/]+):[^\s@/]+@/g, '$1:···@');
 }
 
 function configArg(): string[] {

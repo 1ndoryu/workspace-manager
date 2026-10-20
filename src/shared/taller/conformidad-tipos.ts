@@ -16,7 +16,9 @@ export interface Hallazgo {
 export interface EstadoTaller89 {
   version: number;
   tomadaEn: string;
-  disco: { libreGb: number };
+  /* `totalGb` es de la sonda 2026-10-20 en adelante (el % de uso del panel). Opcional: una sonda
+   * antigua no lo trae y el panel lo dice en vez de calcular un porcentaje con un cero falso. */
+  disco: { libreGb: number; totalGb?: number };
   /* `nivel` (0 mantenimiento, 1 aviso, 2 suelo) y `liberadoGb` son de la última corrida de
    * cm-sweep, y `ultimaLimpieza` su marca de tiempo. Opcionales: una sonda antigua no los trae y
    * null significa «no se pudo leer el estado», que no es lo mismo que un cero. */
