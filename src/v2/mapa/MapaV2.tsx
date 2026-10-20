@@ -39,14 +39,13 @@ export function MapaV2() {
   const {
     zoom,
     pan,
-    modoArrastre,
     arrastrando,
     hover,
     tooltipPos,
     svgRef,
     acercar,
     alejar,
-    alternarModoArrastre,
+    huboArrastre,
     iniciarArrastre,
     arrastrar,
     terminarArrastre,
@@ -145,7 +144,7 @@ export function MapaV2() {
     <div className="mapaV2">
       <svg
         ref={svgRef}
-        className={`mapaV2Svg${modoArrastre ? ' mapaV2Svg--arrastre' : ''}${arrastrando ? ' mapaV2Svg--arrastrando' : ''}`}
+        className={`mapaV2Svg${arrastrando ? ' mapaV2Svg--arrastrando' : ''}`}
         viewBox={viewBox}
         preserveAspectRatio="xMidYMid meet"
         role="img"
@@ -225,15 +224,16 @@ export function MapaV2() {
               key={p.id}
               className={`mapaV2Tile mapaV2Tile--${estado}${libre ? ' mapaV2Tile--libre' : ''}`}
               onClick={() => {
-                if (!modoArrastre) seleccionar(p.id);
+                /* Arrastrar empezo encima de esta caja: soltar no es seleccionar. */
+                if (!huboArrastre()) seleccionar(p.id);
               }}
               onContextMenu={(e) => {
-                if (modoArrastre) return;
+                if (arrastrando) return;
                 e.preventDefault();
                 abrirMenuContextual({ x: e.clientX, y: e.clientY, id: p.id, clave: p.clave });
               }}
               onMouseEnter={() => {
-                if (!modoArrastre) setHover(p);
+                if (!arrastrando) setHover(p);
               }}
               onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
               onMouseLeave={() => {
@@ -244,7 +244,7 @@ export function MapaV2() {
               tabIndex={0}
               aria-label={`${p.id}, ${ETIQUETA_ESTADO[estado]}`}
               onKeyDown={(e) => {
-                if (!modoArrastre && (e.key === 'Enter' || e.key === ' ')) seleccionar(p.id);
+                if (e.key === 'Enter' || e.key === ' ') seleccionar(p.id);
               }}
             >
               {borde && (
@@ -293,7 +293,7 @@ export function MapaV2() {
         })}
       </svg>
 
-      <ControlesMapa modoArrastre={modoArrastre} alternarModoArrastre={alternarModoArrastre} acercar={acercar} alejar={alejar} />
+      <ControlesMapa acercar={acercar} alejar={alejar} />
 
       {hover && tooltipPos && <TooltipMapa proyecto={hover} posicion={tooltipPos} />}
     </div>

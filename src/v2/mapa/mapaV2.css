@@ -22,12 +22,6 @@
     gap: var(--v2-spaceXs);
 }
 
-.mapaV2ManoIcono {
-    width: 18px;
-    height: 18px;
-    display: block;
-}
-
 /* El SVG escala con viewBox para caber siempre en el espacio disponible:
  * asi la pagina principal nunca hace scroll. */
 .mapaV2Svg {
@@ -39,18 +33,13 @@
     background: var(--v2-fondo);
 }
 
-/* Modo mover (mano activada): cursor de arrastre sobre todo el mapa (incluidas
- * las cajas, que dejan de ser clicables) y sin seleccion de texto ni scroll
- * tactil mientras se arrastra. */
-.mapaV2Svg--arrastre {
+/* El arrastre esta siempre activo: la mano abierta invita a agarrar, y sin
+ * seleccion de texto ni scroll tactil el gesto no se pelea con el navegador. */
+.mapaV2Svg {
     cursor: grab;
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
-}
-
-.mapaV2Svg--arrastre .mapaV2Tile {
-    cursor: grab;
 }
 
 .mapaV2Svg--arrastrando {
@@ -258,7 +247,8 @@
 
 /* Tooltip monocromo: caja negra con borde y texto blanco. La posicion la
  * publica el componente como CSS vars (sigue al cursor) para no tapar los
- * paneles laterales, sin estilos inline reales. */
+ * paneles laterales, sin estilos inline reales. Compacto: solo el nombre y las
+ * URLs, sin ancho minimo que lo deje medio vacio. */
 .mapaV2Tooltip {
     position: fixed;
     /* Valores por defecto: la var la publica el componente por instancia. */
@@ -269,19 +259,22 @@
     background: var(--v2-texto);
     color: var(--v2-invertido);
     border: 1px solid var(--v2-borde);
-    padding: var(--v2-spaceMd);
-    font-size: var(--v2-textSm);
-    min-width: 220px;
-    max-width: 320px;
+    padding: var(--v2-gapPanel);
+    font-size: var(--v2-textXs);
+    /* Mismo numero que ANCHO_TIP en TooltipMapa: el tope de posicion cuadra. */
+    max-width: 280px;
     pointer-events: none;
 }
 
 .mapaV2TooltipTitulo {
-    margin-bottom: var(--v2-spaceSm);
+    margin-bottom: var(--v2-spaceXs);
 }
 
-.mapaV2TooltipDatos {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+/* Las URLs pueden ser largas: se parten en vez de estirar la caja. */
+.mapaV2TooltipUrl {
+    overflow-wrap: anywhere;
+}
+
+.mapaV2TooltipUrl--apagada {
+    opacity: 0.7;
 }
