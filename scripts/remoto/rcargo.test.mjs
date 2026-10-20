@@ -19,6 +19,9 @@ import {
   comandoPrepararRama,
   esVps,
   avisoCargoLock,
+  faltaTargetXwin,
+  argsConTargetXwin,
+  TARGET_WINDOWS,
 } from './rcargo.mjs';
 import { rutaConfigPrivada } from '../shared/rutas.mjs';
 
@@ -152,6 +155,28 @@ test('comando remoto: cargo detrás de cm-heavy y con target propio', () => {
 });
 
 const cargoToml = '[package]\nname = "agente-tiempo-real"\nversion = "0.1.0"\n\n[[bin]]\nname = "otro"\n';
+
+/* [18AA-8] `cargo xwin` sin `--target` compilaba para Linux en la 89: los artefactos acababan en
+ * `release/` y el `.exe` viejo se quedaba donde estaba, con un «Finished» que parecía éxito. */
+// La cadena remota entera va entrecomillada para el shell de la 89, así que cada `'` interior sale
+// como `'\''`: para buscarla hay que aplicar la misma transformación.
+const enCadena = (texto) => texto.replace(/'/g, `'\\''`);
+test('xwin: se fuerza el target de Windows; uno explícito manda', () => {
+  const rutas = rutasRemotas(config, 'P', 'main');
+  const sin = construirComandoRemoto(config, rutas, ['xwin', 'build', '--release'])[2];
+  assert.ok(sin.includes(enCadena(`cargo 'xwin' 'build' '--release' '--target' '${TARGET_WINDOWS}'`)), sin);
+  // Las dos formas de `--target` cuentan como explícito, y un target distinto no se pisa.
+  for (const conTarget of [
+    ['xwin', 'build', '--target', 'aarch64-pc-windows-msvc'],
+    ['xwin', 'build', '--target=aarch64-pc-windows-msvc'],
+  ]) {
+    assert.equal(faltaTargetXwin(conTarget), false);
+    assert.deepEqual(argsConTargetXwin(conTarget), conTarget);
+  }
+  // Los subcomandos normales de cargo no se tocan.
+  assert.equal(faltaTargetXwin(['test', '--target', 'x']), false);
+  assert.deepEqual(argsConTargetXwin(['build', '--release']), ['build', '--release']);
+});
 
 test('base por rama: paquete con guiones bajos; main/master sin sufijo', () => {
   assert.equal(nombreBaseDatos(cargoToml, 'main'), 'agente_tiempo_real');

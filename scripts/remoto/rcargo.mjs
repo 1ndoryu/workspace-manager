@@ -70,6 +70,23 @@ export function shQuote(valor) {
   return `'${String(valor).replace(/'/g, `'\\''`)}'`;
 }
 
+/* [18AA-8] Triple del build cruzado a Windows. `cargo xwin` sin `--target` NO cruza: cargo-xwin
+ * solo sustituye el enlazador cuando hay target distinto del host, así que en la 89 compilaba para
+ * Linux y dejaba los artefactos en `release/` (ELF) con el `.exe` viejo intacto y un «Finished» que
+ * parece éxito. Caso real 2026-10-19 (glory-web). Se fuerza aquí, en el único sitio por el que
+ * pasan los argumentos de cargo hacia la 89, en vez de confiar en que cada proyecto lo recuerde. */
+export const TARGET_WINDOWS = 'x86_64-pc-windows-msvc';
+
+// Un `--target` explícito (en cualquiera de sus dos formas) manda: si alguien pide otro, es su decisión.
+export function faltaTargetXwin(args) {
+  return args[0] === 'xwin'
+    && !args.some((a) => a === '--target' || a.startsWith('--target='));
+}
+
+export function argsConTargetXwin(args) {
+  return faltaTargetXwin(args) ? [...args, '--target', TARGET_WINDOWS] : args;
+}
+
 // [por que] El .cargo/config.toml de un proyecto puede fijar `build.rustc-wrapper` a un binario de
 // Windows (WANDORIUS lo hace con sccache): en la 89 no existe y el build muere con «could not execute
 // process .../sccache.exe (os error 2)». El entorno manda sobre el fichero, así que se limpia en todo
@@ -169,6 +186,8 @@ export function comandoPrepararRama(bd, nombre, base, semilla = null) {
 // Comando que ssh ejecuta en la VPS. El lock de carga pesada (cm-heavy) va delante de cargo.
 // `preparar` ({base, semilla}) es opcional: solo lo usa la base de rama.
 export function construirComandoRemoto(config, rutas, args, nombreBd = null, preparar = null, extra = []) {
+  // [18AA-8] El build cruzado a Windows lleva su target aunque no lo pidan (ver faltaTargetXwin).
+  const argsCargo = argsConTargetXwin(args);
   const entorno = [
     SIN_RUSTC_WRAPPER,
     ...(nombreBd ? [`DATABASE_URL=${shQuote(urlBaseRemota(config.bd, nombreBd))}`] : []),
@@ -179,7 +198,7 @@ export function construirComandoRemoto(config, rutas, args, nombreBd = null, pre
     `cd ${shQuote(rutas.dirRemoto)}`,
     ...(nombreBd ? [comandoBaseRemota(config.bd, nombreBd)] : []),
     ...(nombreBd && preparar ? [comandoPrepararRama(config.bd, nombreBd, preparar.base, preparar.semilla)] : []),
-    `${entorno} ${config.lockWrapper} cargo ${args.map(shQuote).join(' ')}`,
+    `${entorno} ${config.lockWrapper} cargo ${argsCargo.map(shQuote).join(' ')}`,
   ].join(' && ');
   return ['bash', '-lc', shQuote(interno)];
 }
@@ -289,6 +308,12 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun, extr
       console.error(`rcargo: ${e.message}`);
       return 2;
     }
+  }
+
+  // [18AA-8] Se avisa, no se bloquea: el comando sale con el target forzado y quien lo lanzó debe
+  // saber que su `cargo xwin` no era el que creía (sin esto compilaba para Linux en silencio).
+  if (faltaTargetXwin(args)) {
+    console.error(`rcargo: cargo xwin sin --target compilaría para Linux; se añade --target ${TARGET_WINDOWS}.`);
   }
 
   if (!esVps()) {
