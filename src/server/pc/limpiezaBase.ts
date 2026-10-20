@@ -4,9 +4,9 @@
  * una pasada (`limpiarPc`) y la mitad en vivo (`limpiarTodo`) comparten
  * estos helpers; viven aquí una sola vez, sin ciclos (la base solo mira
  * a `ejecucion.js`, `elevacion.js` y `scan.js`). */
-import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { promisify } from 'node:util';
+import { PUERTO_PROCESOS } from '../plataforma/procesos.js';
+import type { PuertoProcesos } from '../plataforma/procesos.js';
 import {
   encolar,
   escribirAtomico,
@@ -20,8 +20,6 @@ import {
 import type { AccionPc, FasePc, ResumenReintento } from './ejecucion.js';
 import { ejecutarCleanElevado, esFalloPermiso, esRutaAdmin } from './elevacion.js';
 import { leerReporte } from './reporte.js';
-
-const execFileAsync = promisify(execFile);
 
 /* Ejecuta un *-clean tolerando el éxito parcial: el limpiador devuelve 0
  * (borrado completo), 1 (algunas entradas rechazadas o con fallo, el resto
@@ -38,15 +36,18 @@ function correrClean(bin: string, args: string[]): Promise<{ salida: string }> {
 
 /* Ejecución sin cola (para el cuerpo del borrado en vivo, que ya corre
  * dentro de la cola serial: encolar dentro de encolar se bloquearía). */
-export async function ejecutarClean(bin: string, args: string[]): Promise<{ salida: string }> {
+export async function ejecutarClean(
+  bin: string,
+  args: string[],
+  puerto: PuertoProcesos = PUERTO_PROCESOS,
+): Promise<{ salida: string }> {
   try {
-    const { stdout } = await execFileAsync(bin, args, {
-      encoding: 'utf8',
+    const { stdout } = await puerto.ejecutar(bin, args, {
       windowsHide: true,
       timeout: 300000,
       maxBuffer: 64 * 1024 * 1024,
     });
-    return { salida: String(stdout) };
+    return { salida: stdout };
   } catch (err) {
     const e = err as { code?: unknown; stdout?: unknown };
     const salida = String((e.stdout as string) ?? '');

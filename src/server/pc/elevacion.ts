@@ -14,13 +14,11 @@
  * regex ^[a-z0-9_-]{1,40}$), citadas en comilla simple de PowerShell con
  * doble nivel de escape para el comando anidado. */
 
-import { execFile } from 'node:child_process';
 import { readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
-
-const execFileAsync = promisify(execFile);
+import { PUERTO_PROCESOS } from '../plataforma/procesos.js';
+import type { PuertoProcesos } from '../plataforma/procesos.js';
 
 /* Verdadero si la ruta absoluta vive fuera del perfil del usuario (ámbito
  * de máquina: ProgramData, raíces protegidas...). Fail-closed: ante duda
@@ -75,7 +73,11 @@ export interface ResultadoElevado {
  * [por que] Sin -Wait el padre no sabría cuándo leer el fichero; sin
  * fichero no hay retorno (el hijo elevado no hereda tuberías útiles). Los
  * temporales viven en el dir del SO con nombre único y se retiran siempre. */
-export async function ejecutarCleanElevado(bin: string, args: string[]): Promise<ResultadoElevado> {
+export async function ejecutarCleanElevado(
+  bin: string,
+  args: string[],
+  puerto: PuertoProcesos = PUERTO_PROCESOS,
+): Promise<ResultadoElevado> {
   const sello = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const salidaPath = join(tmpdir(), `wm-pc-elev-${sello}.out.json`);
   const errorPath = join(tmpdir(), `wm-pc-elev-${sello}.err.txt`);
@@ -100,8 +102,7 @@ export async function ejecutarCleanElevado(bin: string, args: string[]): Promise
   ].join(' ');
   let lanzado: { stdout?: unknown; stderr?: unknown };
   try {
-    lanzado = await execFileAsync('pwsh.exe', ['-NoProfile', '-NonInteractive', '-Command', guion], {
-      encoding: 'utf8',
+    lanzado = await puerto.ejecutar('pwsh.exe', ['-NoProfile', '-NonInteractive', '-Command', guion], {
       windowsHide: true,
       timeout: 300000,
       maxBuffer: 1024 * 1024,

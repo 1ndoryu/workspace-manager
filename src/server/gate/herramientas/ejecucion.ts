@@ -4,8 +4,6 @@
  * reporte); `analizador.ts` conserva la capa de ANÁLISIS (caché por frescura,
  * normalización, single-flight, barrido). La frontera es el `ReporteJson`
  * parseado: nada del formato JSON sale de aquí sin normalizar. */
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,6 +12,10 @@ import type { ResolucionCli } from './proveedor.js';
 /* Raíz del área (misma fuente del server): la caché de análisis vive bajo
  * <area>/data/cache/analisis.json, como la config del workspace. */
 import { RAIZ_AREA } from '../../plataforma/rutas.js';
+/* [por que] El spawn va por el puerto de procesos para poder inyectar un falso
+ * en tests sin lanzar sentinel/varsense de verdad. */
+import { PUERTO_PROCESOS } from '../../plataforma/procesos.js';
+import type { PuertoProcesos } from '../../plataforma/procesos.js';
 
 /* Tipos del JSON real que devuelve `sentinel analyze --format json` (varsense
  * `all` comparte la forma: severityCounts + entries con findings). No se
@@ -211,9 +213,7 @@ export function parsearReporte(stdout: string | undefined): ReporteJson | null {
  * Así el estado del proyecto usa los hallazgos reales (conHallazgos) en lugar
  * de marcarlo 'error' de herramienta. Solo devuelve null si no hay stdout
  * parseable (fallo real de runtime/spawn: el llamador marca 'error'). */
-const execFileAsync = promisify(execFile);
-
-export async function correrSentinel(ruta: string): Promise<ResultadoSpawn | null> {
+export async function correrSentinel(ruta: string, puerto: PuertoProcesos = PUERTO_PROCESOS): Promise<ResultadoSpawn | null> {
   const res = cliRuntime(ruta);
   if (!res) return null;
   /* Versión y commit que se REGISTRAN en el análisis: los del runtime que
@@ -225,13 +225,12 @@ export async function correrSentinel(ruta: string): Promise<ResultadoSpawn | nul
    * `analyze` con el sistema cargado; con 60 s el timeout mataba el proceso,
    * no había stdout y el gate marcaba 'error' falso. 180 s da margen. */
   const opciones = {
-    encoding: 'utf8' as const,
     windowsHide: true,
     timeout: 180000,
     env: { ...process.env, ...entornoGate(ruta) },
   };
   try {
-    const { stdout } = await execFileAsync(
+    const { stdout } = await puerto.ejecutar(
       process.execPath,
       [res.cli, 'analyze', '--workspace', ruta, '--format', 'json'],
       opciones,
@@ -252,14 +251,14 @@ export async function correrSentinel(ruta: string): Promise<ResultadoSpawn | nul
  * proyecto (`cliRuntime`), con `node <cli>` y args en array, sin shell ni shim .cmd.
  * Asíncrono como el análisis: `execFileSync` aquí bloqueaba toda la API durante el
  * doctor. Devuelve null si no hay runtime o si no hay nada que mostrar. */
-export async function correrDoctorLocal(ruta: string): Promise<string | null> {
+export async function correrDoctorLocal(ruta: string, puerto: PuertoProcesos = PUERTO_PROCESOS): Promise<string | null> {
   const res = cliRuntime(ruta);
   if (!res) return null;
   try {
-    const { stdout } = await execFileAsync(
+    const { stdout } = await puerto.ejecutar(
       process.execPath,
       [res.cli, 'doctor', '--json', '--workspace', ruta],
-      { encoding: 'utf8', timeout: 15000, windowsHide: true, maxBuffer: 1024 * 1024 },
+      { timeout: 15000, windowsHide: true, maxBuffer: 1024 * 1024 },
     );
     return stdout.trim().slice(0, 2000) || null;
   } catch (err) {
@@ -276,7 +275,7 @@ export async function correrDoctorLocal(ruta: string): Promise<string | null> {
  * el runtime está provisionado en el checkout compartido. Misma convención
  * de exit code que sentinel: != 0 con hallazgos de severidad 'error' (el
  * reporte válido va en stdout); 2 = fallo real. Devuelve null si no aplica. */
-export async function correrVarsense(ruta: string): Promise<ResultadoSpawn | null> {
+export async function correrVarsense(ruta: string, puerto: PuertoProcesos = PUERTO_PROCESOS): Promise<ResultadoSpawn | null> {
   const base = checkoutVarsense();
   if (!base) return null;
   if (!existsSync(join(ruta, 'varsense.config.json'))) return null;
@@ -284,14 +283,13 @@ export async function correrVarsense(ruta: string): Promise<ResultadoSpawn | nul
   if (!vs) return null;
   const cli = join(base, 'dist', 'cli', 'index.js');
   const opciones = {
-    encoding: 'utf8' as const,
     windowsHide: true,
     // [porque] Igual que sentinel (180 s): un timeout corto marca el gate como
     // fallido aunque varsense funcione; el recorrido de árboles grandes tarda.
     timeout: 180000,
   };
   try {
-    const { stdout } = await execFileAsync(
+    const { stdout } = await puerto.ejecutar(
       process.execPath,
       [cli, 'all', '--workspace', ruta, '--format', 'json'],
       opciones,

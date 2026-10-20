@@ -12,15 +12,13 @@
  * Como el limpiador es Windows-only, la deteccion de cambios ya no puede ser
  * solo la version del `Cargo.toml`: mejoras sin subir version no se veian. Se
  * guarda una huella del codigo junto al binario y se compara. */
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { RAIZ_AREA, RAIZ_REPO } from '../plataforma/rutas.js';
 import { avisoSinPapel, papelDeArea } from '../plataforma/area.js';
-
-const execFileAsync = promisify(execFile);
+import { PUERTO_PROCESOS } from '../plataforma/procesos.js';
+import type { PuertoProcesos } from '../plataforma/procesos.js';
 
 /* El limpiador es un proyecto NUESTRO (otro repo del area), asi que su nombre
  * sale de la config (`config/area.json`). [por que] Estaba incrustado: en un
@@ -62,14 +60,10 @@ export function versionFuente(): string | null {
 }
 
 /* Version que reporta el binario (`--version` => "<nombre> <version>"). */
-async function versionBinaria(bin: string): Promise<string | null> {
+async function versionBinaria(bin: string, puerto: PuertoProcesos = PUERTO_PROCESOS): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync(bin, ['--version'], {
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 15000,
-    });
-    const m = String(stdout).match(/(\d+\.\d+\.\d+)/);
+    const { stdout } = await puerto.ejecutar(bin, ['--version'], { windowsHide: true, timeout: 15000 });
+    const m = stdout.match(/(\d+\.\d+\.\d+)/);
     return m ? m[1] : null;
   } catch {
     return null;
@@ -159,15 +153,14 @@ export async function estadoBinario(): Promise<EstadoBinario> {
 
 /* Reconstruye el binario en la 89 y lo deja en data/bin. Single-flight:
  * llamadores concurrentes esperan el mismo vuelo. */
-export function reconstruirBinario(): Promise<string> {
+export function reconstruirBinario(puerto: PuertoProcesos = PUERTO_PROCESOS): Promise<string> {
   if (vueloReconstruccion) return vueloReconstruccion;
   vueloReconstruccion = (async () => {
     if (!DIR_LIMPIADOR) throw new Error(avisoSinPapel('limpiador'));
     const guion = join(DIR_LIMPIADOR, 'scripts', 'build-windows.mjs');
     /* Se ejecuta con el node actual, no con `node` del PATH: el server puede
      * arrancar sin el PATH del usuario. */
-    await execFileAsync(process.execPath, [guion, '--salida', BIN_PC], {
-      encoding: 'utf8',
+    await puerto.ejecutar(process.execPath, [guion, '--salida', BIN_PC], {
       windowsHide: true,
       timeout: TIMEOUT_MS,
       maxBuffer: 32 * 1024 * 1024,
