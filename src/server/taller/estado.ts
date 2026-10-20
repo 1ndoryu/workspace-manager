@@ -19,6 +19,7 @@ import { hostsActivos } from '../../shared/taller/conformidadPublico.js';
 import { leerRegistroConformidad } from './registroConformidad.js';
 import { NOMBRE_MANAGER } from '../plataforma/rutas.js';
 import { BIN_SSH } from '../plataforma/binarios.js';
+import { escuchasConProceso, obtenerSistemaLocal } from '../plataforma/sistemaLocal.js';
 import { esNumero, esObjeto } from '../../shared/guardas.js';
 import { bdTrabajoDe, hostTaller, leerConfigRemota } from '../gate/herramientas/config.js';
 
@@ -176,18 +177,12 @@ async function leerPublico(hosts: string[]): Promise<EstadoPublico> {
 
 /* ---------- Laptop (procesos, escuchas, Mutagen) ---------- */
 
-/* [por que] -EncodedCommand evita el reparto de comillas entre Node y PowerShell.
- * Si Get-NetTCPConnection falla, el script termina con error y L0 lo dice (no se calla). */
-const SCRIPT_LOCAL = `
+/* [por que] Procesos y escuchas ya no salen de aquí: los lee `sistemaLocal` (un solo CIM y un
+ * netstat, compartidos con la vigilancia). Esta consulta queda solo para Mutagen, que no está en
+ * esa lectura. -EncodedCommand evita el reparto de comillas entre Node y PowerShell. */
+const SCRIPT_MUTAGEN = `
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 $ErrorActionPreference = 'Stop'
-$cim = @{}
-foreach ($p in (Get-CimInstance Win32_Process)) { $cim[[int]$p.ProcessId] = $p }
-$procesos = @($cim.Values | ForEach-Object { [pscustomobject]@{ pid = [int]$_.ProcessId; nombre = [string]$_.Name; cmd = [string]$_.CommandLine } })
-$escuchas = @(Get-NetTCPConnection -State Listen | ForEach-Object {
-  $dueno = $cim[[int]$_.OwningProcess]
-  [pscustomobject]@{ direccion = [string]$_.LocalAddress; puerto = [int]$_.LocalPort; proceso = $(if ($dueno) { [string]$dueno.Name } else { '' }) }
-})
 $mutagenExe = resolverMutagen
 $mutagenPresente = [bool]$mutagenExe
 $mutagenOk = $false
@@ -200,7 +195,7 @@ if ($mutagenPresente) {
     $mutagenSalida = $_.ToString()
   }
 }
-[pscustomobject]@{ procesos = $procesos; escuchas = $escuchas; mutagenPresente = $mutagenPresente; mutagenOk = $mutagenOk; mutagenSalida = $mutagenSalida } | ConvertTo-Json -Compress -Depth 4
+[pscustomobject]@{ mutagenPresente = $mutagenPresente; mutagenOk = $mutagenOk; mutagenSalida = $mutagenSalida } | ConvertTo-Json -Compress -Depth 4
 `;
 
 /* Mutagen del taller, tal y como lo declara la config privada. [por que] El binario
@@ -252,30 +247,38 @@ export function sesionesMutagenMalas(salida: string): string[] {
   return malas;
 }
 
-async function leerLocal(): Promise<EstadoLocal> {
+/* Mutagen: presencia, daemon y sesiones malas. Null si el binario no aparece en ningún sitio. */
+async function leerMutagen(): Promise<EstadoLocal['mutagen']> {
   const r = await correr('powershell.exe', [
     '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-EncodedCommand', Buffer.from(funcionMutagen(mutagenDeclarado()) + SCRIPT_LOCAL, 'utf16le').toString('base64'),
+    '-EncodedCommand', Buffer.from(funcionMutagen(mutagenDeclarado()) + SCRIPT_MUTAGEN, 'utf16le').toString('base64'),
   ], TIMEOUT_LOCAL_MS);
-  if (r.error) return { procesos: [], escuchas: [], mutagen: null, sinLectura: r.error };
-  let d: {
-    procesos: EstadoLocal['procesos'];
-    escuchas: EstadoLocal['escuchas'];
-    mutagenPresente: boolean;
-    mutagenOk: boolean;
-    mutagenSalida: string;
-  };
+  if (r.error) throw new Error(`mutagen: ${r.error}`);
+  let d: { mutagenPresente: boolean; mutagenOk: boolean; mutagenSalida: string };
   try {
     d = JSON.parse(r.salida);
   } catch {
-    return { procesos: [], escuchas: [], mutagen: null, sinLectura: 'PowerShell no devolvió JSON' };
+    throw new Error('mutagen: PowerShell no devolvió JSON');
   }
+  return d.mutagenPresente ? { daemonVivo: d.mutagenOk, sesionesMalas: sesionesMutagenMalas(d.mutagenSalida) } : null;
+}
+
+/* Procesos y escuchas del sistema compartido y Mutagen, en paralelo. Si una lectura falla, la
+ * otra se conserva y el motivo va a `sinLectura`: L1/L2 no se afirman sin datos, y L3 no
+ * da por vivo un daemon que no se ha podido consultar. */
+async function leerLocal(): Promise<EstadoLocal> {
+  const [sistema, mutagen] = await Promise.allSettled([obtenerSistemaLocal(), leerMutagen()]);
+  const motivos: string[] = [];
+  if (sistema.status === 'rejected') motivos.push(String(sistema.reason));
+  if (mutagen.status === 'rejected') motivos.push(String(mutagen.reason));
+  const procesos = sistema.status === 'fulfilled'
+    ? sistema.value.procesos.map((p) => ({ pid: p.pid, nombre: p.imagen ?? '', cmd: p.cmd ?? '' }))
+    : [];
   return {
-    procesos: d.procesos,
-    escuchas: d.escuchas,
-    mutagen: d.mutagenPresente
-      ? { daemonVivo: d.mutagenOk, sesionesMalas: sesionesMutagenMalas(d.mutagenSalida) }
-      : null,
+    procesos,
+    escuchas: sistema.status === 'fulfilled' ? escuchasConProceso(sistema.value) : [],
+    mutagen: mutagen.status === 'fulfilled' ? mutagen.value : null,
+    ...(motivos.length ? { sinLectura: motivos.join(' / ') } : {}),
   };
 }
 

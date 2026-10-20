@@ -167,6 +167,29 @@ export async function procesosSshVivos() {
 }
 
 
+/* Mismos datos que datosCimDe y procesosSshVivos, leídos del snapshot que escribe el servidor
+ * (sistema local compartido con el taller). Sin PowerShell ni netstat propios.
+ * [por que] Los servicios no vienen en el filtro por PID: se sirven del snapshot tal cual. */
+export function sensoresDeSistema(sistema, pids) {
+  const buscados = new Set(pids);
+  const procs = new Map();
+  for (const f of sistema.procesos ?? []) {
+    if (buscados.has(f.pid)) procs.set(f.pid, { creado: f.creado ?? null, exe: f.exe ?? null, cmd: f.cmd ?? null, imagen: f.imagen ?? null });
+  }
+  const servicios = new Map();
+  for (const f of sistema.servicios ?? []) {
+    if (buscados.has(f.pid)) servicios.set(f.pid, { nombre: f.nombre ?? null });
+  }
+  return { procs, servicios };
+}
+
+/* ssh.exe vivos del snapshot (túneles de las fichas remotas), con la forma de procesosSshVivos. */
+export function sshDeSistema(sistema) {
+  return (sistema.procesos ?? [])
+    .filter((f) => String(f.imagen ?? '').toLowerCase() === 'ssh.exe')
+    .map((f) => ({ creado: f.creado ?? null, exe: f.exe ?? null, cmd: f.cmd ?? null, imagen: f.imagen ?? null }));
+}
+
 function normalizarRuta(r) {
   return String(r ?? '').replace(/\//g, '\\').toLowerCase();
 }

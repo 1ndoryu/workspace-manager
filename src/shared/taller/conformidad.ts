@@ -158,7 +158,7 @@ interface ReglaLocal {
 const REGLAS_LOCAL: ReglaLocal[] = [
   {
     id: 'L0', ambito: 'local', severidad: 'advertencia',
-    remedio: 'Comprobar PowerShell (Get-CimInstance, Get-NetTCPConnection); sin lectura no se afirman L1 ni L2.',
+    remedio: 'Comprobar PowerShell (Get-CimInstance) y netstat; sin lectura no se afirman L1 ni L2.',
     falla: (e) => (e.local.sinLectura ? `sin lectura de procesos y escuchas del laptop: ${e.local.sinLectura}` : null),
   },
   {

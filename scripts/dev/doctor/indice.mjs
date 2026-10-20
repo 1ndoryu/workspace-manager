@@ -230,7 +230,10 @@ export async function main(argv) {
 
   let escucha = [];
   let establecidas = [];
-  if (!errorSensor) ({ escucha, establecidas, errorSensor } = await escuchaRobusta());
+  // [por que] Con sistema en el snapshot (lo escribe el servidor) no hace falta netstat propio.
+  const sistema = snapshot?.sistema ?? null;
+  if (sistema) ({ escucha, establecidas } = sistema);
+  else if (!errorSensor) ({ escucha, establecidas, errorSensor } = await escuchaRobusta());
   const tomadoEn = new Date().toISOString();
   /* [por que 2026-10-20] Los artefactos (SSH a la 89, ~3 s medidos) solo dependen del
    * registro: se lanzan antes de clasificar y se esperan al armar el informe, en vez de
@@ -239,7 +242,7 @@ export async function main(argv) {
   let clasif = { proyectos: [], huerfanos: [] };
   if (!errorSensor) {
     try {
-      clasif = await clasificar(proyectos, registro, escucha, ignoradosArea, establecidas);
+      clasif = await clasificar(proyectos, registro, escucha, ignoradosArea, establecidas, sistema);
     } catch (e) {
       errorSensor = `clasificar: ${e.message}`;
     }

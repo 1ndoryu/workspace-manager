@@ -58,7 +58,7 @@ export interface EstadoPublico {
   hosts: { host: string; status: number | null; location: string | null; error: string | null }[];
 }
 
-/* Procesos y escuchas del laptop (lectura de Win32_Process y Get-NetTCPConnection) y
+/* Procesos y escuchas del laptop (lectura de Win32_Process y netstat, vía plataforma/sistemaLocal) y
  * estado de Mutagen. `mutagen` es null si no aparece el binario ni en el PATH ni en las
  * rutas conocidas: entonces no se afirma nada del sync (L3 lo avisa en vez de dar el
  * daemon por vivo). */

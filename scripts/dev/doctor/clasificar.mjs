@@ -4,7 +4,7 @@ import { basename, isAbsolute, resolve } from 'node:path';
 
 import { RAIZ_REPO } from './base.mjs';
 import { repoPrincipalDeWorktree } from './worktree.mjs';
-import { datosCimDe, escanearSockets, normalizarRuta, procesosSshVivos } from './sistema/procesos.mjs';
+import { datosCimDe, escanearSockets, normalizarRuta, procesosSshVivos, sensoresDeSistema, sshDeSistema } from './sistema/procesos.mjs';
 import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeListener, tunelDeQuien } from './sistema/puertos.mjs';
 
 /* Entrada del registro que describe al proyecto `p` (por ruta o por id de aviso). */
@@ -21,8 +21,9 @@ export function entradaDeProyecto(p, registro) {
  * estado. Huerfanos: listeners sin entrada del registro; se atribuyen por
  * ruta o marcador del puerto, o quedan con clave null (grupo propio).
  * `establecidas` (netstat ESTABLISHED) delata las dependencias: un listener
- * usado por un cliente de un proyecto (p. ej. el tunel de BD) no es huerfano. */
-export async function clasificar(proyectos, registro, escucha, ignorados = [], establecidas = []) {
+ * usado por un cliente de un proyecto (p. ej. el tunel de BD) no es huerfano.
+ * `sistema` (opcional) es el snapshot del servidor: si viene, CIM y ssh salen de el. */
+export async function clasificar(proyectos, registro, escucha, ignorados = [], establecidas = [], sistema = null) {
   // [por que] Los clientes de un listener también se miran en CIM: su pid dice quién lo usa.
   const puertosEscucha = new Set(escucha.map((e) => e.puerto));
   const clientes = establecidas.filter((f) => puertosEscucha.has(f.puertoRemoto));
@@ -31,7 +32,9 @@ export async function clasificar(proyectos, registro, escucha, ignorados = [], e
   // [por que] Apps propias fuera del area se tratan como exenciones declaradas: no
   // son huecos ni deriva, y no hace falta matarlas para que el tablero quede limpio.
   const ignoradosSis = [...(registro.ignoradosSistema ?? []), ...(registro.externosPropios ?? [])];
-  const { procs, servicios } = await datosCimDe(pids, { servicios: ignoradosSis.some((s) => s.servicio) });
+  const { procs, servicios } = sistema
+    ? sensoresDeSistema(sistema, pids)
+    : await datosCimDe(pids, { servicios: ignoradosSis.some((s) => s.servicio) });
   const areaNorm = normalizarRuta(RAIZ_REPO);
 
   const candidatos = escucha.filter((e) => {
@@ -98,7 +101,7 @@ export async function clasificar(proyectos, registro, escucha, ignorados = [], e
     // [por que] pid muerto (netstat lo atribuye al padre de `ssh -f`): el túnel
     // vivo se reconoce por su reenvío -L hacia una ficha remota declarada.
     if (!proc) {
-      sshVivos ??= await procesosSshVivos();
+      sshVivos ??= sistema ? sshDeSistema(sistema) : await procesosSshVivos();
       if (tunelDeListener(c.puerto, sshVivos, entradasReg)) continue;
     }
     // [por que] Un cliente ESTABLISHED de un proyecto registrado usa este listener

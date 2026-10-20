@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import type { InformeDev } from '../../shared/dev.js';
 import { snapshotArea } from '../snapshot.js';
 import { RAIZ_REPO } from '../plataforma/rutas.js';
+import { obtenerSistemaLocal } from '../plataforma/sistemaLocal.js';
 
 /* Doctor relativo a la raiz del repo, no al cwd: el servidor puede arrancarse
  * desde cualquier directorio. */
@@ -80,11 +81,19 @@ export async function obtenerVigilancia(): Promise<{
   }
   if (inflight) return inflight;
   inflight = (async () => {
-    const { snapshot } = await snapshotArea(false);
+    /* [por que] Snapshot y sistema no dependen el uno del otro: van a la vez, así el CIM
+     * (~2,5 s en frío) no se suma al snapshot antes de lanzar el doctor. */
+    const [{ snapshot }, sistema] = await Promise.all([
+      snapshotArea(false),
+      obtenerSistemaLocal().catch(() => undefined),
+    ]);
     const dir = mkdtempSync(join(tmpdir(), 'wm-dev-'));
     try {
       const tmp = join(dir, 'snapshot.json');
-      writeFileSync(tmp, JSON.stringify(snapshot));
+      /* [por que] El sistema va en el snapshot para que el doctor no lea CIM ni netstat otra vez:
+       * el taller y esta vigilancia comparten esa lectura (caché de 60 s). Si falla, se omite y el
+       * doctor lee sus propios sensores, que sí reportan el error. */
+      writeFileSync(tmp, JSON.stringify({ ...snapshot, sistema }));
       const { salida, fallo } = await ejecutarDoctor(tmp);
       if (!salida) throw new Error(`doctor sin salida (${fallo ?? 'vacía'})`);
       const informe = JSON.parse(salida) as InformeDev;
