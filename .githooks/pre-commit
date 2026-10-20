@@ -3,4 +3,4 @@
 # que entra en el commit (staged): es rápido y no sustituye al gate de calidad.
 # [por que] Un dato personal ya commiteado exige reescribir la historia para quitarlo.
 # Activar en cada clon: git config core.hooksPath .githooks
-exec node scripts/dev/privacidad.mjs
+exec node scripts/dev/privacidad/privacidad.mjs

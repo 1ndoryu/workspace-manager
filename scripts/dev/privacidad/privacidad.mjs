@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const MARCA_IGNORAR = 'privacidad:ignorar';
 // El detector no se audita a sí mismo: sus reglas y fixtures contienen los patrones.
-const RUTAS_EXCLUIDAS = new Set(['scripts/dev/privacidad.mjs', 'scripts/dev/privacidad.test.mjs']);
+const RUTAS_EXCLUIDAS = new Set(['scripts/dev/privacidad/privacidad.mjs', 'scripts/dev/privacidad/privacidad.test.mjs']);
 // Los lockfiles tienen miles de versiones con forma de IP: no son hallazgos.
 const SIN_IP = /(^|\/)(package-lock\.json|pnpm-lock\.yaml|Cargo\.lock|yarn\.lock)$/;
 // Sin dato personal: bucle local (127/8, 0.0.0.0) y rangos de documentación (RFC 5737).
@@ -139,7 +139,7 @@ const esEntrada = process.argv[1] && fileURLToPath(import.meta.url) === resolve(
 if (esEntrada) {
   // --raiz: repo a escanear (p. ej. un mirror clonado para el historial); por defecto, este repo.
   const iRaiz = process.argv.indexOf('--raiz');
-  const raiz = iRaiz > -1 ? resolve(process.argv[iRaiz + 1]) : resolve(join(fileURLToPath(import.meta.url), '..', '..', '..'));
+  const raiz = iRaiz > -1 ? resolve(process.argv[iRaiz + 1]) : resolve(join(fileURLToPath(import.meta.url), '..', '..', '..', '..'));
   const modo = process.argv.includes('--todo') ? 'todo' : process.argv.includes('--historial') ? 'historial' : 'staged';
   const reglas = reglasPrivadas(join(raiz, 'config', 'privacidad.local.json'));
   const hallazgos = modo === 'historial' ? escanearHistorial({ raiz, reglas }) : escanear({ raiz, modo, reglas });

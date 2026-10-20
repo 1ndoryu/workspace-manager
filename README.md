@@ -265,7 +265,7 @@ ese proyecto aparece como **error de datos con su motivo**, nunca como limpio.
 
 ## Datos personales
 
-`scripts/dev/privacidad.mjs` busca rutas de usuario, IPs, tokens y los términos
+`scripts/dev/privacidad/privacidad.mjs` busca rutas de usuario, IPs, tokens y los términos
 privados de cada área antes de comitear. Los términos privados (hosts, nombres de
 máquina) van en `config/privacidad.local.json`, que no se versiona; sin ese fichero
 el detector sigue con las reglas genéricas. Una línea con `privacidad:ignorar` es una
@@ -276,7 +276,7 @@ npm run privacidad
 ```
 
 Para que corra en cada commit, `npm install` activa el hook versionado en `.githooks/`
-(script `prepare`, `scripts/dev/activar-hooks.mjs`; fuera de un repo Git no hace nada).
+(script `prepare`, `scripts/dev/privacidad/activar-hooks.mjs`; fuera de un repo Git no hace nada).
 Si no has instalado dependencias, actívalo a mano una vez por clon:
 
 ```bash

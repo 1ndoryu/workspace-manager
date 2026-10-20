@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 /* Devuelve 'activado' | 'sin-git' | 'error'. `git` se inyecta para poder probarlo sin tocar la config real. */
 export function activarHooks(raiz = RAIZ, git = (args, cwd) => spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true })) {
