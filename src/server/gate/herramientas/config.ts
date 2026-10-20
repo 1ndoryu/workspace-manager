@@ -70,12 +70,10 @@ export function leerConfigRemota(entorno: NodeJS.ProcessEnv = process.env): Conf
   return configRemotaDe(taller, tmpAudit);
 }
 
-/* Parte de taller.json que decide DÓNDE se analiza: el host del taller y si es el modo
- * por defecto. Son dos fuentes distintas y no se mezclan: el registro dice de qué
- * proyecto se trata y en qué máquina corre, el taller si esa máquina se usa por defecto. */
+/* Parte de taller.json que decide DÓNDE se analiza: el alias del host del taller. El
+ * registro dice de qué proyecto se trata y en qué máquina corre. */
 export interface TallerAnalisis {
   host?: unknown;
-  modoPorDefecto?: unknown;
   proyectos?: unknown;
 }
 
@@ -135,9 +133,17 @@ export function modoAnalisisEn(
    * Bajarlo a local lo metía en el portátil, que no ejecuta proyectos del taller (AGENTS §1).
    * El manager sin VPS sigue entero: los proyectos sin marca son locales. */
   if (!taller) return declaraTaller(entrada) ? 'taller' : 'local';
-  if (typeof entrada?.analisisEn === 'string' && pideTaller(entrada.analisisEn, taller)) return 'taller';
-  if (taller?.modoPorDefecto !== 'remoto') return 'local';
-  return typeof entrada?.host === 'string' && entrada.host.trim() ? 'taller' : 'local';
+  /* [por que] Con taller, corre en la 89 si lo pide `analisisEn` o si su `host` es el alias
+   * del taller. Un `host` ajeno no es esta VPS: queda local. No hay modo por defecto que lo
+   * baje al portátil: el análisis va a la 89 (AGENTS §1). */
+  const pide = typeof entrada?.analisisEn === 'string' && pideTaller(entrada.analisisEn, taller);
+  return pide || enHostDelTaller(entrada, taller) ? 'taller' : 'local';
+}
+
+/* ¿El `host` del registro es el alias de la VPS que declara taller.json? */
+function enHostDelTaller(entrada: { host?: unknown } | undefined, taller: TallerAnalisis): boolean {
+  const host = typeof entrada?.host === 'string' ? entrada.host.trim() : '';
+  return host !== '' && host === hostTaller(taller);
 }
 
 /* Marca de proyecto del taller en el registro: `host` o un `analisisEn` distinto de 'local'. */

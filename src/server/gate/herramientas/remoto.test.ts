@@ -141,7 +141,7 @@ test('modoAnalisisEn: el taller solo con analisisEn exacto; por defecto local', 
       { id: 'otro', analisisEn: 'DEV89' },
     ],
   };
-  const taller = { modoPorDefecto: 'remoto' };
+  const taller = { host: 'taller-ejemplo' };
   assert.equal(modoAnalisisEn(registro, 'sistema-legado', taller), 'taller');
   assert.equal(modoAnalisisEn(registro, 'sitio-api', taller), 'local');
   assert.equal(modoAnalisisEn(registro, 'otro', taller), 'local');
@@ -174,7 +174,7 @@ test('modoAnalisisEn: el alias del taller declarado pide el taller', () => {
  * lados. */
 test('modoAnalisisEn: un proyecto que corre en el taller analiza en el taller', () => {
   const registro = { proyectos: [{ id: 'catalogo-web', host: 'taller-ejemplo' }, { id: 'sistema-legado', host: 'taller-ejemplo', analisisEn: 'local' }] };
-  const taller = { modoPorDefecto: 'remoto' };
+  const taller = { host: 'taller-ejemplo' };
   assert.equal(modoAnalisisEn(registro, 'catalogo-web', taller), 'taller');
   assert.equal(modoAnalisisEn(registro, 'sistema-legado', taller), 'local', 'analisisEn local manda sobre el host');
 });
@@ -184,7 +184,7 @@ test('modoAnalisisEn: un proyecto que corre en el taller analiza en el taller', 
  * analisis (259 hallazgos) se quedaba en el portatil. */
 test('modoAnalisisEn: el bloque de BD del taller no decide donde se analiza', () => {
   const registro = { proyectos: [{ id: 'sistema-legado', host: 'taller-ejemplo' }, { id: 'SIN-HOST' }] };
-  const taller = { modoPorDefecto: 'remoto', proyectos: { 'SIN-HOST': { basedatos: 'x' } } };
+  const taller = { host: 'taller-ejemplo', proyectos: { 'SIN-HOST': { basedatos: 'x' } } };
   assert.equal(modoAnalisisEn(registro, 'sistema-legado', taller), 'taller', 'corre en la 89 aunque no tenga BD alli');
   assert.equal(modoAnalisisEn(registro, 'SIN-HOST', taller), 'local', 'una BD declarada no basta si no corre alli');
 });
@@ -195,8 +195,8 @@ test('modoAnalisisEn: sin taller, sin marca local y con marca del taller no baja
   const registro = { proyectos: [{ id: 'catalogo-web', host: 'taller-ejemplo' }, { id: 'sitio-api' }] };
   assert.equal(modoAnalisisEn(registro, 'catalogo-web', null), 'taller', 'host declarado: del taller');
   assert.equal(modoAnalisisEn(registro, 'sitio-api', null), 'local', 'sin marca: local con o sin taller');
-  assert.equal(modoAnalisisEn(registro, 'catalogo-web', { modoPorDefecto: 'local' }), 'local');
-  assert.equal(modoAnalisisEn(registro, 'catalogo-web', {}), 'local', 'taller sin modo por defecto declarado');
+  assert.equal(modoAnalisisEn(registro, 'catalogo-web', { host: 'otra-maquina' }), 'local', 'un host ajeno no es el taller');
+  assert.equal(modoAnalisisEn(registro, 'catalogo-web', { host: 'taller-ejemplo' }), 'taller');
 });
 
 test('hostTaller: el alias lo declara la config, y sin ella no hay host', () => {
