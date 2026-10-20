@@ -212,7 +212,7 @@ test('fechaLocal: AAAA-MM-DD con ceros (mes 0-indexado)', () => {
   assert.equal(fechaLocal(new Date(2026, 10, 12)), '2026-11-12');
 });
 
-/* [por que] Caso real (NAKOMI/KAMPLES/MN, 2026-10-18): un solo comentario VENCE
+/* [por que] Caso real de proyectos reales (2026-10-18): un solo comentario VENCE
  * cubre varios ids seguidos; los ids de debajo no deben contar como sin fecha. */
 test('parsearExcepcionesAudit: varios ids bajo un mismo comentario comparten su VENCE', () => {
   const toml = [

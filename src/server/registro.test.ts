@@ -12,14 +12,14 @@ test('ficha con host de la 89 y modo build: corre en vps89 y lleva despliegue', 
   const registro = {
     proyectos: [
       {
-        id: 'NAKOMI',
+        id: 'proyecto-ejemplo',
         host: 'taller-ejemplo',
         modo: 'build',
         despliegue: { proveedor: 'coolify', vps: '66', sitio: 'ejemplo', dominio: 'https://task.example.com' },
       },
     ],
   };
-  const [p] = anotarRegistro([proyecto('NAKOMI')], registro);
+  const [p] = anotarRegistro([proyecto('proyecto-ejemplo')], registro);
   assert.deepEqual(p.ejecucion, { donde: 'vps89', modo: 'build' });
   assert.equal(p.despliegue?.sitio, 'ejemplo');
 });
