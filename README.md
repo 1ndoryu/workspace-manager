@@ -217,6 +217,11 @@ en local.
 La única excepción es `--local`, para una emergencia en la que el taller no esté
 disponible. Hay que pedirlo a mano y dejar nota en el registro de tareas.
 
+El mismo flag existe en el análisis (`problemas`, `gate --inicio|--cierre`, `consola`).
+Con `--local` el análisis corre en este equipo, muestra un aviso y **no se lee ni se
+guarda en caché**, para que un dato de emergencia no pase por análisis normal. Sin taller
+y sin `--local` el comando falla con su motivo en vez de analizar en el portátil.
+
 ```bash
 npm run type-check
 ```
