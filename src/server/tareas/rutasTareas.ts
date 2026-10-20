@@ -6,7 +6,6 @@
  * y lector de body inyectables: los tests no tocan red. */
 import type {IncomingMessage, ServerResponse} from 'node:http';
 import {json, leerBody} from '../http.js';
-import type {ErrorKanban} from './nucleo/tipos.js';
 import {esIdValido, validarLote} from './nucleo/validaciones.js';
 import {crearPuenteTareas, puenteTareas, type PuenteTareas} from './puente-tareas.js';
 import {sincronizarColumnas, type EntradaWm} from './sincronizacion/sincronizar-proyectos.js';
@@ -14,19 +13,15 @@ import {sincronizarTareasRoadmap, type ProyectoWm} from './sincronizacion/sincro
 import type {SincroniaFondo} from './sincronizacion/sincronia-fondo.js';
 import {escribirRoadmaps} from './escritura/escribir-roadmaps.js';
 import {confirmarBorrado, prepararBorrado, trasGuardar, trasReordenar, type DepsAccionesTab} from './escritura/acciones-tab.js';
-import {validarParche, type ProyectoPuente} from './tarea-unitaria.js';
+import {validarParche} from './tarea-unitaria.js';
+import {crearCacheProyectos} from './proxy/cacheProyectosTasks.js';
+import {responderKanban, esErrorKanban} from './proxy/rutasTareasErrores.js';
 import {estadoTaller} from '../taller/estado.js';
 import {revisarTuneles} from '../taller/tuneles.js';
 
-const CODIGOS_KANBAN = [
-  'no-autenticado',
-  'no-encontrado',
-  'validacion',
-  'lote-duplicado',
-  'cuota',
-  'red',
-  'servidor',
-];
+/* [por que] 20 s: el listado de columnas cambia poco y el servicio TASKS tarda ~1 s en
+ * responder; es el equilibrio entre refrescar y no pagar esa latencia en cada GET. */
+const TTL_PROYECTOS_TASKS_MS = 20_000;
 
 export interface DepsRutasTareas {
   puente?: PuenteTareas;
@@ -42,42 +37,14 @@ export interface DepsRutasTareas {
   sincronia?: SincroniaFondo;
 }
 
-function esErrorKanban(e: unknown): e is ErrorKanban {
-  if (typeof e !== 'object' || e === null) return false;
-  const c = (e as {codigo?: unknown}).codigo;
-  return typeof c === 'string' && CODIGOS_KANBAN.includes(c);
-}
-
-/* Traduce el error del nucleo a HTTP honesto (nunca 200 con error). */
-function responderKanban(res: ServerResponse, e: unknown, noEncontrado = 'proyecto-no-encontrado'): void {
-  if (!esErrorKanban(e)) {
-    json(res, 500, {error: 'error-interno-tareas'});
-    return;
-  }
-  switch (e.codigo) {
-    case 'validacion':
-    case 'lote-duplicado':
-      json(res, 422, {error: 'lote-invalido', detalle: e.mensaje});
-      return;
-    case 'no-encontrado':
-      json(res, 404, {error: noEncontrado, detalle: e.mensaje});
-      return;
-    case 'cuota': {
-      const segs = Math.max(1, Math.ceil((e.reintentarEnMs ?? 1000) / 1000));
-      res.setHeader('Retry-After', String(segs));
-      json(res, 429, {error: 'cuota-tasks', detalle: e.mensaje, reintentarEnMs: e.reintentarEnMs ?? null});
-      return;
-    }
-    case 'red':
-      json(res, 503, {error: 'tareas-no-disponibles', motivo: e.mensaje});
-      return;
-    case 'servidor':
-      json(res, 502, {error: 'tareas-error', detalle: e.mensaje});
-      return;
-    case 'no-autenticado':
-      json(res, 503, {error: 'tareas-sin-sesion', detalle: e.mensaje});
-      return;
-  }
+/* Traduce un fallo de la red de tareas a la pista de túneles: un `red` suele ser el túnel caído,
+ * y es justo el fallo que ve la usuaria en la tab. Se pide al supervisor que revise (solo repara
+ * proyectos que la 89 tiene en marcha) sin bloquear esta respuesta. El estado del taller llega de
+ * caché cuando el panel lo ha pedido hace poco. */
+function revisarTunelesDelTaller(): void {
+  void estadoTaller()
+    .then(({entrada}) => revisarTuneles(entrada.t89?.tmux ?? []))
+    .catch(() => undefined);
 }
 
 export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
@@ -95,39 +62,8 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
   function empujarSincronia(): void {
     sincronia?.programar();
   }
-
-  /* [por que] Cada GET de columnas consultaba al servicio TASKS en cada petición: medido 0,6–1,3 s
-   * solo en su 401 sin credenciales, y la tab la pide a menudo. Se cachea unos segundos y las
-   * llamadas a la vez comparten un vuelo. Solo cuenta lo que llegó bien; crear una columna lo
-   * invalida para que aparezca enseguida. */
-  const TTL_PROYECTOS_TASKS_MS = 20_000;
-  let proyectosTasks: {ts: number; datos: ProyectoPuente[]} | null = null;
-  let vueloProyectosTasks: Promise<ProyectoPuente[]> | null = null;
-  function proyectosTasksCacheados(): Promise<ProyectoPuente[]> {
-    if (proyectosTasks && Date.now() - proyectosTasks.ts < TTL_PROYECTOS_TASKS_MS) {
-      return Promise.resolve(proyectosTasks.datos);
-    }
-    vueloProyectosTasks ??= puente
-      .proyectos()
-      .then((datos) => {
-        proyectosTasks = {ts: Date.now(), datos};
-        return datos;
-      })
-      .finally(() => {
-        vueloProyectosTasks = null;
-      });
-    return vueloProyectosTasks;
-  }
-
-  /* [por que] Un `red` suele ser el túnel caído, y es justo el fallo que ve la
-   * usuaria en la tab: se pide al supervisor que revise (solo repara proyectos
-   * que la 89 tiene en marcha) sin bloquear esta respuesta. El estado del taller
-   * llega de caché cuando el panel lo ha pedido hace poco. */
-  function revisarTunelesDelTaller(): void {
-    void estadoTaller()
-      .then(({entrada}) => revisarTuneles(entrada.t89?.tmux ?? []))
-      .catch(() => undefined);
-  }
+  /* [por que] El listado de columnas se cachea: ver cacheProyectosTasks.ts. */
+  const proyectosTasks = crearCacheProyectos(() => puente.proyectos(), TTL_PROYECTOS_TASKS_MS);
 
   function responder(res: ServerResponse, e: unknown, noEncontrado?: string): void {
     if (esErrorKanban(e) && e.codigo === 'red') revisarTunelesDelTaller();
@@ -159,10 +95,10 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
       try {
         const proyectos = await sincronizarColumnas({
           wm: await leerWm(),
-          task: await proyectosTasksCacheados(),
+          task: await proyectosTasks.obtener(),
           crear: async (legacyId, entrada) => {
             const id = await puente.crearProyecto(legacyId, entrada.nombre, entrada.clave);
-            proyectosTasks = null; /* la columna nueva no puede esperar al TTL */
+            proyectosTasks.invalidar(); /* la columna nueva no puede esperar al TTL */
             return id;
           },
         });
@@ -219,7 +155,8 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
       }
       return true;
     }
-    if (ruta === '/api/tareas/reordenar' && req.method === 'POST') {      let cuerpo: unknown;
+    if (ruta === '/api/tareas/reordenar' && req.method === 'POST') {
+      let cuerpo: unknown;
       try {
         cuerpo = await leerCuerpo(req);
       } catch {
