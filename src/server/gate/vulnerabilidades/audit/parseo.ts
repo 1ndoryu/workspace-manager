@@ -32,6 +32,75 @@ export interface JsonAudit {
   vulnerabilities?: unknown;
 }
 
+/* Añade un hallazgo. `aviso` es el objeto del que sale la severidad (el advisory de
+ * cargo, la entrada de npm/pnpm). Sin banda declarada se marca `sinSeveridad` en vez
+ * de rellenar con `low`: el conteo sigue sumando, pero el motivo lo dice. */
+type Agregar = (paquete: string, aviso: unknown, rango: string, id?: string, titulo?: string) => void;
+type Parseador = (vulns: unknown, agregar: Agregar) => void;
+
+/* cargo-audit 0.22 emite `vulnerabilities` como {found,count,list} con `list` = array
+ * de {advisory, versions, affected}; versiones viejas emitian un mapa id -> objeto.
+ * Leer found/count/list como paquetes daba falsos positivos, asi que la forma se
+ * detecta por el array `list`. */
+const parsearCargo: Parseador = (vulns, agregar) => {
+  if (!vulns || typeof vulns !== 'object') return;
+  const mapa = vulns as Record<string, unknown>;
+  const lista = Array.isArray(mapa['list']) ? (mapa['list'] as Array<Record<string, unknown>>) : null;
+  if (lista) {
+    for (const item of lista) {
+      const adv = (item['advisory'] ?? {}) as Record<string, unknown>;
+      const vers = (item['versions'] ?? {}) as Record<string, unknown>;
+      const parcheadas = Array.isArray(vers['patched'])
+        ? (vers['patched'] as unknown[]).map(String).join(', ')
+        : '';
+      agregar(
+        String(adv['package'] ?? item['package'] ?? '?'),
+        adv,
+        parcheadas,
+        texto(adv['id']),
+        texto(adv['title']),
+      );
+    }
+    return;
+  }
+  for (const [id, v] of Object.entries(mapa)) {
+    const o = (v ?? {}) as Record<string, unknown>;
+    const adv = (o['advisory'] ?? {}) as Record<string, unknown>;
+    agregar(
+      String(o['package'] ?? adv['package'] ?? id),
+      o,
+      String(o['vulnerable_versions'] ?? o['range'] ?? ''),
+      texto(adv['id']) ?? id,
+      texto(adv['title']),
+    );
+  }
+};
+
+/* pnpm audit --json: array de { name, severity, range, url }. */
+const parsearPnpm: Parseador = (vulns, agregar) => {
+  if (!Array.isArray(vulns)) return;
+  for (const v of vulns as Array<Record<string, unknown>>) {
+    agregar(String(v['name'] ?? '?'), v, String(v['range'] ?? ''), undefined, texto(v['title']));
+  }
+};
+
+/* npm audit --json: mapa paquete -> { severity, range, via: [ {title, url, cvss} ] }.
+ * El primer `via` con objeto da el titulo y el vector CVSS; los `via` que son cadenas
+ * son dependencias que arrastran el aviso, no avisos. */
+const parsearNpm: Parseador = (vulns, agregar) => {
+  if (!vulns || typeof vulns !== 'object') return;
+  for (const [pkg, v] of Object.entries(vulns as Record<string, unknown>)) {
+    const o = (v ?? {}) as Record<string, unknown>;
+    const vias = Array.isArray(o['via']) ? o['via'] : [];
+    const aviso = vias.find((x) => x && typeof x === 'object');
+    agregar(pkg, aviso ?? o, String(o['range'] ?? o['range_safe'] ?? ''),
+      undefined, texto((aviso as Record<string, unknown> | undefined)?.['title']));
+  }
+};
+
+/* Un formato de salida por gestor: añadir uno es una entrada de esta tabla. */
+const PARSEADORES: Record<Gestor, Parseador> = { npm: parsearNpm, pnpm: parsearPnpm, cargo: parsearCargo };
+
 /* El resumen se deriva siempre de los hallazgos: pnpm no trae `metadata` y, si
  * se leyera de ahi, un proyecto con vulnerabilidades saldria como 'ok'. */
 export function parsearAudit(g: Gestor, crudo: JsonAudit): {
@@ -39,12 +108,7 @@ export function parsearAudit(g: Gestor, crudo: JsonAudit): {
   hallazgos: HallazgoVulnerabilidad[];
 } {
   const hallazgos: HallazgoVulnerabilidad[] = [];
-  const vulns = crudo.vulnerabilities;
-  /* `aviso` es el objeto del que sale la severidad (el advisory de cargo, la
-   * entrada de npm/pnpm). Sin banda declarada se marca `sinSeveridad` en vez de
-   * rellenar con `low`: el conteo sigue sumando, pero el motivo lo dice. */
-  const agregar = (paquete: string, aviso: unknown, rango: string,
-    id?: string, titulo?: string) => {
+  const agregar: Agregar = (paquete, aviso, rango, id, titulo) => {
     const banda = sev(aviso);
     hallazgos.push({
       paquete,
@@ -55,69 +119,7 @@ export function parsearAudit(g: Gestor, crudo: JsonAudit): {
       ...(titulo ? { titulo } : {}),
     });
   };
-
-  if (g === 'cargo') {
-    /* cargo-audit 0.22 emite `vulnerabilities` como {found,count,list} con
-     * `list` = array de {advisory, versions, affected}; versiones viejas
-     * emitian un mapa id -> objeto. Leer found/count/list como paquetes daba
-     * falsos positivos, asi que la forma se detecta por el array `list`. */
-    if (vulns && typeof vulns === 'object') {
-      const mapa = vulns as Record<string, unknown>;
-      const lista = Array.isArray(mapa['list'])
-        ? (mapa['list'] as Array<Record<string, unknown>>)
-        : null;
-      if (lista) {
-        for (const item of lista) {
-          const adv = (item['advisory'] ?? {}) as Record<string, unknown>;
-          const vers = (item['versions'] ?? {}) as Record<string, unknown>;
-          const parcheadas = Array.isArray(vers['patched'])
-            ? (vers['patched'] as unknown[]).map(String).join(', ')
-            : '';
-          agregar(
-            String(adv['package'] ?? item['package'] ?? '?'),
-            adv,
-            parcheadas,
-            texto(adv['id']),
-            texto(adv['title']),
-          );
-        }
-      } else {
-        for (const [id, v] of Object.entries(mapa)) {
-          const o = (v ?? {}) as Record<string, unknown>;
-          const adv = (o['advisory'] ?? {}) as Record<string, unknown>;
-          agregar(
-            String(o['package'] ?? adv['package'] ?? id),
-            o,
-            String(o['vulnerable_versions'] ?? o['range'] ?? ''),
-            texto(adv['id']) ?? id,
-            texto(adv['title']),
-          );
-        }
-      }
-    }
-    return { resumen: contar(hallazgos), hallazgos };
-  }
-
-  if (Array.isArray(vulns)) {
-    /* pnpm: array de { name, severity, range, url }. */
-    for (const v of vulns as Array<Record<string, unknown>>) {
-      agregar(String(v['name'] ?? '?'), v, String(v['range'] ?? ''),
-        undefined, texto(v['title']));
-    }
-    return { resumen: contar(hallazgos), hallazgos };
-  }
-  if (vulns && typeof vulns === 'object') {
-    /* npm: mapa paquete -> { severity, range, via: [ {title, url, cvss} ] }.
-     * El primer `via` con objeto da el titulo y el vector CVSS; los `via` que
-     * son cadenas son dependencias que arrastran el aviso, no avisos. */
-    for (const [pkg, v] of Object.entries(vulns as Record<string, unknown>)) {
-      const o = (v ?? {}) as Record<string, unknown>;
-      const vias = Array.isArray(o['via']) ? o['via'] : [];
-      const aviso = vias.find((x) => x && typeof x === 'object');
-      agregar(pkg, aviso ?? o, String(o['range'] ?? o['range_safe'] ?? ''),
-        undefined, texto((aviso as Record<string, unknown> | undefined)?.['title']));
-    }
-  }
+  PARSEADORES[g](crudo.vulnerabilities, agregar);
   return { resumen: contar(hallazgos), hallazgos };
 }
 
