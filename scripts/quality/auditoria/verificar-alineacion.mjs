@@ -37,6 +37,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.mjs';
 import { BIN_GIT } from '../../shared/binarios.mjs';
+import { HERRAMIENTAS_GATE } from '../../shared/herramientas.mjs';
 
 /* Mapa id → ruta absoluta del repo, derivado del registro privado.
  * [por que] Antes era una lista de proyectos incrustada en el código: ataba el
@@ -236,7 +237,7 @@ function main() {
       filas.push({ proyecto: nombre, herramienta: '(config inválida)', estado: 'SIN-CONFIG', problemas: [], pin: null, runtime: null, publicado: null });
       continue;
     }
-    const tools = Object.keys(qt.tools || {}).filter((t) => ['sentinel', 'varsense'].includes(t));
+    const tools = Object.keys(qt.tools || {}).filter((t) => HERRAMIENTAS_GATE.includes(t));
     if (tools.length === 0) {
       filas.push({ proyecto: nombre, herramienta: '(sin sentinel/varsense)', estado: 'SIN-PROVISION', problemas: [], pin: null, runtime: null, publicado: null });
       continue;
