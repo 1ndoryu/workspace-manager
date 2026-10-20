@@ -34,6 +34,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { papelDeArea } from '../shared/area.mjs';
+import { NOMBRE_SENTINEL } from '../shared/rutas.mjs';
 
 export const ESQUEMA = 1;
 
@@ -87,7 +88,7 @@ export function nombreCertificacion(datos = {}) {
 export function directorioCertificaciones(env = process.env, papel = papelDeArea('sentinel')) {
   const override = texto(env.GLORY_CERT_CACHE).trim();
   if (override) return path.resolve(override);
-  if (env.LOCALAPPDATA) return path.join(env.LOCALAPPDATA, 'GlorySentinel', 'certificaciones');
+  if (env.LOCALAPPDATA) return path.join(env.LOCALAPPDATA, NOMBRE_SENTINEL, 'certificaciones');
   const base = texto(env.XDG_CACHE_HOME).trim() || path.join(os.homedir(), '.cache');
   return path.join(base, papel ?? 'sentinel', 'certificaciones');
 }

@@ -19,6 +19,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { BIN_GIT } from '../shared/binarios.mjs';
+import { NOMBRE_SENTINEL } from '../shared/rutas.mjs';
 
 const LOCK_FILE = 'sentinel.lock.json';
 
@@ -53,6 +54,14 @@ function runNode(cliPath, args, cwd) {
   const result = spawnSync(process.execPath, [cliPath, ...args], { cwd, encoding: 'utf8', windowsHide: true, timeout: 20000 });
   if (result.error || result.status !== 0) return null;
   return result.stdout.trim();
+}
+
+/* [por que] Lo que cuenta como "mismo lock": versión del esquema, runtime y analizadores.
+ * `generatedAt` queda fuera a propósito: es la hora de la pasada, no un dato del lock. */
+function mismoLock(actual, lock) {
+  const comparable = l => ({ schemaVersion: l.schemaVersion, runtime: l.runtime, analyzers: l.analyzers });
+  return stableSerialize(comparable(actual)) === stableSerialize(comparable(lock))
+    && JSON.stringify(actual.analyzers) === JSON.stringify(lock.analyzers);
 }
 
 function stableSerialize(value) {
@@ -107,7 +116,7 @@ async function inspectAnalyzers(workspace) {
 /* [por que] Destino por defecto de `sentinel install` (README §Instalación):
  * %LOCALAPPDATA%\GlorySentinel en Windows; si no hay LOCALAPPDATA, ~/.glory-sentinel. */
 function runtimeRoot() {
-  if (process.platform === 'win32' && process.env.LOCALAPPDATA) return path.join(process.env.LOCALAPPDATA, 'GlorySentinel');
+  if (process.platform === 'win32' && process.env.LOCALAPPDATA) return path.join(process.env.LOCALAPPDATA, NOMBRE_SENTINEL);
   return path.join(os.homedir(), '.glory-sentinel');
 }
 
@@ -154,15 +163,20 @@ async function main(argv = process.argv.slice(2)) {
     analyzers,
   };
   const lockPath = path.join(workspace, LOCK_FILE);
+  let actual = null;
+  try { actual = JSON.parse(await readFile(lockPath, 'utf8')); } catch { actual = null; }
   if (mode === 'check') {
-    let actual;
-    try { actual = JSON.parse(await readFile(lockPath, 'utf8')); } catch { console.error('[quality:lock] check: falta o inválido sentinel.lock.json'); process.exit(1); }
-    /* [por que] El runtime entra en la comparación: un lock con un runtime
-     * desfasado no debe pasar el check aunque los analizadores coincidan. */
-    const comparable = lock => ({ schemaVersion: lock.schemaVersion, runtime: lock.runtime, analyzers: lock.analyzers });
-    const ok = stableSerialize(comparable(actual)) === stableSerialize(comparable(lock)) && JSON.stringify(actual.analyzers) === JSON.stringify(lock.analyzers);
+    if (!actual) { console.error('[quality:lock] check: falta o inválido sentinel.lock.json'); process.exit(1); }
+    const ok = mismoLock(actual, lock);
     console.log(`[quality:lock] ${ok ? 'pass' : 'mismatch'}`);
     process.exitCode = ok ? 0 : 1;
+    return;
+  }
+  /* [por que] `generatedAt` cambia en cada pasada; si se reescribiera, el lock versionado
+   * ensuciaría el árbol y la puerta de cierre fallaría por nada (20AA-11). Si el contenido
+   * comparable ya coincide, no se toca el archivo. */
+  if (actual && mismoLock(actual, lock)) {
+    console.log(`[quality:lock] sin cambios ${lockPath}`);
     return;
   }
   /* [por que] El .bak solo protege la ventana de escritura: tras escribir con

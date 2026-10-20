@@ -22,6 +22,9 @@ export const RAIZ_AREA = process.env.WS_AREA_ROOT || dirname(RAIZ_REPO);
 /** Carpeta de skills del agente (índice en AGENTS §11). */
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || join(homedir(), '.agents', 'skills');
 
+/** Carpeta que instala GlorySentinel bajo %LOCALAPPDATA% (gemelo de `NOMBRE_SENTINEL` de src/server/plataforma/rutas.ts). */
+export const NOMBRE_SENTINEL = 'GlorySentinel';
+
 /** Raíz de los temporales (gemelo de `src/server/plataforma/sistema/temporales.ts`).
  * [por que] Varios scripts escribían `C:/tmp/...` a mano: en Linux eso es una
  * ruta RELATIVA al cwd, no la raíz de temporales. Aquí se resuelve una vez, con
