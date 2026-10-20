@@ -3,6 +3,8 @@
 import type { Hallazgo } from '../../shared/salud/salud.js';
 import type { Comprobacion, DatosArea } from './tipos.js';
 
+// [por que] Compartidas con comprobacionesProyecto.ts y comprobacionesRoadmap.ts.
+export const DIA_MS = 86_400_000;
 const GB = 1024 ** 3;
 const DISCO_MINIMO_GB = 15;
 const TMP_MAXIMO_GB = 20;
@@ -10,7 +12,7 @@ const TMP_MAXIMO_GB = 20;
  * y en cada compactación (F3). */
 const AGENTS_MAXIMO_BYTES = 19 * 1024;
 
-const lista = (valores: string[]): string => valores.join(', ');
+export const lista = (valores: string[]): string => valores.join(', ');
 
 /* Versiones x.y.z; sin partes no numéricas, se comparan como cadena. */
 export function esVersionAnterior(a: string, b: string): boolean {
