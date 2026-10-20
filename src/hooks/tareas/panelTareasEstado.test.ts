@@ -47,21 +47,6 @@ describe('reductor de la tab tareas', () => {
     assert.deepEqual(s.tareas[1].map((t) => t.legacyId), [2]);
   });
 
-  it('destacada sin tarjeta avisa y suelta la peticion', () => {
-    const prev = { ...ESTADO_INICIAL, peticionDestacada: { clave: 'p', roadmapId: '19AA-1' } };
-    const s = reductor(prev, { tipo: 'destacada', destino: null, roadmapId: '19AA-1' });
-    assert.equal(s.peticionDestacada, null);
-    assert.equal(s.destacada, null);
-    assert.match(s.avisoDestacada ?? '', /19AA-1/);
-  });
-
-  it('destacada con tarjeta resuelta la guarda y no deja aviso', () => {
-    const prev = { ...ESTADO_INICIAL, avisoDestacada: 'viejo' };
-    const s = reductor(prev, { tipo: 'destacada', destino: { columna: 2, legacyId: 9 }, roadmapId: '19AA-1' });
-    assert.deepEqual(s.destacada, { columna: 2, legacyId: 9 });
-    assert.equal(s.avisoDestacada, null);
-  });
-
   it('sincronia cambia solo avisoSincronia, no el aviso de un gesto', () => {
     const prev = { ...ESTADO_INICIAL, aviso: 'gesto' };
     const s = reductor(prev, { tipo: 'sincronia', aviso: 'sincronía: x' });

@@ -67,12 +67,6 @@ export interface DatosUi {
   menuContextual: MenuContextual | null;
   /* Proyecto que configura la pagina 'sentinel' (se abre desde el menu). */
   proyectoAConfigurar: string | null;
-  /* Tarea que el tab de tareas tiene que destacar, si se llega desde la consola (20AA-10 F5): la
-   * clave del proyecto y el ID del roadmap, que es lo que la consola conoce. [por que el ID del
-   * archivo y no el de TASK] La consola lee el snapshot y tiene que seguir funcionando con el
-   * gestor caido; resolver el ID de TASK al pintar haria que un pendiente no se pudiera abrir
-   * justo cuando algo va mal. El tab lo empareja con su columna al vuelo. */
-  tareaDestacada: { clave: string; roadmapId: string } | null;
 }
 
 /* Catalogo de reglas del gate desde /api/gate/reglas (vivo) con fallback
@@ -203,10 +197,6 @@ export interface AccionesUi {
   setPanelVisible: (clave: keyof VisibilidadPaneles, valor: boolean) => void;
   irAArchivos: (ruta: string) => void;
   consumirNavegadorRuta: () => void;
-  /* Abre el tab de tareas destacando una tarea del roadmap (20AA-10 F5): la consola la llama con
-   * la clave del proyecto y el ID del archivo. */
-  irATarea: (clave: string, roadmapId: string) => void;
-  consumirTareaDestacada: () => void;
   abrirMenuContextual: (m: { x: number; y: number; id: string; clave: string }) => void;
   cerrarMenuContextual: () => void;
   configurarProyecto: (clave: string) => void;

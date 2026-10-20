@@ -52,7 +52,6 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   navegadorRuta: null,
   menuContextual: null,
   proyectoAConfigurar: null,
-  tareaDestacada: null,
   reglasCatalogo: { version: '—', fuente: 'estatica', reglas: REGLAS_ESTATICAS },
   esquemas: {},
   esquemasFuente: {},
@@ -96,13 +95,6 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
     set({ panelCentral: 'navegador', navegadorRuta: ruta });
   },
   consumirNavegadorRuta: () => set({ navegadorRuta: null }),
-  /* Abre el tab de tareas con una tarea destacada: mismo camino que `irAArchivos` (cambia el panel
-   * central y deja el objetivo; el panel lo consume al pintarlo). */
-  irATarea: (clave, roadmapId) => {
-    guardarUi('tareas', get().visibles);
-    set({ panelCentral: 'tareas', tareaDestacada: { clave, roadmapId } });
-  },
-  consumirTareaDestacada: () => set({ tareaDestacada: null }),
   abrirMenuContextual: (m) => {
     set({ menuContextual: m });
     /* [por que] El clic derecho tambien selecciona el proyecto, igual que el

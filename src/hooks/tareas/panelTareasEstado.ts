@@ -1,4 +1,4 @@
-/* Estado y reductor de la tab tareas (20AA-10 F5/F6 y 19AA-15), sin efectos ni IO.
+/* Estado y reductor de la tab tareas (20AA-10 F6 y 19AA-15), sin efectos ni IO.
  * [por que] Separado de usePanelTareas.ts: el reductor es la parte pura (mismo estado y acciones
  * => mismo resultado) y el hook solo pone los efectos, la cola y las llamadas a la API. Asi se
  * puede probar sin React ni red y el hook queda bajo el limite de tamaño del gate. */
@@ -21,17 +21,6 @@ export interface EstadoPanelTareas {
    * desaparecer: es el unico sitio donde se ve que el archivo quedo desincronizado. */
   aviso: string | null;
   moviendo: string | null;
-  /* Abrir una tarea desde la consola (20AA-10 F5). Son dos campos y no uno porque entre la
-   * peticion y el destaque hace falta la columna cargada: la peticion llega del store con lo unico
-   * que la consola conoce —el `clave` del repo y el ID del roadmap— y solo se puede resolver
-   * contra listas que ya esten ahi. Consumirla antes de resolverla la perderia. */
-  peticionDestacada: { clave: string; roadmapId: string } | null;
-  /* La tarjeta ya resuelta (columna de TASK + id legacy) o null si la peticion no encontro
-   * tarjeta. */
-  destacada: { columna: number; legacyId: number } | null;
-  /* La peticion no encontro tarjeta: el roadmap y TASK no coinciden (tarea creada a mano en el
-   * archivo y aun no espejada, o TASK caido). Se dice, no se abre una tab muda. */
-  avisoDestacada: string | null;
   /* Lo que le paso a la ultima pasada de la sincronia de fondo (20AA-10 F6). Campo propio y no
    * `aviso` porque son cosas distintas y de duraciones distintas: `aviso` es de un gesto (y lo
    * limpia el siguiente), esto es del estado del area y sigue ahi hasta que se arregle. */
@@ -48,8 +37,6 @@ export type AccionTareas =
   | { tipo: 'movido' }
   | { tipo: 'optimista'; columna: number; tarea: TareaTab }
   | { tipo: 'descartar'; columna: number; legacyId: number }
-  | { tipo: 'peticionDestacada'; peticion: { clave: string; roadmapId: string } | null }
-  | { tipo: 'destacada'; destino: { columna: number; legacyId: number } | null; roadmapId: string }
   | { tipo: 'sincronia'; aviso: string | null };
 
 export const ESTADO_INICIAL: EstadoPanelTareas = {
@@ -60,9 +47,6 @@ export const ESTADO_INICIAL: EstadoPanelTareas = {
   error: null,
   aviso: null,
   moviendo: null,
-  peticionDestacada: null,
-  destacada: null,
-  avisoDestacada: null,
   avisoSincronia: null,
 };
 
@@ -92,20 +76,6 @@ export function reductor(prev: EstadoPanelTareas, a: AccionTareas): EstadoPanelT
       return {
         ...prev,
         tareas: { ...prev.tareas, [a.columna]: (prev.tareas[a.columna] ?? []).filter((t) => t.legacyId !== a.legacyId) },
-      };
-    case 'peticionDestacada':
-      return { ...prev, peticionDestacada: a.peticion };
-    case 'destacada':
-      /* [por que se limpia la peticion aqui] Ya esta resuelta (con tarjeta o sin ella): dejarla
-       * puesta volveria a resolverla en cada recarga y el destaque no se podria soltar. */
-      return {
-        ...prev,
-        peticionDestacada: null,
-        destacada: a.destino,
-        avisoDestacada:
-          a.destino === null
-            ? `no hay tarjeta de ${a.roadmapId} en el tab (el roadmap y TASK no coinciden todavía)`
-            : null,
       };
   }
 }

@@ -13,7 +13,7 @@
  * + relectura); aqui solo se cablea. (08AA-5) Sin mover a vecina: ni las
  * flechas de la tarjeta ni las filas del menu son necesarias, el
  * arrastre cubre el cambio de columna. */
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, CornerDownRight, MoreHorizontal, X } from 'lucide-react';
 import { cuerpoDocumento } from '../../../shared/platform/plataforma.js';
@@ -70,17 +70,12 @@ interface TarjetaTareaProps {
    * propias (TASK solo tiene dos niveles: `parentId` vale si el padre es raiz
    * y la tarea escrita no tiene hijos). */
   sub?: boolean;
-  /* Se llego a esta tarea desde la consola (20AA-10 F5): se marca y se trae a la vista. Es un
-   * estado de lectura, no un gesto: no viaja en `gestos` y no se confunde con el resaltado del
-   * arrastre (`.tareasFila--destino`). */
-  destacada?: boolean;
 }
 
-export function TarjetaTarea({ tarea, gestos: g, sub = false, destacada = false }: TarjetaTareaProps) {
+export function TarjetaTarea({ tarea, gestos: g, sub = false }: TarjetaTareaProps) {
   const [vista, setVista] = useState<VistaTarjeta>({ editando: false, borrador: '', confirmarBorrado: false });
   const [propiedades, setPropiedades] = useState(false);
   const menu = useMenuTarjeta();
-  const fila = useRef<HTMLDivElement>(null);
   const texto = textoTarea(tarea);
   const hecha = completadoTarea(tarea);
   const pri = prioridadTarea(tarea);
@@ -97,24 +92,13 @@ export function TarjetaTarea({ tarea, gestos: g, sub = false, destacada = false 
     'tareasFila',
     sub ? 'tareasFila--sub' : '',
     g.resaltada ? 'tareasFila--destino' : '',
-    destacada ? 'tareasFila--destacada' : '',
     hecha ? 'tareasFila--hecha' : '',
   ]
     .filter(Boolean)
     .join(' ');
 
-  /* Traer a la vista la tarjeta abierta desde la consola (F5). [por que hace falta] La columna
-   * tiene scroll propio: sin esto la tarjeta puede quedar fuera de vista y el destaque no se ve.
-   * `block: 'center'` la deja centrada en la columna; `inline: 'nearest'` evita arrastrar el
-   * scroll horizontal del kanban. */
-  useEffect(() => {
-    if (!destacada) return;
-    fila.current?.scrollIntoView({ block: 'center', inline: 'nearest' });
-  }, [destacada]);
-
   return (
     <div
-      ref={fila}
       className={clases}
       role="listitem"
       draggable={!sub && g.arrastrable}

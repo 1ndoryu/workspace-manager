@@ -18,7 +18,6 @@ import {
   construirMovimientos,
   esSubtarea,
   generarIdTarea,
-  idRoadmapDeTarea,
   parcheConColumna,
   restaurarCacheTareas,
   textoTarea,
@@ -29,7 +28,6 @@ import {
   type TareasEstado,
 } from '../shared/tareas/tareasTab.js';
 import { guardarJson, leerJson } from '../shared/vista/storage.js';
-import { useWorkspaceStore } from './useWorkspace.js';
 import {
   actualizarTarea,
   columnasTareas,
@@ -163,35 +161,6 @@ export function usePanelTareas() {
       clearInterval(id);
     };
   }, []);
-
-  /* Abrir una tarea desde la consola (20AA-10 F5). El store deja la peticion y se suelta aqui en
-   * cuanto entra al reducer: si siguiera puesta, cada recarga —y cada vuelta a la tab— volveria a
-   * dispararla. */
-  const tareaDestacada = useWorkspaceStore((st) => st.tareaDestacada);
-  const consumirTareaDestacada = useWorkspaceStore((st) => st.consumirTareaDestacada);
-  useEffect(() => {
-    if (tareaDestacada === null) return;
-    dispatch({ tipo: 'peticionDestacada', peticion: tareaDestacada });
-    consumirTareaDestacada();
-  }, [tareaDestacada, consumirTareaDestacada]);
-
-  /* Resolucion de la peticion: se empareja por ID del roadmap, que es lo unico que la consola
-   * conoce, contra las listas ya cargadas. Si la columna o su lista aun no han llegado, no se
-   * resuelve y se reintenta al siguiente render (por eso la peticion vive en el estado). */
-  useEffect(() => {
-    const p = s.peticionDestacada;
-    if (p === null) return;
-    const col = s.columnas.find((c) => c.clave === p.clave);
-    if (col === undefined) return;
-    const lista = s.tareas[col.legacyId];
-    if (lista === undefined) return;
-    const t = lista.find((x) => idRoadmapDeTarea(x) === p.roadmapId);
-    dispatch({
-      tipo: 'destacada',
-      destino: t === undefined ? null : { columna: col.legacyId, legacyId: t.legacyId },
-      roadmapId: p.roadmapId,
-    });
-  }, [s.peticionDestacada, s.columnas, s.tareas]);
 
   /* Escritura en serie: marca la tarjeta en vuelo, ejecuta, relee todo (la
    * relectura confirma que TASKS persistio) y libera. Al fallar, corre

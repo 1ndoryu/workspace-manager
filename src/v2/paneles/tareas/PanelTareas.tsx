@@ -68,9 +68,6 @@ export function PanelTareas() {
       {t.error && <div className="tareasError" role="alert">{t.error}</div>}
       {/* La tarjeta se guardo y el roadmap no (20AA-10 F3b): se dice, no se esconde. */}
       {t.aviso && <div className="tareasAviso" role="status">{t.aviso}</div>}
-      {/* Se llego desde la consola y no hay tarjeta que abrir (20AA-10 F5): el roadmap y TASK no
-        * coinciden. Se dice en vez de dejar el clic en silencio. */}
-      {t.avisoDestacada && <div className="tareasAviso" role="status">{t.avisoDestacada}</div>}
       {/* Lo que le paso a la ultima pasada de la sincronia de fondo (20AA-10 F6): sin esto, una
         * lista a la que le faltan tareas se pintaria como si estuviera completa. */}
       {t.avisoSincronia && <div className="tareasAviso" role="status">{t.avisoSincronia}</div>}
@@ -84,7 +81,6 @@ export function PanelTareas() {
               cargando={t.cargando}
               moviendo={t.moviendo}
               urlTareas={urlTareas}
-              destacadaId={t.destacada?.columna === col.legacyId ? t.destacada.legacyId : null}
               onSoltar={(origen, legacyId, antesDe) => void t.soltar(origen, col.legacyId, legacyId, antesDe)}
               onEditar={(legacyId, parche) => void t.editar(col.legacyId, legacyId, parche)}
               onEliminar={(legacyId) => void t.eliminar(col.legacyId, legacyId)}

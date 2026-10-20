@@ -94,15 +94,6 @@
     border-top: 1px solid var(--v2-texto);
 }
 
-/* Tarea abierta desde la consola (20AA-10 F5): contorno por dentro. [por que asi] El diseno v2 es
- * monocromo estricto —sin color, sin radio, sin sombra— y los estados se leen por forma: un
- * contorno negro de 1px no ocupa layout (no mueve la fila) y no se confunde con el indicador de
- * arrastre (`.tareasFila--destino`, un borde superior). */
-.tareasFila--destacada {
-    outline: 1px solid var(--v2-texto);
-    outline-offset: -1px;
-}
-
 .tareasDestino {
     padding: var(--v2-spaceXs) var(--v2-spaceMd);
     font-size: var(--v2-textXs);

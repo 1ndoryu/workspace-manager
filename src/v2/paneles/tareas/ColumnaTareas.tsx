@@ -47,9 +47,6 @@ interface ColumnaDatos {
   cargando: boolean;
   moviendo: string | null;
   urlTareas: string | null;
-  /* Tarea de ESTA columna a la que se llego desde la consola (20AA-10 F5), o null. El panel ya la
-   * resolvio a la columna que le toca, asi que aqui solo se compara. */
-  destacadaId: number | null;
 }
 
 /* Gestos (los ejecuta el hook; aqui solo se cablean al DnD y al menu). */
@@ -134,7 +131,6 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
             <Fragment key={raiz.legacyId}>
               <TarjetaTarea
                 tarea={raiz}
-                destacada={p.destacadaId === raiz.legacyId}
                 gestos={{
                   arrastrable: !ocupada,
                   ocupada,
@@ -161,7 +157,6 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
                   key={h.legacyId}
                   tarea={h}
                   sub
-                  destacada={p.destacadaId === h.legacyId}
                   gestos={{
                     arrastrable: false,
                     ocupada,
