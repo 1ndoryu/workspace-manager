@@ -152,7 +152,8 @@ async function prepararRuntimeRemoto(
   if (estado.stdout.trim() === 'ok' && !estado.fallo) return { base, cli };
 
   const limpiar = await ssh(cfg, comandoLimpiar(base, [...entradas, salida]), TIMEOUT_SONDA_MS);
-  if (limpiar.fallo) throw new Error(`limpieza de ${nombre} en ${cfg.host}: ${limpiar.fallo}`);
+  /* [por que] El fallo puede ser de conexión, no de la limpieza: se nombra el paso y el host. */
+  if (limpiar.fallo) throw new Error(`no se pudo preparar ${nombre} en ${cfg.host} (paso de limpieza): ${limpiar.fallo}`);
   try {
     await copiarEntradas(local.base, cfg, base, [...entradas]);
   } catch (err) {

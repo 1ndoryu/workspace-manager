@@ -3,8 +3,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
-import { comandoEnVps, decidirDonde, dentroDe, dirRemotoDe, dirRemotoDeHerramienta, mensajeSinVps } from './vps.mjs';
+import { cargarTaller, comandoEnVps, decidirDonde, dentroDe, dirRemotoDe, dirRemotoDeHerramienta, mensajeSinVps } from './vps.mjs';
 
 const TALLER = {
   host: 'remoto-ejemplo',
@@ -83,4 +85,16 @@ test('mensajeSinVps: 255 de ssh es «no hay VPS»; otros códigos no', () => {
   assert.match(mensajeSinVps(255, 'remoto-ejemplo'), /no se pudo conectar a la VPS \(remoto-ejemplo\)/);
   assert.equal(mensajeSinVps(0, 'remoto-ejemplo'), null);
   assert.equal(mensajeSinVps(1, 'remoto-ejemplo'), null);
+});
+
+test('cargarTaller: JSON corrupto falla nombrando el fichero y el remedio, no como «sin VPS»', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'taller-prueba-'));
+  try {
+    const ruta = path.join(dir, 'taller.json');
+    writeFileSync(ruta, '{ no es json');
+    assert.throws(() => cargarTaller(ruta), /taller.json no es JSON válido .*sin VPS/);
+    assert.equal(cargarTaller(path.join(dir, 'ausente.json')), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

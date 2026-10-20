@@ -393,12 +393,22 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun, extr
   if (esVps()) return correr('bash', ['-lc', comandoLocal(config, rutas, cwd, args, nombreBd, preparar, extra)], { dryRun, cwd, heredar: true }).status;
 
   const remoto = construirComandoRemoto(config, rutas, args, nombreBd, preparar, extra);
-  return correr(BIN_SSH, argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;
+  const estado = correr(BIN_SSH, argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;
+  /* [por que] 255 es fallo de ssh (la 89 no contesta), no de cargo: se nombra aparte.
+   * Sin --local: cargo no tiene ruta de emergencia, así que el remedio es esperar. */
+  if (estado === 255) console.error(`rcargo: no se pudo conectar a la VPS (${config.host}); reintenta cuando responda`);
+  return estado;
 }
 
 async function main(argv) {
   const dryRun = argv.includes('--dry-run');
   const cwd = process.cwd();
+  /* [por que] `--local` se descartaba en silencio y cargo iba igual a la 89. El portátil no
+   * tiene toolchain Rust, así que no hay ejecución local: se rechaza con motivo. */
+  if (argv.includes('--local') && !esVps()) {
+    console.error('rcargo: --local no existe para cargo: el portátil no tiene toolchain Rust. Espera a que la VPS responda.');
+    return 69;
+  }
   const config = cargarConfig();
   const opcion = argv.find((a) => a.startsWith('--proyecto='));
   const proyecto = opcion ? opcion.split('=')[1] : detectarProyecto(cwd);

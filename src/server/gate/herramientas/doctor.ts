@@ -44,9 +44,10 @@ export async function doctorConModo(
   if (modo !== 'taller') return local(ruta);
 
   /* Sin taller.json no hay VPS: es una configuración válida (un clon recién hecho no
-   * lo trae), no un fallo. Se dice sin soltar la ruta de un fichero que falta. */
+   * lo trae), no un fallo. Se dice sin soltar la ruta de un fichero que falta. El mismo
+   * null cubre un JSON inválido, así que el mensaje lo nombra también. */
   if (leerTallerSiExiste() === null) {
-    return sinDiagnostico('no hay taller configurado');
+    return sinDiagnostico('no hay taller configurado (o taller.json no es JSON válido)');
   }
 
   let cfg: ConfigRemota;

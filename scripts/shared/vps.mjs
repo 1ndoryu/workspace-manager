@@ -12,10 +12,16 @@ import { shQuote } from '../remoto/rcargo.mjs';
 
 export const FLAG_LOCAL = '--local';
 
-/* Configuración del taller (privada). Null si no existe: clon sin VPS. */
+/* Configuración del taller (privada). Null si no existe: clon sin VPS.
+ * [por que] Un JSON corrupto no es «sin VPS»: se nombra el fichero y el remedio en vez de
+ * soltar un SyntaxError sin contexto. */
 export function cargarTaller(ruta = rutaConfigPrivada('taller.json')) {
   if (!existsSync(ruta)) return null;
-  return JSON.parse(readFileSync(ruta, 'utf8'));
+  try {
+    return JSON.parse(readFileSync(ruta, 'utf8'));
+  } catch (err) {
+    throw new Error(`taller.json no es JSON válido (${ruta}): ${err.message}. Corrígelo o bórralo para trabajar sin VPS`);
+  }
 }
 
 /* Decide el destino. Función pura: `equipo` es el hostname de este equipo.
