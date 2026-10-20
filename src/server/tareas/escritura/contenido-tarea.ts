@@ -59,6 +59,16 @@ export function textoDeTitulo(titulo: string): string {
   return titulo.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
 }
 
+/* El mismo texto sin el punto final. [por que] El punto es formato del protocolo —`lineasDeTarea`
+ * lo pone al escribir y `tituloCanonico` lo quita—, no texto de la tarea: el archivo lo lleva y
+ * TASK puede no llevarlo. Compararlos tal cual daba dos fallos medidos en F4: una entrada de
+ * historial falsa por tarea creada (el texto «cambiaba» sin que nadie lo tocara, en cada pasada) y
+ * un conflicto permanente tras editar desde el tab (los dos lados cambiaron a lo mismo, pero uno
+ * con punto y el otro sin el). */
+export function sinPuntoFinal(texto: string): string {
+  return texto.replace(/\.+$/, '').trimEnd();
+}
+
 /* Las propiedades en una sola cadena, en el orden fijo del protocolo: es lo que se resume en la
  * huella y lo que hace comparables dos lecturas del mismo archivo. */
 function propiedadesTexto(p: PropiedadesTarea): string {
@@ -129,9 +139,10 @@ function iguales(a: string[], b: string[]): boolean {
 }
 
 /* Dos contenidos son el mismo. [por que] Las listas se comparan sin orden: en TASK el orden de
- * una etiqueta no significa nada, y compararlas tal cual daria cambios falsos en cada pasada. */
+ * una etiqueta no significa nada, y compararlas tal cual daria cambios falsos en cada pasada. El
+ * texto se compara sin el punto final de la linea, que es formato y no texto (`sinPuntoFinal`). */
 export function igualContenido(a: EspejoContenido, b: EspejoContenido): boolean {
-  if (a.texto !== b.texto || a.prioridad !== b.prioridad || a.urgencia !== b.urgencia) return false;
+  if (sinPuntoFinal(a.texto) !== sinPuntoFinal(b.texto) || a.prioridad !== b.prioridad || a.urgencia !== b.urgencia) return false;
   if (!iguales(a.etiquetas, b.etiquetas) || !iguales(a.dependeDe, b.dependeDe)) return false;
   const claves = new Set([...Object.keys(a.fechas), ...Object.keys(b.fechas)]);
   for (const k of claves) if (a.fechas[k] !== b.fechas[k]) return false;

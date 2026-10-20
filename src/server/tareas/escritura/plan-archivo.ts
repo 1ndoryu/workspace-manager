@@ -236,10 +236,14 @@ function lineaTitulo(original: string, id: string, texto: string): string {
   const negrita = (m?.[2] ?? '').match(/^\*\*([\s\S]*?)\*\*([\s\S]*)$/);
   if (negrita === null) return `${cabeza}**${texto}**`;
   const cuerpo = negrita[2];
-  if (cuerpo !== '' && texto.endsWith(cuerpo)) {
-    return `${cabeza}**${texto.slice(0, texto.length - cuerpo.length).trimEnd()}**${cuerpo}`;
-  }
-  return `${cabeza}**${texto}**`;
+  const conCuerpo = cuerpo !== '' && texto.endsWith(cuerpo);
+  const base = conCuerpo ? texto.slice(0, texto.length - cuerpo.length).trimEnd() : texto;
+  /* El punto final es de la linea, no del texto: el protocolo escribe `**Titulo.**` y el texto de
+   * la tarea va sin el, asi que al reescribir se perdia (F4, medido: un renombrado dejaba la linea
+   * sin punto). Se conserva el del original, sin doblarlo si el texto ya lo trae. */
+  const punto = negrita[1].endsWith('.') ? '.' : '';
+  const limpio = punto === '' ? base : base.replace(/\.+$/, '');
+  return `${cabeza}**${limpio}${punto}**${conCuerpo ? cuerpo : ''}`;
 }
 
 /* Reescribe el texto del roadmap. [por que] Se aplica de abajo arriba: asi los numeros de linea

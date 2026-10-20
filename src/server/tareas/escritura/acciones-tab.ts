@@ -10,7 +10,7 @@
  * [por que hay avisos que no lo son] «sin cambios», «ya esta» y «mismo orden» significan que el
  * archivo ya decia lo que la accion pedia. Se callan para no llenar la tab de ruido; el resto
  * —falta el archivo, falta la seccion, no esta la tarea— si sube a la respuesta. */
-import { type PropiedadesTarea, type TareaRoadmap } from '../../scanner/roadmap/roadmap.js';
+import { type PropiedadesTarea } from '../../scanner/roadmap/roadmap.js';
 import {
   contenidoDe,
   contenidoDeItem,
@@ -205,10 +205,12 @@ function espejoDeSubtarea(
   };
 }
 
-/* El parche con el que repetir el PUT de una subtarea para grabar su espejo. */
+/* El parche con el que repetir el PUT de una subtarea para grabar su espejo. [por que el texto del
+ * espejo] Misma razon que en el alta de una raiz: el texto de TASK tiene que ser el del archivo, o
+ * la subtarea y su espejo se contradicen y la pasada siguiente reescribe la linea sin motivo. */
 function repetirSubtarea(item: ItemVersionado, espejo: EspejoRoadmap): ParcheTarea {
   return completarParche(item.item, {
-    texto: typeof item.item.texto === 'string' ? item.item.texto : '',
+    texto: espejo.espejo.texto,
     payload: { ...payloadPropio(item.item), roadmap: espejo },
   });
 }
@@ -279,7 +281,12 @@ export async function trasGuardar(
         /* La linea se escribio y no se encuentra: el espejo no se puede inventar. */
         return { roadmap: { ...resumen(r), aviso: 'espejo-no-armado: la tarea nueva no aparece al releer el roadmap' }, repetir: null };
       }
-      return { roadmap: resumen(r), repetir: completarParche(item.item, { texto, payload: { ...payloadPropio(item.item), roadmap: espejo } }) };
+      /* [por que el texto del espejo y no el que se tecleo] La linea del roadmap se escribe
+       * `**Titulo.**` —el punto es de la linea— y el espejo se relee del archivo. Si TASK guardara
+       * el texto sin el punto, la tarea y su propio espejo dirian cosas distintas y la pasada
+       * siguiente reescribiria la linea (y apuntaria un cambio de texto) sin que nadie tocara nada:
+       * medido en F4, una entrada falsa por tarea creada. El texto de TASK es el del archivo. */
+      return { roadmap: resumen(r), repetir: completarParche(item.item, { texto: espejo.espejo.texto, payload: { ...payloadPropio(item.item), roadmap: espejo } }) };
     }
 
     if (parche.completado === true) return { roadmap: resumen(cerrarEnRoadmap(d, p, id, texto)), repetir: null };

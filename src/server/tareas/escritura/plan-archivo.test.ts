@@ -165,6 +165,44 @@ describe('planArchivo: la tabla del plan', () => {
   });
 });
 
+describe('planArchivo: el punto de la linea es formato, no texto', () => {
+  /* El protocolo escribe `**Titulo.**` —el punto es de la linea— y el texto de TASK puede no
+   * llevarlo. Contarlo como texto daba dos fallos medidos en F4: una entrada de historial falsa por
+   * tarea creada, y un conflicto que no se resuelve solo tras editar desde el tab. */
+  it('TASK sin el punto y el archivo con el: lo mismo, no hay nada que escribir', () => {
+    const t = tarea('## Pendientes\n\n- [ ] `20AA-1` — **Una tarea.**\n');
+    const enTask = [item(espejoDe(t), { texto: 'Una tarea' })];
+    const p = planArchivo(deps({ tareas: [t], enTask }));
+    assert.equal(p.escribir, false);
+    assert.equal(p.alDia, 1);
+    assert.deepEqual(p.cambios, []);
+  });
+
+  it('los dos cambiaron a lo mismo y solo difieren en el punto: al dia, no conflicto', () => {
+    /* Es el estado que deja una edicion desde el tab: TASK y la linea ya dicen lo nuevo, y el
+     * espejo se quedo en lo viejo, asi que los dos lados parecen cambiados. */
+    const t = tarea('## Pendientes\n\n- [ ] `20AA-1` — **Otra cosa.**\n');
+    const enTask = [
+      item(
+        { id: '20AA-1', huella: 'vieja', escritoEn: new Date(T - 60_000).toISOString(), espejo: espejo({ texto: 'Una tarea.' }) },
+        { texto: 'Otra cosa', updatedAt: new Date(T).toISOString() },
+      ),
+    ];
+    const p = planArchivo(deps({ tareas: [t], enTask }));
+    assert.deepEqual(p.conflictos, []);
+    assert.equal(p.escribir, false);
+    assert.equal(p.alDia, 1);
+  });
+
+  it('un texto distinto de verdad si es un cambio, con punto o sin el', () => {
+    const t = tarea('## Pendientes\n\n- [ ] `20AA-1` — **Una tarea.**\n');
+    const enTask = [item(espejoDe(t), { texto: 'Otra cosa' })];
+    const p = planArchivo(deps({ tareas: [t], enTask }));
+    assert.equal(p.escribir, true);
+    assert.deepEqual(p.cambios, [{ id: '20AA-1', campo: 'texto', antes: 'Una tarea.', despues: 'Otra cosa' }]);
+  });
+});
+
 describe('planArchivo: el valor por defecto de TASK no es un cambio', () => {
   /* TASK guarda `urgencia: normal` cuando nadie la manda (su `String` con `#[serde(default)]`).
    * Si eso contara como valor dicho, F3 escribiria `urgencia: normal` en las 198 lineas del area
@@ -272,6 +310,23 @@ describe('aplicarPlan: el texto del roadmap', () => {
     const t = conTarea(lineas);
     const salida = aplicarPlan(lineas, [aescribir(t, 'Otra.')]);
     assert.equal(salida[2], '- [ ] `20AA-1` - **Otra.**');
+  });
+
+  it('conserva el punto final de la linea: el texto de la tarea va sin el', () => {
+    /* El punto es de la linea (`**Titulo.**`), no del texto, y el texto que llega de TASK no lo
+     * trae. Sin conservarlo, renombrar desde el tab dejaba la linea sin punto y la pasada
+     * siguiente la veia cambiada. */
+    const lineas = ['## Pendientes', '', '- [ ] `20AA-1` — **Una.**', ''];
+    const t = conTarea(lineas);
+    const salida = aplicarPlan(lineas, [aescribir(t, 'Otra cosa')]);
+    assert.equal(salida[2], '- [ ] `20AA-1` — **Otra cosa.**');
+  });
+
+  it('no dobla el punto si el texto ya lo trae', () => {
+    const lineas = ['## Pendientes', '', '- [ ] `20AA-1` — **Una.**', ''];
+    const t = conTarea(lineas);
+    const salida = aplicarPlan(lineas, [aescribir(t, 'Otra cosa.')]);
+    assert.equal(salida[2], '- [ ] `20AA-1` — **Otra cosa.**');
   });
 
   it('aplica de abajo arriba: los numeros de linea del analisis siguen valiendo', () => {

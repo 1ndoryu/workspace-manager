@@ -149,6 +149,21 @@ void describe('acciones-tab', () => {
     assert.equal(r.repetir?.urgencia, 'normal');
   });
 
+  void it('el texto de TASK queda como el del archivo: el punto de la linea no se queda fuera', async () => {
+    /* [por que] La linea se escribe `**Titulo.**` —el punto es de la linea— y el espejo se relee del
+     * archivo. Si TASK se quedara con el texto tecleado, sin punto, la tarea y su propio espejo
+     * dirian cosas distintas: la pasada siguiente reescribiria la linea y apuntaria un cambio de
+     * texto que nadie hizo (medido en F4: una entrada falsa por tarea creada). */
+    const t = taller();
+    const item = t.item(9003, { proyectoId: COLUMNA, parentId: null, texto: 'Quinta' });
+    const r = await trasGuardar(t.deps, COLUMNA, item, { texto: 'Quinta', proyectoId: COLUMNA, orden: 2 });
+    assert.match(t.leer(), /- \[ \] `20AA-3` — \*\*Quinta\.\*\*/);
+    const espejo = espejoDeItem({ roadmap: (r.repetir?.payload as Record<string, unknown> | undefined)?.roadmap });
+    const contenido = espejo?.espejo as { texto: string } | undefined;
+    assert.equal(contenido?.texto, 'Quinta.');
+    assert.equal(r.repetir?.texto, contenido?.texto);
+  });
+
   void it('una urgencia normal no se escribe en la linea: es el defecto de TASK, no algo dicho', async () => {
     const t = taller();
     const item = t.item(9002, { proyectoId: COLUMNA, parentId: null, texto: 'Cuarta.', urgencia: 'normal' });
@@ -219,6 +234,22 @@ void describe('acciones-tab', () => {
     assert.equal(r.repetir?.texto, 'Otra suya.');
     assert.equal(r.repetir?.proyectoId, COLUMNA);
     assert.equal(r.repetir?.parentId, 9001);
+  });
+
+  void it('el texto de una subtarea nueva tambien queda como el del archivo', async () => {
+    /* Misma razon que en la raiz: el espejo de la subtarea se relee del archivo y su texto lleva el
+     * punto de la linea; el de TASK tiene que ser el mismo o la pareja se contradice. */
+    const t = taller(CUERPO, [espejado(9001, '20AA-1', { texto: 'Primera.' })]);
+    const item: ItemVersionado = {
+      id: 9003,
+      item: { proyectoId: COLUMNA, parentId: 9001, orden: 1, texto: 'Sin punto', completado: false },
+      updatedAt: '2026-10-20T12:00:00.000Z',
+    };
+    const r = await trasGuardar(t.deps, COLUMNA, item, { texto: 'Sin punto', parentId: 9001 });
+    assert.match(t.leer(), /^ {2}- \[ \] \*\*Sin punto\.\*\*$/m);
+    const espejo = espejoDeItem({ roadmap: (r.repetir?.payload as Record<string, unknown> | undefined)?.roadmap });
+    assert.equal((espejo?.espejo as { texto: string } | undefined)?.texto, 'Sin punto.');
+    assert.equal(r.repetir?.texto, 'Sin punto.');
   });
 
   void it('marcar una subtarea escribe su casilla, sin sacarla del bloque del padre', async () => {
