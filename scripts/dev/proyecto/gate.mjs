@@ -16,6 +16,7 @@ import { rutaConfigPrivada } from '../../shared/rutas.mjs';
 import { cabeceraAutorizacion } from '../token.mjs';
 import { URL_API } from '../../shared/puertos.mjs';
 import { cargarTaller, dirRemotoDe, ejecutarEnVps, emergenciaLocal, mensajeSinVps } from '../../shared/vps.mjs';
+import { asegurarSesion } from '../../remoto/rcargo.mjs';
 import { rutaAbsDe } from '../remoto/rutaLocal.mjs';
 
 export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -182,6 +183,13 @@ export function correrAutogate(id, entrada, emergencia, tarea) {
   if (!config) return { estado: 'error', motivo: 'sin VPS configurada (config/taller.json)' };
   const carpeta = rutaAbsDe(entrada);
   const dirRemoto = dirRemotoDe(config, id, carpeta, carpeta);
+  /* [10AA-3] El gate es la primera orden que corre tras editar, y la que sufre la sesión de Mutagen
+   * desalineada: con patrones viejos, el árbol de la 89 recibe del portátil lo que la 89 acaba de
+   * generar (herramientas provisionadas, `out`) y el gate muere por artefactos, no por el código.
+   * Best-effort: si la sesión no se puede asegurar, se avisa y se sigue — el gate decide por sí mismo. */
+  if (asegurarSesion({ config, proyecto: id, rutaLocal: carpeta, cwd: carpeta }) !== 0) {
+    process.stderr.write(`[gate] ${id}: no se pudo asegurar la sesión de Mutagen; la réplica puede estar desalineada\n`);
+  }
   const avisoReplica = asegurarSubmodulosReplica(config, dirRemoto, carpeta);
   if (avisoReplica) process.stderr.write(`[gate] ${id}: ${avisoReplica}\n`);
   const r = ejecutarEnVps(config, dirRemoto, ['sh', '-c', d.orden], { capturar: true });
