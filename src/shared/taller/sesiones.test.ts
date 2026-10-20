@@ -7,7 +7,7 @@ import { sesionDev, sesionMutagen, slugSesion } from './sesiones.js';
 describe('slugSesion', () => {
   it('no cambia los ids normales', () => {
     assert.equal(slugSesion('sitio-api'), 'sitio-api');
-    assert.equal(slugSesion('juego-arcade'), 'juego-arcade');
+    assert.equal(slugSesion('proyecto-a'), 'proyecto-a');
     assert.equal(slugSesion('sistema-legado'), 'sistema-legado');
   });
 
@@ -24,7 +24,7 @@ describe('slugSesion', () => {
 describe('nombres de sesión', () => {
   it('Mutagen: taller-<id saneado>', () => {
     assert.equal(sesionMutagen('PROYECTO TASKS'), 'taller-PROYECTO-TASKS');
-    assert.equal(sesionMutagen('juego-arcade'), 'taller-juego-arcade');
+    assert.equal(sesionMutagen('proyecto-a'), 'taller-proyecto-a');
   });
 
   it('tmux: dev-<id saneado>-<puerto> (mismo saneado que Mutagen)', () => {

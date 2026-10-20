@@ -27,3 +27,6 @@ Agente/
 
 # Roadmap local: no se publica (contiene nombres de proyectos privados)
 /roadmap.md
+
+# Tests que afirman datos del registro privado (nombres y hosts reales): locales, nunca al repo.
+scripts/dev/doctor/pruebas/*.privado.test.mjs

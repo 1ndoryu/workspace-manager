@@ -149,7 +149,7 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
   const detalle = [];
   let estado = 'bajo-mando';
   let motivo = 'probe verde';
-  // [por que 10AA-3] Varios puertos pueden caer a la vez (RESTAURANTE 3105+5182
+  // [por que 10AA-3] Varios puertos pueden caer a la vez (proyecto-h 3105+5182
   // tras `stop`). Antes cada problema hacía `break`: el 5182 nunca entraba en
   // `detalle`, `up` lanzaba solo 3105 y reportaba "probe verde". Ahora se
   // clasifican todos los puertos; el primer problema fija el motivo.

@@ -197,8 +197,8 @@ queda por detrás, para que el cambio de un proyecto no deje viejo el producto d
 "consumeArtefacto": {
   "proyecto": "mi-proyecto",
   "ruta": "frontend/dist",
-  "producto": "x86_64-pc-windows-msvc/release/mn-escritorio.exe",
-  "instalado": "<RUTA_DEL_AREA>/Apps/mi-escritorio/mn-escritorio.exe"
+  "producto": "x86_64-pc-windows-msvc/release/proyecto-e.exe",
+  "instalado": "<RUTA_DEL_AREA>/Apps/mi-escritorio/proyecto-e.exe"
 }
 ```
 

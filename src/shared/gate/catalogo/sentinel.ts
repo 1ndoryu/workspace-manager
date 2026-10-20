@@ -30,7 +30,7 @@ export function ESQUEMA_SENTINEL(): NodoEsquema {
   if (_esquema) return _esquema;
 
 /* Ubicacion alternativa valida: el runtime acepta los patterns/rules/runtime
- * tambien dentro de `analyzers.<nombre>.config` (Glory-Laminal y otros los
+ * tambien dentro de `analyzers.<nombre>.config` (proyecto-j y otros los
  * ponen ahi). `'*'` comodina el nombre del analizador. [por que] Sin esto el
  * diagnostico marcaria "falta" una opcion que el proyecto ya tiene en su
  * config de analizador (falso positivo en la consola). */
@@ -47,7 +47,7 @@ const EN_CONFIG_ANALIZADOR: Alternativas = [['analyzers', '*', 'config']];
     mode: enumX(['enforce', 'observe', 'pass-through'], 'observe', 'requerida'),
     project: { objeto: { primaryBranch: text('main', 'requerida') } },
     /* Patterns: el runtime los acepta en raiz O dentro de analyzers…config
-     * (Glory-Laminal los pone anidados); por eso solo 'recomendada': faltar en
+     * (proyecto-j los pone anidados); por eso solo 'recomendada': faltar en
      * la raiz no es un error si estan en el sub-config. */
     includePatterns: { ...strArr('archivos que el analizador considera', 'recomendada'), alternativas: EN_CONFIG_ANALIZADOR },
     excludePatterns: { ...strArr('archivos excluidos del análisis', 'recomendada'), alternativas: EN_CONFIG_ANALIZADOR },

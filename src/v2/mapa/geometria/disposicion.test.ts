@@ -63,9 +63,9 @@ test('los troncales unen laptop con VPS 89 y VPS 89 con producción, sin laptop-
 });
 
 test('una caja de frente al nodo se une con un solo tramo recto', () => {
-  const ps = [proyecto('kamples', { despliegue: coolify })];
-  const { colocados, hubs, enlaces, troncales } = disponer(ps, new Set(), new Set(['kamples']));
-  const ruta = rutasDe(colocados, hubs, enlaces, troncales).get('kamples-produccion')!;
+  const ps = [proyecto('proyecto-i', { despliegue: coolify })];
+  const { colocados, hubs, enlaces, troncales } = disponer(ps, new Set(), new Set(['proyecto-i']));
+  const ruta = rutasDe(colocados, hubs, enlaces, troncales).get('proyecto-i-produccion')!;
   assert.equal(ruta.length, 2);
 });
 

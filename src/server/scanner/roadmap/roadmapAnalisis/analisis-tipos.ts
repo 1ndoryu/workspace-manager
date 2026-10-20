@@ -10,7 +10,7 @@ export const TOPE_LINEAS_ROADMAP = 400;
  * un roadmap desbordado no debe engordar el snapshot sin limite.
  * [por que 60 y no 40] Recorta la lista de tareas, no solo los IDs (`resumenRoadmap`), y lo hacia
  * en silencio: con 41 pendientes el tablero veia 40 y la tarea 41 no llegaba ni a la consola ni a
- * TASK. RESTAURANTE ya tiene 36 y el tope de lineas (400) sigue siendo el limite de verdad; el
+ * TASK. proyecto-h ya tiene 36 y el tope de lineas (400) sigue siendo el limite de verdad; el
  * recorte, cuando ocurre, ahora se dice (comprobacion `roadmap-protocolo`). */
 export const TOPE_TAREAS = 60;
 
@@ -44,7 +44,7 @@ export interface SubtareaRoadmap {
  * comillas invertidas— sino que reconoce «aqui hay un ID» para las lineas mal escritas (heading,
  * bullet sin casilla, tabla). Con el patron viejo un proyecto con esquema propio no veia
  * detectadas sus tareas mal escritas: medido el 2026-10-20, 42 IDs reales del area se le escapaban
- * (33 OP-nn de opencode-propio y 9 numeros sueltos de RESTAURANTE).
+ * (33 OP-nn de opencode-propio y 9 numeros sueltos de proyecto-h).
  * Los numeros sueltos NO se admiten a proposito: un `1` es indistinguible de cualquier cifra en
  * prosa y convertiria en «tarea en tabla» o «tarea sin casilla» media docena de lineas legitimas. */
 const RE_ID = /\b(?:\d{2,3}[A-C][A-Z]?-\d+|[A-Z]-[A-Z]+\d+-\d+|[A-Z]{1,4}-?\d+[a-z]?(?:-[A-Za-z0-9]+)?)\b/;

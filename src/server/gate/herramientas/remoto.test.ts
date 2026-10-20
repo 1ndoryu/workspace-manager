@@ -59,19 +59,19 @@ test('rutaRemota: une base y clave; rechaza claves no seguras', () => {
 
 test('rutaRuntimeRemota: el runtime vive fuera de la réplica, que se vacía al sincronizar', () => {
   const cfg = configRemotaDe(CFG_OK);
-  const r = rutaRuntimeRemota(cfg, 'juego-arcade', 'sentinel');
-  assert.equal(r, '/srv/taller/_quality-tools/juego-arcade/sentinel');
-  assert.ok(!r.startsWith(`${rutaRemota(cfg, 'juego-arcade')}/`), 'no puede colgar de la réplica');
+  const r = rutaRuntimeRemota(cfg, 'proyecto-a', 'sentinel');
+  assert.equal(r, '/srv/taller/_quality-tools/proyecto-a/sentinel');
+  assert.ok(!r.startsWith(`${rutaRemota(cfg, 'proyecto-a')}/`), 'no puede colgar de la réplica');
   assert.equal(rutaRuntimeRemota(cfg, 'PROYECTO TASKS', 'varsense'), '/srv/taller/_quality-tools/PROYECTO TASKS/varsense');
   assert.throws(() => rutaRuntimeRemota(cfg, 'a;b', 'sentinel'), /no válida/);
 });
 
 /* [por que] Estado del runtime en la 89: `copiar` si falta la marca, el CLI o node_modules. */
 test('comandoEstado: pide copiar si la huella no coincide o falta algo, y ok si todo está al día', () => {
-  const cmd = comandoEstado({ base: '/srv/taller/_quality-tools/juego-arcade/sentinel', marca: '/srv/taller/_quality-tools/juego-arcade/sentinel/.fuentes-sha', huella: 'abc123', cli: '/srv/taller/_quality-tools/juego-arcade/sentinel/out/cli/index.js' });
+  const cmd = comandoEstado({ base: '/srv/taller/_quality-tools/proyecto-a/sentinel', marca: '/srv/taller/_quality-tools/proyecto-a/sentinel/.fuentes-sha', huella: 'abc123', cli: '/srv/taller/_quality-tools/proyecto-a/sentinel/out/cli/index.js' });
   assert.ok(cmd.includes(`!= 'abc123'`), 'compara la marca con la huella');
-  assert.ok(cmd.includes(`[ ! -f '/srv/taller/_quality-tools/juego-arcade/sentinel/out/cli/index.js' ]`), 'mira el CLI');
-  assert.ok(cmd.includes(`[ ! -d '/srv/taller/_quality-tools/juego-arcade/sentinel/node_modules' ]`), 'mira node_modules');
+  assert.ok(cmd.includes(`[ ! -f '/srv/taller/_quality-tools/proyecto-a/sentinel/out/cli/index.js' ]`), 'mira el CLI');
+  assert.ok(cmd.includes(`[ ! -d '/srv/taller/_quality-tools/proyecto-a/sentinel/node_modules' ]`), 'mira node_modules');
   assert.ok(cmd.endsWith('echo copiar; exit 0; fi; echo ok'));
 });
 
@@ -84,22 +84,22 @@ test('comandoLimpiar: borra solo las rutas indicadas, citadas', () => {
  * el node del runtime; un fallo sale con el log acotado y código distinto por etapa. */
 test('comandoCompilar: npm ci solo si cambia el lock, compila con el node de la 89 y falla en claro', () => {
   const cmd = comandoCompilar({
-    base: '/srv/taller/_quality-tools/juego-arcade/sentinel',
+    base: '/srv/taller/_quality-tools/proyecto-a/sentinel',
     npm: '/home/ejemplo/.local/bin/npm',
     nodeDir: '/home/ejemplo/bin',
     huella: 'abc123',
     huellaLock: 'lock999',
-    marca: '/srv/taller/_quality-tools/juego-arcade/sentinel/.fuentes-sha',
-    cli: '/srv/taller/_quality-tools/juego-arcade/sentinel/out/cli/index.js',
+    marca: '/srv/taller/_quality-tools/proyecto-a/sentinel/.fuentes-sha',
+    cli: '/srv/taller/_quality-tools/proyecto-a/sentinel/out/cli/index.js',
   });
-  assert.ok(cmd.includes(`'/home/ejemplo/.local/bin/npm' ci --silent --prefix '/srv/taller/_quality-tools/juego-arcade/sentinel'`), 'npm ci completo, sin --omit');
+  assert.ok(cmd.includes(`'/home/ejemplo/.local/bin/npm' ci --silent --prefix '/srv/taller/_quality-tools/proyecto-a/sentinel'`), 'npm ci completo, sin --omit');
   assert.ok(!cmd.includes('--omit'), 'compila con devDependencies');
   assert.ok(cmd.includes(`!= 'completo-lock999'`), 'compara el lock con la marca de instalación completa');
   assert.ok(!cmd.includes(`!= 'lock999'`), 'una marca de instalación --omit=dev antigua no vale');
   assert.ok(cmd.includes(`PATH='/home/ejemplo/bin:'"$PATH"`), 'PATH con el node del runtime');
   assert.ok(cmd.includes('|| { tail -n 20'), 'un fallo vuelca el final del log');
   assert.ok(cmd.includes('exit 3') && cmd.includes('exit 4') && cmd.includes('exit 5'), 'cada etapa sale con su código');
-  assert.ok(cmd.endsWith("printf '%s' 'abc123' > '/srv/taller/_quality-tools/juego-arcade/sentinel/.fuentes-sha'; echo ok"), 'la marca se escribe tras compilar');
+  assert.ok(cmd.endsWith("printf '%s' 'abc123' > '/srv/taller/_quality-tools/proyecto-a/sentinel/.fuentes-sha'; echo ok"), 'la marca se escribe tras compilar');
 });
 
 test('huellaLock: 16 hex del contenido, y "?" si no hay lock', () => {
@@ -138,7 +138,7 @@ test('modoAnalisisEn: el taller solo con analisisEn exacto; por defecto local', 
     proyectos: [
       { id: 'sistema-legado', analisisEn: 'taller' },
       { id: 'sitio-api' },
-      { id: 'otro', analisisEn: 'DEV89' },
+      { id: 'otro', analisisEn: 'otro-alias' },
     ],
   };
   const taller = { host: 'taller-ejemplo' };
@@ -163,10 +163,10 @@ test('modoAnalisisEn: sin taller, analisisEn "taller" sigue en taller con su mot
  * valiendo, pero el alias lo declara taller.json, no el codigo. Sin taller declarado no
  * hay alias que valga (testigo: el mismo valor con otro host es local). */
 test('modoAnalisisEn: el alias del taller declarado pide el taller', () => {
-  const registro = { proyectos: [{ id: 'juego-arcade', analisisEn: 'taller-ejemplo' }] };
-  assert.equal(modoAnalisisEn(registro, 'juego-arcade', { host: 'taller-ejemplo' }), 'taller');
-  assert.equal(modoAnalisisEn(registro, 'juego-arcade', { host: 'otra-maquina' }), 'local');
-  assert.equal(modoAnalisisEn(registro, 'juego-arcade', null), 'taller', 'sin taller, la marca sigue siendo del taller');
+  const registro = { proyectos: [{ id: 'proyecto-a', analisisEn: 'taller-ejemplo' }] };
+  assert.equal(modoAnalisisEn(registro, 'proyecto-a', { host: 'taller-ejemplo' }), 'taller');
+  assert.equal(modoAnalisisEn(registro, 'proyecto-a', { host: 'otra-maquina' }), 'local');
+  assert.equal(modoAnalisisEn(registro, 'proyecto-a', null), 'taller', 'sin taller, la marca sigue siendo del taller');
 });
 
 /* Correr en el taller es lo que manda: un proyecto con `host` en el registro se analiza
@@ -256,14 +256,14 @@ test('reposAnidados: marca de fichero, de directorio y no desciende dentro', () 
 });
 
 test('comandoMarcasRepos: escribe la marca del fichero y crea la del directorio', () => {
-  const cmd = comandoMarcasRepos('/srv/taller/juego-arcade', [
+  const cmd = comandoMarcasRepos('/srv/taller/proyecto-a', [
     { ruta: 'glory-rs', marca: 'gitdir: ../.git/modules/glory-rs' },
     { ruta: 'vendors/completo', marca: null },
   ]);
   assert.equal(
     cmd,
-    "mkdir -p '/srv/taller/juego-arcade/glory-rs' && printf '%s' 'gitdir: ../.git/modules/glory-rs' > '/srv/taller/juego-arcade/glory-rs/.git' && " +
-      "mkdir -p '/srv/taller/juego-arcade/vendors/completo/.git' && echo ok",
+    "mkdir -p '/srv/taller/proyecto-a/glory-rs' && printf '%s' 'gitdir: ../.git/modules/glory-rs' > '/srv/taller/proyecto-a/glory-rs/.git' && " +
+      "mkdir -p '/srv/taller/proyecto-a/vendors/completo/.git' && echo ok",
   );
   assert.equal(comandoMarcasRepos('/x', []), 'echo ok');
 });

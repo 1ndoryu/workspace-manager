@@ -183,7 +183,7 @@ export async function contextoEntrada(id, args, { autoBackend = false } = {}) {
   let proyecto = proyectos.find((p) => normalizarRuta(rutaAbs) === normalizarRuta(p.ruta));
   if (!proyecto) {
     // [por que] config.ignorados oculta el proyecto del tablero por decision
-    // curada (p. ej. RESTAURANTE, 05AA): el escaner lo conoce y lo filtra del
+    // curada (p. ej. proyecto-h, 05AA): el escaner lo conoce y lo filtra del
     // snapshot. Sigue siendo cobertura valida para arrancarlo; el tablero no
     // cambia. Exige repo real (.git) en la ruta del registro.
     const claveIgnorada = relative(dirname(RAIZ_REPO), rutaAbs).split(sep).join('/');

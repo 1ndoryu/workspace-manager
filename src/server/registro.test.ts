@@ -71,15 +71,15 @@ test('urls: el puerto de la app es el de la raíz, no el del backend', () => {
   const registro = {
     proyectos: [
       {
-        id: 'gloryapi',
-        dominio: 'gloryapi.localhost',
+        id: 'proyecto-k',
+        dominio: 'proyecto-k.localhost',
         puertos: [3101, 5178],
         healths: [{ puerto: 3101, ruta: '/api/ping' }, { puerto: 5178, ruta: '/' }],
       },
     ],
   };
-  const [p] = anotarRegistro([proyecto('gloryapi')], registro);
-  assert.deepEqual(p.urls, [{ donde: 'laptop', url: 'http://gloryapi.localhost:5178' }]);
+  const [p] = anotarRegistro([proyecto('proyecto-k')], registro);
+  assert.deepEqual(p.urls, [{ donde: 'laptop', url: 'http://proyecto-k.localhost:5178' }]);
 });
 
 test('urls: sin health de raíz manda el último puerto declarado', () => {

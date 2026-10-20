@@ -43,6 +43,6 @@ test('esAppInstalada: solo el exe exacto de consumeArtefacto.instalado', () => {
   const entradas = [{ id: 'app-prueba', consumeArtefacto: { instalado: 'D:/prueba/apps/app-prueba/app-prueba.exe' } }];
   assert.equal(esAppInstalada({ exe: 'D:\\prueba\\apps\\app-prueba\\app-prueba.exe', cmd: '' }, entradas), true);
   assert.equal(esAppInstalada({ exe: 'D:\\prueba\\apps\\app-prueba\\otro.exe', cmd: '' }, entradas), false, 'otro fichero de la carpeta no es la app');
-  assert.equal(esAppInstalada({ exe: null, cmd: 'mn-escritorio' }, entradas), false);
+  assert.equal(esAppInstalada({ exe: null, cmd: 'proyecto-e' }, entradas), false);
   assert.equal(esAppInstalada(null, entradas), false);
 });

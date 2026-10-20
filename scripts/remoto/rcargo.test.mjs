@@ -194,7 +194,7 @@ test('comando remoto: cargo detrás de cm-heavy y con target propio', () => {
   assert.ok(cadena.includes('CARGO_TARGET_DIR='));
 });
 
-const cargoToml = '[package]\nname = "agente-tiempo-real"\nversion = "0.1.0"\n\n[[bin]]\nname = "otro"\n';
+const cargoToml = '[package]\nname = "proyecto-b"\nversion = "0.1.0"\n\n[[bin]]\nname = "otro"\n';
 
 /* [18AA-8] `cargo xwin` sin `--target` compilaba para Linux en la 89: los artefactos acababan en
  * `release/` y el `.exe` viejo se quedaba donde estaba, con un «Finished» que parecía éxito. */

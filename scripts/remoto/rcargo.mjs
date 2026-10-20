@@ -88,7 +88,7 @@ export function argsConTargetXwin(args) {
 }
 
 // [por que] El .cargo/config.toml de un proyecto puede fijar `build.rustc-wrapper` a un binario de
-// Windows (WANDORIUS lo hace con sccache): en la 89 no existe y el build muere con «could not execute
+// Windows (proyecto-g lo hace con sccache): en la 89 no existe y el build muere con «could not execute
 // process .../sccache.exe (os error 2)». El entorno manda sobre el fichero, así que se limpia en todo
 // lo que compile o arranque en la 89. Fuente única: scripts/dev/remoto.mjs la importa de aquí.
 export const SIN_RUSTC_WRAPPER = 'RUSTC_WRAPPER= ';

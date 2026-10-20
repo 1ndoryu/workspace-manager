@@ -42,7 +42,7 @@ export function leerRegistro(ruta = RUTA_REGISTRO) {
   externosPropios.forEach((s, i) => validarIgnoradoSistema(s, `externosPropios[${i}]`));
   // [por que] Dos proyectos no pueden reclamar el mismo puerto (puertos o
   // auxiliares): sin esto el choque solo aparecia al arrancar (glory-pulse y
-  // KAMPLES compartian 3000). Aviso en la entrada posterior, no error global
+  // proyecto-i compartian 3000). Aviso en la entrada posterior, no error global
   // (mismo criterio que 06AA-1).
   const reclamados = new Map();
   for (const e of entradas.values()) {

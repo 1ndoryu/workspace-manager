@@ -38,7 +38,7 @@ test('parsearAudit pnpm: lista sin metadata cuenta sus hallazgos (no sale ok)', 
   assert.equal(r.hallazgos.length, 1);
 });
 
-/* Entradas reales de `cargo audit --json` (cargo-audit 0.22.2, juego-arcade,
+/* Entradas reales de `cargo audit --json` (cargo-audit 0.22.2, proyecto-a,
  * 2026-10-17), recortadas a los campos que se leen. [por que] La prueba anterior
  * usaba una forma imaginada con `severity: 'medium'` dentro del advisory, que no
  * existe: pasaba mientras el camino real estaba roto, porque RUSTSEC no emite

@@ -71,40 +71,40 @@ test('detectarRust: por debajo del umbral no hay aviso de tamano', () => {
 });
 
 test('duenoDePuerto: un auxiliar declarado nombra a su dueno (no es proceso ajeno)', () => {
-  const entradas = [{ id: 'juego-arcade', puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }];
+  const entradas = [{ id: 'proyecto-a', puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }];
   const procs = new Map([[77, { pid: 77, exe: 'C:/x/glory-backend.exe', cmd: 'C:/x/glory-backend.exe' }]]);
-  assert.deepEqual(duenoDePuerto(3001, [77], procs, entradas), { id: 'juego-arcade', pid: 77, via: 'auxiliar' });
+  assert.deepEqual(duenoDePuerto(3001, [77], procs, entradas), { id: 'proyecto-a', pid: 77, via: 'auxiliar' });
   assert.equal(duenoDePuerto(3001, [88], procs, entradas), null);
 });
 
 test('accionParaPuerto: nunca mata, y nombra el siguiente paso por caso', () => {
-  const ajeno = accionParaPuerto('juego-arcade', 3000, [9], null);
+  const ajeno = accionParaPuerto('proyecto-a', 3000, [9], null);
   assert.match(ajeno, /lo ocupa un proceso ajeno \(pid 9\); no se mata/);
-  const dueno = accionParaPuerto('juego-arcade', 3000, [9], { id: 'agente-tiempo-real', pid: 9, via: 'proceso' });
-  assert.match(dueno, /lo ocupa agente-tiempo-real \(pid 9, proceso\); no se mata/);
-  assert.match(dueno, /mueve el puerto de juego-arcade/);
-  const compartido = accionParaPuerto('juego-arcade', 5183, [], null, ['otro']);
+  const dueno = accionParaPuerto('proyecto-a', 3000, [9], { id: 'proyecto-b', pid: 9, via: 'proceso' });
+  assert.match(dueno, /lo ocupa proyecto-b \(pid 9, proceso\); no se mata/);
+  assert.match(dueno, /mueve el puerto de proyecto-a/);
+  const compartido = accionParaPuerto('proyecto-a', 5183, [], null, ['otro']);
   assert.match(compartido, /deja un solo dueño/);
 });
 
 test('detectarDerivaEnv: PORT no declarado avisa; PORT declarado como auxiliar no', () => {
   const raiz = mkdtempSync(join(raizTemporales(), 'wm-deriva-test-'));
   try {
-    const kamples = join(raiz, 'kamples');
+    const proyecto-i = join(raiz, 'proyecto-i');
     const pulse = join(raiz, 'pulse');
-    mkdirSync(kamples);
+    mkdirSync(proyecto-i);
     mkdirSync(pulse);
-    writeFileSync(join(kamples, '.env'), 'DATABASE_URL=x\nPORT=3002 # cambiado a mano\n');
-    writeFileSync(join(kamples, '.env.example'), 'PORT=3001\n');
+    writeFileSync(join(proyecto-i, '.env'), 'DATABASE_URL=x\nPORT=3002 # cambiado a mano\n');
+    writeFileSync(join(proyecto-i, '.env.example'), 'PORT=3001\n');
     writeFileSync(join(pulse, '.env'), 'PORT=3001\n');
     const entradas = new Map([
-      ['juego-arcade', { id: 'juego-arcade', ruta: kamples, puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }],
-      ['agente-tiempo-real', { id: 'agente-tiempo-real', ruta: pulse, puertos: [3000] }],
+      ['proyecto-a', { id: 'proyecto-a', ruta: proyecto-i, puertos: [5183], auxiliares: [{ puerto: 3001, marcador: 'glory-backend', motivo: 'backend' }] }],
+      ['proyecto-b', { id: 'proyecto-b', ruta: pulse, puertos: [3000] }],
     ]);
     const avisos = detectarDerivaEnv({ entradas }, { raiz });
     assert.deepEqual(avisos, [
-      { id: 'juego-arcade', archivo: '.env', puerto: 3002, motivo: 'PORT=3002 no esta en puertos/auxiliares de juego-arcade' },
-      { id: 'agente-tiempo-real', archivo: '.env', puerto: 3001, motivo: 'PORT=3001 lo declara juego-arcade' },
+      { id: 'proyecto-a', archivo: '.env', puerto: 3002, motivo: 'PORT=3002 no esta en puertos/auxiliares de proyecto-a' },
+      { id: 'proyecto-b', archivo: '.env', puerto: 3001, motivo: 'PORT=3001 lo declara proyecto-a' },
     ]);
   } finally {
     rmSync(raiz, { recursive: true, force: true });

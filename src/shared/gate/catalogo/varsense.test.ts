@@ -22,7 +22,7 @@ describe('gate: esquema de varsense.config.json', () => {
   });
 
   /* [por que] El mismo hueco que hubo en `unused` lo tenia `duplicate`, que
-   * comparte forma: RESTAURANTE declara ahi los 24 alias del tema de shadcn y
+   * comparte forma: proyecto-h declara ahi los 24 alias del tema de shadcn y
    * el tablero lo marcaba como typo. */
   it('acepta tokenDetection.duplicate.excludeTokens', () => {
     const json = { tokenDetection: { duplicate: { excludeTokens: ['--card', '--popover'] } } };

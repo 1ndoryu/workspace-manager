@@ -352,7 +352,7 @@ antiguo() {
 #   incremental/<crate>-<hash>/<sesión>/…
 # - Nivel 1: un `<crate>-<hash>` por cada hash de parámetros de compilación (el hash cambia, entre
 #   otras cosas, según RUSTC_WRAPPER esté puesto o no). Medido el 2026-10-17: 52 directorios en
-#   KAMPLES, 7,9 GB; 22 en MN, 1,36 GB.
+#   proyecto-i, 7,9 GB; 22 en MN, 1,36 GB.
 # - Nivel 2: una carpeta de sesión por compilación dentro de cada uno.
 # Se conservan los 2 más recientes de cada nivel: basta para no perder ninguna de las dos
 # configuraciones que se alternan. Bajo el lock de cm-heavy, así que nunca pisa un build en marcha.
@@ -498,7 +498,7 @@ limpiar_tmp() {
 
 # --- Objetivo 5: cachés de casa ----------------------------------------------
 # $HOME/.cache/* y la caché de npm: regenerables, pero caras (cargo-xwin, mn-target,
-# cargo-restaurante), de ahí los 7 días en mantenimiento. Nunca ~/.cargo/registry (está en $NUNCA)
+# cargo-proyecto-h), de ahí los 7 días en mantenimiento. Nunca ~/.cargo/registry (está en $NUNCA)
 # ni la caché de opencode, que es de una herramienta viva.
 limpiar_casa() {
   local x b n0=$BORRADOS b0=$LIBERADO

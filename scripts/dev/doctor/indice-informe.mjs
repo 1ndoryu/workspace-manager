@@ -7,10 +7,10 @@ import { RAIZ_REPO, TTL_MS } from './base.mjs';
 import { validarMotivo } from './ficha/validacion.mjs';
 
 /* Proyectos a clasificar y ruta de los ignorados. Los del snapshot van primero; las
- * entradas del registro que no estan en el (p. ej. RESTAURANTE) se añaden con su ruta. */
+ * entradas del registro que no estan en el (p. ej. proyecto-h) se añaden con su ruta. */
 export function proyectosYIgnorados(snapshot, registro) {
   const proyectos = (snapshot?.proyectos ?? []).map((p) => ({ clave: p.clave, ruta: p.ruta }));
-  // [por que] El tablero ignora entradas con repo (RESTAURANTE) y no llegan en el
+  // [por que] El tablero ignora entradas con repo (proyecto-h) y no llegan en el
   // snapshot: sin evaluarlas sus puertos salian huerfanos. Se evaluan con su ruta.
   const enSnapshot = new Set(proyectos.map((p) => p.clave));
   for (const e of registro.entradas.values()) {

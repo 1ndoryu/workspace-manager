@@ -58,7 +58,7 @@ export function parsearArgsGate(argv) {
 /* Orden del autogate con la tarea de la sesión detrás. [por que 10AA-3] El contrato
  * de la ficha (`npm run gate:check`) no puede saber qué tarea se está cerrando, y sin
  * el id el gate del proyecto aborta o analiza contra una tarea que no existe: el
- * autogate no podía pasar nunca en RESTAURANTE ni en WANDORIUS. Con npm hace falta el
+ * autogate no podía pasar nunca en proyecto-h ni en proyecto-g. Con npm hace falta el
  * separador `--` para que el id llegue al script y no a npm. */
 export function ordenAutogate(comando, tarea) {
   if (!tarea) return comando;

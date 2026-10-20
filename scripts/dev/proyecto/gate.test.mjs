@@ -19,10 +19,10 @@ test('emergenciaLocal: con VPS va a remoto; sin VPS falla salvo con --local', ()
 });
 
 test('parsearArgsGate exige id y exactamente un modo', () => {
-  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--inicio']), { id: 'agente-tiempo-real', modo: 'inicio', forzar: false, local: false, tarea: undefined });
-  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--cierre']), { id: 'agente-tiempo-real', modo: 'cierre', forzar: false, local: false, tarea: undefined });
-  assert.equal(parsearArgsGate(['agente-tiempo-real', '--cierre', '--forzar']).forzar, true);
-  assert.equal(parsearArgsGate(['agente-tiempo-real', '--cierre', '--local']).local, true);
+  assert.deepEqual(parsearArgsGate(['proyecto-b', '--inicio']), { id: 'proyecto-b', modo: 'inicio', forzar: false, local: false, tarea: undefined });
+  assert.deepEqual(parsearArgsGate(['proyecto-b', '--cierre']), { id: 'proyecto-b', modo: 'cierre', forzar: false, local: false, tarea: undefined });
+  assert.equal(parsearArgsGate(['proyecto-b', '--cierre', '--forzar']).forzar, true);
+  assert.equal(parsearArgsGate(['proyecto-b', '--cierre', '--local']).local, true);
   assert.ok(parsearArgsGate([]).error);
   assert.ok(parsearArgsGate(['--inicio']).error);
   assert.ok(parsearArgsGate(['x']).error);

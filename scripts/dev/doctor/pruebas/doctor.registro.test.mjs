@@ -10,20 +10,18 @@ import {
   auxiliarDe,
   entradaEfectiva,
   esEntradaRemota,
-  esSistemaIgnorado,
   leerRegistro,
   modoDe,
-  tunelDeEntrada,
   validarBloqueBuild,
   validarIgnoradoSistema,
   validarVps,
 } from '../../doctor.mjs';
-import { CONFIG_PRIVADA, FICHA, ssh } from './test-utils.mjs';
+import { FICHA } from './test-utils.mjs';
 
 test('validarIgnoradoSistema: imagen exige nombre .exe sin ruta y excluyente con exe/pid/servicio', () => {
   const ok = { imagen: 'SvrWCF.exe', motivo: 'proveedor-tpv TPV, exe oculto' };
   assert.doesNotThrow(() => validarIgnoradoSistema(ok, 't'));
-  assert.throws(() => validarIgnoradoSistema({ imagen: 'C:\\Bdp-Net\\SvrWCF.exe', motivo: 'ruta no vale' }, 't'));
+  assert.throws(() => validarIgnoradoSistema({ imagen: 'C:\\Ejemplo\\SvrWCF.exe', motivo: 'ruta no vale' }, 't'));
   assert.throws(() => validarIgnoradoSistema({ imagen: 'SvrWCF.exe', pid: 21252, motivo: 'dos claves' }, 't'));
   assert.throws(() => validarIgnoradoSistema({ imagen: 'SvrWCF.dll', motivo: 'no es exe' }, 't'));
   assert.throws(() => validarIgnoradoSistema({ imagen: 'SvrWCF.exe', cmdContiene: 'algo', motivo: 'cmd sin exe' }, 't'));
@@ -81,28 +79,12 @@ test('leerRegistro: dos proyectos que reclaman el mismo puerto dejan aviso en el
   }
 });
 
-test('leerRegistro: el registro real carga y declara los auxiliares e ignorados de BDP-Net y MN-Inmobiliaria', CONFIG_PRIVADA, () => {
-  const reg = leerRegistro();
-  assert.equal(reg.entradas.get('MN-Inmobiliaria')._avisoRegistro, undefined);
-  assert.equal(auxiliarDe(3122, 'node server/mejora.mjs', reg.entradas.values()), 'MN-Inmobiliaria');
-  assert.equal(esSistemaIgnorado(53394, { exe: null, cmd: null, imagen: 'TpvNet.exe' }, reg.ignoradosSistema), true);
-  assert.equal(esSistemaIgnorado(53401, { exe: null, cmd: null, imagen: 'SvrWCF.exe' }, reg.ignoradosSistema), true);
-});
-
-test('leerRegistro: vps — 89 completo con alias y 66 solo lectura sin alias; el registro real los declara', CONFIG_PRIVADA, () => {
-  const reg = leerRegistro();
-  assert.deepEqual(
-    reg.vps.map((v) => [v.id, v.modo, v.alias]),
-    [['89', 'completo', 'dev89'], ['66', 'lectura', null]],
-  );
-});
-
 test('validarVps: rechaza lectura con alias SSH, completo sin alias, modo ajeno y claves extra', () => {
   assert.doesNotThrow(() => validarVps({ id: 'x', alias: null, modo: 'lectura' }));
   assert.throws(() => validarVps({ id: '66', alias: 'dev66', modo: 'lectura' }), /no admite alias/);
   assert.throws(() => validarVps({ id: '89', alias: null, modo: 'completo' }), /necesita alias/);
-  assert.throws(() => validarVps({ id: '89', alias: 'dev89', modo: 'root' }), /modo debe ser/);
-  assert.throws(() => validarVps({ id: '89', alias: 'dev89', modo: 'completo', clave: 'x' }), /clave desconocida/);
+  assert.throws(() => validarVps({ id: '89', alias: 'taller-ejemplo', modo: 'root' }), /modo debe ser/);
+  assert.throws(() => validarVps({ id: '89', alias: 'taller-ejemplo', modo: 'completo', clave: 'x' }), /clave desconocida/);
   assert.throws(() => validarVps({ id: 'Con Espacios', alias: 'dev', modo: 'completo' }), /vps.id no valido/);
 });
 
@@ -116,7 +98,7 @@ test('leerRegistro: vps duplicado o no array falla cerrado; ausente es lista vac
     assert.throws(() => leerRegistro(ruta), /vps no es array/);
     writeFileSync(
       ruta,
-      JSON.stringify({ version: 1, proyectos: [], vps: [{ id: '89', alias: 'dev89', modo: 'completo' }, { id: '89', alias: null, modo: 'lectura' }] }),
+      JSON.stringify({ version: 1, proyectos: [], vps: [{ id: '89', alias: 'taller-ejemplo', modo: 'completo' }, { id: '89', alias: null, modo: 'lectura' }] }),
     );
     assert.throws(() => leerRegistro(ruta), /vps id duplicado/);
   } finally {
@@ -181,7 +163,7 @@ test('validarBloqueBuild: healths atados a build.puertos y marcador acotado', ()
 });
 
 test('esEntradaRemota: solo una ficha con host no vacio', () => {
-  assert.equal(esEntradaRemota({ host: 'dev89' }), true);
+  assert.equal(esEntradaRemota({ host: 'taller-ejemplo' }), true);
   assert.equal(esEntradaRemota({ host: '' }), false);
   assert.equal(esEntradaRemota({ host: null }), false);
   assert.equal(esEntradaRemota({ puertos: [8787] }), false);
@@ -191,7 +173,7 @@ test('esEntradaRemota: solo una ficha con host no vacio', () => {
 test('modoDe: el defecto es build, pero solo si hay bloque al que cambiar', () => {
   assert.equal(modoDe(FICHA), 'build');
   // Una ficha sin bloque se queda en dev: `entradaEfectiva` daria puertos vacios.
-  assert.equal(modoDe({ host: 'dev89', puertos: [3105] }), 'dev');
+  assert.equal(modoDe({ host: 'taller-ejemplo', puertos: [3105] }), 'dev');
   assert.equal(modoDe({ modo: 'dev', build: {} }), 'dev');
   // El override de `up --dev` / `up --build` manda sobre la ficha.
   assert.equal(modoDe(FICHA, 'dev'), 'dev');
@@ -242,18 +224,6 @@ test('leerRegistro: un auxiliar sobre un puerto que el mando solo sirve en dev e
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test('leerRegistro: el registro real declara el gateway y el puente de MN sin aviso', CONFIG_PRIVADA, () => {
-  const reg = leerRegistro();
-  const mn = reg.entradas.get('MN-Inmobiliaria');
-  assert.equal(mn._avisoRegistro, undefined);
-  assert.equal(auxiliarDe(3102, 'node  src/index.mjs --gateway-mn ', reg.entradas.values()), 'MN-Inmobiliaria');
-  assert.deepEqual(mn.tunelesExtra, [[33110, 3110]]);
-  assert.equal(
-    tunelDeEntrada(ssh('ssh.exe -N -o ControlMaster=no -L 33110:127.0.0.1:3110 -R 3102:127.0.0.1:3102 dev89'), mn),
-    true,
-  );
 });
 
 test('validarIgnoradoSistema: puerto exige rango y es excluyente con exe/pid/imagen/servicio', () => {

@@ -24,7 +24,7 @@ test('puntuacionCvss: vectores de referencia de la especificacion 3.1', () => {
   }
 });
 
-test('puntuacionCvss: los avisos reales de juego-arcade puntuan como dice su vector', () => {
+test('puntuacionCvss: los avisos reales de proyecto-a puntuan como dice su vector', () => {
   assert.equal(puntuacionCvss('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H'), 9.1);
   assert.equal(puntuacionCvss('CVSS:3.1/AV:L/AC:L/PR:L/UI:R/S:U/C:H/I:H/A:H'), 7.3);
   assert.equal(puntuacionCvss('CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:H/I:N/A:N'), 4.0);

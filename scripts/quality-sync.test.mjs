@@ -50,12 +50,12 @@ const FAMILIA_A = [
   'app-escritorio',
 ];
 const FAMILIA_B = ['portal-clientes', 'sitio-publico'];
-const DEL_ARNES = ['sistema-legado', 'plugin-editor', 'juego-arcade', 'arnes-pruebas'];
+const DEL_ARNES = ['sistema-legado', 'plugin-editor', 'proyecto-a', 'arnes-pruebas'];
 /* El único del arnés que además declara varsense. */
 const ARNES_CON_VARSENSE = 'arnes-pruebas';
 /* Proyecto suelto del área, con pin compartido y sin varsense. */
 const SUELTO = 'utilidad-sistema';
-const SIN_VARSENSE = new Set([SUELTO, 'plugin-editor', 'juego-arcade', 'app-alfa']);
+const SIN_VARSENSE = new Set([SUELTO, 'plugin-editor', 'proyecto-a', 'app-alfa']);
 /* Un proyecto agrupado bajo una carpeta intermedia: el nombre de esa carpeta es
  * del fixture, no de nuestra área (el manager las declara en su config). */
 const SIN_DIRECTORIO = {
