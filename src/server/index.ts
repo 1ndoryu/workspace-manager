@@ -25,6 +25,8 @@ import { manejarRutasSalud } from './rutas/salud/rutasSalud.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutas/rutasVps.js';
 import { manejarRutasVpsHistorial } from './vps/rutas/rutasVpsHistorial.js';
+import { manejarRutasRecursos } from './recursos/rutasRecursos.js';
+import { muestreadorProd } from './recursos/muestreador.js';
 import { manejarRutasVpsPiezas } from './vps/rutas/rutasVpsPiezas.js';
 import { crearManejadorTareas } from './tareas/rutasTareas.js';
 import { puenteTareas } from './tareas/puente-tareas.js';
@@ -201,6 +203,11 @@ export function crearServidor(opciones: OpcionesServidor = {}) {
         if (await manejarRutasVpsHistorial(req, res, url, ruta)) {
           return;
         }
+        /* Historial de recursos del tablero (/api/recursos/historial, 20AA-17): el anillo que
+         * alimenta el muestreo de fondo; el panel lo mezcla con su cola viva. */
+        if (await manejarRutasRecursos(req, res, url, ruta)) {
+          return;
+        }
         /* Rutas de la tab PC (/api/pc/*): viven en rutasPc.ts. */
         if (await manejarRutasPc(req, res, url, ruta)) {
           return;
@@ -252,6 +259,10 @@ export function crearServidor(opciones: OpcionesServidor = {}) {
 
 /* Modo servidor directo: `node src/server/index.ts` levanta la API. */
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))) {
+  /* Muestreo de fondo del historial de recursos (20AA-17). [por que aquí y no dentro de
+   * crearServidor] Las pruebas montan el servidor con crearServidor: un temporizador ahí
+   * dentro muestrearía en los tests y escribiría en el fichero real. */
+  muestreadorProd().arrancar();
   const servidor = crearServidor();
   servidor.listen(PUERTO, '127.0.0.1', () => {
     logger.log(`API escuchando en http://127.0.0.1:${PUERTO}`);
