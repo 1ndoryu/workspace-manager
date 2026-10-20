@@ -243,7 +243,12 @@ function lineaTitulo(original: string, id: string, texto: string): string {
    * sin punto). Se conserva el del original, sin doblarlo si el texto ya lo trae. */
   const punto = negrita[1].endsWith('.') ? '.' : '';
   const limpio = punto === '' ? base : base.replace(/\.+$/, '');
-  return `${cabeza}**${limpio}${punto}**${conCuerpo ? cuerpo : ''}`;
+  /* [por que el cuerpo se conserva siempre] El texto de una tarea es su nombre (`**Nombre.**`), y
+   * lo que va detras en la linea es su cuerpo en prosa, que no viaja a TASK. Conservarlo solo
+   * cuando el texto nuevo lo traia —que es lo que hacia antes— borraba el cuerpo de la linea al
+   * renombrar desde el tab. Si el texto si lo trae, `conCuerpo` ya lo ha quitado de `base`, asi
+   * que no se duplica. */
+  return `${cabeza}**${limpio}${punto}**${cuerpo}`;
 }
 
 /* Reescribe el texto del roadmap. [por que] Se aplica de abajo arriba: asi los numeros de linea

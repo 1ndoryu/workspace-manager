@@ -16,9 +16,31 @@ describe('roadmap: tarea canonica', () => {
   it('lee ID y titulo de la linea del protocolo', () => {
     const a = analizarRoadmap('# Roadmap — x\n\n## Pendientes\n\n- [ ] `19AA-4` — **Coherencia del mapa.** Cuerpo.\n');
     assert.deepEqual(a.tareas, [
-      { id: '19AA-4', titulo: '**Coherencia del mapa.** Cuerpo.', linea: 5, propiedades: {}, subtareas: [] },
+      { id: '19AA-4', titulo: 'Coherencia del mapa.', linea: 5, propiedades: {}, subtareas: [] },
     ]);
     assert.deepEqual(a.problemas, []);
+  });
+
+  it('el titulo es el nombre en negrita, no la linea entera', () => {
+    /* [por que] Lo que va detras del nombre es el cuerpo en prosa de la tarea, y no es su titulo:
+     * leer la linea entera mandaba a TASK un texto cortado a media frase (medido 2026-10-20: 195
+     * de las 209 tareas del area tienen cola). */
+    const a = analizarRoadmap(
+      '## Pendientes\n\n- [ ] `19AA-4` — **Coherencia del mapa.** Instalación y preflight hechos;\n  el resto sigue abajo.\n',
+    );
+    assert.equal(a.tareas[0]?.titulo, 'Coherencia del mapa.');
+    assert.deepEqual(a.problemas, []);
+  });
+
+  it('sin negrita no hay nombre que reconocer y el titulo es la linea', () => {
+    const a = analizarRoadmap('## Pendientes\n\n- [ ] `19AA-4` — Coherencia del mapa, sin negrita.\n');
+    assert.equal(a.tareas[0]?.titulo, 'Coherencia del mapa, sin negrita.');
+  });
+
+  it('un nombre sin cerrar no se recorta a la ligera', () => {
+    /* Sin `**` de cierre no hay nombre: la linea entera es el titulo, como antes. */
+    const a = analizarRoadmap('## Pendientes\n\n- [ ] `19AA-4` — **Coherencia a medias.\n');
+    assert.equal(a.tareas[0]?.titulo, '**Coherencia a medias.');
   });
 
   it('la casilla sin ID es un problema de formato', () => {
@@ -275,8 +297,8 @@ describe('roadmap: resumenRoadmap', () => {
     assert.ok(r.lineas > 0);
     /* ID y titulo viajan al tablero: la consola los lista como problema 'pendiente'. */
     assert.deepEqual(r.tareas, [
-      { id: '19AA-1', titulo: '**Una.**' },
-      { id: '19AA-2', titulo: '**Otra.**' },
+      { id: '19AA-1', titulo: 'Una.' },
+      { id: '19AA-2', titulo: 'Otra.' },
     ]);
   });
 

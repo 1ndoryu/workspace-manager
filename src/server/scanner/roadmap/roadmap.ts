@@ -79,6 +79,19 @@ const RE_PROPIEDADES = /^\s*·\s*(.+)$/;
 const RE_SUBTAREA = /^(\s+)[-*] \[([ xX])\] \*\*(.+?)\*\*\s*$/;
 /* Fecha en forma ISO corta: es la que escribe el tab. */
 const RE_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+/* El nombre de la tarea: la negrita que abre la linea, si la lleva. */
+const RE_NOMBRE = /^\*\*(.+?)\*\*/;
+
+/* Titulo de una tarea: su nombre en negrita, o la linea entera si no la lleva.
+ * [por que no la linea entera] El nombre es el titulo; lo que va detras y las lineas sangradas
+ * son el cuerpo en prosa de la tarea. Leer la linea entera mandaba a TASK un texto cortado a
+ * media frase (medido 2026-10-20: en el area, 195 de 209 tareas tienen cola, y el corte caia en
+ * mitad de una palabra), y hacia que la misma tarea se llamara de una forma en el roadmap y de
+ * otra en el tab. Sin negrita no hay nombre que reconocer y se toma la linea tal cual. */
+function nombreDeTitulo(resto: string): string {
+  const m = resto.match(RE_NOMBRE);
+  return (m === null ? resto : m[1]).trim();
+}
 
 export interface TareaRoadmap {
   id: string;
@@ -305,7 +318,7 @@ export function analizarRoadmap(texto: string): AnalisisRoadmap {
     if (casilla) {
       const tarea = linea.match(RE_TAREA);
       if (tarea) {
-        tareaActual = { id: tarea[1], titulo: tarea[2].trim(), linea: n, propiedades: {}, subtareas: [] };
+        tareaActual = { id: tarea[1], titulo: nombreDeTitulo(tarea[2]), linea: n, propiedades: {}, subtareas: [] };
         tareas.push(tareaActual);
         subtareaActual = null;
         sangradoTarea = false;

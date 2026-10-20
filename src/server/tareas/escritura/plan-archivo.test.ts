@@ -305,6 +305,16 @@ describe('aplicarPlan: el texto del roadmap', () => {
     assert.equal(salida[2], '- [ ] `20AA-1` — **Otra cosa.** Y algo mas');
   });
 
+  it('renombrar desde el tab no se lleva el cuerpo de la linea', () => {
+    /* [por que] El texto de una tarea es su nombre: el cuerpo en prosa que va detras no viaja a
+     * TASK, asi que al renombrar hay que dejarlo donde estaba. Conservarlo solo cuando el texto
+     * nuevo lo traia borraba el cuerpo de la linea (defecto vivo del espejo, medido 2026-10-20). */
+    const lineas = ['## Pendientes', '', '- [ ] `20AA-1` — **Una.** Cuerpo con `codigo` y mas prosa.', ''];
+    const t = conTarea(lineas);
+    const salida = aplicarPlan(lineas, [aescribir(t, 'Otra cosa')]);
+    assert.equal(salida[2], '- [ ] `20AA-1` — **Otra cosa.** Cuerpo con `codigo` y mas prosa.');
+  });
+
   it('si el titulo no iba en negrita, se escribe como manda el protocolo', () => {
     const lineas = ['## Pendientes', '', '- [ ] `20AA-1` - Una.', ''];
     const t = conTarea(lineas);
