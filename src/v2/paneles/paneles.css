@@ -61,25 +61,25 @@
     max-width: 90px;
 }
 
-/* Cuadro de estado de cada fila: el degradado de sus conexiones en el mapa (azul laptop, ámbar
- * VPS 89, rosa producción), con el mismo color y la misma regla de segunda punta que la caja
- * (`coloresDeConexion`). Sin relleno ni doble borde por estado: el estado se lee en el título de
- * la fila, y el color es lo que se ve. */
+/* Cuadro de estado de cada fila: solo el degradado de sus conexiones en el mapa (azul laptop,
+ * ámbar VPS 89, rosa producción), con el mismo color y la misma regla de segunda punta que la
+ * caja (`coloresDeConexion`). Sin relleno ni doble borde por estado: el estado se lee en el
+ * título de la fila. `border-image` pinta únicamente el borde, así que el centro queda hueco y
+ * se ve el fondo de la fila, también con la fila en hover o seleccionada (colores invertidos). */
 .estadoMarcador {
     width: 10px;
     height: 10px;
     flex: none;
     border: 1px solid transparent;
-    background-image: linear-gradient(135deg, var(--marcador-1), var(--marcador-2));
+    border-image: linear-gradient(135deg, var(--marcador-1), var(--marcador-2)) 1;
 }
 
-/* Sin conexión: no corre en ningún sitio (el bloque libre del mapa), así que se atenúa y se
- * queda hueco. Mismo borde transparente en los dos estados para que el cuadro no cambie de
- * tamaño al pasar de uno a otro. */
+/* Sin conexión: no corre en ningún sitio (el bloque libre del mapa), así que se atenúa.
+ * Mismo borde transparente en los dos estados para que el cuadro no cambie de tamaño. */
 .estadoMarcador--libre {
     opacity: 0.4;
+    border-image: none;
     border-color: currentColor;
-    background-image: none;
 }
 
 
