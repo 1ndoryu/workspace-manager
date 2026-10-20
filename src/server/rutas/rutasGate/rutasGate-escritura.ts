@@ -1,12 +1,10 @@
 /* Escritura del archivo de config del gate de un proyecto (E/S: disco y re-escaneo).
  * [por que aparte] Es lo unico de las rutas del gate que escribe en disco; el resto son manejadores
  * de HTTP en rutasGate-handlers.ts. */
-import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { campoStr, json, leerBody } from '../../http.js';
-import { snapshotArea } from '../../snapshot.js';
 import { ARCHIVOS_GATE } from '../../scanner/gate.js';
-import { logger } from '../../../shared/logger.js';
+import { guardarYRefrescar } from '../escritura/guardarArchivo.js';
 import type { Contexto } from './rutasGate-handlers.js';
 import { avisosDeEsquema } from './rutasGate-avisos.js';
 
@@ -32,12 +30,7 @@ export async function guardarArchivoGate(c: Contexto, proyecto: { ruta: string }
   const avisos = avisosDeEsquema(nombre, valor);
   const rutaArchivo = join(proyecto.ruta, nombre);
   try {
-    writeFileSync(rutaArchivo, contenido, 'utf8');
-    try {
-      await snapshotArea(true);
-    } catch (err) {
-      logger.warn('re-escaneo tras guardar [gate] fallo:', err);
-    }
+    await guardarYRefrescar(rutaArchivo, contenido, 'gate');
     json(c.res, 200, {
       ok: true,
       clave,

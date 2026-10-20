@@ -3,13 +3,12 @@
  * `index.ts` (limite-lineas): es el dominio "documentos". La ruta del archivo
  * siempre se resuelve desde el snapshot (por nombre/id), nunca se acepta un
  * path del cliente (anti-traversal). Devuelve true si atendio la ruta. */
-import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { campoStr, json, leerArchivo, leerBody } from '../http.js';
 import { RAIZ_AREA } from '../plataforma/rutas.js';
 import { snapshotArea } from '../snapshot.js';
-import { logger } from '../../shared/logger.js';
+import { guardarYRefrescar } from './escritura/guardarArchivo.js';
 
 export async function manejarRutasDocumentos(
   req: IncomingMessage,
@@ -46,16 +45,8 @@ export async function manejarRutasDocumentos(
         return true;
       }
       try {
-        writeFileSync(skill.ruta, contenido, 'utf8');
-        /* [por que] La escritura ya tuvo exito; el re-escaneo es
-         * best-effort y NO debe convertir el guardado en un 500 si
-         * falla (p. ej. un repo con un git lock). Se reporta solo en
-         * el log del servidor. */
-        try {
-          await snapshotArea(true);
-        } catch (err) {
-          logger.warn('re-escaneo tras guardar [skills] fallo:', err);
-        }
+        /* El re-escaneo es best-effort: no convierte el guardado en 500 (ver guardarArchivo.ts). */
+        await guardarYRefrescar(skill.ruta, contenido, 'skills');
         json(res, 200, { ok: true, nombre, ruta: skill.ruta });
       } catch (err) {
         json(res, 500, { error: 'No se pudo escribir', detalle: String(err) });
@@ -113,15 +104,7 @@ export async function manejarRutasDocumentos(
         return true;
       }
       try {
-        writeFileSync(rutaAgents, contenido, 'utf8');
-        /* [por que] Re-escaneo best-effort y separado de la escritura:
-         * si falla, la escritura igual es exitosa y se responde 200;
-         * solo se loguea, sin convertir el guardado en un error. */
-        try {
-          await snapshotArea(true);
-        } catch (err) {
-          logger.warn('re-escaneo tras guardar [agentes] fallo:', err);
-        }
+        await guardarYRefrescar(rutaAgents, contenido, 'agentes');
         json(res, 200, { ok: true, id, ruta: rutaAgents });
       } catch (err) {
         json(res, 500, { error: 'No se pudo escribir', detalle: String(err) });
