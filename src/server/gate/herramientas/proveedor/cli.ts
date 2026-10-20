@@ -4,7 +4,7 @@
  * [por que] Separado de proveedor.ts (gate limite-lineas); proveedor.ts lo reexporta. */
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { RAIZ_AREA } from '../../../plataforma/rutas.js';
+import { RAIZ_QUALITY_TOOLS } from '../../../plataforma/rutas.js';
 
 /* Raíz de las versiones instaladas de GlorySentinel (AppData local). [por que] Función
  * con el entorno como parámetro (no constante al cargar el módulo): así se prueba con
@@ -26,7 +26,7 @@ export function raizVersiones(entorno: NodeJS.ProcessEnv = process.env): string 
  * El override por env gana y, si no hay checkout provisionado, se cae a las
  * versiones instaladas (nunca se rompe el árbol por ausencia de runtime). */
 export function baseSentinel(entorno: NodeJS.ProcessEnv = process.env): string {
-  return entorno.GLORY_SENTINEL_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'sentinel');
+  return entorno.GLORY_SENTINEL_SOURCE_PATH || join(RAIZ_QUALITY_TOOLS, 'sentinel');
 }
 export function checkoutSentinel(entorno: NodeJS.ProcessEnv = process.env): string | null {
   const base = baseSentinel(entorno);

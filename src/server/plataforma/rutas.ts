@@ -30,6 +30,10 @@ export const NOMBRE_MANAGER = process.env.WS_NOMBRE || basename(RAIZ_REPO);
  * el repo cuelga de ella. Quien clone el manager suelto pone WS_AREA_ROOT. */
 export const RAIZ_AREA = process.env.WS_AREA_ROOT || dirname(RAIZ_REPO);
 
+/* Checkout compartido de las herramientas de calidad (sentinel, varsense) dentro del área.
+ * [por que] Lo escribían a mano cuatro módulos del gate; cambiar la carpeta exigía tocar todos. */
+export const RAIZ_QUALITY_TOOLS = join(RAIZ_AREA, '.quality-tools');
+
 /** Carpeta de skills del agente (índice en AGENTS §11). */
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || join(homedir(), '.agents', 'skills');
 

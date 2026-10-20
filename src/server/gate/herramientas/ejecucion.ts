@@ -11,7 +11,7 @@ import { baseSentinel, raizVersiones, checkoutSentinel, cliSentinelParaProyecto,
 import type { ResolucionCli } from './proveedor.js';
 /* Raíz del área (misma fuente del server): la caché de análisis vive bajo
  * <area>/data/cache/analisis.json, como la config del workspace. */
-import { RAIZ_AREA } from '../../plataforma/rutas.js';
+import { RAIZ_QUALITY_TOOLS } from '../../plataforma/rutas.js';
 /* [por que] El spawn va por el puerto de procesos para poder inyectar un falso
  * en tests sin lanzar sentinel/varsense de verdad. */
 import { PUERTO_PROCESOS } from '../../plataforma/sistema/procesos.js';
@@ -38,10 +38,10 @@ export function entornoGate(rutaProyecto?: string, entorno: NodeJS.ProcessEnv = 
    * contra el compartido. El override manual del usuario sigue ganando. */
   if (entorno.GLORY_SENTINEL_SOURCE_PATH === undefined) {
     const propio = rutaProyecto ? cliSentinelParaProyecto(rutaProyecto) : null;
-    env.GLORY_SENTINEL_SOURCE_PATH = propio?.base ?? join(RAIZ_AREA, '.quality-tools', 'sentinel');
+    env.GLORY_SENTINEL_SOURCE_PATH = propio?.base ?? join(RAIZ_QUALITY_TOOLS, 'sentinel');
   }
   if (entorno.GLORY_VARSENSE_SOURCE_PATH === undefined) {
-    env.GLORY_VARSENSE_SOURCE_PATH = join(RAIZ_AREA, '.quality-tools', 'varsense');
+    env.GLORY_VARSENSE_SOURCE_PATH = join(RAIZ_QUALITY_TOOLS, 'varsense');
   }
   return env;
 }
@@ -66,7 +66,7 @@ export function hashArtefacto(ruta: string): string {
  * el override de env (GLORY_VARSENSE_SOURCE_PATH) gana, igual que en
  * `entornoGate`. Devuelve null si no está provisionado. */
 export function baseVarsense(entorno: NodeJS.ProcessEnv = process.env): string {
-  return entorno.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'varsense');
+  return entorno.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_QUALITY_TOOLS, 'varsense');
 }
 export function checkoutVarsense(entorno: NodeJS.ProcessEnv = process.env): string | null {
   const cli = join(baseVarsense(entorno), 'dist', 'cli', 'index.js');

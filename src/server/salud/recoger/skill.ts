@@ -15,9 +15,12 @@ export function skillArranque(entorno: Entorno): string | null {
 }
 
 /* AGENTS §10 pide que las copias en ~/.config/opencode/skills coincidan con
- * ~/.agents/skills: solo se comparan las skills que existen en el origen. */
+ * la carpeta de skills (~/.agents/skills por defecto): solo se comparan las
+ * skills que existen en el origen.
+ * [por que] El origen sale de carpetaSkills (WS_SKILLS_ROOT lo cambia). Antes
+ * se escribia ~/.agents/skills a mano y ignoraba esa variable. */
 export function copiasSkill(entorno: Entorno): { nombre: string; coincide: boolean }[] {
-  const origen = join(entorno.homedir, '.agents', 'skills');
+  const origen = entorno.carpetaSkills;
   const copias = join(entorno.homedir, '.config', 'opencode', 'skills');
   let nombres: string[];
   try {

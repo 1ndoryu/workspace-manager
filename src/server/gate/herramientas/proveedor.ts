@@ -22,7 +22,7 @@ import { proveedorDe, registrarProveedor } from '../../../shared/gate/proveedore
 import { ESQUEMA_SENTINEL } from '../../../shared/gate/catalogo/sentinel.js';
 import { ESQUEMA_VARSENSE } from '../../../shared/gate/catalogo/varsense.js';
 import { serializarEsquema } from '../../../shared/gate/modelo/serial.js';
-import { RAIZ_AREA } from '../../plataforma/rutas.js';
+import { RAIZ_QUALITY_TOOLS } from '../../plataforma/rutas.js';
 import { raizVersiones, checkoutSentinel } from './proveedor/cli.js';
 import { esPrerelease, normalizar, semverSort } from './proveedor/puro.js';
 
@@ -198,7 +198,7 @@ registrarProveedor({
  * varsense). null si no esta provisionado. */
 export function versionVarsense(entorno: NodeJS.ProcessEnv = process.env): string | null {
   try {
-    const base = entorno.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_AREA, '.quality-tools', 'varsense');
+    const base = entorno.GLORY_VARSENSE_SOURCE_PATH || join(RAIZ_QUALITY_TOOLS, 'varsense');
     const pkg = join(base, 'package.json');
     if (!existsSync(pkg)) return null;
     const data = JSON.parse(readFileSync(pkg, 'utf8')) as { version?: unknown };
