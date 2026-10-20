@@ -7,7 +7,7 @@ import { rutaConfigPrivada } from '../../../shared/rutas.mjs';
 
 import { validarConsumeArtefacto } from './consume-artefacto.mjs';
 
-import { EXES_PERMITIDOS, MOTIVOS_ENUM, PUERTOS_PROTEGIDOS, RAIZ_REPO, RE_OTRO, SCRIPTS_NODO_VALIDOS } from '../base.mjs';
+import { EXES_PERMITIDOS, PUERTOS_PROTEGIDOS, RAIZ_REPO, SCRIPTS_NODO_VALIDOS } from '../base.mjs';
 import { entradaEfectiva, puertoDeSaludValido, validarBloqueBuild } from '../sistema/puertos.mjs';
 
 /* Alias SSH del taller, tal y como lo declara `config/taller.json`, o null.
@@ -36,7 +36,15 @@ export function validarEntrada(e) {
   // Solo lo estructural sin id atribuible (no-objeto, sin id, id duplicado)
   // sigue siendo error global: sin id no hay a quien anotar.
   if (typeof e !== 'object' || e === null) throw new Error('registro: entrada no objeto');
-  for (const k of ['id', 'ruta', 'boton', 'puertos', 'expectedCmdline']) {
+  // [por que] `sinServicio: true` declara explicitamente un proyecto sin boton ni puertos
+  // (app de escritorio que no arranca con `up`). Sin esa marca, boton y puertos son obligatorios.
+  // El tipo se valida ANTES de exigir claves: con `'si'` la causa es la marca, no un boton ausente.
+  if ('sinServicio' in e && typeof e.sinServicio !== 'boolean' && typeof e.id === 'string' && e.id.length > 0) {
+    if (!e._avisoRegistro) e._avisoRegistro = `registro: '${e.id}' sinServicio debe ser booleano`;
+    return;
+  }
+  const sinServicio = e.sinServicio === true;
+  for (const k of sinServicio ? ['id', 'ruta'] : ['id', 'ruta', 'boton', 'puertos', 'expectedCmdline']) {
     if (!(k in e)) {
       if (typeof e.id === 'string' && e.id.length > 0) {
         if (!e._avisoRegistro) e._avisoRegistro = `registro: '${e.id}' entrada sin '${k}'`;
@@ -49,7 +57,7 @@ export function validarEntrada(e) {
     if (!e._avisoRegistro) e._avisoRegistro = motivo;
   };
   // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto']);
+  const conocidas = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto', 'sinServicio']);
   for (const k of Object.keys(e)) {
     if (!conocidas.has(k)) {
       mal(`registro: clave desconocida '${k}' en '${e.id}'`);
@@ -67,9 +75,18 @@ export function validarEntrada(e) {
     }
   }
   // [por que] `host` = la entrada corre en esa VPS (scripts/dev/remoto.mjs). Solo el nombre; que coincida con taller.json lo exige remoto.mjs (fail-closed).
-  if ('host' in e && (typeof e.host !== 'string' || e.host === '')) {
+  if ('host' in e && (typeof e.host !== 'string' || e.host.trim() === '')) {
     mal(`registro: '${e.id}' host debe ser un alias no vacio`);
     return;
+  }
+  // [por que] Sin servicio no hay boton, puertos ni marcador: si vienen, contradicen la marca.
+  // Se normalizan a vacio para que las reglas de alineacion 1:1 de mas abajo sigan iguales.
+  if (sinServicio) {
+    if (['boton', 'puertos', 'expectedCmdline'].some((k) => k in e)) {
+      mal(`registro: '${e.id}' sinServicio no admite boton, puertos ni expectedCmdline`);
+      return;
+    }
+    Object.assign(e, { boton: [], puertos: [], expectedCmdline: [] });
   }
   const rutaAbs = isAbsolute(e.ruta) ? normalize(e.ruta) : resolve(RAIZ_REPO, e.ruta);
   // [por que] El mando gestiona proyectos hermanos: el area valida es la
@@ -124,9 +141,7 @@ export function validarEntrada(e) {
   }
   // [por que] El binario absoluto no necesita args (longitud 1 vale); el resto
   // exige exe + args para que el `up` sepa que lanzar sin suposiciones.
-  // [por que] Un proyecto «sin servicio de red» (p. ej. app de escritorio que
-  // no arranca con `up`) no tiene botón: boton vacío es su forma correcta.
-  const sinServicio = /^sin servicio de red/.test(e.tipoLauncher ?? '');
+  // [por que] Un proyecto sin servicio (`sinServicio`) no tiene botón: boton vacío es su forma correcta.
   if (!Array.isArray(e.boton) || (e.boton.length === 0 && !sinServicio) || e.boton.some((a) => !Array.isArray(a) || a.some((t) => typeof t !== 'string' || t.length === 0) || (a.length < 2 && !(/^[a-z]:[\\/]/i.test(a[0]) && a[0].toLowerCase().endsWith('.exe'))))) {
     mal(`registro: '${e.id}' boton debe ser array de argv (arrays de >=2 strings)`);
     return;
@@ -382,16 +397,5 @@ export function validarEntrada(e) {
   }
 }
 
-
-export function validarMotivo(motivo, donde) {
-  if (MOTIVOS_ENUM.has(motivo)) return;
-  const m = RE_OTRO.exec(motivo ?? '');
-  if (!m) throw new Error(`${donde}: motivo fuera de enum (${motivo})`);
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const cad = new Date(m[2] + 'T00:00:00');
-  if (Number.isNaN(cad.getTime())) throw new Error(`${donde}: caducidad invalida (${m[2]})`);
-  const dias = Math.round((cad - hoy) / 86_400_000);
-  if (dias < 1 || dias > 31) throw new Error(`${donde}: caducidad fuera de 1..31 dias (${m[2]})`);
-}
+export { validarMotivo } from './motivo.mjs';
 

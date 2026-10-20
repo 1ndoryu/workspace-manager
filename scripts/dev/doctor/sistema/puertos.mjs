@@ -14,8 +14,9 @@ import { PUERTO_API } from '../../../shared/puertos.mjs';
  * necesita para clasificar una ficha con `host` (el tunel ssh ocupa su puerto
  * local), y definirlos dos veces los desincronizaria. remoto.mjs los reexporta. */
 
+// [por que] Con espacios sobrantes (" dev89 ") no es un alias válido: el mismo criterio que config.ts.
 export function esEntradaRemota(entrada) {
-  return typeof entrada?.host === 'string' && entrada.host !== '';
+  return typeof entrada?.host === 'string' && entrada.host.trim() !== '';
 }
 
 // `dev` = vite + backend, con HMR. `build` = front construido a `dist/` y servido por el backend
@@ -248,6 +249,22 @@ export function enRuta(texto, base) {
     const siguiente = texto.charAt(i + base.length);
     if (siguiente === '' || siguiente === '\\' || siguiente === ' ' || siguiente === '"') return true;
     i = texto.indexOf(base, i + 1);
+  }
+  return false;
+}
+
+
+/* ¿El proceso es el exe instalado de un artefacto consumido (consumeArtefacto.instalado)?
+ * [por que] La app instalada (MN-Escritorio) corre fuera de la carpeta del proyecto que la
+ * compila, así que el atribuidor por ruta no la reclamaba y salía como hueco «(sin proyecto)».
+ * Coincidencia exacta del fichero y no de la carpeta: una carpeta entera sería una exención
+ * demasiado amplia y ocultaría procesos ajenos. */
+export function esAppInstalada(proc, entradas) {
+  if (!proc?.exe) return false;
+  const exe = normalizarRuta(proc.exe);
+  for (const e of entradas) {
+    const instalado = e?.consumeArtefacto?.instalado;
+    if (typeof instalado === 'string' && instalado !== '' && exe === normalizarRuta(instalado)) return true;
   }
   return false;
 }

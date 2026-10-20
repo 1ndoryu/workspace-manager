@@ -107,9 +107,9 @@ export function problemasDe(p: Proyecto): Problema | null {
     for (const wt of p.git.worktreesOrfanos) {
       entradas.push({ categoria: 'huerfano', motivo: `worktree huerfano: ${wt}`, seriedad: null });
     }
-    if (!p.git.remoto) {
-      entradas.push({ categoria: 'sinPush', motivo: 'sin remoto configurado', seriedad: null });
-    } else if (p.git.ahead > 0) {
+    // [por que] Sin remoto no hay nada que empujar: igual que el gate (sincronizacion.ts),
+    // solo cuentan los commits pendientes de subir. Avisar «sin remoto» era falso positivo.
+    if (p.git.ahead > 0) {
       entradas.push({ categoria: 'sinPush', motivo: `${p.git.ahead} commit(s) sin push`, seriedad: null });
     }
   }

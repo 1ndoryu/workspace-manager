@@ -5,7 +5,7 @@ import { basename, isAbsolute, resolve } from 'node:path';
 import { RAIZ_REPO } from './base.mjs';
 import { repoPrincipalDeWorktree } from './worktree.mjs';
 import { datosCimDe, escanearSockets, normalizarRuta, procesosSshVivos, sensoresDeSistema, sshDeSistema } from './sistema/procesos.mjs';
-import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeListener, tunelDeQuien } from './sistema/puertos.mjs';
+import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esAppInstalada, esDelProyecto,esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeListener, tunelDeQuien } from './sistema/puertos.mjs';
 
 /* Entrada del registro que describe al proyecto `p` (por ruta o por id de aviso). */
 export function entradaDeProyecto(p, registro) {
@@ -98,6 +98,9 @@ export async function clasificar(proyectos, registro, escucha, ignorados = [], e
     // proposito, no es un hueco. Antes salian ocho «(sin proyecto)» —los tres de
     // la lab (13103/13104/14190) y los cinco de las fichas (3105, 3110, 5199).
     if (tunelDeQuien(proc, entradasReg)) continue;
+    // [por que] Exe instalado de un artefacto consumido (MN-Escritorio, 58601): es la app del
+    // proyecto, no un hueco. Solo cuenta el fichero exacto de consumeArtefacto.instalado.
+    if (esAppInstalada(proc, entradasReg)) continue;
     // [por que] pid muerto (netstat lo atribuye al padre de `ssh -f`): el túnel
     // vivo se reconoce por su reenvío -L hacia una ficha remota declarada.
     if (!proc) {

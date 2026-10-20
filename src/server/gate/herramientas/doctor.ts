@@ -4,7 +4,7 @@
  * portátil con `execFileSync`, ignorando la decisión de modo, y encima bloqueaba el
  * event loop; y como devolvía `null` tanto si fallaba como si no había runtime, el
  * panel no podía distinguir «no se pudo» de «no se pidió». Aquí vive la decisión, y el
- * portátil sigue siendo la red: si la 89 no responde, se hace en local y se dice. */
+ * portátil no suple a la 89: si no responde, `salida` queda null y `aviso` lo dice. */
 import { correrDoctorLocal } from './ejecucion.js';
 import { correrDoctorRemoto } from './remoto.js';
 import { leerConfigRemota, leerTallerSiExiste, modoAnalisis } from './config.js';
@@ -36,9 +36,10 @@ export async function doctorConModo(
   let modo: ModoAnalisis;
   try {
     modo = inyectado.modo ?? modoAnalisis(clave);
-  } catch {
-    /* Sin registro no hay proyecto que consultar: local y sin ruido. */
-    return local(ruta);
+  } catch (err) {
+    /* [por que] Antes caía a local en silencio. Sin registro legible no se sabe si el proyecto es
+     * del taller, así que no se ejecuta aquí (AGENTS §1) y el motivo queda visible. */
+    return { salida: null, modo: 'local', aviso: `no se pudo leer el registro (${mensaje(err)})` };
   }
   if (modo !== 'taller') return local(ruta);
 
