@@ -36,8 +36,6 @@ import { BIN_GIT, BIN_NPM } from '../shared/binarios.mjs';
 import {
   cargarTaller,
   decidirDonde,
-  dentroDe,
-  dirRemotoDe,
   dirRemotoDeHerramienta,
   ejecutarEnVps,
   mensajeSinVps,
@@ -75,10 +73,14 @@ if (destino.aviso) process.stderr.write(`[quality:setup] ${destino.aviso}\n`);
 // [por que] Nombre genérico: el taller puede ser cualquier VPS; el nombre concreto va en config/taller.json.
 const ejecutor = destino.donde === 'local' ? 'local' : 'taller';
 
-/* Carpeta en la 89 donde compilar `source`: la réplica del consumidor si el checkout cuelga de él;
- * si es un checkout compartido (p. ej. `.quality-tools/<tool>` fuera del proyecto), su carpeta por commit. */
-function dirRemotoDeFuente(source, name, config) {
-  if (dentroDe(workspace, source)) return dirRemotoDe(taller, path.basename(workspace), workspace, source);
+/* Carpeta en la 89 donde compilar `source`: SIEMPRE un checkout por commit fuera de la réplica.
+ * [10AA-3] Antes, un checkout interno (`tools/sentinel` dentro del consumidor) se compilaba en la
+ * carpeta del propio consumidor de la réplica, porque Mutagen ya la trae. Pero la trae copiando el
+ * árbol de TRABAJO del portátil, y con `core.autocrlf=true` ese árbol tiene CRLF: la propia suite
+ * del tool compara `rules.md` con el registro y fallaba en la 89 por eso, no por el código. El
+ * árbol del commit (`git archive`) es LF, idéntico para checkouts internos y compartidos, y no
+ * depende de que Mutagen haya terminado de sincronizar. */
+function dirRemotoDeFuente(name, config) {
   return dirRemotoDeHerramienta(taller, name, config.commit);
 }
 
@@ -295,8 +297,8 @@ for (const [name, config] of Object.entries(tools)) {
   }
 
   if (origen === 'ejecutada') {
-    const dirRemoto = destino.donde === 'remoto' && (buildScript || testScript) ? dirRemotoDeFuente(source, name, config) : null;
-    if (dirRemoto && !dentroDe(workspace, source)) prepararFuenteRemota(source, dirRemoto, name, commit);
+    const dirRemoto = destino.donde === 'remoto' && (buildScript || testScript) ? dirRemotoDeFuente(name, config) : null;
+    if (dirRemoto) prepararFuenteRemota(source, dirRemoto, name, commit);
     if (buildScript) {
       process.stdout.write(`[quality:setup] ${name}: compilando (npm run ${buildScript}, ${ejecutor})\n`);
       paso(source, buildScript, `${name} compile`, dirRemoto);
