@@ -71,6 +71,9 @@ export function PanelTareas() {
       {/* Se llego desde la consola y no hay tarjeta que abrir (20AA-10 F5): el roadmap y TASK no
         * coinciden. Se dice en vez de dejar el clic en silencio. */}
       {t.avisoDestacada && <div className="tareasAviso" role="status">{t.avisoDestacada}</div>}
+      {/* Lo que le paso a la ultima pasada de la sincronia de fondo (20AA-10 F6): sin esto, una
+        * lista a la que le faltan tareas se pintaria como si estuviera completa. */}
+      {t.avisoSincronia && <div className="tareasAviso" role="status">{t.avisoSincronia}</div>}
       <div className="tareasColumnas">
         {t.columnas.map((col) => (
           <div key={col.clave} className="tareasColumna">
