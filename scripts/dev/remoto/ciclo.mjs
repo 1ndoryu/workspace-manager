@@ -19,7 +19,8 @@ const TIMEOUT_BUILD_MS = 900_000;
 // Dónde deja el front construido `npm run build` en los seis proyectos del taller. Es el directorio
 // que sirve el backend en modo build, así que su `index.html` es la prueba de que el build cuajó.
 
-const DIST_FRONT = 'frontend/dist';
+// [por que] Por defecto `frontend/dist`; un proyecto con otra salida (p. ej. `client/dist`) la declara en build.distFront.
+const DIST_FRONT_DEFECTO = 'frontend/dist';
 
 // Protocolo de arranque remoto (decidido 2026-10-14). Orden fijo; cada paso falla cerrado con su motivo:
 // 1) .env local con las claves pedidas; 2) base de la rama en la 89 (si hay Cargo.toml y taller.json `bd`);
@@ -42,8 +43,9 @@ export async function construirFrontRemoto(config, id, entrada, rutas) {
     const r = await sshRemoto(config, comandoConstruirFront(rutas, id, argv), TIMEOUT_BUILD_MS);
     if (!r.ok) return { ok: false, resumen: `construirFront fallo, log ${rutas.dirLogs}/construir-front-${id}.log en ${config.host}: ${r.error}` };
   }
-  const d = await sshRemoto(config, `test -f ${shQuote(`${rutas.dirRemoto}/${DIST_FRONT}/index.html`)}`);
-  if (!d.ok) return { ok: false, resumen: `build.construirFront no dejo ${DIST_FRONT}/index.html en ${config.host}` };
+  const distFront = entrada.build?.distFront ?? DIST_FRONT_DEFECTO;
+  const d = await sshRemoto(config, `test -f ${shQuote(`${rutas.dirRemoto}/${distFront}/index.html`)}`);
+  if (!d.ok) return { ok: false, resumen: `build.construirFront no dejo ${distFront}/index.html en ${config.host}` };
   return { ok: true };
 }
 
