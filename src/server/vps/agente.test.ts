@@ -10,7 +10,7 @@ import { crearAgente, enriquecerConSitios, extraerUuidContenedor } from './agent
  * en bytes; copiado de `GET /snapshot` prod 2026-09-30, sin secretos). */
 const FILA = {
   id12: 'abcdaca71593',
-  nombre: 'app-as0scgwg44wkkkccgwcwg8w0',
+  nombre: 'app-ejemplo00000000000000000',
   estado: { estado: 'running', salud: 'healthy', reinicios: 0, desde: '2026-09-27T13:50:31Z' },
   puertos: ['3000/tcp'],
   recursos: {
@@ -60,7 +60,7 @@ void describe('agente agente-tiempo-real', () => {
     assert.deepEqual(r.snapshot?.frescura, { fuente: 'agente', edadMs: 1000 });
     const c = r.snapshot?.contenedores[0];
     assert.equal(c?.id, 'abcdaca71593');
-    assert.equal(c?.nombre, 'app-as0scgwg44wkkkccgwcwg8w0');
+    assert.equal(c?.nombre, 'app-ejemplo00000000000000000');
     assert.equal(c?.estado, 'running');
     assert.equal(c?.imagen, ''); // pulse no sirve imagen
     assert.equal(c?.cpuPct, 2.5);
@@ -218,10 +218,10 @@ void describe('agente agente-tiempo-real', () => {
       fetchImpl: respuestaSnap(SNAP),
     });
     const r = await agente.snapshot();
-    const mapa = new Map([['as0scgwg44wkkkccgwcwg8w0', { nombre: 'guillermo', dominio: 'guillechatbots.es' }]]);
+    const mapa = new Map([['ejemplo00000000000000000', { nombre: 'sitio-ejemplo', dominio: 'ejemplo.test' }]]);
     const filas = enriquecerConSitios(r.snapshot?.contenedores ?? [], mapa);
-    assert.equal(filas[0]?.sitio, 'guillermo');
-    assert.equal(filas[0]?.dominio, 'guillechatbots.es');
+    assert.equal(filas[0]?.sitio, 'sitio-ejemplo');
+    assert.equal(filas[0]?.dominio, 'ejemplo.test');
     const base = r.snapshot?.contenedores[0];
     assert.ok(base);
     const infra = enriquecerConSitios([{ ...base, nombre: 'coolify' }], mapa);
