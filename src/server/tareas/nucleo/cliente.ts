@@ -1,4 +1,4 @@
-/* PIN tasks-core@ba7dfd4 (PROYECTO TASKS, 07AA-1 F1b v0.1.0).
+/* PIN tasks-core@ba7dfd4 (proyecto-ejemplo, 07AA-1 F1b v0.1.0).
  * [por que] Ver `tipos.ts`: snapshot vendorizado, no editar a mano.
  * Cliente fino de los endpoints F1 (07AA-1) con fetch inyectado: funciona en
  * navegador, Node 18+ o tests con un doble. Sin estado, sin stores, sin UI.

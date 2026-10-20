@@ -99,7 +99,7 @@ const ultimoIntento = new Map<string, number>();
 /* [por que] Quien llama a `revisarTuneles` es una ruta HTTP y no puede esperar
  * minutos: el fallo de la reparación se quedaría sin testigo. Un supervisor que
  * falla en silencio deja la tab caída y sin pista (pasó: `ID_OK` rechazaba
- * «PROYECTO TASKS» y nadie se enteró). */
+ * «proyecto-ejemplo» y nadie se enteró). */
 function avisarFallo(id: string, motivo: string): void {
   process.stderr.write(`[tuneles] no se pudo reabrir el tunel de "${id}": ${motivo}\n`);
 }

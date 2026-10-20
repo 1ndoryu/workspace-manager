@@ -3,7 +3,7 @@
  * ("CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L") y nada mas. El parser leia
  * `cvss.severity`, que sobre una cadena es `undefined`, y caia en el valor por
  * defecto de `sev()`: **todas** las vulnerabilidades de cargo salian `low`.
- * Medido el 2026-10-17 sobre la salida real de KAMPLES: dos avisos de `zip` son
+ * Medido el 2026-10-17 sobre la salida real de proyecto-ejemplo: dos avisos de `zip` son
  * 9.1 (criticos) y dos 7.3 (altos) y el tablero los pintaba como `low`. No era
  * un detalle de presentacion: era severidad bajada, que es justo lo que no se
  * puede hacer con un problema real.

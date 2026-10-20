@@ -16,7 +16,7 @@
  * Transporte: un tar con SOLO lo que el gestor necesita para resolver su lockfile.
  * Cargo ademas necesita los `.rs` (rechaza un manifiesto cuyo target no existe,
  * «no targets specified in the manifest», aunque no compile nada) y los hermanos de
- * `path = "../X"` (PROYECTO TASKS -> ../glory-harness/core, que hereda `edition` del
+ * `path = "../X"` (proyecto-ejemplo -> ../proyecto-ejemplo/core, que hereda `edition` del
  * workspace root). npm y pnpm solo necesitan los manifiestos y los lockfiles. Lo
  * pesado (node_modules, target, uploads, data) no viaja. El ssh y el envio viven en
  * `herramientas/ssh.ts`; el binario de tar, en `herramientas/tar.ts`.
@@ -86,7 +86,7 @@ export const MANIFIESTOS: Record<GestorAudit, (nombre: string) => boolean> = {
 };
 
 /* Raiz remota de un proyecto y gestor. [por que] Un proyecto puede tener lockfiles
- * de dos gestores (WANDORIUS: npm en frontend/, cargo en glory-rs/); con un arbol
+ * de dos gestores (proyecto-ejemplo: npm en frontend/, cargo en glory-rs/); con un arbol
  * por proyecto el segundo `rm -rf` borraria el del primero. La carpeta temporal
  * llega en la config (`tmpAudit`), no se lee aquí. */
 export function raizRemota(cfg: Pick<ConfigRemota, 'tmpAudit'>, nombre: string, gestor: GestorAudit): string {

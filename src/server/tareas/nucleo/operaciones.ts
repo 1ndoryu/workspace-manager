@@ -1,4 +1,4 @@
-/* PIN tasks-core@ba7dfd4 (PROYECTO TASKS, 07AA-1 F1b v0.1.0).
+/* PIN tasks-core@ba7dfd4 (proyecto-ejemplo, 07AA-1 F1b v0.1.0).
  * [por que] Ver `tipos.ts`: snapshot vendorizado, no editar a mano.
  * Operaciones puras del kanban: construcción del bulk, fusión de listas
  * reordenadas y merge del orden bajo `preferencias.kanban.v1` (envelope `{valor,ts}`).

@@ -119,7 +119,7 @@ export function bdTrabajoDe(t: TallerAnalisis | null = leerTallerSiExiste()): st
  * concreto. Un proyecto del taller con el taller apagado NO baja al portátil: ver abajo.
  * Un proyecto sin marca de taller es local con o sin taller.
  * [por que `host` y no el bloque `proyectos` de taller.json] Ese bloque declara la BD
- * del taller, no el alta: un proyecto puede correr allí sin base de datos. RESTAURANTE
+ * del taller, no el alta: un proyecto puede correr allí sin base de datos. proyecto-ejemplo
  * era justo eso — `host: "dev89"` en el registro y sin entrada en `proyectos`— y se
  * analizaba en el portátil. La señal de «vive en el taller» es la misma que usa la
  * conformidad (`leerRegistroConformidad`): el `host` del registro. */
@@ -151,7 +151,7 @@ export function modoAnalisis(clave: string): ModoAnalisis {
 }
 
 /* Ruta remota del proyecto: <dirRemotoBase>/<clave>. La clave no puede traer barras ni
- * metacaracteres. [por que] Se admiten espacios (carpetas como «PROYECTO TASKS» existen
+ * metacaracteres. [por que] Se admiten espacios (hay carpetas con espacios en el nombre)
  * en la 89); las rutas van siempre entrecomilladas con `comillas` y el nombre de la
  * sesión Mutagen pasa por `slugSesion`, así que no hay riesgo de inyección. */
 export function rutaRemota(cfg: ConfigRemota, clave: string): string {

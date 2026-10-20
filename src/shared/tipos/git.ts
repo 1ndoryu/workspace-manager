@@ -50,7 +50,7 @@ export interface ArchivoLocal {
 }
 
 /* Archivos con cambios sin commitear + diffs para el lateral de la tab
- * repos (GET /api/repos/archivos?clave=, 299A-4, copiado de glory-harness):
+ * repos (GET /api/repos/archivos?clave=, 299A-4, copiado de proyecto-ejemplo):
  * entradas = estado XY crudo (2 chars del porcelain) + ruta destino;
  * diffStaged = `diff --cached`, diffUnstaged = `diff` + untracked como
  * `diff --no-index -- /dev/null <ruta>`. Solo lectura. */

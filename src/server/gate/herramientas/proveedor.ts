@@ -38,7 +38,7 @@ export function raizVersiones(entorno: NodeJS.ProcessEnv = process.env): string 
  * versions` —donde la más alta era 0.7.4, congelada desde agosto— mientras los
  * proyectos fijan 0.7.8 en el checkout compartido. El panel medía con una
  * herramienta DISTINTA a la del gate, así que sus cifras no eran comparables
- * con las de ningún plan (PROYECTO TASKS salía con 0 errores donde el gate
+ * con las de ningún plan (proyecto-ejemplo salía con 0 errores donde el gate
  * daba 17, porque `expect-produccion-rs` no existe en 0.7.4). VarSense ya
  * resolvía desde el checkout compartido (fase G); esto elimina la asimetría.
  * El override por env gana y, si no hay checkout provisionado, se cae a las
@@ -72,11 +72,11 @@ export function provisionPathSentinel(rutaProyecto: string): { ruta: string; pin
 }
 
 /* Resolución del CLI por PROYECTO desde su `quality-tools.json`: si declara
- * un `provisionPath` propio para sentinel (p.ej. glory-harness →
+ * un `provisionPath` propio para sentinel (p.ej. proyecto-ejemplo →
  * `../.quality-tools-harness/sentinel`), ESE es el artefacto que ejecuta su
  * gate canónico y la consola debe medir con él, no con el checkout
  * compartido. [por que] 039A-4 (2026-09-10): el compartido estaba en 902c45e
- * mientras glory-harness fija 1587c59 (dos días más nuevo, con
+ * mientras proyecto-ejemplo fija 1587c59 (dos días más nuevo, con
  * unwrap-produccion-rs y axum-ruta-sintaxis-rs ya corregidos): la consola le
  * contaba 49 errores inexistentes que su gate no ve. Solo se acepta si está
  * provisionado (existe el entry del CLI) y su versión coincide con la

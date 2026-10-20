@@ -26,7 +26,7 @@ export interface ResultadoAccionDev {
 }
 
 /* Forma de un id del registro, no la de NOMBRE_OK: los ids reales llevan
- * espacio («PROYECTO TASKS»), y con la forma estricta del puente toda accion
+ * espacio («proyecto-ejemplo»), y con la forma estricta del puente toda accion
  * sobre ellos moria con «id invalido» — el supervisor de tuneles incluido, en
  * silencio, porque quien lo llama traga el error. El CLI ya falla cerrado ante
  * un id ausente del registro, y el argv va sin shell (execFile), asi que el

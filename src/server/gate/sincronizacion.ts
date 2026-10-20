@@ -29,7 +29,7 @@ function rutaScript(): string {
  * (alineado) o 1 (desync); aqui nos interesa el reporte, no el codigo del
  * script (la UI muestra si hay desync). Por eso usamos spawn y leemos stdout
  * hasta 'close' en vez de execFile promisificado (que lanzaria en exit!=0 por
- * el desync real de WANDORIUS). Lanza solo si el proceso muere o el stdout no
+ * el desync real de proyecto-ejemplo). Lanza solo si el proceso muere o el stdout no
  * es JSON (nunca se devuelve un reporte inventado). */
 /* Cache en memoria del ultimo informe, con marca de tiempo.
  * [por que] El informe cuesta ~8,4 s medidos: recorre cada consumidor y, por

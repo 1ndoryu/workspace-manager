@@ -12,7 +12,7 @@
  * Los tres corren en la VPS 89 si el proyecto es del taller (ver
  * auditoria-remota.ts) y en el portatil si no. Sin taller configurado, un proyecto
  * del taller da error con su motivo; el resto del manager funciona sin VPS.
- * Un proyecto puede tener varios lockfile (WANDORIUS: raiz, frontend/,
+ * Un proyecto puede tener varios lockfile (proyecto-ejemplo: raiz, frontend/,
  * glory-rs/): se auditan todos y se agregan. Los crates de Cargo.lock que no
  * alcanzan el build (cargo tree -i) no cuentan como hallazgo. Proyectos sin
  * lockfile, o con algun lockfile no auditable, se marcan 'noAuditable'

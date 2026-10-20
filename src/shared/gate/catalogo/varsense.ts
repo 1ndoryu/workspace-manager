@@ -1,8 +1,8 @@
 /* Esquema de `varsense.config.json`.
  * [por que] No hay binario/schema de varsense instalado en el sistema
  * (verificado: ausente en AppData/Local, a diferencia de sentinel). La unica
- * fuente fiable son los 3 `varsense.config.json` REALES del area (PROYECTO
- * TASKS, RESTAURANTE, WANDORIUS). Este esquema se cura de ellos:
+ * fuente fiable son los `varsense.config.json` REALES de tres proyectos del area.
+ * Este esquema se cura de ellos:
  *   - nucleo (presente en los 3)          -> 'requerida'
  *   - recomendadas (presente en 2 de 3)   -> 'recomendada'
  *   - extensiones nuevas / opcionales     -> 'opcional'
@@ -10,7 +10,7 @@
  * nucleo sea requerido —el runtime la suple con su default interno
  * (`buildAnalysisConfig`: `allowedValues ?? DEFAULT_ALLOWED_VALUES` en
  * varsense/src/core/config.ts), asi que exigirla marcaba error en proyectos
- * sanos (NAKOMI 2026-09-28). La severidad cuando falta una opcion sigue la
+ * sanos (proyecto-ejemplo 2026-09-28). La severidad cuando falta una opcion sigue la
  * misma convencion que sentinel:
  * requerida->error, recomendada->advertencia, opcional->silencio en la consola. */
 import type { NodoEsquema, Necesidad, OpcionValor } from '../modelo/esquema.js';
@@ -39,7 +39,7 @@ const severidadObj = (necesidad: Necesidad): NodoEsquema => ({
  * `core/config.ts`): la lista de alias deliberados del design system. Se
  * declara una sola vez porque si el catálogo se queda corto, el tablero marca
  * la clave como desconocida y convierte en error una config válida —que es
- * justo lo que pasó con `duplicate` en RESTAURANTE. */
+ * justo lo que pasó con `duplicate` en proyecto-ejemplo. */
 const reglaTokens = (necesidad: Necesidad): NodoEsquema => ({
   objeto: {
     enabled: bool(true, necesidad),
@@ -76,7 +76,7 @@ export function ESQUEMA_VARSENSE(): NodoEsquema {
       objeto: {
         /* [por que] `excludeTokens` lo acepta varsense (`core/config.ts`) en las
          * dos reglas; sin declararlo el tablero marcaba error "clave
-         * desconocida" en MN-Inmobiliaria (unused) y en RESTAURANTE
+         * desconocida" en proyecto-ejemplo (unused) y en proyecto-ejemplo
          * (duplicate). */
         duplicate: reglaTokens('opcional'),
         unused: reglaTokens('opcional'),

@@ -1,4 +1,4 @@
-/* PIN tasks-core@ba7dfd4 (PROYECTO TASKS, 07AA-1 F1b v0.1.0).
+/* PIN tasks-core@ba7dfd4 (proyecto-ejemplo, 07AA-1 F1b v0.1.0).
  * [por que] Snapshot vendorizado: npm no instala subdirectorios por tag y
  * `file:` rompe en OneDrive (EPERM F0). NO editar a mano: re-vendorizar desde
  * el commit pin y actualizar `PIN.md`. Unica adaptacion mecanica: imports con

@@ -1,4 +1,4 @@
-/* Puente con PROYECTO TASKS para la tab tareas (07AA-5 F2).
+/* Puente con proyecto-ejemplo para la tab tareas (07AA-5 F2).
  * [por que] Patron pulse (`vps/puente.ts`): el front nunca habla con TASKS
  * (D1); este modulo custodia la sesion admin local (cookie `session_id` +
  * CSRF `csrf_token`, solo en el servidor, credenciales en env gitignored) y

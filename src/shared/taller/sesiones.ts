@@ -1,8 +1,8 @@
 /* Nombres de sesión del taller (Mutagen y tmux), en un solo sitio.
  * [por que] Mutagen rechaza los nombres de sesión con espacios («invalid session name:
- * invalid name character at index 15: ' '») y los ids del taller los llevan («PROYECTO TASKS»),
+ * invalid name character at index 15: ' '») y los ids del taller a veces los llevan («un id con espacios»),
  * así que ese proyecto no se podía subir a la 89. Se normaliza a [A-Za-z0-9._-].
- * Los ids normales (MN-Inmobiliaria, KAMPLES) no cambian.
+ * Los ids normales (sin espacios) no cambian.
  * La misma regla está en scripts/remoto/rcargo.mjs (los scripts no pueden importar TypeScript):
  * al tocar una, tocar la otra. */
 

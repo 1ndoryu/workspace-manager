@@ -1,6 +1,6 @@
 /* Estado del gate por proyecto: Sentinel / VarSense / cargo.
- * [por que] No todos los proyectos declaran el mismo gate: GLORYPORT usa
- * cargo fmt/clippy/test sin sentinel.lock; WANDORIUS/PROYECTO TASKS declaran
+ * [por que] No todos los proyectos declaran el mismo gate: proyecto-ejemplo usa
+ * cargo fmt/clippy/test sin sentinel.lock; proyecto-ejemplo/proyecto-ejemplo declaran
  * sentinel + varsense. El manager trata el gate por proyecto, no asume uniformidad. */
 import { existsSync, readdirSync, readFileSync, type Dirent } from 'node:fs';
 import { join } from 'node:path';

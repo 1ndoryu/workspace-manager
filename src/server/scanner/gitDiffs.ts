@@ -8,7 +8,7 @@ import { BIN_GIT } from '../plataforma/binarios.js';
 import type { ArchivosRepo, EntradaCambio } from '../../shared/types.js';
 
 /* Limites del lateral de cambios por archivo (299A-4, copiado de
- * glory-harness core/src/git.rs): diffs acotados en bytes y untracked
+ * proyecto-ejemplo core/src/git.rs): diffs acotados en bytes y untracked
  * acotados en archivos; el --no-index devuelve codigo 1 cuando hay diff. */
 const MAX_BYTES_DIFF = 256 * 1024;
 const MAX_UNTRACKED_DIFF = 20;

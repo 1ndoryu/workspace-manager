@@ -184,7 +184,7 @@ export function parsearExcepcionesAudit(toml: string, hoy: string): ExcepcionesA
     const ids = [...t.matchAll(RE_ID_RUSTSEC)].map((m) => m[1]);
     if (ids.length > 0) trasId = true;
     /* [por que] El grupo conserva su comentario: los ids que siguen a un mismo
-     * comentario comparten su VENCE (p. ej. 0367/0368/0369 en KAMPLES). */
+     * comentario comparten su VENCE (p. ej. 0367/0368/0369 en proyecto-ejemplo). */
     const venc = ids.length > 0 ? RE_VENCE.exec(comentarios.join('\n')) : null;
     for (const id of ids) {
       if (!venc) r.sinFecha.push(id);

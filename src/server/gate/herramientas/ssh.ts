@@ -9,7 +9,7 @@ import type { ConfigRemota } from './config.js';
 
 const execFileAsync = promisify(execFile);
 
-/* [por que] Tope de salida: el reporte de un proyecto grande (PROYECTO TASKS, 993
+/* [por que] Tope de salida: el reporte de un proyecto grande (proyecto-ejemplo, 993
  * archivos) supera el maxBuffer por defecto de execFile (1 MiB). */
 export const MAX_SALIDA = 64 * 1024 * 1024;
 const TIMEOUT_COPIA_MS = 120_000;

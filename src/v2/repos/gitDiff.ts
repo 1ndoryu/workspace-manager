@@ -1,5 +1,5 @@
 /* Lógica de diffs por archivo para el lateral de la tab repos (299A-4).
- * [por que] Copiada de glory-harness
+ * [por que] Copiada de proyecto-ejemplo
  * (`desktop/ui/src/componentes/gitDiff.ts`): el servidor sirve los diffs
  * combinados por grupo (staged/unstaged) y el cliente los reparte por
  * archivo indicándolos por su ruta `+++ b/`. Solo la parte pura (sin DOM:

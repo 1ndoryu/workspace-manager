@@ -1,6 +1,6 @@
 /* Visor lateral del diff de un archivo del repo (299A-4). [por que] El
  * usuario pidió revisar los cambios individuales por archivo con la forma de
- * verlos de glory-harness, pero con una sola lista: la del acordeón
+ * verlos de proyecto-ejemplo, pero con una sola lista: la del acordeón
  * (`DetalleRepo`, que ya enumera los archivos) es la que se clica; este
  * lateral solo muestra el diff del archivo elegido (sin cabecera ni lista
  * duplicada). Se copia la lógica de harness (`gitDiff.ts`: reparto de
