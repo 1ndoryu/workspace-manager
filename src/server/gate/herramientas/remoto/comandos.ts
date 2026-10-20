@@ -80,12 +80,16 @@ export function comandoCompilar(a: {
   const marcaLock = `completo-${a.huellaLock}`;
   const sinModulos = `[ ! -d ${comillas(`${a.base}/node_modules`)} ]`;
   const lockCambio = `[ "$(cat ${lockMarca} 2>/dev/null)" != ${comillas(marcaLock)} ]`;
+  /* [por que] `npm ci` ejecuta el `prepare` del runtime (`npm run compile`) y ese hijo busca
+   * `npm` en el PATH: sin la carpeta de node delante falla con «npm: not found» (reproducido en
+   * la 89 el 2026-10-20). Por eso el PATH va en los dos pasos, no solo en la compilación. */
+  const ruta = `PATH=${comillas(`${a.nodeDir}:`)}"$PATH"`;
   const instalar =
     `if ${sinModulos} || ${lockCambio}; then ` +
-    `${comillas(a.npm)} ci --silent --prefix ${comillas(a.base)} >${log} 2>&1 || { tail -n 20 ${log} >&2; exit 3; }; ` +
+    `${ruta} ${comillas(a.npm)} ci --silent --prefix ${comillas(a.base)} >${log} 2>&1 || { tail -n 20 ${log} >&2; exit 3; }; ` +
     `printf '%s' ${comillas(marcaLock)} > ${lockMarca}; fi`;
   const compilar =
-    `PATH=${comillas(`${a.nodeDir}:`)}"$PATH" ${comillas(a.npm)} --prefix ${comillas(a.base)} run -s compile >>${log} 2>&1 ` +
+    `${ruta} ${comillas(a.npm)} --prefix ${comillas(a.base)} run -s compile >>${log} 2>&1 ` +
     `|| { tail -n 20 ${log} >&2; exit 4; }`;
   const salida = `test -f ${comillas(a.cli)} || { echo 'compilación sin salida' >&2; exit 5; }`;
   const marca = `printf '%s' ${comillas(a.huella)} > ${comillas(a.marca)}`;

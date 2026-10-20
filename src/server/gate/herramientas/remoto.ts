@@ -122,7 +122,9 @@ const RUNTIMES = {
     cli: 'out/cli/index.js',
   },
   varsense: {
-    entradas: ['src', 'esbuild.config.mjs', 'tsconfig.json', 'package.json', 'package-lock.json'],
+    /* [por que] esbuild.config.mjs importa scripts/alias-esbuild.mjs: sin esa entrada la
+     * compilación en la 89 falla con ERR_MODULE_NOT_FOUND aunque npm ya esté en el PATH. */
+    entradas: ['src', 'esbuild.config.mjs', 'scripts/alias-esbuild.mjs', 'tsconfig.json', 'package.json', 'package-lock.json'],
     salida: 'dist',
     cli: 'dist/cli/index.js',
   },
