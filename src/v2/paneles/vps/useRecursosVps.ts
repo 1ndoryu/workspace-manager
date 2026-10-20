@@ -105,10 +105,11 @@ export function useRecursosVps(snap: VpsAgenteSnapshot | null, tab = 'vps') {
     const alVolver = () => {
       if (document.visibilityState === 'visible') traerBase();
     };
-    suscribirVentana('visibilitychange', alVolver);
+    /* [por que] `visibilitychange` es de `document`, no de `window`: el helper de ventana no lo tipa. */
+    document.addEventListener('visibilitychange', alVolver);
     return () => {
       vivo = false;
-      bajarVentana('visibilitychange', alVolver);
+      document.removeEventListener('visibilitychange', alVolver);
     };
   }, [tab]);
 
