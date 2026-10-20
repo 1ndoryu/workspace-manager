@@ -83,10 +83,11 @@ export function esElegible(p: Proyecto): boolean {
 
 /* Clave de frescura: branch + HEAD + version de sentinel + hash del artefacto
  * del runtime + (si el proyecto declara varsense) version de varsense + hash
- * de su dist + hash de su config. [por que] El analisis fusiona ambos reportes
- * (fase G): si varsense cambia de version, se reconstruye su dist, o su
- * `varsense.config.json` cambia, el resultado deja de ser fresco aunque el
- * repo y sentinel no cambien. */
+ * de su dist + hash de su config + modo de análisis. [por que] El analisis fusiona ambos
+ * reportes (fase G): si varsense cambia de version, se reconstruye su dist, o su
+ * `varsense.config.json` cambia, el resultado deja de ser fresco aunque el repo y sentinel
+ * no cambien. El modo también: un análisis hecho en el portátil no puede seguir sirviéndose
+ * como si fuera de la 89 tras cambiar `analisisEn` (caché incoherente). */
 function frescoDe(p: Proyecto): string {
   const rama = p.git?.rama ?? '?';
   const head = p.git?.ultimoCommit?.hash ?? '?sin-commits';
@@ -97,7 +98,7 @@ function frescoDe(p: Proyecto): string {
   const rVs = vs ? hashArtefacto(join(vs, 'dist', 'cli', 'index.js')) : 'sin-varsense';
   const vr = varsenseRuntime();
   const cfg = varsenseConfigHash(p.ruta);
-  return `${p.ruta}|${rama}|${head}|${v}|${rSent}|${vr?.version ?? 'sin-varsense'}|${rVs}|${cfg ?? 'sin-config'}`;
+  return `${p.ruta}|${rama}|${head}|${v}|${rSent}|${vr?.version ?? 'sin-varsense'}|${rVs}|${cfg ?? 'sin-config'}|${modoAnalisis(p.clave)}`;
 }
 
 /* [por que] Ejecutar N repos en serie no satura CPU; el detalle esta en las
