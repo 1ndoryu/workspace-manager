@@ -87,6 +87,10 @@ test('mensajeSinVps: 255 de ssh es «no hay VPS»; otros códigos no', () => {
   assert.equal(mensajeSinVps(1, 'remoto-ejemplo'), null);
 });
 
+test('mensajeSinVps: status null (ssh no arrancó o se cortó por tiempo) se nombra, no sale mudo', () => {
+  assert.match(mensajeSinVps(null, 'remoto-ejemplo'), /remoto-ejemplo\) no terminó.*se cortó por tiempo/);
+});
+
 test('cargarTaller: JSON corrupto falla nombrando el fichero y el remedio, no como «sin VPS»', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'taller-prueba-'));
   try {

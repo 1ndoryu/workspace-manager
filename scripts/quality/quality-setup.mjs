@@ -34,6 +34,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BIN_GIT, BIN_NPM } from '../shared/binarios.mjs';
 import {
+  TMP_REMOTO,
   cargarTaller,
   decidirDonde,
   dirRemotoDeHerramienta,
@@ -105,7 +106,7 @@ function prepararFuenteRemota(source, dir, name, commit) {
     'cd "$D"; npm ci --no-audit --no-fund',
     'touch .listo',
   ].join('; ');
-  const resultado = ejecutarEnVps(taller, '/var/tmp', ['bash', '-c', script], { entrada: archivo.stdout });
+  const resultado = ejecutarEnVps(taller, TMP_REMOTO, ['bash', '-c', script], { entrada: archivo.stdout });
   const aviso = mensajeSinVps(resultado.status, taller.host);
   if (aviso || resultado.status !== 0) {
     process.stderr.write(`[quality:setup] ${name}: preparar ${commit} en la VPS falló${aviso ? `: ${aviso}` : ` (exit ${resultado.status})`}; sin evidencia\n`);

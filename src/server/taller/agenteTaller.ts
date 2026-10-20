@@ -41,10 +41,13 @@ function leerTokenDelProyecto(): string {
   }
 }
 
-/* Configuración efectiva. El entorno llega como parámetro para probar sin tocar variables reales.
- * El puerto local por defecto es el del túnel de glory-pulse (`Arranque up glory-pulse`). */
+/* Puerto local del túnel de glory-pulse (`Arranque up glory-pulse`). Es otro servicio que el pulse
+ * local de vps/agente.ts, aunque coincida el puerto: por eso tiene constante propia. */
+const PULSE_TALLER_TUNEL_POR_DEFECTO = 'http://127.0.0.1:3000';
+
+/* Configuración efectiva. El entorno llega como parámetro para probar sin tocar variables reales. */
 export function configTaller(entorno: NodeJS.ProcessEnv = process.env): ConfigTaller | null {
-  const base = (entorno['PULSE_TALLER_URL'] ?? '').trim() || 'http://127.0.0.1:3000';
+  const base = (entorno['PULSE_TALLER_URL'] ?? '').trim() || PULSE_TALLER_TUNEL_POR_DEFECTO;
   const token =
     (entorno['PULSE_TALLER_TOKEN'] ?? '').trim() || leerTokenDelProyecto();
   if (token.length < 32) return null;

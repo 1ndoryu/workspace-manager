@@ -6,7 +6,7 @@ import { conPasos, escribir, escribirRouters } from './ajustes.mjs';
 import { familiaDe, revisarRouters } from './consumidores.mjs';
 import { reescribirPin, validarReescritura } from './manifiesto.mjs';
 import { pasosDe } from './release.mjs';
-import { cargarTaller, decidirDonde, dirRemotoDe, dirRemotoDeHerramienta, ejecutarEnVps, mensajeSinVps } from '../../shared/vps.mjs';
+import { TMP_REMOTO, cargarTaller, decidirDonde, dirRemotoDe, dirRemotoDeHerramienta, ejecutarEnVps, mensajeSinVps } from '../../shared/vps.mjs';
 import { comando, ejecutar, leerJson, leerJsonDeTexto, primeraLineaUtil } from './utilidades.mjs';
 
 /* Issues que aparecen solo porque la herramienta no está instalada en la 89 (no por el proyecto). */
@@ -35,7 +35,7 @@ function ejecutarDoctor(consumidor, doctor) {
   const dir = dirRemotoDe(taller, path.basename(consumidor.dir), consumidor.dir, consumidor.dir);
   /* [por que] Mutagen no sincroniza todos los proyectos: sin réplica el doctor no se puede comprobar
    * y no es un fallo del pin; se informa como no comprobado. */
-  const replica = ejecutarEnVps(taller, '/var/tmp', ['test', '-d', dir], { capturar: true });
+  const replica = ejecutarEnVps(taller, TMP_REMOTO, ['test', '-d', dir], { capturar: true });
   const sinVps = mensajeSinVps(replica.status, taller.host);
   if (sinVps) return { omitido: sinVps, grave: true };
   if (replica.status !== 0) return { omitido: 'proyecto sin réplica en la 89: doctor no comprobado', grave: false };

@@ -155,6 +155,9 @@ export function crearAgente(op: OpcionesAgente): {
  * Sin token (ni env ni fichero) la ruta responde `sin-configurar` y el
  * frontend usa legacy. Singleton perezoso (el null NO se cachea: reintenta
  * cada vez hasta que el token exista) y el token nunca se expone. */
+/* Pulse local por defecto (sin PULSE_URL). Con nombre, para no esconder el puerto en la línea. */
+const PULSE_LOCAL_POR_DEFECTO = 'http://127.0.0.1:3000';
+
 let prod: {
   snapshot: () => Promise<VpsAgenteRespuesta>;
   detalleSitio: (uuid: string) => Promise<VpsAgenteDetalleRespuesta>;
@@ -175,7 +178,7 @@ export function agenteProd(entorno: NodeJS.ProcessEnv = process.env): {
   snapshot: () => Promise<VpsAgenteRespuesta>;
   detalleSitio: (uuid: string) => Promise<VpsAgenteDetalleRespuesta>;
 } | null {
-  const base = (entorno['PULSE_URL'] ?? '').trim() || 'http://127.0.0.1:3000';
+  const base = (entorno['PULSE_URL'] ?? '').trim() || PULSE_LOCAL_POR_DEFECTO;
   const token = (entorno['PULSE_TOKEN'] ?? '').trim() || leerTokenLocal();
   if (token.length < 32) return null;
   if (!prod) prod = crearAgente({ baseUrl: base, token });

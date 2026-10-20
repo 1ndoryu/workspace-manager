@@ -63,6 +63,10 @@ interface Regla89 {
   falla: (t: EstadoTaller89, e: EntradaConformidad) => string | null;
 }
 
+/* [por que] Puerto UDP de WireGuard (VPN de administración): el único UDP abierto que el taller
+ * tolera sin ser un túnel. Con nombre, para no esconder el número en la regla. */
+const PUERTO_WIREGUARD = 51820;
+
 const REGLAS_89: Regla89[] = [
   {
     id: 'A1', severidad: 'error',
@@ -70,7 +74,7 @@ const REGLAS_89: Regla89[] = [
     falla: (t) => {
       const malas = t.escuchas.filter((x) => !LOOPBACK(x.direccion)
         && !(x.proto === 'tcp' && x.puerto === 22)
-        && !(x.proto === 'udp' && x.puerto === 51820)
+        && !(x.proto === 'udp' && x.puerto === PUERTO_WIREGUARD)
         && !(x.proto === 'udp' && PATRON_TUNEL_SALIENTE.test(x.proceso ?? '')));
       return malas.length ? `escucha fuera de loopback: ${malas.map((x) => `${x.direccion}:${x.puerto}/${x.proto}`).join(', ')}` : null;
     },

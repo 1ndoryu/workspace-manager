@@ -12,6 +12,14 @@ import { shQuote } from '../remoto/rcargo.mjs';
 
 export const FLAG_LOCAL = '--local';
 
+/* Temporal de la 89 para los cwd remotos (AGENTS §1: /var/tmp, nunca el home). */
+export const TMP_REMOTO = '/var/tmp';
+
+/* Tope de una orden en la 89. [por que] Un build o un `npm ci` pueden tardar, pero deben acabar;
+ * 30 min da margen y sin tope un ssh colgado bloqueaba el gate indefinidamente. `timeoutRemotoMs`
+ * en la ficha del taller lo cambia. */
+const TIMEOUT_REMOTO_MS = 30 * 60_000;
+
 /* Configuración del taller (privada). Null si no existe: clon sin VPS.
  * [por que] Un JSON corrupto no es «sin VPS»: se nombra el fichero y el remedio en vez de
  * soltar un SyntaxError sin contexto. */
@@ -71,7 +79,7 @@ export function dirRemotoDe(config, id, raiz, carpeta) {
  * hashea el lock) y `npm ci` corre una vez por commit. Fuera de `dirRemotoBase`: Mutagen no la toca.
  * [por que] /var/tmp, como el resto de temporales de la 89 (AGENTS §1). */
 export function dirRemotoDeHerramienta(config, nombre, commit) {
-  return path.posix.join(config.dirRemotoHerramientas ?? '/var/tmp/glory-quality', nombre, commit);
+  return path.posix.join(config.dirRemotoHerramientas ?? path.posix.join(TMP_REMOTO, 'glory-quality'), nombre, commit);
 }
 
 /* Línea de shell para la VPS: entra en `dir` y ejecuta `argv` bajo el candado de carga pesada.
@@ -87,21 +95,25 @@ export function comandoEnVps(config, dir, argv) {
 }
 
 /* Ejecuta `argv` en la 89 y devuelve el resultado de ssh. `capturar` recoge stdout (análisis)
- * en vez de volcarlo al terminal. `entrada` (Buffer) se envía por stdin (p. ej. un tar). */
+ * en vez de volcarlo al terminal. `entrada` (Buffer) se envía por stdin (p. ej. un tar).
+ * [por que] Con `timeout`: sin él, una orden colgada en la 89 bloqueaba el gate para siempre. */
 export function ejecutarEnVps(config, dir, argv, { capturar = false, entrada } = {}) {
   const opciones = {
     encoding: 'utf8',
     stdio: entrada ? ['pipe', 'inherit', 'inherit'] : capturar ? ['ignore', 'pipe', 'inherit'] : 'inherit',
     windowsHide: true,
     maxBuffer: 64 * 1024 * 1024,
+    timeout: config.timeoutRemotoMs ?? TIMEOUT_REMOTO_MS,
   };
   if (entrada) opciones.input = entrada;
   return spawnSync(BIN_SSH, ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', config.host, comandoEnVps(config, dir, argv)], opciones);
 }
 
-/* ssh devuelve 255 cuando no llega a la VPS; ese caso se nombra aparte del fallo del comando. */
+/* ssh devuelve 255 cuando no llega a la VPS; ese caso se nombra aparte del fallo del comando.
+ * status null = ssh no llegó a arrancar o se cortó por el timeout: sin esto el gate salía
+ * sin decir nada. */
 export function mensajeSinVps(status, host) {
-  return status === 255
-    ? `no se pudo conectar a la VPS (${host}); reintenta o usa --local solo en emergencia`
-    : null;
+  if (status === 255) return `no se pudo conectar a la VPS (${host}); reintenta o usa --local solo en emergencia`;
+  if (status === null) return `la orden en la VPS (${host}) no terminó: ssh no arrancó o se cortó por tiempo; reintenta o usa --local solo en emergencia`;
+  return null;
 }
