@@ -55,8 +55,11 @@ export async function manejarRutasConsola(
     json(res, 405, { error: 'Metodo no permitido' });
     return true;
   }
-  const forzar = url.searchParams.get('forzar') === '1';
-  const fuentes = await recogerFuentes(forzar);
+  /* [por que] `local=1` (emergencia, `problemas --local`) implica una corrida viva: un dato
+   * cacheado no dice dónde corrió, y el aviso de emergencia solo sale al analizar. */
+  const emergencia = url.searchParams.get('local') === '1';
+  const forzar = url.searchParams.get('forzar') === '1' || emergencia;
+  const fuentes = await recogerFuentes(forzar, emergencia);
   const proyectos = agruparProblemas(fuentes);
   const total = proyectos.reduce((n, g) => n + g.total, 0);
   const { snapshot, analisis, vulnerabilidades, dev, saludDelArea } = fuentes;
@@ -79,14 +82,14 @@ export async function manejarRutasConsola(
  * vigilancia, salud y taller no se necesitan entre sí: en paralelo tarda lo que el más
  * lento, en vez de sumar sus tiempos. La vigilancia no se fuerza: trae TTL 60 s y
  * single-flight propios, y su frescura viaja en `vigencia.devEn`. */
-async function recogerFuentes(forzar: boolean) {
+async function recogerFuentes(forzar: boolean, emergencia: boolean) {
   /* [por que] snapshotArea(true) invalida la memoria del server (igual que
    * analizarTodo): si no, un commit reciente seguiría mostrando el HEAD
    * viejo en las entradas sinCommit/sinPush. */
   const { snapshot } = await snapshotArea(forzar);
   const [analisis, vulnerabilidades, { informe: dev }, [saludPorProyecto, saludDelArea], hallazgosTaller] =
     await Promise.all([
-      forzar ? analizarTodo(snapshot.proyectos, true) : analisisVigentes(snapshot.proyectos),
+      forzar ? analizarTodo(snapshot.proyectos, true, emergencia) : analisisVigentes(snapshot.proyectos),
       forzar ? auditarTodo(snapshot.proyectos, true) : auditoriasVigentes(snapshot.proyectos),
       obtenerVigilancia(),
       Promise.all([saludProyectos(forzar), saludArea(forzar)]),

@@ -207,11 +207,13 @@ async function sincronizacion(c: Contexto): Promise<void> {
  * (branch+HEAD+version) evita revert spawns sin cambios. */
 async function analizarUno(c: Contexto): Promise<void> {
   if (!soloMetodo(c, 'POST')) return;
-  const body = (await leerBody(c.req)) as { clave?: unknown; forzar?: unknown; arbol?: unknown };
+  const body = (await leerBody(c.req)) as { clave?: unknown; forzar?: unknown; arbol?: unknown; local?: unknown };
   const clave = campoStr(body, 'clave', '');
   const forzar = body.forzar === true;
   /* arbol=true: análisis del gate (cuenta el árbol de trabajo, caché por huella). */
   const arbol = body.arbol === true;
+  /* local=true: emergencia (`--local`), se analiza aquí y no se cachea. */
+  const emergencia = body.local === true;
   const proyecto = arbol ? await proyectoParaGate(clave) : (await escaneoFresco()).proyectos.find((p) => p.clave === clave);
   if (!proyecto) {
     json(c.res, 404, { error: 'Proyecto no encontrado', clave });
@@ -221,7 +223,7 @@ async function analizarUno(c: Contexto): Promise<void> {
     json(c.res, 400, { error: 'El proyecto no usa sentinel (no se puede analizar)', clave });
     return;
   }
-  json(c.res, 200, await (arbol ? analizarParaGate(proyecto, forzar) : analizarProyecto(proyecto, forzar)));
+  json(c.res, 200, await (arbol ? analizarParaGate(proyecto, forzar, emergencia) : analizarProyecto(proyecto, forzar, emergencia)));
 }
 
 /* Barrido completo del workspace (serial de los elegibles). El body puede pedir
@@ -231,10 +233,10 @@ async function analizarUno(c: Contexto): Promise<void> {
  * DEBE aplicarlo, si no la consola sigue mostrando los contadores de git del arranque. */
 async function analizarTodoWorkspace(c: Contexto): Promise<void> {
   if (!soloMetodo(c, 'POST')) return;
-  const body = (await leerBody(c.req)) as { forzar?: unknown };
+  const body = (await leerBody(c.req)) as { forzar?: unknown; local?: unknown };
   const forzar = body.forzar === true;
   const snapshot = await escaneoFresco();
-  const analisis = await analizarTodo(snapshot.proyectos, forzar);
+  const analisis = await analizarTodo(snapshot.proyectos, forzar, body.local === true);
   json(c.res, 200, {
     escaneadoEn: new Date().toISOString(),
     snapshot,
@@ -248,7 +250,7 @@ async function analizarTodoWorkspace(c: Contexto): Promise<void> {
  * [por que] Un análisis en error no se devuelve como «sin nuevos»: sería un falso verde. */
 async function comparar(c: Contexto): Promise<void> {
   if (!soloMetodo(c, 'POST')) return;
-  const body = (await leerBody(c.req)) as { clave?: unknown; base?: unknown; forzar?: unknown };
+  const body = (await leerBody(c.req)) as { clave?: unknown; base?: unknown; forzar?: unknown; local?: unknown };
   const clave = campoStr(body, 'clave', '');
   const base = body.base;
   const formaValida =
@@ -267,7 +269,7 @@ async function comparar(c: Contexto): Promise<void> {
     json(c.res, 400, { error: 'El proyecto no usa sentinel (no se puede comparar)', clave });
     return;
   }
-  const analisis = await analizarParaGate(proyecto, body.forzar === true);
+  const analisis = await analizarParaGate(proyecto, body.forzar === true, body.local === true);
   if (analisis.estado === 'error') {
     json(c.res, 502, { error: 'El análisis falló; no se puede comparar', clave, detalle: analisis.error });
     return;

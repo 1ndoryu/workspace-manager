@@ -4,11 +4,25 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parsearArgsGate, rutaSnapshot, leerComandos, formatearNuevos, RAIZ } from './gate.mjs';
+import { emergenciaLocal } from '../../shared/vps.mjs';
+
+/* [por que] Sin VPS (config null) y sin --local el mando no analiza: falla con motivo. Con --local
+ * la emergencia corre aquí y se avisa. La 89 (hostname del taller) siempre corre allí. */
+test('emergenciaLocal: con VPS va a remoto; sin VPS falla salvo con --local', () => {
+  const taller = { host: 'dev89', hostnameTaller: 'vmi-taller' };
+  assert.deepEqual(emergenciaLocal(['x', '--inicio'], taller, 'Wan'), { emergencia: false, aviso: undefined });
+  assert.equal(emergenciaLocal(['x', '--inicio', '--local'], taller, 'Wan').emergencia, true);
+  assert.match(emergenciaLocal(['x', '--local'], taller, 'Wan').aviso, /EMERGENCIA --local/);
+  assert.throws(() => emergenciaLocal(['x', '--inicio'], null, 'Wan'), /sin VPS configurada/);
+  assert.equal(emergenciaLocal(['x', '--local'], null, 'Wan').emergencia, true);
+  assert.deepEqual(emergenciaLocal(['x', '--inicio'], taller, 'vmi-taller'), { emergencia: false, aviso: undefined });
+});
 
 test('parsearArgsGate exige id y exactamente un modo', () => {
-  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--inicio']), { id: 'agente-tiempo-real', modo: 'inicio', forzar: false });
-  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--cierre']), { id: 'agente-tiempo-real', modo: 'cierre', forzar: false });
+  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--inicio']), { id: 'agente-tiempo-real', modo: 'inicio', forzar: false, local: false });
+  assert.deepEqual(parsearArgsGate(['agente-tiempo-real', '--cierre']), { id: 'agente-tiempo-real', modo: 'cierre', forzar: false, local: false });
   assert.equal(parsearArgsGate(['agente-tiempo-real', '--cierre', '--forzar']).forzar, true);
+  assert.equal(parsearArgsGate(['agente-tiempo-real', '--cierre', '--local']).local, true);
   assert.ok(parsearArgsGate([]).error);
   assert.ok(parsearArgsGate(['--inicio']).error);
   assert.ok(parsearArgsGate(['x']).error);

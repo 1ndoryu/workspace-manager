@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { rutaConfigPrivada } from '../../shared/rutas.mjs';
 import { cabeceraAutorizacion } from '../token.mjs';
 import { URL_API } from '../../shared/puertos.mjs';
+import { emergenciaLocal } from '../../shared/vps.mjs';
 
 export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const API = URL_API;
@@ -22,18 +23,25 @@ const USO = `uso:
   gate <id> --inicio     guarda la línea base de hallazgos antes de la tarea
   gate <id> --cierre     lista solo los hallazgos nuevos frente a la base
                          (+ --forzar: re-analiza aunque el árbol no haya cambiado)
+                         (+ --local: emergencia, VPS caída; analiza aquí, sin caché, con aviso)
   comandos <id>          contrato de comandos del proyecto (registro.json)`;
 
-/* Argumentos de `gate`: <id>, exactamente uno de --inicio / --cierre y, opcional, --forzar. */
+/* Argumentos de `gate`: <id>, exactamente uno de --inicio / --cierre y, opcionales, --forzar y --local. */
 export function parsearArgsGate(argv) {
   const [id, ...resto] = argv;
   if (!id || id.startsWith('--')) return { error: 'falta <id> del proyecto' };
-  const extra = resto.filter((a) => a !== '--inicio' && a !== '--cierre' && a !== '--forzar');
+  const conocidas = ['--inicio', '--cierre', '--forzar', '--local'];
+  const extra = resto.filter((a) => !conocidas.includes(a));
   if (extra.length) return { error: `opción no reconocida: ${extra[0]}` };
   const inicio = resto.includes('--inicio');
   const cierre = resto.includes('--cierre');
   if (inicio === cierre) return { error: 'elige exactamente uno: --inicio o --cierre' };
-  return { id, modo: inicio ? 'inicio' : 'cierre', forzar: resto.includes('--forzar') };
+  return {
+    id,
+    modo: inicio ? 'inicio' : 'cierre',
+    forzar: resto.includes('--forzar'),
+    local: resto.includes('--local'),
+  };
 }
 
 /* Ruta del snapshot de un proyecto. La clave es la carpeta del proyecto
@@ -94,9 +102,17 @@ export async function gate(argv) {
     console.error(`gate: ${p.error}\n${USO}`);
     return 1;
   }
+  let destino;
+  try {
+    destino = emergenciaLocal(argv);
+  } catch (e) {
+    console.error(`gate ${p.id}: ${e?.message ?? e}`);
+    return 1;
+  }
+  if (destino.aviso) console.error(destino.aviso);
   try {
     if (p.modo === 'inicio') {
-      const a = await pedir('POST', '/api/gate/analizar', { clave: p.id, forzar: p.forzar, arbol: true });
+      const a = await pedir('POST', '/api/gate/analizar', { clave: p.id, forzar: p.forzar, arbol: true, local: destino.emergencia });
       if (a.estado === 'error') throw new Error(`el análisis falló: ${a.error ?? 'sin detalle'}`);
       const ruta = rutaSnapshot(p.id);
       mkdirSync(dirname(ruta), { recursive: true });
@@ -110,7 +126,7 @@ export async function gate(argv) {
       return 1;
     }
     const base = JSON.parse(readFileSync(ruta, 'utf8'));
-    const r = await pedir('POST', '/api/gate/comparar', { clave: p.id, base: base.hallazgos, forzar: p.forzar });
+    const r = await pedir('POST', '/api/gate/comparar', { clave: p.id, base: base.hallazgos, forzar: p.forzar, local: destino.emergencia });
     console.log(`gate ${p.id} --cierre: ${r.nuevos.length} nuevos, ${r.resueltos} resueltos (base ${base.hallazgos.length}, ahora ${r.total})`);
     for (const linea of formatearNuevos(r.nuevos)) console.log(linea);
     return r.nuevos.length > 0 ? 1 : 0;

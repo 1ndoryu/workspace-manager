@@ -3,6 +3,7 @@
  * no hay ejecución silenciosa en el portátil: el comando falla con un mensaje claro. */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { hostname } from 'node:os';
 import path from 'node:path';
 
 import { BIN_SSH } from './binarios.mjs';
@@ -31,6 +32,14 @@ export function decidirDonde(argv, config, equipo) {
     throw new Error('sin VPS configurada (config/taller.json): no se ejecuta en este equipo. Usa --local solo en emergencia');
   }
   return { donde: 'remoto' };
+}
+
+/* Para mandos que solo piden un análisis al backend: `emergencia` es true con `--local`.
+ * [por que] El backend corre en este equipo, así que la decisión se toma aquí, antes de
+ * pedir nada: sin VPS y sin `--local` el mando falla con su motivo y no llega a analizar. */
+export function emergenciaLocal(argv, config = cargarTaller(), equipo = hostname()) {
+  const { donde, aviso } = decidirDonde(argv, config, equipo);
+  return { emergencia: donde === 'local', aviso };
 }
 
 /* ¿`carpeta` está dentro de `raiz` (o es la raíz)? */

@@ -116,6 +116,20 @@ async function analizarEnLocal(p: Proyecto): Promise<AnalisisSentinel> {
   return montarAnalisis(p, res, resVs);
 }
 
+const AVISO_EMERGENCIA =
+  'EMERGENCIA --local: analizado en este equipo porque la VPS no estaba disponible; no se guarda en caché';
+
+/* [por que] `--local` es la emergencia de AGENTS §1 (VPS caída): analiza aquí y marca el dato
+ * con su aviso. Quien lo llama no lo guarda ni lo reutiliza, así que un análisis de emergencia
+ * nunca pasa por análisis normal. */
+async function analizarEmergencia(p: Proyecto): Promise<AnalisisSentinel> {
+  try {
+    return { ...(await analizarEnLocal(p)), aviso: AVISO_EMERGENCIA };
+  } catch (err) {
+    return { ...datoError(p.clave, mensaje(err)), aviso: AVISO_EMERGENCIA };
+  }
+}
+
 /* Análisis del proyecto donde su modo diga. [por que] Un proyecto de taller se analiza
  * en la 89 y, si esta no responde, queda en 'error' con su motivo. No hay reintento en
  * el portátil: ese reintento era carga pesada en la laptop (AGENTS §1), y el fallo se ve
@@ -160,7 +174,8 @@ async function analizarEnTaller(p: Proyecto): Promise<AnalisisSentinel> {
  * varsense falla, sentinel sigue valiendo y el estado varsense queda en el
  * campo `varsense` (nunca rompe el analisis). */
 const enVuelo = new Map<string, Promise<AnalisisSentinel>>();
-export async function analizarProyecto(p: Proyecto, forzar = false): Promise<AnalisisSentinel> {
+export async function analizarProyecto(p: Proyecto, forzar = false, emergencia = false): Promise<AnalisisSentinel> {
+  if (emergencia) return analizarEmergencia(p);
   const clave = p.clave;
   /* [por que] La clave guardada incluye el árbol de trabajo (huellaArbol), no solo HEAD: un
    * cambio sin commitear invalida el análisis. Sin huella (git falla o demasiados cambios)
@@ -191,7 +206,8 @@ export async function analizarProyecto(p: Proyecto, forzar = false): Promise<Ana
  * tras analizar y solo se guarda si coincide: si el árbol cambió durante el
  * análisis, el resultado no describe la huella de partida. */
 const cacheGate = new Map<string, { huella: string; dato: AnalisisSentinel }>();
-export async function analizarParaGate(p: Proyecto, forzar = false): Promise<AnalisisSentinel> {
+export async function analizarParaGate(p: Proyecto, forzar = false, emergencia = false): Promise<AnalisisSentinel> {
+  if (emergencia) return analizarEmergencia(p);
   const huella = await huellaArbol(p.ruta, frescoDe(p));
   const previo = cacheGate.get(p.clave);
   if (!forzar && huella !== null && previo?.huella === huella) return previo.dato;
@@ -210,10 +226,11 @@ export async function analizarParaGate(p: Proyecto, forzar = false): Promise<Ana
 export async function analizarTodo(
   proyectos: Proyecto[],
   forzar = false,
+  emergencia = false,
 ): Promise<AnalisisSentinel[]> {
   const detalles: AnalisisSentinel[] = [];
   for (const p of proyectos.filter(esElegible)) {
-    detalles.push(await analizarProyecto(p, forzar));
+    detalles.push(await analizarProyecto(p, forzar, emergencia));
   }
   podarAnalisis(new Set(proyectos.map((p) => p.clave)));
   return detalles;

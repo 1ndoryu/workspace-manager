@@ -10,10 +10,12 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cabeceraAutorizacion } from '../token.mjs';
 import { URL_API } from '../../shared/puertos.mjs';
+import { emergenciaLocal } from '../../shared/vps.mjs';
 const API = URL_API;
 
 function ayuda() {
-  console.log(`uso: consola [--forzar] [--categoria <cat>] [--proyecto <clave>] [--json]
+  console.log(`uso: consola [--forzar] [--local] [--categoria <cat>] [--proyecto <clave>] [--json]
+  --local: emergencia (VPS caída): analiza en este equipo, sin caché y con aviso (AGENTS §1)
   sin backend (${URL_API}): rehusa (exit 1), no inventa numeros`);
 }
 
@@ -23,6 +25,14 @@ export async function problemas(argv) {
     ayuda();
     return 0;
   }
+  let destino;
+  try {
+    destino = emergenciaLocal(args);
+  } catch (e) {
+    console.error(`consola: ${e.message}`);
+    return 1;
+  }
+  if (destino.aviso) console.error(destino.aviso);
   const forzar = args.includes('--forzar');
   const iCat = args.indexOf('--categoria');
   const categoria = iCat >= 0 ? args[iCat + 1] : undefined;
@@ -34,7 +44,8 @@ export async function problemas(argv) {
   const cabeceras = cabeceraAutorizacion();
   let resp;
   try {
-    resp = await fetch(`${API}/api/consola/problemas${forzar ? '?forzar=1' : ''}`, { headers: cabeceras });
+    const consulta = destino.emergencia ? '?local=1' : forzar ? '?forzar=1' : '';
+    resp = await fetch(`${API}/api/consola/problemas${consulta}`, { headers: cabeceras });
   } catch (e) {
     console.error(`consola: backend ${URL_API} sin respuesta (${e?.message ?? e})`);
     return 1;
