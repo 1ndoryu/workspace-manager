@@ -2,6 +2,7 @@
  * [por que] El agente necesita saber qué PROPIOS hallazgos introdujo su cambio,
  * no la lista entera del proyecto (la deuda heredada no es suya). Función pura:
  * el I/O (snapshot en disco, análisis) vive en la ruta y en el CLI. */
+import { dirname } from 'node:path';
 import type { HallazgoSentinel } from '../../../shared/types.js';
 
 export interface ResultadoComparacion {
@@ -19,7 +20,12 @@ export interface ResultadoComparacion {
  * `compararHallazgos`): si entrara en la clave, bajar una severidad contaría
  * como un hallazgo nuevo y un arreglo a medias bloquearía el cierre. */
 export function claveHallazgo(h: HallazgoSentinel): string {
-  return `${h.fuente ?? 'sentinel'}|${h.ruleId}|${h.archivo}`;
+  // [por que] `directorio-abarrotado` se reporta una vez por carpeta, pero Sentinel
+  // le asigna el archivo que llega primero, y ese orden depende de la E/S. Con el
+  // archivo en la clave, el mismo problema cambiaba de archivo entre ejecuciones y
+  // contaba como nuevo; por eso aquí se iguala por carpeta.
+  const sitio = h.ruleId === 'directorio-abarrotado' ? dirname(h.archivo) : h.archivo;
+  return `${h.fuente ?? 'sentinel'}|${h.ruleId}|${sitio}`;
 }
 
 /* Gravedad creciente. Un valor que la tabla no reconozca cuenta como el más
