@@ -159,14 +159,26 @@ describe('pendiente: trabajo abierto del roadmap', () => {
   const roadmap = (tareas: { id: string; titulo: string }[]): Proyecto['roadmap'] =>
     ({ pendientes: tareas.length, activos: 0, ids: [], tareas, resumen: '', lineas: 10, problemas: 0, faltantes: [], planes: [] });
 
+  /* [por que el titulo va sin negrita] Lo que llega aqui es el `titulo` del snapshot, y el escaner
+   * ya quito el marcado al leer la linea (el nombre de la tarea es la negrita que la abre): la
+   * clasificacion no tiene que limpiar nada. */
   it('una entrada por tarea, con su ID y su titulo, y sin seriedad', () => {
-    const p = problemasDe(repo({ roadmap: roadmap([{ id: 'X1', titulo: '**Uno.**' }, { id: 'X2', titulo: '**Dos.**' }]) }));
+    const p = problemasDe(repo({ roadmap: roadmap([{ id: 'X1', titulo: 'Uno.' }, { id: 'X2', titulo: 'Dos.' }]) }));
     assert.ok(p);
     assert.equal(contarProblemas(p.entradas), 2);
     assert.equal(p.entradas[0].categoria, 'pendiente');
     assert.equal(p.entradas[0].motivo, 'X1 — Uno.');
     assert.equal(p.entradas[0].seriedad, null);
     assert.deepEqual(categoriasDe(p), ['pendiente']);
+    /* El ID del ARCHIVO viaja en la entrada (20AA-10 F5): es con lo que la consola abre esa tarea
+     * en el tab, y es lo unico que conoce (no el id de TASK). */
+    assert.deepEqual(p.entradas.map((e) => e.tareaId), ['X1', 'X2']);
+  });
+
+  it('las demas categorias no llevan tarea que abrir', () => {
+    const p = problemasDe(repo({ roadmap: roadmap([{ id: 'X1', titulo: 'Uno' }]), git: { dirty: true, cambios: { staged: 1, unstaged: 0, untracked: 0 }, worktreesOrfanos: [], remoto: 'origin', ahead: 0 } }));
+    assert.ok(p);
+    assert.equal(p.entradas[0].tareaId, undefined);
   });
 
   it('va despues de los defectos del mismo proyecto', () => {

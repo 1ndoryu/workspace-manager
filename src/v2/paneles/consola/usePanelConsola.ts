@@ -34,6 +34,7 @@ export function usePanelConsola() {
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const irAArchivos = useWorkspaceStore((s) => s.irAArchivos);
+  const irATarea = useWorkspaceStore((s) => s.irATarea);
   const abrirMenuContextual = useWorkspaceStore((s) => s.abrirMenuContextual);
   const [filtro, setFiltro] = useState<'todos' | Categoria>('todos');
 
@@ -182,6 +183,7 @@ export function usePanelConsola() {
       seleccionar(id);
     },
     irAArchivos,
+    irATarea,
     abrirMenuContextual: (m: { x: number; y: number; id: string; clave: string }) => {
       if (!m.clave || m.clave === CLAVE_AREA) return;
       abrirMenuContextual(m);

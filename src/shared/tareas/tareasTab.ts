@@ -239,6 +239,15 @@ export function etiquetasTarea(t: TareaTab): string[] {
   return textos(t.campos.etiquetas);
 }
 
+/* El ID del roadmap que la tarjeta declara, o null si no nacio del archivo (20AA-10 F5). Es con lo
+ * que la consola empareja una tarea al abrirla: la consola conoce el ID del archivo, no el de TASK. */
+export function idRoadmapDeTarea(t: TareaTab): string | null {
+  const e = t.campos.roadmap;
+  if (typeof e !== 'object' || e === null) return null;
+  const id = (e as Record<string, unknown>).id;
+  return typeof id === 'string' && id !== '' ? id : null;
+}
+
 export function dependeDeTarea(t: TareaTab): string[] {
   return textos(t.campos.dependeDe);
 }

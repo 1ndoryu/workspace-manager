@@ -66,6 +66,7 @@ export function PanelConsola() {
     devOcupado,
     devResultado,
     accionDev,
+    irATarea,
   } = usePanelConsola();
 
   /* Acceso rapido al escaneo unificado (el mismo de la configuracion).
@@ -184,6 +185,17 @@ export function PanelConsola() {
                       </span>
                     ) : null}
                     {e.motivo}
+                    {/* Trabajo abierto del roadmap (F5): se abre la tarea en el tab. El ID que
+                      * viaja es el del archivo, el unico que la consola conoce. */}
+                    {e.categoria === 'pendiente' && e.tareaId ? (
+                      <Button
+                        pequeno
+                        onClick={() => irATarea(pr.p.clave, e.tareaId as string)}
+                        title="Abrir esta tarea en el tab de tareas"
+                      >
+                        abrir
+                      </Button>
+                    ) : null}
                     {/* Botones del mando (F3): solo lineas dev con entrada. */}
                     {e.categoria === 'dev' && e.devId ? (
                       <span className="consolaDevBotones">

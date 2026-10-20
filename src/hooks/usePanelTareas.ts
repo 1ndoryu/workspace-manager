@@ -21,6 +21,7 @@ import {
   construirMovimientos,
   esSubtarea,
   generarIdTarea,
+  idRoadmapDeTarea,
   parcheConColumna,
   restaurarCacheTareas,
   textoTarea,
@@ -31,6 +32,7 @@ import {
   type TareasEstado,
 } from '../shared/tareas/tareasTab.js';
 import { guardarJson, leerJson } from '../shared/vista/storage.js';
+import { useWorkspaceStore } from './useWorkspace.js';
 import {
   actualizarTarea,
   columnasTareas,
@@ -51,6 +53,17 @@ interface EstadoPanelTareas {
    * desaparecer: es el unico sitio donde se ve que el archivo quedo desincronizado. */
   aviso: string | null;
   moviendo: string | null;
+  /* Abrir una tarea desde la consola (20AA-10 F5). Son dos campos y no uno porque entre la
+   * peticion y el destaque hace falta la columna cargada: la peticion llega del store con lo unico
+   * que la consola conoce —el `clave` del repo y el ID del roadmap— y solo se puede resolver
+   * contra listas que ya esten ahi. Consumirla antes de resolverla la perderia. */
+  peticionDestacada: { clave: string; roadmapId: string } | null;
+  /* La tarjeta ya resuelta (columna de TASK + id legacy) o null si la peticion no encontro
+   * tarjeta. */
+  destacada: { columna: number; legacyId: number } | null;
+  /* La peticion no encontro tarjeta: el roadmap y TASK no coinciden (tarea creada a mano en el
+   * archivo y aun no espejada, o TASK caido). Se dice, no se abre una tab muda. */
+  avisoDestacada: string | null;
 }
 
 type AccionTareas =
@@ -62,7 +75,9 @@ type AccionTareas =
   | { tipo: 'moviendo'; clave: string }
   | { tipo: 'movido' }
   | { tipo: 'optimista'; columna: number; tarea: TareaTab }
-  | { tipo: 'descartar'; columna: number; legacyId: number };
+  | { tipo: 'descartar'; columna: number; legacyId: number }
+  | { tipo: 'peticionDestacada'; peticion: { clave: string; roadmapId: string } | null }
+  | { tipo: 'destacada'; destino: { columna: number; legacyId: number } | null; roadmapId: string };
 
 const ESTADO_INICIAL: EstadoPanelTareas = {
   columnas: [],
@@ -72,6 +87,9 @@ const ESTADO_INICIAL: EstadoPanelTareas = {
   error: null,
   aviso: null,
   moviendo: null,
+  peticionDestacada: null,
+  destacada: null,
+  avisoDestacada: null,
 };
 
 function reductor(prev: EstadoPanelTareas, a: AccionTareas): EstadoPanelTareas {
@@ -98,6 +116,20 @@ function reductor(prev: EstadoPanelTareas, a: AccionTareas): EstadoPanelTareas {
       return {
         ...prev,
         tareas: { ...prev.tareas, [a.columna]: (prev.tareas[a.columna] ?? []).filter((t) => t.legacyId !== a.legacyId) },
+      };
+    case 'peticionDestacada':
+      return { ...prev, peticionDestacada: a.peticion };
+    case 'destacada':
+      /* [por que se limpia la peticion aqui] Ya esta resuelta (con tarjeta o sin ella): dejarla
+       * puesta volveria a resolverla en cada recarga y el destaque no se podria soltar. */
+      return {
+        ...prev,
+        peticionDestacada: null,
+        destacada: a.destino,
+        avisoDestacada:
+          a.destino === null
+            ? `no hay tarjeta de ${a.roadmapId} en el tab (el roadmap y TASK no coinciden todavía)`
+            : null,
       };
   }
 }
@@ -197,6 +229,35 @@ export function usePanelTareas() {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noDisponible]);
+
+  /* Abrir una tarea desde la consola (20AA-10 F5). El store deja la peticion y se suelta aqui en
+   * cuanto entra al reducer: si siguiera puesta, cada recarga —y cada vuelta a la tab— volveria a
+   * dispararla. */
+  const tareaDestacada = useWorkspaceStore((st) => st.tareaDestacada);
+  const consumirTareaDestacada = useWorkspaceStore((st) => st.consumirTareaDestacada);
+  useEffect(() => {
+    if (tareaDestacada === null) return;
+    dispatch({ tipo: 'peticionDestacada', peticion: tareaDestacada });
+    consumirTareaDestacada();
+  }, [tareaDestacada, consumirTareaDestacada]);
+
+  /* Resolucion de la peticion: se empareja por ID del roadmap, que es lo unico que la consola
+   * conoce, contra las listas ya cargadas. Si la columna o su lista aun no han llegado, no se
+   * resuelve y se reintenta al siguiente render (por eso la peticion vive en el estado). */
+  useEffect(() => {
+    const p = s.peticionDestacada;
+    if (p === null) return;
+    const col = s.columnas.find((c) => c.clave === p.clave);
+    if (col === undefined) return;
+    const lista = s.tareas[col.legacyId];
+    if (lista === undefined) return;
+    const t = lista.find((x) => idRoadmapDeTarea(x) === p.roadmapId);
+    dispatch({
+      tipo: 'destacada',
+      destino: t === undefined ? null : { columna: col.legacyId, legacyId: t.legacyId },
+      roadmapId: p.roadmapId,
+    });
+  }, [s.peticionDestacada, s.columnas, s.tareas]);
 
   /* Escritura en serie: marca la tarjeta en vuelo, ejecuta, relee todo (la
    * relectura confirma que TASKS persistio) y libera. Al fallar, corre

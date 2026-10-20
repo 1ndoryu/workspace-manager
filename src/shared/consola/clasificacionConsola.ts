@@ -32,6 +32,11 @@ export interface Entrada {
    * `parado` (05AA-4) no genera entrada: detenido normal no va en
    * problemas; se opera desde el detalle (clic en la caja). */
   devId?: string | null;
+  /* ID del roadmap de la tarea (20AA-10 F5). Solo en entradas 'pendiente': la consola lista el
+   * trabajo abierto del roadmap, y con el ID se puede abrir esa tarea en el tab de tareas. Es el
+   * ID del ARCHIVO, no el de TASK: la consola sigue leyendo el snapshot y no necesita al gestor
+   * para decir que hay pendiente. */
+  tareaId?: string | null;
 }
 
 /* Cuenta todas las entradas que la consola muestra, para que el contador y el
@@ -69,10 +74,10 @@ export interface Problema {
 function entradasPendientes(p: Proyecto): Entrada[] {
   return (p.roadmap?.tareas ?? []).map((t) => ({
     categoria: 'pendiente' as const,
-    /* Sin los `**` del protocolo (`` - [ ] `ID` — **Titulo.** ``): en una linea de consola son
-     * ruido, y TODA tarea canonica los lleva. */
-    motivo: `${t.id} — ${t.titulo.replace(/\*\*/g, '').trim()}`,
+    motivo: `${t.id} — ${t.titulo.trim()}`,
     seriedad: null,
+    /* El ID del archivo viaja en la entrada para poder abrir la tarea desde aqui (F5). */
+    tareaId: t.id,
   }));
 }
 
