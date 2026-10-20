@@ -3,15 +3,24 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  arbolDeTareas,
   clonarCacheTareas,
   columnasDeRespuesta,
   completadoTarea,
   construirMovimientos,
+  dependeDeTarea,
   esColumnaTab,
+  esSubtarea,
   esTareaTab,
+  etiquetasTarea,
   ETIQUETAS_PRIORIDAD,
   ETIQUETAS_URGENCIA,
+  fechaValida,
+  fechasTarea,
   generarIdTarea,
+  listaATexto,
+  listaTecleada,
+  padreDeTarea,
   parcheConColumna,
   PRIORIDADES_TAREA,
   prioridadTarea,
@@ -226,5 +235,65 @@ describe('cacheTareas (08AA-8)', () => {
     }
     assert.equal(restaurarCacheTareas({ guardadoEn: 1, estado: ESTADO, columnas: [{ clave: 'a' }], tareas: {} }), null);
     assert.equal(restaurarCacheTareas({ guardadoEn: 1, estado: ESTADO, columnas: [], tareas: { x: [] } }), null);
+  });
+});
+
+/* Propiedades y subtareas (20AA-10 F4): lo que decide el anidado del kanban y
+ * como se teclean las listas del roadmap. */
+/* Fabrica de tareas para estas pruebas (id + campos del item). */
+const con = (id: number, campos: Record<string, unknown>): TareaTab => ({ legacyId: id, orden: 0, proyectoId: 9001, campos });
+
+describe('arbolDeTareas (F4)', () => {
+  const R1 = con(1, { texto: 'padre 1' });
+  const R2 = con(2, { texto: 'padre 2' });
+  const H1 = con(11, { texto: 'hija de 1', parentId: 1 });
+  const H2 = con(12, { texto: 'hija de 1 bis', parentId: 1 });
+
+  it('agrupa las hijas bajo su padre y respeta el orden de la lista', () => {
+    const arbol = arbolDeTareas([R1, H1, R2, H2]);
+    assert.deepEqual(arbol.map((b) => b.raiz.legacyId), [1, 2]);
+    assert.deepEqual(arbol[0].hijas.map((h) => h.legacyId), [11, 12]);
+    assert.deepEqual(arbol[1].hijas, []);
+  });
+  it('un padre que no esta en la lista no se pierde: su hija sale como raiz', () => {
+    /* Pasa de verdad al filtrar por columna o al leer una columna a medias: si se descartara, la
+     * tarea desapareceria del kanban. */
+    const arbol = arbolDeTareas([H1]);
+    assert.deepEqual(arbol.map((b) => b.raiz.legacyId), [11]);
+  });
+  it('sin parentId (null o ausente) es raiz', () => {
+    assert.deepEqual(arbolDeTareas([con(1, { texto: 'a', parentId: null })]).length, 1);
+    assert.deepEqual(arbolDeTareas([con(1, { texto: 'a' })]).length, 1);
+  });
+  it('esSubtarea / padreDeTarea leen el parentId real', () => {
+    assert.equal(padreDeTarea(H1), 1);
+    assert.equal(esSubtarea(H1), true);
+    assert.equal(esSubtarea(R1), false);
+    assert.equal(padreDeTarea(con(3, { texto: 'x', parentId: 'y' })), null);
+  });
+});
+
+describe('listas y fechas del roadmap (F4)', () => {
+  it('listaTecleada corta por coma, limpia y descarta vacios', () => {
+    assert.deepEqual(listaTecleada(' a , b ,, '), ['a', 'b']);
+    assert.deepEqual(listaTecleada(''), []);
+    /* Una etiqueta puede llevar espacios: no se corta por espacio. */
+    assert.deepEqual(listaTecleada('deuda tecnica'), ['deuda tecnica']);
+  });
+  it('listaATexto es la vuelta', () => {
+    assert.equal(listaATexto(['a', 'b']), 'a, b');
+    assert.equal(listaATexto([]), '');
+  });
+  it('fechaValida solo acepta aaaa-mm-dd (lo que escribe el input date)', () => {
+    assert.equal(fechaValida('2026-10-20'), '2026-10-20');
+    for (const v of ['', '2026-10-2', '20/10/2026', '2026-13-01x', 'hoy']) assert.equal(fechaValida(v), null);
+  });
+  it('etiquetasTarea / dependeDeTarea / fechasTarea leen lo que dejo el proxy', () => {
+    const t = con(1, { texto: 'a', etiquetas: ['x'], dependeDe: ['20AA-8'], creada: '2026-10-01' });
+    assert.deepEqual(etiquetasTarea(t), ['x']);
+    assert.deepEqual(dependeDeTarea(t), ['20AA-8']);
+    assert.equal(fechasTarea(t).creada, '2026-10-01');
+    assert.deepEqual(etiquetasTarea(con(2, { texto: 'b' })), []);
+    assert.equal(fechasTarea(con(2, { texto: 'b' })).completada, undefined);
   });
 });

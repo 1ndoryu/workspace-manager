@@ -16,8 +16,10 @@
  * ni anadir ni quitar a mano). */
 import { useEffect, useReducer, useRef } from 'react';
 import {
+  arbolDeTareas,
   clonarCacheTareas,
   construirMovimientos,
+  esSubtarea,
   generarIdTarea,
   parcheConColumna,
   restaurarCacheTareas,
@@ -217,7 +219,10 @@ export function usePanelTareas() {
 
   /* Suelta de DnD (07AA-15): mueve legacyId de `origen` a `destino` delante
    * de `antesDe` (null = al final). Origen = destino es reorden interno;
-   * el bulk cubre ambas columnas y es transaccional en el servidor. */
+   * el bulk cubre ambas columnas y es transaccional en el servidor.
+   * [por que solo raices] Lo que se arrastra y lo que el archivo ordena son las tareas raiz: una
+   * subtarea no tiene linea propia que mover (vive dentro del bloque de su padre) y colarla en el
+   * lote le daria un `orden` que no le toca. */
   async function soltar(
     origen: number,
     destino: number,
@@ -225,10 +230,11 @@ export function usePanelTareas() {
     antesDe: number | null,
   ): Promise<void> {
     if (antesDe === legacyId) return;
-    const movil = (s.tareas[origen] ?? []).find((t) => t.legacyId === legacyId);
+    const raices = (columna: number): TareaTab[] => (s.tareas[columna] ?? []).filter((t) => !esSubtarea(t));
+    const movil = raices(origen).find((t) => t.legacyId === legacyId);
     if (!movil) return;
-    const restoOrigen = (s.tareas[origen] ?? []).filter((t) => t.legacyId !== legacyId);
-    const baseDestino = origen === destino ? restoOrigen : [...(s.tareas[destino] ?? [])];
+    const restoOrigen = raices(origen).filter((t) => t.legacyId !== legacyId);
+    const baseDestino = origen === destino ? restoOrigen : raices(destino);
     const pos = antesDe === null ? baseDestino.length : baseDestino.findIndex((t) => t.legacyId === antesDe);
     const destinoNuevo = [...baseDestino];
     destinoNuevo.splice(pos < 0 ? baseDestino.length : pos, 0, movil);
@@ -272,7 +278,9 @@ export function usePanelTareas() {
     const limpio = datos.texto.trim();
     if (limpio === '') return;
     const id = generarIdTarea();
-    const orden = (s.tareas[columna.legacyId] ?? []).length;
+    /* El orden es el de las raices: las subtareas viven dentro de su padre y no ocupan posicion
+     * en la lista (20AA-10 F4). */
+    const orden = arbolDeTareas(s.tareas[columna.legacyId] ?? []).length;
     const parche = {
       texto: limpio,
       proyectoId: columna.legacyId,
@@ -294,7 +302,33 @@ export function usePanelTareas() {
     );
   }
 
-  return { ...s, recargar, crear, soltar, editar, eliminar, textoTarea };
+  /* Alta de una subtarea bajo una tarjeta (20AA-10 F4): mismo PUT-upsert que el alta, con
+   * `parentId` y su orden entre las hermanas. [por que optimista igual] La relectura de la columna
+   * la reemplaza con la misma id, asi que la subtarea no parpadea; si el PUT falla, se descarta. */
+  async function crearSubtarea(columna: ColumnaTab, padre: TareaTab, texto: string): Promise<void> {
+    const limpio = texto.trim();
+    if (limpio === '') return;
+    const id = generarIdTarea();
+    const orden = (s.tareas[columna.legacyId] ?? []).filter((t) => t.campos.parentId === padre.legacyId).length;
+    const parche: ParcheTareaTab = {
+      texto: limpio,
+      proyectoId: columna.legacyId,
+      parentId: padre.legacyId,
+      orden,
+    };
+    const fantasma: TareaTab = {
+      legacyId: id,
+      orden,
+      proyectoId: columna.legacyId,
+      campos: { ...parche, completado: false },
+    };
+    dispatch({ tipo: 'optimista', columna: columna.legacyId, tarea: fantasma });
+    await operar(`${columna.legacyId}:subtarea`, () => actualizarTarea(id, parche).then((r) => r.aviso), () =>
+      dispatch({ tipo: 'descartar', columna: columna.legacyId, legacyId: id }),
+    );
+  }
+
+  return { ...s, recargar, crear, crearSubtarea, soltar, editar, eliminar, textoTarea };
 }
 
 export type PanelTareasApi = ReturnType<typeof usePanelTareas>;

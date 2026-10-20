@@ -8,13 +8,23 @@
  * **en silencio**, que es justo lo que este encargo no puede permitirse. Medido en vivo el
  * 2026-10-20: un PUT de `{texto, prioridad}` sobre `19AA-1` de glory-pulse le quito el espejo y la
  * saco de su columna. */
-import {CLAVES_RESERVADAS} from './contenido-tarea.js';
+import {CLAVES_FECHA, CLAVES_RESERVADAS} from './contenido-tarea.js';
 import type {ParcheTarea} from '../tarea-unitaria.js';
 
 /* Claves que TASK sirve a raiz del item pero que **no** son payload suyo: si viajaran dentro del
  * `payload` del PUT se guardarian como basura propia. `updatedAt` lo escriben algunos clientes
  * (la app de escritorio) dentro del payload; se copia tal cual estaba, sin inventarlo. */
 const CLAVES_DE_FILA = ['updatedAt'];
+
+/* Propiedades del roadmap que TASK no conoce (20AA-10 F4): llegan a raiz del parche y se guardan
+ * en el payload, que es donde las lee `contenidoDeItem`. [por que una lista vacia o un `null`
+ * borran la clave] El roadmap no escribe una linea «·» para una propiedad que no dice nada; dejar
+ * `etiquetas: []` guardado seria ruido que la pasada siguiente veria como un cambio. */
+export const CLAVES_PROPIAS = ['etiquetas', 'dependeDe', ...CLAVES_FECHA] as const;
+
+function vacia(v: unknown): boolean {
+  return v === null || v === undefined || (Array.isArray(v) && v.length === 0);
+}
 
 /* Payload guardado de una tarea: todo lo que TASK devuelve menos las claves que fija el mismo y la
  * fecha de fila. Es lo que hay que devolverle para no borrarle nada. */
@@ -49,6 +59,7 @@ function textoDe(v: unknown): string | null {
 
 /* El parche, completado con lo que TASK ya tenia guardado. */
 export function completarParche(item: Record<string, unknown>, parche: ParcheTarea): ParcheTarea {
+  const raiz = parche as unknown as Record<string, unknown>;
   const guardado: ParcheTarea = {
     texto: typeof item.texto === 'string' ? item.texto : '',
     completado: booleano(item.completado),
@@ -59,6 +70,12 @@ export function completarParche(item: Record<string, unknown>, parche: ParcheTar
     orden: entero(item.orden),
     payload: payloadGuardado(item),
   };
+  const payload: Record<string, unknown> = {...o(parche.payload, guardado.payload)};
+  for (const k of CLAVES_PROPIAS) {
+    if (raiz[k] === undefined) continue;
+    if (vacia(raiz[k])) delete payload[k];
+    else payload[k] = raiz[k];
+  }
   return {
     texto: parche.texto,
     completado: o(parche.completado, guardado.completado),
@@ -67,7 +84,7 @@ export function completarParche(item: Record<string, unknown>, parche: ParcheTar
     proyectoId: o(parche.proyectoId, guardado.proyectoId),
     parentId: o(parche.parentId, guardado.parentId),
     orden: o(parche.orden, guardado.orden),
-    payload: o(parche.payload, guardado.payload),
+    payload,
     ...(parche.expectedUpdatedAt === undefined ? {} : {expectedUpdatedAt: parche.expectedUpdatedAt}),
   };
 }

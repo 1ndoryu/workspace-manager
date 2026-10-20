@@ -303,3 +303,81 @@
     min-width: 200px;
     max-width: calc(100vw - 32px);
 }
+
+/* Subtarea (20AA-10 F4): sangrada bajo su tarea padre, con la misma fila
+ * (sin caja propia: el vinculo se lee por la sangria y la marca, no por un
+ * contenedor). Monocromo: ni color ni relleno distinto, solo la posicion y
+ * el icono `CornerDownRight`, que es el mismo que usa el roadmap para su
+ * linea «·». No se arrastra (su sitio lo fija el padre). */
+.tareasFila--sub {
+    padding-left: calc(var(--v2-spaceMd) + var(--v2-spaceSm));
+}
+
+.tareasSangria {
+    display: flex;
+    align-items: center;
+    flex: none;
+    opacity: 0.7;
+}
+
+/* Entrada de subtarea abierta (F4): misma fila sangrada, sin el borde
+ * inferior de una tarjeta ya guardada (todavia no existe). */
+.tareasFila--alta {
+    border-bottom-style: dashed;
+}
+
+/* Propiedades de la tarea (F4): modal mas estrecho que el de alta, una
+ * linea por campo (nombre + entrada). El ancho lo fija quien lo abre por
+ * `--tareas-modal-ancho`, con el mismo tope de viewport que el modal de
+ * alta. */
+.tareasModal--ancho {
+    --tareas-modal-ancho: 26rem;
+    width: min(var(--tareas-modal-ancho), calc(100vw - 32px));
+}
+
+.tareasModalTitulo {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--v2-textSm);
+}
+
+.tareasPropiedades {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceSm);
+    padding-top: var(--v2-spaceSm);
+}
+
+.tareasCampo {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+}
+
+.tareasCampoNombre {
+    flex: none;
+    width: 6.5rem;
+    font-size: var(--v2-textXs);
+}
+
+/* Entradas del formulario: mismo trato que `.tareasRenombre` (borde 1px,
+ * fondo del panel, fuente heredada) y el anillo de foco propio del v2
+ * (nunca `outline:none` sin sustituto). */
+.tareasCampoEntrada {
+    flex: 1;
+    min-width: 0;
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid var(--v2-borde);
+    padding: var(--v2-spaceXs) var(--v2-spaceSm);
+    font-family: inherit;
+    font-size: var(--v2-textXs);
+}
+
+.tareasCampoEntrada:focus-visible {
+    outline: 1px solid var(--v2-texto);
+    outline-offset: 1px;
+}

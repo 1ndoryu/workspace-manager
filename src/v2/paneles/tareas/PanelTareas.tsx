@@ -82,6 +82,7 @@ export function PanelTareas() {
               onEditar={(legacyId, parche) => void t.editar(col.legacyId, legacyId, parche)}
               onEliminar={(legacyId) => void t.eliminar(col.legacyId, legacyId)}
               onCrear={(datos) => t.crear(col, datos)}
+              onCrearSubtarea={(padre, texto) => t.crearSubtarea(col, padre, texto)}
             />
           </div>
         ))}

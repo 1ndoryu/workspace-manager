@@ -107,6 +107,17 @@ export interface ParcheTareaTab {
   urgencia?: string;
   proyectoId?: number | null;
   orden?: number;
+  /* Una subtarea de TASK es una linea sangrada bajo su padre en el roadmap (20AA-10 F4): sin
+   * `parentId` el PUT no la cuelga de nadie y el archivo no sabe donde ponerla. */
+  parentId?: number | null;
+  /* Propiedades del roadmap que TASK no conoce (F4). Viajan a raiz del parche y el proxy las
+   * guarda en el payload: aqui no se manda `payload` nunca (el PUT de TASK es de reemplazo y
+   * llevaria por delante el espejo del roadmap, que el frente no tiene por que reproducir). */
+  etiquetas?: string[] | null;
+  dependeDe?: string[] | null;
+  creada?: string | null;
+  pospuesta?: string | null;
+  completada?: string | null;
 }
 
 /* El PUT F1 es upsert de reemplazo: sin proyectoId TASKS lo pone a null
@@ -180,6 +191,88 @@ export function textoTarea(t: TareaTab): string {
     if (typeof v === 'string' && v.trim() !== '') return v;
   }
   return `#${t.legacyId}`;
+}
+
+/* --- Subtareas y propiedades del roadmap (20AA-10 F4) ---------------------------------------
+ * Lo que el tab necesita saber de una tarea para pintarla anidada y para editar lo que el roadmap
+ * guarda en su linea «·». Todo son lecturas honestas de `campos` (lo ausente o roto no rompe el
+ * render) y una escritura: la lista de etiquetas tecleada por la usuaria. */
+
+/* Las tres fechas del protocolo, en su orden. */
+export const FECHAS_TAREA = ['creada', 'pospuesta', 'completada'] as const;
+
+/* El padre de una tarea, o null si es raiz. */
+export function padreDeTarea(t: TareaTab): number | null {
+  const v = t.campos.parentId;
+  return Number.isInteger(v) ? (v as number) : null;
+}
+
+/* Es una subtarea de TASK (hija de otra tarjeta de la misma columna). */
+export function esSubtarea(t: TareaTab): boolean {
+  return padreDeTarea(t) !== null;
+}
+
+/* Una tarea raiz con sus hijas. [por que] El kanban pinta una tarjeta por raiz y sus subtareas
+ * dentro: una subtarea no es una tarjeta suelta, no se arrastra por su cuenta y su sitio en el
+ * archivo lo fija su padre. */
+export interface ArbolTarea {
+  raiz: TareaTab;
+  hijas: TareaTab[];
+}
+
+export function arbolDeTareas(lista: TareaTab[]): ArbolTarea[] {
+  const ids = new Set(lista.map((t) => t.legacyId));
+  /* [por que] Una subtarea cuyo padre no esta en la lista se pinta como raiz: huerfana visible
+   * antes que desaparecida (el padre puede no haber llegado en la foto local). */
+  const raices = lista.filter((t) => {
+    const p = padreDeTarea(t);
+    return p === null || !ids.has(p);
+  });
+  return raices.map((raiz) => ({ raiz, hijas: lista.filter((t) => padreDeTarea(t) === raiz.legacyId) }));
+}
+
+function textos(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.trim() !== '') : [];
+}
+
+export function etiquetasTarea(t: TareaTab): string[] {
+  return textos(t.campos.etiquetas);
+}
+
+export function dependeDeTarea(t: TareaTab): string[] {
+  return textos(t.campos.dependeDe);
+}
+
+/* Solo las fechas que la tarea dice, por su nombre del roadmap. */
+export function fechasTarea(t: TareaTab): Record<string, string> {
+  const f: Record<string, string> = {};
+  for (const k of FECHAS_TAREA) {
+    const v = t.campos[k];
+    if (typeof v === 'string' && v.trim() !== '') f[k] = v.trim();
+  }
+  return f;
+}
+
+/* Una fecha en la forma que el roadmap lee (`RE_FECHA`), o null si no lo es: el campo de fecha
+ * vacio llega como '' y no puede viajar como si fuera una fecha. */
+export function fechaValida(v: string): string | null {
+  const limpio = v.trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(limpio) ? limpio : null;
+}
+
+/* Lo que la usuaria tecleo en un campo de lista, en lista. [por que se corta por coma y no por
+ * espacio] Una etiqueta puede llevar espacios («vps 89») y el campo es una sola linea: la coma es
+ * el unico separador que no aparece dentro de un nombre. */
+export function listaTecleada(texto: string): string[] {
+  return texto
+    .split(',')
+    .map((v) => v.trim())
+    .filter((v) => v !== '');
+}
+
+/* Una lista tecleada como campo de texto: lo que se pinta en el formulario. */
+export function listaATexto(lista: string[]): string {
+  return lista.join(', ');
 }
 
 /* Orden nuevo de una columna como movimientos bulk (orden = posicion). */

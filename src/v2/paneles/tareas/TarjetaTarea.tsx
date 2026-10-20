@@ -15,7 +15,7 @@
  * arrastre cubre el cambio de columna. */
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, MoreHorizontal, X } from 'lucide-react';
+import { Check, CornerDownRight, MoreHorizontal, X } from 'lucide-react';
 import { cuerpoDocumento } from '../../../shared/platform/plataforma.js';
 import { Button } from '../../ui/form/Button.js';
 import {
@@ -29,6 +29,7 @@ import {
   type TareaTab,
 } from '../../../shared/tareas/tareasTab.js';
 import { MenuTarea } from './MenuTarea.js';
+import { ModalPropiedadesTarea } from './ModalPropiedadesTarea.js';
 import { useMenuTarjeta } from './useMenuTarjeta.js';
 
 interface VistaTarjeta {
@@ -54,15 +55,22 @@ export interface TarjetaGestos {
   arrastre: ArrastreTarjeta;
   onEditar: (parche: ParcheTareaTab) => void;
   onEliminar: () => void;
+  /* Solo en una tarea raiz (20AA-10 F4): abre la entrada de subtarea debajo. */
+  onNuevaSubtarea: () => void;
 }
 
 interface TarjetaTareaProps {
   tarea: TareaTab;
   gestos: TarjetaGestos;
+  /* Es una subtarea: se pinta sangrada, no se arrastra y no admite subtareas
+   * propias (TASK solo tiene dos niveles: `parentId` vale si el padre es raiz
+   * y la tarea escrita no tiene hijos). */
+  sub?: boolean;
 }
 
-export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
+export function TarjetaTarea({ tarea, gestos: g, sub = false }: TarjetaTareaProps) {
   const [vista, setVista] = useState<VistaTarjeta>({ editando: false, borrador: '', confirmarBorrado: false });
+  const [propiedades, setPropiedades] = useState(false);
   const menu = useMenuTarjeta();
   const texto = textoTarea(tarea);
   const hecha = completadoTarea(tarea);
@@ -76,7 +84,12 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
     if (limpio !== '' && limpio !== texto) g.onEditar({ texto: limpio });
   };
 
-  const clases = ['tareasFila', g.resaltada ? 'tareasFila--destino' : '', hecha ? 'tareasFila--hecha' : '']
+  const clases = [
+    'tareasFila',
+    sub ? 'tareasFila--sub' : '',
+    g.resaltada ? 'tareasFila--destino' : '',
+    hecha ? 'tareasFila--hecha' : '',
+  ]
     .filter(Boolean)
     .join(' ');
 
@@ -84,22 +97,35 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
     <div
       className={clases}
       role="listitem"
-      draggable={g.arrastrable}
-      onDragStart={g.arrastre.inicio}
-      onDragOver={(ev) => {
-        ev.preventDefault();
-        g.arrastre.pasar();
-      }}
-      onDrop={(ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        g.arrastre.encima(ev);
-      }}
+      draggable={!sub && g.arrastrable}
+      onDragStart={sub ? undefined : g.arrastre.inicio}
+      onDragOver={
+        sub
+          ? undefined
+          : (ev) => {
+              ev.preventDefault();
+              g.arrastre.pasar();
+            }
+      }
+      onDrop={
+        sub
+          ? undefined
+          : (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              g.arrastre.encima(ev);
+            }
+      }
       onContextMenu={(ev) => {
         ev.preventDefault();
         menu.abrir(ev.currentTarget);
       }}
     >
+      {sub && (
+        <span className="tareasSangria" aria-hidden title="subtarea">
+          <CornerDownRight size={10} />
+        </span>
+      )}
       <Button
         className="tareasCasilla"
         activo={hecha}
@@ -172,6 +198,9 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
             tarea={tarea}
             urlTareas={g.urlTareas}
             pos={menu.ancla}
+            /* En una subtarea no se ofrecen subtareas (TASK solo tiene dos niveles) ni el enlace al
+             * tablero del roadmap, que es de la tarea. */
+            admiteSubtareas={!sub}
             onCerrar={menu.cerrar}
             acciones={{
               completar: (completado) => g.onEditar(conTexto({ completado })),
@@ -179,10 +208,25 @@ export function TarjetaTarea({ tarea, gestos: g }: TarjetaTareaProps) {
               urgencia: (urgencia) => g.onEditar(conTexto({ urgencia })),
               renombrar: () => setVista((v) => ({ ...v, editando: true, borrador: texto })),
               pedirEliminar: () => setVista((v) => ({ ...v, confirmarBorrado: true })),
+              propiedades: () => setPropiedades(true),
+              nuevaSubtarea: g.onNuevaSubtarea,
             }}
           />,
           cuerpoDocumento(),
         )}
+      {/* Propiedades del roadmap (20AA-10 F4): el modal se pinta en el arbol como el de alta
+        * (overlay `position:fixed`, ningun ancestro lo recorta). */}
+      {propiedades && (
+        <ModalPropiedadesTarea
+          tarea={tarea}
+          texto={texto}
+          onCerrar={() => setPropiedades(false)}
+          onGuardar={(parche) => {
+            setPropiedades(false);
+            g.onEditar(parche);
+          }}
+        />
+      )}
     </div>
   );
 }

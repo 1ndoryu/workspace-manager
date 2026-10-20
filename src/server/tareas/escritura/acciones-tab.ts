@@ -361,7 +361,12 @@ export async function trasReordenar(deps: DepsAccionesTab, movimientos: Reordena
       p = await proyectoDeColumna(deps, columna);
       if (p === null) continue;
       const enTask = await deps.puente.listar(columna);
-      const idDe = new Map(enTask.map((x) => [x.id, idRoadmapDeItem(x.item)]));
+      /* Las subtareas no entran (F4): su espejo lleva el ID de su padre, no uno propio, asi que
+       * meterlas aqui repetiria IDs y el archivo copiaria el mismo bloque en dos huecos. El sitio
+       * de una subtarea lo fija su padre. */
+      const idDe = new Map(
+        enTask.filter((x) => espejoDeItem(x.item)?.sub !== true).map((x) => [x.id, idRoadmapDeItem(x.item)]),
+      );
       const ids = [...movs]
         .sort((a, b) => a.orden - b.orden)
         .map((m) => idDe.get(m.legacyId) ?? null)

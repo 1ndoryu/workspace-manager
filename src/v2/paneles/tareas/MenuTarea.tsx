@@ -19,9 +19,11 @@ import { createPortal } from 'react-dom';
 import {
   Check,
   ChevronRight,
+  CornerDownRight,
   ExternalLink,
   Flag,
   Pencil,
+  SlidersHorizontal,
   Trash2,
   Zap,
 } from 'lucide-react';
@@ -49,6 +51,10 @@ export interface AccionesTareaMenu {
   urgencia: (urgencia: string) => void;
   renombrar: () => void;
   pedirEliminar: () => void;
+  /* Las dos de F4 (20AA-10): el formulario de lo que el roadmap guarda en su linea «·», y la
+   * entrada de una subtarea bajo esta tarea. */
+  propiedades: () => void;
+  nuevaSubtarea: () => void;
 }
 
 /* Posicion fija del menu en el viewport (07AA-16): la calcula el hook
@@ -64,6 +70,8 @@ export interface MenuTareaProps {
   pos: PosMenuTarea;
   onCerrar: () => void;
   acciones: AccionesTareaMenu;
+  /* Una subtarea no admite subtareas propias: TASK solo tiene dos niveles (F4). */
+  admiteSubtareas?: boolean;
 }
 
 type SubmenuTarea = 'prioridad' | 'urgencia' | null;
@@ -179,6 +187,32 @@ export function MenuTarea(p: MenuTareaProps) {
           </span>
           <span className="tareasMenuEtiqueta">renombrar</span>
         </Button>
+        <Button
+          pequeno
+          className="tareasMenuOpcion"
+          role="menuitem"
+          onClick={cerrarCon(p.acciones.propiedades)}
+          onMouseEnter={() => setSubmenu(null)}
+        >
+          <span className="tareasMenuIcono">
+            <SlidersHorizontal size={12} />
+          </span>
+          <span className="tareasMenuEtiqueta">propiedades</span>
+        </Button>
+        {p.admiteSubtareas !== false && (
+          <Button
+            pequeno
+            className="tareasMenuOpcion"
+            role="menuitem"
+            onClick={cerrarCon(p.acciones.nuevaSubtarea)}
+            onMouseEnter={() => setSubmenu(null)}
+          >
+            <span className="tareasMenuIcono">
+              <CornerDownRight size={12} />
+            </span>
+            <span className="tareasMenuEtiqueta">subtarea</span>
+          </Button>
+        )}
         <Button
           pequeno
           className="tareasMenuOpcion"

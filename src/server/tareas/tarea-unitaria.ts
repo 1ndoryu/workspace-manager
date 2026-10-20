@@ -25,10 +25,25 @@ export interface ParcheTarea {
   /* Control de concurrencia optimista: el `updatedAt` que se leyo. Si la app de TASK escribio
    * entretanto, TASK responde 409 y no se pisa nada. `null` = escritura incondicional. */
   expectedUpdatedAt?: string | null;
+  /* Propiedades del roadmap que TASK no conoce (20AA-10 F4): etiquetas, dependencias y las tres
+   * fechas. Viajan a raiz del parche y `completarParche` las mete en el `payload`, que es donde
+   * las lee la otra direccion (`contenidoDeItem`). [por que aqui y no un `payload` del frente] El
+   * PUT de TASK es de reemplazo: si el frente mandara el payload entero tendria que reproducir
+   * `payloadGuardado` —y con el, el espejo del roadmap— fuera del servidor, que es donde se sabe
+   * hacerlo sin perder nada. `null` o vacio = quitar la clave. */
+  etiquetas?: string[] | null;
+  dependeDe?: string[] | null;
+  creada?: string | null;
+  pospuesta?: string | null;
+  completada?: string | null;
 }
 
 const PRIORIDADES_OK = ['muy_alta', 'alta', 'media', 'baja', 'muy_baja'];
 const URGENCIAS_OK = ['bloqueante', 'urgente', 'normal', 'chill'];
+/* Fecha en forma ISO corta: la misma que escribe y lee el roadmap (`RE_FECHA`). */
+const RE_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+const TOPE_LISTA = 50;
+const TOPE_ETIQUETA = 60;
 
 export function validarParche(parche: unknown): {ok: true; valor: ParcheTarea} | {ok: false; errores: string[]} {
   const errores: string[] = [];
@@ -50,6 +65,24 @@ export function validarParche(parche: unknown): {ok: true; valor: ParcheTarea} |
   }
   if (p.expectedUpdatedAt !== undefined && p.expectedUpdatedAt !== null && typeof p.expectedUpdatedAt !== 'string') {
     errores.push('expectedUpdatedAt-texto');
+  }
+  /* Propiedades del roadmap (20AA-10 F4): listas de textos cortos y fechas ISO cortas. Lo vacio y
+   * lo nulo son «quitar», no un error: es como se borra la ultima etiqueta. */
+  for (const k of ['etiquetas', 'dependeDe'] as const) {
+    const v = p[k];
+    if (v === undefined || v === null) continue;
+    if (!Array.isArray(v) || v.length > TOPE_LISTA) {
+      errores.push(`${k}-lista-max-${TOPE_LISTA}`);
+      continue;
+    }
+    if (!v.every((x) => typeof x === 'string' && x.trim() !== '' && x.length <= TOPE_ETIQUETA)) {
+      errores.push(`${k}-textos-max-${TOPE_ETIQUETA}`);
+    }
+  }
+  for (const k of ['creada', 'pospuesta', 'completada'] as const) {
+    const v = p[k];
+    if (v === undefined || v === null) continue;
+    if (typeof v !== 'string' || !RE_FECHA.test(v)) errores.push(`${k}-fecha-aaaa-mm-dd`);
   }
   if (errores.length > 0) return {ok: false, errores};
   return {ok: true, valor: p as unknown as ParcheTarea};

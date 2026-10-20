@@ -11,11 +11,12 @@
  * contador y sin alta inline: la cabecera lleva solo `+` (donde estaba el
  * contador) que abre el modal de alta rapida estilo TASKS; la zona vacia
  * es texto sin bordes (sigue siendo destino de drop). */
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../../ui/form/Button.js';
 import { Caja } from '../../ui/caja/Caja.js';
-import type { ParcheTareaTab, TareaTab } from '../../../shared/tareas/tareasTab.js';
+import { arbolDeTareas, textoTarea, type ParcheTareaTab, type TareaTab } from '../../../shared/tareas/tareasTab.js';
+import { AltaSubtarea } from './AltaSubtarea.js';
 import { TarjetaTarea } from './TarjetaTarea.js';
 import { ModalAltaTarea, type DatosAltaTarea } from './ModalAltaTarea.js';
 
@@ -54,6 +55,8 @@ interface ColumnaGestos {
   onEditar: (legacyId: number, parche: ParcheTareaTab) => void;
   onEliminar: (legacyId: number) => void;
   onCrear: (datos: DatosAltaTarea) => Promise<void>;
+  /* Alta de una subtarea bajo una tarjeta (20AA-10 F4). */
+  onCrearSubtarea: (padre: TareaTab, texto: string) => Promise<void>;
 }
 
 interface ColumnaTareasProps extends ColumnaIdentidad, ColumnaDatos, ColumnaGestos {}
@@ -65,6 +68,11 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
   const [sobre, setSobre] = useState<number | 'fin' | null>(null);
   /* Modal de alta rapida (08AA-7): una sola instancia por columna. */
   const [altaAbierta, setAltaAbierta] = useState(false);
+  /* Tarjeta raiz cuya entrada de subtarea esta abierta (F4): una a la vez. */
+  const [subDe, setSubDe] = useState<number | null>(null);
+  /* Raices con sus hijas: el kanban pinta una tarjeta por raiz y las subtareas dentro, en el
+   * mismo orden en que las lee el archivo. */
+  const arbol = arbolDeTareas(lista);
 
   const soltar = (ev: React.DragEvent, antesDe: number | null) => {
     ev.preventDefault();
@@ -117,27 +125,60 @@ export function ColumnaTareas(p: ColumnaTareasProps) {
           onDragLeave={() => setSobre(null)}
           onDrop={(ev) => soltar(ev, null)}
         >
-          {lista.map((t) => (
-            <TarjetaTarea
-              key={t.legacyId}
-              tarea={t}
-              gestos={{
-                arrastrable: !ocupada,
-                resaltada: sobre === t.legacyId,
-                enVuelo: p.moviendo === `${p.legacyId}:${t.legacyId}`,
-                urlTareas: p.urlTareas,
-                arrastre: {
-                  inicio: (ev) => {
-                    ev.dataTransfer.effectAllowed = 'move';
-                    ev.dataTransfer.setData(TIPO_ARRASTRE, JSON.stringify({ origen: p.legacyId, legacyId: t.legacyId }));
+          {arbol.map(({ raiz, hijas }) => (
+            /* Fragment con clave: el bloque padre+hijas no necesita caja propia (`.tareasLista` es
+             * una columna flex y una caja de mas solo anadiria un nivel de layout). */
+            <Fragment key={raiz.legacyId}>
+              <TarjetaTarea
+                tarea={raiz}
+                gestos={{
+                  arrastrable: !ocupada,
+                  resaltada: sobre === raiz.legacyId,
+                  enVuelo: p.moviendo === `${p.legacyId}:${raiz.legacyId}`,
+                  urlTareas: p.urlTareas,
+                  arrastre: {
+                    inicio: (ev) => {
+                      ev.dataTransfer.effectAllowed = 'move';
+                      ev.dataTransfer.setData(TIPO_ARRASTRE, JSON.stringify({ origen: p.legacyId, legacyId: raiz.legacyId }));
+                    },
+                    encima: (ev) => soltar(ev, raiz.legacyId),
+                    pasar: () => setSobre(raiz.legacyId),
                   },
-                  encima: (ev) => soltar(ev, t.legacyId),
-                  pasar: () => setSobre(t.legacyId),
-                },
-                onEditar: (parche) => p.onEditar(t.legacyId, parche),
-                onEliminar: () => p.onEliminar(t.legacyId),
-              }}
-            />
+                  onEditar: (parche) => p.onEditar(raiz.legacyId, parche),
+                  onEliminar: () => p.onEliminar(raiz.legacyId),
+                  onNuevaSubtarea: () => setSubDe(raiz.legacyId),
+                }}
+              />
+              {/* Las hijas van dentro del bloque del padre: el orden del archivo se lee de arriba
+                * abajo, y una subtarea no se arrastra (su sitio lo fija su padre). */}
+              {hijas.map((h) => (
+                <TarjetaTarea
+                  key={h.legacyId}
+                  tarea={h}
+                  sub
+                  gestos={{
+                    arrastrable: false,
+                    resaltada: false,
+                    enVuelo: p.moviendo === `${p.legacyId}:${h.legacyId}`,
+                    urlTareas: p.urlTareas,
+                    arrastre: { inicio: () => {}, encima: () => {}, pasar: () => {} },
+                    onEditar: (parche) => p.onEditar(h.legacyId, parche),
+                    onEliminar: () => p.onEliminar(h.legacyId),
+                    onNuevaSubtarea: () => {},
+                  }}
+                />
+              ))}
+              {subDe === raiz.legacyId && (
+                <AltaSubtarea
+                  padre={textoTarea(raiz)}
+                  onGuardar={(texto) => {
+                    setSubDe(null);
+                    void p.onCrearSubtarea(raiz, texto);
+                  }}
+                  onCerrar={() => setSubDe(null)}
+                />
+              )}
+            </Fragment>
           ))}
           {sobre === 'fin' && <div className="tareasDestino" aria-hidden="true">soltar al final</div>}
         </div>
