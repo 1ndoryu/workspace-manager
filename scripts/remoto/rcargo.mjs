@@ -13,9 +13,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exigirConfigPrivada } from '../shared/rutas.mjs';
 import { BIN_GIT, BIN_SSH } from '../shared/binarios.mjs';
+import { correr, shQuote } from './proceso.mjs';
+
+export { shQuote };
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const MODOS = new Set(['local', 'remoto']);
+const FLUSH_TIMEOUT_MS = 5 * 60 * 1000;
 
 export function cargarConfig(ruta = exigirConfigPrivada('taller.json')) {
   return JSON.parse(readFileSync(ruta, 'utf8'));
@@ -66,9 +70,6 @@ export function entornoExtra(argv) {
   return pares;
 }
 
-export function shQuote(valor) {
-  return `'${String(valor).replace(/'/g, `'\\''`)}'`;
-}
 
 /* [18AA-8] Triple del build cruzado a Windows. `cargo xwin` sin `--target` NO cruza: cargo-xwin
  * solo sustituye el enlazador cuando hay target distinto del host, así que en la 89 compilaba para
@@ -269,36 +270,6 @@ export function detectarRama(cwd) {
   return git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']) ?? 'main';
 }
 
-function mostrar(cmd, args) {
-  return [cmd, ...args].map((a) => (/\s|'/.test(a) ? shQuote(a) : a)).join(' ');
-}
-
-function correr(cmd, args, { dryRun, cwd, heredar = false, silencioso = false }) {
-  if (dryRun) {
-    console.log(mostrar(cmd, args));
-    return { status: 0 };
-  }
-  const r = spawnSync(cmd, args, {
-    cwd,
-    encoding: 'utf8',
-    windowsHide: true,
-    stdio: heredar ? 'inherit' : ['ignore', 'pipe', 'pipe'],
-  });
-  if (r.error) {
-    console.error(`rcargo: no se pudo ejecutar "${cmd}": ${r.error.message}`);
-    return { status: 2 };
-  }
-  if (r.status !== 0 && !heredar && !silencioso) {
-    process.stderr.write(r.stderr ?? '');
-    process.stdout.write(r.stdout ?? '');
-  }
-  return { status: r.status ?? 1, stdout: r.stdout ?? '' };
-}
-
-// La base se deriva de la raíz del repo, igual que el directorio remoto (dirRemoto).
-// [19AA-3] Un crate en subcarpeta (glory-pulse: `pulse/Cargo.toml`) no tiene Cargo.toml en la raíz:
-// devolver null deja que `basedatos` de la ficha mande, y sin ninguna de las dos el proyecto se
-// trata como «sin BD» en vez de morir con ENOENT (así el gate de glory-pulse no podía correr).
 function leerCargoToml(cwd) {
   const raiz = git(cwd, ['rev-parse', '--show-toplevel']) ?? cwd;
   const ruta = path.join(raiz, 'Cargo.toml');
@@ -334,7 +305,8 @@ export function asegurarSesion({ config, proyecto, rutaLocal, rutas = null, dryR
     if (correr(BIN_SSH, argsSsh(config, mkdir), { dryRun, cwd }).status !== 0) return 1;
     if (correr(mutagen, argsCrearSesion(config, proyecto, rutaLocal), { dryRun, cwd }).status !== 0) return 1;
   }
-  return correr(mutagen, ['sync', 'flush', sesion], { dryRun, cwd }).status === 0 ? 0 : 1;
+  // [por que] Un flush sano tarda segundos; 5 min cubre un árbol grande sin dejar colgado el gate.
+  return correr(mutagen, ['sync', 'flush', sesion], { dryRun, cwd, timeoutMs: FLUSH_TIMEOUT_MS }).status === 0 ? 0 : 1;
 }
 
 // [por que] Mutagen corre en el laptop (Windows). Si rcargo se lanza desde la propia 89, el árbol
