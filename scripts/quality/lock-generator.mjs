@@ -9,10 +9,14 @@
  * y valida que el commit coincida con el fijado en quality-tools.json. Escribe
  * con backup previo. Nunca fabrica: si un commit descoincide o el CLI falta,
  * no escribe y falla.
+ *
+ * El bloque `runtime` describe el runtime global instalado por `sentinel
+ * install` (current.json + manifest de la versión), no un valor fijo.
  */
 import { createHash } from 'node:crypto';
 import { copyFile, mkdir, realpath, readFile, lstat, access, rm } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 import { BIN_GIT } from '../shared/binarios.mjs';
 
@@ -98,6 +102,45 @@ async function inspectAnalyzers(workspace) {
   return results;
 }
 
+/* [por que] Destino por defecto de `sentinel install` (README §Instalación):
+ * %LOCALAPPDATA%\GlorySentinel en Windows; si no hay LOCALAPPDATA, ~/.glory-sentinel. */
+function runtimeRoot() {
+  if (process.platform === 'win32' && process.env.LOCALAPPDATA) return path.join(process.env.LOCALAPPDATA, 'GlorySentinel');
+  return path.join(os.homedir(), '.glory-sentinel');
+}
+
+async function readJson(file) {
+  return JSON.parse(await readFile(file, 'utf8'));
+}
+
+/* [por que] El commit del runtime no lo guarda el manifest de Sentinel: se toma
+ * del analizador fijado, y solo se acepta si la versión instalada es la fijada.
+ * Así el lock no declara un runtime que no coincide con el pin. */
+async function inspectRuntime(analyzers) {
+  const root = runtimeRoot();
+  const pointer = await readJson(path.join(root, 'current.json')).catch(() => null);
+  if (!pointer?.version || !pointer?.artifactSha256) {
+    throw new Error('no hay runtime global de Sentinel; instala el checkout fijado con `sentinel install --source-root . --with-shims --with-path`');
+  }
+  const manifest = await readJson(path.join(root, 'versions', pointer.version, 'manifest.json')).catch(() => null);
+  if (manifest?.artifactSha256 !== pointer.artifactSha256) {
+    throw new Error(`runtime ${pointer.version}: manifest y current.json no coinciden en artifactSha256`);
+  }
+  const sentinel = analyzers.sentinel;
+  if (!sentinel) throw new Error('falta analyzers.sentinel en quality-tools.json; no se puede fijar el runtime');
+  if (sentinel.version !== pointer.version) {
+    throw new Error(`runtime global ${pointer.version} != analizador fijado ${sentinel.version}; reinstala el runtime`);
+  }
+  const identity = `sentinel-runtime:installed:${pointer.version}:${sentinel.commit}`;
+  return {
+    status: 'installed',
+    version: pointer.version,
+    commit: sentinel.commit,
+    artifactSha256: pointer.artifactSha256,
+    identitySha256: createHash('sha256').update(identity).digest('hex'),
+  };
+}
+
 async function main(argv = process.argv.slice(2)) {
   const mode = argv.includes('--write') ? 'write' : 'check';
   const workspace = path.resolve(argv.includes('--cwd') ? argv[argv.indexOf('--cwd') + 1] : process.cwd());
@@ -105,20 +148,16 @@ async function main(argv = process.argv.slice(2)) {
   const lock = {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
-    runtime: {
-      status: 'project-adapter',
-      version: '1.0.0-local',
-      commit: 'repo-scripts',
-      artifactSha256: null,
-      identitySha256: createHash('sha256').update('sentinel-runtime:project-adapter:1.0.0-local:repo-scripts').digest('hex'),
-    },
+    runtime: await inspectRuntime(analyzers),
     analyzers,
   };
   const lockPath = path.join(workspace, LOCK_FILE);
   if (mode === 'check') {
     let actual;
     try { actual = JSON.parse(await readFile(lockPath, 'utf8')); } catch { console.error('[quality:lock] check: falta o inválido sentinel.lock.json'); process.exit(1); }
-    const comparable = lock => ({ schemaVersion: lock.schemaVersion, analyzers: lock.analyzers });
+    /* [por que] El runtime entra en la comparación: un lock con un runtime
+     * desfasado no debe pasar el check aunque los analizadores coincidan. */
+    const comparable = lock => ({ schemaVersion: lock.schemaVersion, runtime: lock.runtime, analyzers: lock.analyzers });
     const ok = stableSerialize(comparable(actual)) === stableSerialize(comparable(lock)) && JSON.stringify(actual.analyzers) === JSON.stringify(lock.analyzers);
     console.log(`[quality:lock] ${ok ? 'pass' : 'mismatch'}`);
     process.exitCode = ok ? 0 : 1;
