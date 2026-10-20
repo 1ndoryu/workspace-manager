@@ -2,11 +2,10 @@
  * rangos del historial y las velocidades y el diezmado que los pintan. [por que] Funciones puras,
  * sin localStorage ni DOM: se prueban a pelo y el detalle por sitio reutiliza los mismos rangos. */
 
-/* Muestra como tupla [t, cpu, mem, rx, tx, br, bw, dr, dw]: compacta en
- * el localStorage (≈60 caracteres por muestra). dr/dw = IO del host en
- * bytes (sectores de pulse × 512); br/bw por contenedor se guardan pero
- * ya no se pintan (cgroup v2 los devuelve a cero). */
-export type Muestra = [number, number, number, number, number, number, number, number, number];
+/* [20AA-17] La tupla de muestra vive en shared/recursosHistorial.ts: la escribe también el
+ * servidor (muestreo de fondo) y los dos tienen que estampar el mismo t para que el dedupe al
+ * fusionar sea exacto. Aquí solo se usa. */
+import type { MuestraRecursos } from '../../../shared/recursosHistorial.js';
 
 const MAX_PUNTOS = 240;
 
@@ -24,7 +23,7 @@ export const RANGOS = [
  * reinician —p. ej. reinicio del host— sujetan a cero, nunca negativas).
  * Vale con muestras separadas (el dt normaliza), así que sirve sobre la
  * serie diezmada del rango. */
-export function ritmos(m: Muestra[]): {
+export function ritmos(m: MuestraRecursos[]): {
   rx: number[];
   tx: number[];
   br: number[];
@@ -52,10 +51,10 @@ export function ritmos(m: Muestra[]): {
 
 /* Diezmado por paso para no pintar más de MAX_PUNTOS (el dt de `ritmos`
  * absorbe el hueco: la velocidad sigue siendo válida). */
-export function diezmar(m: Muestra[]): Muestra[] {
+export function diezmar(m: MuestraRecursos[]): MuestraRecursos[] {
   if (m.length <= MAX_PUNTOS) return m;
   const paso = Math.ceil(m.length / MAX_PUNTOS);
-  const fuera: Muestra[] = [];
+  const fuera: MuestraRecursos[] = [];
   for (let i = 0; i < m.length; i += paso) fuera.push(m[i]);
   const ultima = m[m.length - 1];
   if (fuera[fuera.length - 1] !== ultima) fuera.push(ultima);

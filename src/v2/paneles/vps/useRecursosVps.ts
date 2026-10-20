@@ -2,21 +2,27 @@
  * localStorage y el rango elegido por el usuario (19AA-13).
  * [por que] Sacado de PanelVpsRecursos: el componente solo pinta; aquí viven la
  * retención (7 días, tope de muestras), la migración de tuplas antiguas y el
- * volcado al cerrar. Los contadores de disco del host se repiten entre
- * muestras mientras pulse no los trae (plano = sin dato, no cero). */
+ * volcado al cerrar. Los contadores de disco del host se repiten entre muestras
+ * mientras pulse no los traiga (plano = sin dato, no cero).
+ * [20AA-17] El navegador no puede muestrear con la pestaña de fondo ni con el
+ * tablero cerrado, así que su historial solo cubría los ratos con el panel a la
+ * vista y cada apertura empezaba de cero. El anillo que alimenta el servidor
+ * (que sí está siempre en marcha) se pide al montar y al volver a la pestaña y se
+ * mezcla con la cola viva; el localStorage sigue siendo la caché propia. */
 import { useEffect, useRef, useState } from 'react';
 import type { VpsAgenteSnapshot } from '../../../shared/types.js';
 import { guardarJson, guardarTexto, leerJson, leerTexto } from '../../../shared/vista/storage.js';
 import { bajarVentana, suscribirVentana } from '../../../shared/platform/plataforma.js';
-import type { Muestra } from './vpsRecursosSeries.js';
+import {
+  MAX_MUESTRAS_RECURSOS,
+  RETENCION_RECURSOS_MS,
+  fusionarRecursos,
+  muestraDeSnapshot,
+  normalizarMuestraRecursos,
+  type MuestraRecursos,
+} from '../../../shared/recursosHistorial.js';
+import { historialRecursos } from '../../recursos/apiRecursos.js';
 import { RANGOS, diezmar } from './vpsRecursosSeries.js';
-
-/* Sector diskstats = 512 B (el kernel cuenta en sectores de 512 aunque el
- * disco físico use otro tamaño). */
-export const SECTOR_BYTES = 512;
-
-const MAX_MUESTRAS = 25000;
-const RETENCION_MS = 7 * 24 * 3600 * 1000;
 
 /* [20AA-16] La tab va en las claves: el taller reutiliza este mismo cuadro de recursos, pero su
  * historial no puede mezclarse con el de vps (ni al revés). `'vps'` reproduce exactamente las
@@ -29,25 +35,16 @@ function claveRango(tab: string): string {
   return `workspaceManager:${tab}-recursos-rango-v1`;
 }
 
-function leerHistorial(clave: string): Muestra[] {
+function leerHistorial(clave: string): MuestraRecursos[] {
   const lista = leerJson<unknown>(clave, 'no se pudo leer el historial de recursos:');
   if (!Array.isArray(lista)) return [];
-  const corte = Date.now() - RETENCION_MS;
-  const limpias: Muestra[] = [];
+  const corte = Date.now() - RETENCION_RECURSOS_MS;
+  const limpias: MuestraRecursos[] = [];
   for (const x of lista) {
-    if (
-      Array.isArray(x) &&
-      (x.length === 7 || x.length === 9) &&
-      x.every((v) => typeof v === 'number' && Number.isFinite(v)) &&
-      (x[0] as number) >= corte
-    ) {
-      /* [0110A-1] Migración: tuplas de 7 (sin IO del host) se rellenan
-       * con dr/dw a cero; las de contenedor ya eran cero, sin distorsión. */
-      const t = x.length === 7 ? [...(x as number[]), 0, 0] : x;
-      limpias.push(t as Muestra);
-    }
+    const m = normalizarMuestraRecursos(x, corte);
+    if (m) limpias.push(m);
   }
-  return limpias.slice(-MAX_MUESTRAS);
+  return limpias.slice(-MAX_MUESTRAS_RECURSOS);
 }
 
 function leerRango(clave: string): string {
@@ -58,11 +55,11 @@ function leerRango(clave: string): string {
 
 /* Cuadro de muestras del rango elegido. `muestras` es un ref: el repintado lo
  * dispara `setVersion` (entra una muestra o cambia el rango). `tab` decide en qué
- * historial se guarda (vps o taller). */
+ * historial se guarda (vps o taller) y de qué anillo del servidor se lee. */
 export function useRecursosVps(snap: VpsAgenteSnapshot | null, tab = 'vps') {
   const claveHist = claveHistorial(tab);
   const claveRng = claveRango(tab);
-  const muestras = useRef<Muestra[]>([]);
+  const muestras = useRef<MuestraRecursos[]>([]);
   const ultimoTs = useRef<number | null>(null);
   const ultimoGuardado = useRef(0);
   /* [0110A-1] Último IO del host visto: mientras pulse no lo trae (null)
@@ -80,11 +77,40 @@ export function useRecursosVps(snap: VpsAgenteSnapshot | null, tab = 'vps') {
     setVersion((v) => v + 1);
     const alCerrar = () => {
       /* Cierre sin almacenamiento: se pierde la cola sin romper nada. */
-      guardarJson(claveHist, muestras.current.slice(-MAX_MUESTRAS));
+      guardarJson(claveHist, muestras.current.slice(-MAX_MUESTRAS_RECURSOS));
     };
     suscribirVentana('beforeunload', alCerrar);
     return () => bajarVentana('beforeunload', alCerrar);
   }, [claveHist]);
+
+  /* [20AA-17] Anillo del servidor: al montar y cada vez que la pestaña vuelve a la
+   * vista (es cuando el navegador ha dejado de muestrear). Se mezcla por t —la cola
+   * viva gana— y se siembra el último IO visto para no inventar un salto a cero. */
+  useEffect(() => {
+    let vivo = true;
+    const traerBase = () => {
+      historialRecursos(tab)
+        .then((base) => {
+          if (!vivo || base.length === 0) return;
+          muestras.current = fusionarRecursos(base, muestras.current);
+          const ultima = muestras.current[muestras.current.length - 1];
+          if (ultima) ultimoDisco.current = { r: ultima[7], w: ultima[8] };
+          setVersion((v) => v + 1);
+        })
+        .catch(() => {
+          /* Sin servidor: queda la caché local, que es lo que había antes. */
+        });
+    };
+    traerBase();
+    const alVolver = () => {
+      if (document.visibilityState === 'visible') traerBase();
+    };
+    suscribirVentana('visibilitychange', alVolver);
+    return () => {
+      vivo = false;
+      bajarVentana('visibilitychange', alVolver);
+    };
+  }, [tab]);
 
   /* Muestra nueva por tick de pulse (guardada como tupla redondeada;
    * el localStorage se escribe como mucho cada 30 s para no atascar). */
@@ -92,24 +118,9 @@ export function useRecursosVps(snap: VpsAgenteSnapshot | null, tab = 'vps') {
     if (!snap) return;
     if (ultimoTs.current === snap.ts) return;
     ultimoTs.current = snap.ts;
-    const suma = (campo: (c: VpsAgenteSnapshot['contenedores'][number]) => number) =>
-      snap.contenedores.reduce((a, c) => a + campo(c), 0);
-    const cpu = Math.round(suma((c) => c.cpuPct) * 10) / 10;
-    const mem = Math.round(suma((c) => c.memMiB));
-    const rx = Math.round(suma((c) => c.redRxBytes));
-    const tx = Math.round(suma((c) => c.redTxBytes));
-    const br = Math.round(suma((c) => c.blkReadBytes));
-    const bw = Math.round(suma((c) => c.blkWriteBytes));
-    if (snap.discoHost) {
-      ultimoDisco.current = {
-        r: snap.discoHost.sectoresLeidos * SECTOR_BYTES,
-        w: snap.discoHost.sectoresEscritos * SECTOR_BYTES,
-      };
-    }
-    const dr = Math.round(ultimoDisco.current?.r ?? 0);
-    const dw = Math.round(ultimoDisco.current?.w ?? 0);
-    const nueva: Muestra = [Date.now(), cpu, mem, rx, tx, br, bw, dr, dw];
-    muestras.current = [...muestras.current, nueva].slice(-MAX_MUESTRAS);
+    const r = muestraDeSnapshot(snap, ultimoDisco.current, Date.now());
+    ultimoDisco.current = r.disco;
+    muestras.current = [...muestras.current, r.muestra].slice(-MAX_MUESTRAS_RECURSOS);
     if (Date.now() - ultimoGuardado.current > 30000) {
       ultimoGuardado.current = Date.now();
       guardarJson(claveHist, muestras.current, 'no se pudo guardar el historial de recursos:');

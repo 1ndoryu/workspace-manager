@@ -4,7 +4,8 @@
 import type { CSSProperties } from 'react';
 import { fmtBytes } from '../../../shared/vista/format.js';
 import { Chispa } from './Chispa.js';
-import type { Muestra, ritmos } from './vpsRecursosSeries.js';
+import type { MuestraRecursos } from '../../../shared/recursosHistorial.js';
+import type { ritmos } from './vpsRecursosSeries.js';
 
 type Ritmos = ReturnType<typeof ritmos>;
 
@@ -17,7 +18,7 @@ export function VpsRecursosFilas({
   hayDiscoHost,
   enRango,
 }: {
-  actual: Muestra;
+  actual: MuestraRecursos;
   r: Ritmos;
   limite: number;
   discoPct: number | null;
@@ -25,7 +26,7 @@ export function VpsRecursosFilas({
    * sonda del taller en la 89), así que el texto lo pone quien lo conoce. */
   notaDisco?: string;
   hayDiscoHost: boolean;
-  enRango: Muestra[];
+  enRango: MuestraRecursos[];
 }) {
   return (
     <>
