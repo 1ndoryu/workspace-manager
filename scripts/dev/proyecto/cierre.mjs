@@ -44,7 +44,8 @@ function gitOk(ruta, args) {
 export function baseDe(ruta) {
   if (gitOk(ruta, ['rev-parse', '--verify', '-q', 'main'])) return 'main';
   try {
-    return git(ruta, ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
+    // [por que] symbolic-ref devuelve `origin/<rama>`; la comparación con la rama local necesita el nombre sin prefijo.
+    return git(ruta, ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']).replace(/^origin\//, '');
   } catch {
     return null;
   }
