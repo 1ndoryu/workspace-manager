@@ -30,6 +30,11 @@ json_str() {
 LIBRE_GB=$(df -BG --output=avail / 2>/dev/null | tail -n1 | tr -dc '0-9')
 LIBRE_GB=${LIBRE_GB:-0}
 
+# Tamaño de / en GB. [por que] Con el libre solo se puede decir «quedan N GB», no el % de uso, y
+# el panel del taller enseña la misma barra que el de vps. Una sola invocación de df para los dos.
+TOTAL_GB=$(df -BG --output=size / 2>/dev/null | tail -n1 | tr -dc '0-9')
+TOTAL_GB=${TOTAL_GB:-0}
+
 # Antigüedad del último sweep en horas (null si no hay log legible).
 if [ -r "$LOG_SWEEP" ]; then
   SWEEP_H=$(awk -v now="$(date +%s)" -v m="$(stat -c %Y "$LOG_SWEEP")" 'BEGIN{printf "%.1f", (now-m)/3600}')
@@ -129,7 +134,7 @@ DAEMON=false
 pgrep -u "$USUARIO" -f 'dist-server/server/index.js' >/dev/null 2>&1 && DAEMON=true
 
 TOMADA=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-JSON="{\"version\":1,\"tomadaEn\":\"$TOMADA\",\"disco\":{\"libreGb\":$LIBRE_GB},\"sweep\":{\"edadHoras\":$SWEEP_H,\"timerActivo\":$TIMER,\"nivel\":$SWEEP_NIVEL,\"liberadoGb\":$SWEEP_LIBERADO,\"ultimaLimpieza\":$SWEEP_ULTIMA},\"memoria\":{\"disponibleMiB\":${MEM_MIB:-0},\"swapUsadaMiB\":${SWAP_MIB:-0}},\"escuchas\":[$ESCUCHAS],\"tmux\":[$TMUX_LISTA],\"cmHeavy\":{\"ocupado\":$OCUPADO},\"buildsFueraDeCmHeavy\":[$FUERA],\"secretos\":[$SECRETOS],\"cloudflared\":{\"version\":$CF_VER_J,\"tokenModo\":$CF_MODO_J,\"viva\":$CF_VIVA},\"bdTrabajo\":{\"existe\":$BD_EXISTE,\"edadHoras\":null},\"managerDaemonVivo\":$DAEMON}"
+JSON="{\"version\":1,\"tomadaEn\":\"$TOMADA\",\"disco\":{\"libreGb\":$LIBRE_GB,\"totalGb\":$TOTAL_GB},\"sweep\":{\"edadHoras\":$SWEEP_H,\"timerActivo\":$TIMER,\"nivel\":$SWEEP_NIVEL,\"liberadoGb\":$SWEEP_LIBERADO,\"ultimaLimpieza\":$SWEEP_ULTIMA},\"memoria\":{\"disponibleMiB\":${MEM_MIB:-0},\"swapUsadaMiB\":${SWAP_MIB:-0}},\"escuchas\":[$ESCUCHAS],\"tmux\":[$TMUX_LISTA],\"cmHeavy\":{\"ocupado\":$OCUPADO},\"buildsFueraDeCmHeavy\":[$FUERA],\"secretos\":[$SECRETOS],\"cloudflared\":{\"version\":$CF_VER_J,\"tokenModo\":$CF_MODO_J,\"viva\":$CF_VIVA},\"bdTrabajo\":{\"existe\":$BD_EXISTE,\"edadHoras\":null},\"managerDaemonVivo\":$DAEMON}"
 
 if [ "$REGISTRAR" = 1 ]; then
   mkdir -p "$DATOS"
