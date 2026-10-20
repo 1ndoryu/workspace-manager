@@ -26,99 +26,21 @@
  * Uso con otro runtime: los consumidores del área fijan su propio binario; este
  * harness usa el checkout compartido `.quality-tools/varsense` que es el que el
  * analizador del servidor (8787) ejecuta, para reproducir el agregado vivo.
+ *
+ * Reparto: reglas puras en analyze-blocks-reglas.mjs, lectura de registro en
+ * analyze-blocks-registro.mjs y salida por consola en analyze-blocks-salida.mjs.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { hostname } from 'node:os';
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.mjs';
 import { cargarTaller, decidirDonde } from '../../shared/vps.mjs';
 import { correrEnVps, correrLocal } from './varsense-ejecucion.mjs';
+import { agregar, calcularDrift, clasificar } from './analyze-blocks-reglas.mjs';
+import { leerExcepciones, reposDelRegistro } from './analyze-blocks-registro.mjs';
+import { imprimirJson, imprimirTexto } from './analyze-blocks-salida.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-/* Mapa id → ruta absoluta del repo, derivado del registro privado.
- * [por que] Antes era una lista de proyectos incrustada en el código: ataba el
- * script al área de una máquina concreta. El registro ya declara `id` y `ruta`
- * de cada proyecto (`ruta` es relativa a RAIZ_REPO), así que aquí solo se
- * resuelve. */
-function reposDelRegistro() {
-  const reg = JSON.parse(readFileSync(rutaConfigPrivada('registro.json'), 'utf8'));
-  return new Map(reg.proyectos.map((p) => [p.id, resolve(RAIZ_REPO, p.ruta)]));
-}
-
-/* Registro de excepciones verificadas. [por que] Es configuracion nuestra (que
- * hallazgos ya aceptamos y por que), no del producto: vive en la config privada
- * y sin ella el veredicto sale sin cobertura, que es un resultado valido. */
-const EXCEPCIONES = rutaConfigPrivada('quality-excepciones.json');
-
-function severidadKey(s) {
-  const sev = String(s || '').toLowerCase();
-  if (sev.startsWith('err')) return 'errores';
-  if (sev.startsWith('warn')) return 'warnings';
-  if (sev.startsWith('info')) return 'informativos';
-  if (sev.startsWith('hint')) return 'hints';
-  return 'otros';
-}
-
-/**
- * Extrae el par de tokens de un hallazgo token-duplicate:
- * mensaje "Token 'A' repite el valor de 'B'." + metadata.canonical = B.
- */
-function extraerParToken(mensaje, metadata) {
-  const m = /Token '([^']+)' repite el valor de '([^']+)'\./.exec(mensaje || '');
-  if (!m) return null;
-  return { a: m[1], b: metadata?.canonical || m[2] };
-}
-
-/**
- * Cubre un hallazgo token-duplicate contra las entradas `pares` del registro:
- * match 1:1 por regla + archivo (basename) + par de tokens (orden indistinto).
- * Devuelve la entrada del registro o null si no casa con ningún par.
- */
-function cubiertoPorPar(c, proyReg) {
-  const pares = proyReg?.pares || [];
-  if (pares.length === 0 || c.regla !== 'token-duplicate') return null;
-  const par = extraerParToken(c.mensaje, c.metadata);
-  if (!par) return null;
-  const basename = c.ruta.split(/[\\/]/).pop();
-  for (const p of pares) {
-    const archivo = String(p.archivo || '').split(/[\\/]/).pop();
-    if (basename !== archivo) continue;
-    const ok =
-      (p.tokenA === par.a && p.tokenB === par.b) ||
-      (p.tokenA === par.b && p.tokenB === par.a);
-    if (ok) return p;
-  }
-  return null;
-}
-
-function cubiertoPorRegistro(regla, ruta, message, proyectos) {
-  const familias = proyectos
-    .flatMap((p) => p.familias || [])
-    .filter((f) => f.regla === regla);
-  if (familias.length === 0) return null;
-  const basename = ruta.split(/[\\/]/).pop();
-  // El CLI reporta rutas con separador del SO; normalizamos a '/' para que
-  // los patrones de excepciones.json funcionen igual en Windows y POSIX.
-  const rutaNorm = ruta.replace(/\\/g, '/');
-  for (const f of familias) {
-    // Filtro por archivos cuando la familia lo declara (patrón o sufijo).
-    if (Array.isArray(f.archivos) && f.archivos.length > 0) {
-      const match = f.archivos.some((a) => {
-        if (a.startsWith('*.')) return basename.endsWith(a.slice(1));
-        return basename === a || rutaNorm.includes(a);
-      });
-      if (!match) continue;
-    }
-    // Filtro por marca textual cuando la familia lo declara (p. ej. selector).
-    if (Array.isArray(f.marcas) && f.marcas.length > 0) {
-      if (!f.marcas.some((m) => message.includes(m))) continue;
-    }
-    return f;
-  }
-  return null;
-}
 
 function main() {
   const arg = process.argv[2];
@@ -157,206 +79,29 @@ function main() {
   const { out, repoEjecucion } = destino.donde === 'remoto' ? correrEnVps(arg, repo, taller) : correrLocal(repo);
   const res = JSON.parse(out);
 
-  const reglas = new Map();
-  const archivos = new Map();
-  let totales = { errores: 0, warnings: 0, informativos: 0, hints: 0 };
-  const crudos = [];
-
-  for (const entry of res.entries || []) {
-    const key = entry.ruta.startsWith(repoEjecucion) ? entry.ruta.slice(repoEjecucion.length + 1) : entry.ruta;
-    const arch = archivos.get(key) || { total: 0, porRegla: new Map() };
-    for (const f of entry.findings || []) {
-      const sev = severidadKey(f.severity);
-      totales[sev] = (totales[sev] || 0) + 1;
-      arch.total += 1;
-      const n = arch.porRegla.get(f.ruleId) || 0;
-      arch.porRegla.set(f.ruleId, n + 1);
-      const r = reglas.get(f.ruleId) || { [sev]: 0, archivos: new Set() };
-      r[sev] = (r[sev] || 0) + 1;
-      r.archivos.add(key);
-      reglas.set(f.ruleId, r);
-      crudos.push({
-        regla: f.ruleId,
-        severidad: f.severity,
-        ruta: key,
-        linea: (f.range?.start?.line ?? 0) + 1,
-        mensaje: f.message,
-        metadata: f.metadata || null,
-      });
-    }
-    archivos.set(key, arch);
-  }
+  const { reglas, archivos, totales, crudos } = agregar(res, repoEjecucion);
   const total = crudos.length;
 
   // 2) Veredicto de convergencia contra el registro.
-  let registro = { proyectos: [] };
-  if (existsSync(EXCEPCIONES)) {
-    try {
-      registro = JSON.parse(readFileSync(EXCEPCIONES, 'utf8'));
-    } catch {
-      console.warn(`${EXCEPCIONES} no parsea — veredicto sin cobertura`);
-    }
-  }
+  const registro = leerExcepciones();
   const proyReg = (registro.proyectos || []).find(
     (p) => p.proyecto === arg,
   );
-  const descubiertos = new Map();
-  let cubiertos = 0;
-  const porEntrada = new Map(); // entrada del registro → hallazgos que cubre
-  for (const c of crudos) {
-    // Orden: pares (preciso 1:1) antes que familias (amplias).
-    let entrada = proyReg ? cubiertoPorPar(c, proyReg) : null;
-    if (!entrada) {
-      entrada = cubiertoPorRegistro(
-        c.regla,
-        c.ruta,
-        c.mensaje,
-        proyReg ? [proyReg] : [],
-      );
-    }
-    if (entrada) {
-      cubiertos += 1;
-      const arr = porEntrada.get(entrada) || [];
-      arr.push(c);
-      porEntrada.set(entrada, arr);
-    } else {
-      const k = `${c.regla}::${c.ruta}::${c.linea}`;
-      descubiertos.set(k, c);
-    }
-  }
-  // Drift: familia con `conteo` esperado que no coincide con lo medido.
-  // Nota: se recorren TODAS las entradas del registro con `conteo`, no solo las
-  // que recibieron hallazgos medidos — si una familia cae a 0 hallazgos sin
-  // registrar (fix de detector o borrado de CSS), debe marcar DRIFT igual que
-  // un aumento. Antes de 318A-7V20 solo se miraba `porEntrada`, y una caída a 0
-  // pasaba silenciosa (p. ej. coolify claseHuerfana 5→0 sin detectar).
-  const drift = [];
-  const conConteo = proyReg ? (proyReg.familias || []).filter((f) => typeof f.conteo === 'number') : [];
-  for (const entrada of conConteo) {
-    const hallazgos = porEntrada.get(entrada) || [];
-    if (hallazgos.length !== entrada.conteo) {
-      drift.push({
-        regla: entrada.regla,
-        archivo: Array.isArray(entrada.archivos) ? entrada.archivos.join(',') : undefined,
-        esperado: entrada.conteo,
-        medido: hallazgos.length,
-      });
-    }
-  }
+  const { descubiertos, cubiertos, porEntrada } = clasificar(crudos, proyReg);
+  const drift = calcularDrift(proyReg, porEntrada);
   const enMantenimiento =
     proyReg !== undefined && descubiertos.size === 0 && drift.length === 0;
 
   // 3) Salida.
+  const resultado = {
+    arg, res, total, totales, reglas, archivos, crudos,
+    cubiertos, descubiertos, drift, proyReg, enMantenimiento, detalle,
+  };
   if (wantsJson) {
-    console.log(
-      JSON.stringify(
-        {
-          proyecto: arg,
-          total,
-          totales,
-          porRegla: Object.fromEntries(
-            [...reglas.entries()].map(([k, v]) => [
-              k,
-              { total: (v.errores || 0) + (v.warnings || 0) + (v.informativos || 0) + (v.hints || 0), ...v, archivos: v.archivos.size },
-            ]),
-          ),
-          porArchivo: Object.fromEntries(
-            [...archivos.entries()].map(([k, v]) => [
-              k,
-              { total: v.total, porRegla: Object.fromEntries(v.porRegla) },
-            ]),
-          ),
-          cobertura: {
-            cubiertos,
-            descubiertos: descubiertos.size,
-            pares: (proyReg?.pares || []).length,
-          },
-          drift,
-          enMantenimiento,
-        },
-        null,
-        2,
-      ),
-    );
+    imprimirJson(resultado);
     return;
   }
-
-  console.log(`=== ${arg} — varsense (runtime fijado) ===`);
-  console.log(
-    `Total: ${total} — ${totales.errores} errores / ${totales.warnings} warnings / ` +
-      `${totales.informativos} informativos / ${totales.hints} hints`,
-  );
-  if (res.cache?.utilizada) {
-    console.log(`(resultado de cache: ${res.cache.utilizada})`);
-  }
-  console.log('\nPor regla:');
-  for (const [k, v] of [...reglas.entries()].sort((a, b) =>
-    b[1].errores + b[1].warnings - (a[1].errores + a[1].warnings),
-  )) {
-    const t = (v.errores || 0) + (v.warnings || 0) + (v.informativos || 0) + (v.hints || 0);
-    console.log(
-      `  ${k}: ${t} ` +
-        `(e${v.errores || 0}/w${v.warnings || 0}/i${v.informativos || 0}/h${v.hints || 0}) en ${v.archivos.size} archivo(s)`,
-    );
-  }
-
-  if (detalle) {
-    const filtrados = crudos.filter((c) => c.regla === detalle);
-    console.log(`\nDetalle ${detalle} (${filtrados.length}):`);
-    for (const c of filtrados) {
-      console.log(`  ${c.ruta}:${c.linea} — ${c.mensaje}`);
-    }
-  } else {
-    console.log('\nPor archivo (top 15):');
-    for (const [k, v] of [...archivos.entries()]
-      .sort((a, b) => b[1].total - a[1].total)
-      .slice(0, 15)) {
-      const ps = [...v.porRegla.entries()]
-        .map(([r, n]) => `${r}x${n}`)
-        .join(', ');
-      console.log(`  ${k}: ${v.total} (${ps})`);
-    }
-  }
-
-  console.log('\n=== Veredicto de convergencia ===');
-  if (!proyReg) {
-    console.log(
-      `Sin entrada en excepciones.json para ${arg} — sembrar el registro o clasificar manualmente.`,
-    );
-  } else if (descubiertos.size === 0 && drift.length === 0) {
-    console.log(`MANTENIMIENTO — ${total} hallazgos, todos cubiertos por el registro.`);
-  } else if (descubiertos.size === 0) {
-    console.log(
-      `DRIFT — ${total} hallazgos cubiertos pero con conteos desincronizados:`,
-    );
-    for (const d of drift) {
-      console.log(
-        `  ${d.regla}${d.archivo ? ' (' + d.archivo + ')' : ''}: esperado ${d.esperado}, medido ${d.medido}`,
-      );
-    }
-  } else {
-    console.log(
-      `ACCIONABLE — ${descubiertos.size}/${total} hallazgos fuera del registro:`,
-    );
-    for (const c of descubiertos.values()) {
-      console.log(`  ${c.regla} ${c.ruta}:${c.linea} — ${c.mensaje}`);
-    }
-  }
-  if (drift.length > 0 && descubiertos.size > 0) {
-    console.log('\nDRIFT de conteos (registro desincronizado):');
-    for (const d of drift) {
-      console.log(
-        `  ${d.regla}${d.archivo ? ' (' + d.archivo + ')' : ''}: esperado ${d.esperado}, medido ${d.medido}`,
-      );
-    }
-  }
-  if (proyReg) {
-    console.log(
-      `Cobertura del registro: ${cubiertos}/${total} ` +
-        `(familias: ${(proyReg.familias || []).length}, ` +
-        `pares: ${(proyReg.pares || []).length})`,
-    );
-  }
+  imprimirTexto(resultado);
 }
 
 main();
