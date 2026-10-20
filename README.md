@@ -18,9 +18,10 @@ Escanea esa carpeta y reúne, en una sola interfaz web:
 - **Navegador**: los devs publicados, dentro del propio tablero.
 - **Config**: editor de la config privada, con esquema.
 
-Todo corre en tu máquina y no habla con ningún servicio de terceros: lo único
-que sale de ella es lo que tú declares en `config/taller.json`, por SSH, hacia un
-servidor tuyo.
+Lo que no es el taller corre en tu máquina. Lo que sale de ella es lo que tú
+declares: el taller de `config/taller.json` (por SSH, hacia un servidor tuyo), el
+túnel de Cloudflare si publicas devs, y las consultas de los gestores al auditar
+dependencias.
 
 ## Requisitos
 
@@ -52,8 +53,9 @@ npm run dev      # front, por defecto en 127.0.0.1:5175
 ```
 
 Requisitos: Node 24 o superior y Git (cada proyecto del área es un repositorio).
-Sin `config/taller.json`, o con `modoPorDefecto` distinto de `remoto`, todo corre en la
-propia máquina; ver «Modo sin VPS».
+Sin `config/taller.json`, los proyectos sin marca de taller corren en la propia
+máquina, y los que la tienen quedan con su motivo («sin taller configurado»); ver
+«Funciona con o sin taller».
 
 Para producción: `npm run build` compila el front; `npm run build:server` compila el
 backend a `dist-server/` y `npm run server:compilado` lo arranca.
@@ -85,7 +87,7 @@ lista de tus proyectos. Las plantillas con la forma esperada están en
 | Fichero | Qué declara |
 |---|---|
 | `config/registro.json` | Un registro por proyecto: `id`, `ruta`, puertos, botón, comandos, healthchecks, y si el análisis corre en remoto (`analisisEn`). |
-| `config/taller.json` | El taller remoto: host SSH, directorio base, intérprete de Node, binario de Mutagen, bases de datos y el bloque `devPublico` (zona, cuenta y túnel de Cloudflare) si publicas devs. |
+| `config/taller.json` | El taller remoto: `host` SSH, `dirRemotoBase`, intérprete de Node (`nodeRemoto`), binario de Mutagen (`sync.binario`), bases de datos (`proyectos.<id>.basedatos`) y el bloque `devPublico` (zona, cuenta y túnel de Cloudflare) si publicas devs. |
 | `config/guard-plantillas.json` | La plantilla del Guardián: qué listas de comandos añadir a cada proyecto según su stack. La pestaña Guardián la edita. |
 | `config/area.json` | Los papeles del área: qué proyecto hace de motor de calidad, gestor de despliegues y limpiador, y quién queda fuera del bump. `despliegueBin` solo hace falta si el ejecutable que instala ese proyecto no se llama como su carpeta. |
 | `config/quality-consumidores.json` | A qué proyectos se propagan los cambios de las herramientas de calidad. |
@@ -105,8 +107,9 @@ función** y lo dice con el remedio; nada más se rompe.
 
 ### Estado
 
-Nada de esto vive dentro del repo: todo cuelga de `<área>/data/`, que es lo que
-hace que el repo se pueda publicar tal cual.
+La caché y el estado de la aplicación cuelgan de `<área>/data/`, fuera del repo, que
+es lo que permite publicarlo tal cual. Dos módulos (el historial de recursos y la
+ejecución de PC) escriben todavía en `data/` del repo, que está en `.gitignore`.
 
 - `data/workspace.config.json`: proyectos ignorados, exentos de gate y el
   escaneo automático. Lo escribe la propia aplicación.
@@ -221,16 +224,15 @@ El manager distingue dos papeles, y esa separación es el eje del diseño:
 
 Sin `config/taller.json`, o con el taller apagado, todo lo local sigue
 funcionando: mapa, repos, documentos, tareas, config, y el análisis de los
-proyectos que corren en el portátil. Los proyectos de taller (`analisisEn:
-taller` en el registro, o `modoPorDefecto: remoto`) **no se analizan en el
+proyectos que corren en el portátil. Los proyectos de taller (con `host` del taller
+o `analisisEn: "taller"` en el registro) **no se analizan en el
 portátil**: su análisis, su doctor y su arranque quedan con el motivo
 (`sin taller configurado`, `el taller no respondió`) en vez de caer en silencio
 en la máquina local. Es a propósito: el portátil edita, y lo pesado va a la 89.
 
-Para activarlo basta con rellenar `config/taller.json`: de ahí salen el host, el
-directorio base y **dónde se analiza** cada proyecto (`modoPorDefecto`, `remoto`
-por defecto). En `config/registro.json` solo hace falta `analisisEn` para el
-proyecto que deba ir contra corriente.
+Para activarlo basta con rellenar `config/taller.json` (host y directorio base). Dónde
+se analiza cada proyecto lo marca `config/registro.json`: su `host` igual al alias del
+taller, o `analisisEn: "taller"`. `analisisEn: "local"` fuerza el análisis en el portátil.
 
 ## Pruebas
 
@@ -243,7 +245,7 @@ en local.
 La única excepción es `--local`, para una emergencia en la que el taller no esté
 disponible. Hay que pedirlo a mano y dejar nota en el registro de tareas.
 
-El mismo flag existe en el análisis (`problemas`, `gate --inicio|--cierre`, `consola`).
+El mismo flag existe en el análisis (`problemas` y `gate --inicio|--cierre`).
 Con `--local` el análisis corre en este equipo, muestra un aviso y **no se lee ni se
 guarda en caché**, para que un dato de emergencia no pase por análisis normal. Sin taller
 y sin `--local` el comando falla con su motivo en vez de analizar en el portátil.
