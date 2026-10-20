@@ -1,7 +1,7 @@
 /* Reglas públicas del taller (P0–P2): qué hostnames hay que comprobar ahora y si el conector
  * de Cloudflare vive. [por que] Va aparte de conformidad.ts para que cada módulo quede bajo el
  * límite de líneas. Igual que él: funciones puras, sin E/S, importables desde cliente y servidor. */
-import type { EntradaConformidad, EstadoTaller89, Hallazgo, RegistroConformidad } from './conformidad-tipos.js';
+import type { EntradaConformidad, EstadoPublico, EstadoTaller89, Hallazgo, RegistroConformidad } from './conformidad-tipos.js';
 
 /* Hostnames públicos que hay que comprobar ahora. [por que] Un dev parado no tiene conector
  * de Cloudflare (el conector arranca con el dev) y no debe sondearse: exigirlo daba un
@@ -16,6 +16,21 @@ export function hostsActivos(registro: RegistroConformidad, t89: EstadoTaller89 
   });
 }
 
+/* Motivo por el que un hostname público no pasa, o null si pasa. [por que] Lo usan la regla P1 y
+ * el panel del taller: una sola definición de «este host está bien», sin copias que se separen.
+ * Nunca devuelve la URL de Access: nombra el hostname y el estado. */
+export function fallaHostPublico(
+  host: string,
+  r: EstadoPublico['hosts'][number] | undefined,
+): string | null {
+  if (!r) return `${host} no comprobado`;
+  if (r.status === 200) return `${host} sirve la app sin Access (200)`;
+  if (!r.location || !/cloudflareaccess\.com/.test(r.location)) {
+    return `${host} no redirige a Access (status ${r.status ?? 'sin respuesta'}${r.error ? `, ${r.error}` : ''})`;
+  }
+  return null;
+}
+
 /* Reglas públicas que dependen de la sonda P1 (HTTP sin credenciales). */
 export function fallaPublico(e: EntradaConformidad): Hallazgo[] {
   const out: Hallazgo[] = [];
@@ -27,12 +42,8 @@ export function fallaPublico(e: EntradaConformidad): Hallazgo[] {
   }
   const malos: string[] = [];
   for (const host of activos) {
-    const r = e.publico.hosts.find((h) => h.host === host);
-    if (!r) { malos.push(`${host} no comprobado`); continue; }
-    if (r.status === 200) malos.push(`${host} sirve la app sin Access (200)`);
-    else if (!r.location || !/cloudflareaccess\.com/.test(r.location)) {
-      malos.push(`${host} no redirige a Access (status ${r.status ?? 'sin respuesta'}${r.error ? `, ${r.error}` : ''})`);
-    }
+    const motivo = fallaHostPublico(host, e.publico.hosts.find((h) => h.host === host));
+    if (motivo) malos.push(motivo);
   }
   if (malos.length) out.push({
     id: 'P1', ambito: 'publico', severidad: 'error', detalle: malos.join('; '),
