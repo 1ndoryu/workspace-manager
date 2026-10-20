@@ -55,7 +55,8 @@ export interface DepsEscribirRoadmaps {
   ahora?: () => number;
 }
 
-function leerDelDisco(ruta: string): LecturaRoadmap | null {
+/* Exportado: lo comparten la pasada por lotes (F3a) y las acciones del tab (F3b). */
+export function leerDelDisco(ruta: string): LecturaRoadmap | null {
   const archivo = join(ruta, 'roadmap.md');
   let texto: string;
   let mtimeMs: number | null = null;
@@ -68,7 +69,7 @@ function leerDelDisco(ruta: string): LecturaRoadmap | null {
   return { texto, mtimeMs, tareas: analizarRoadmap(texto).tareas };
 }
 
-function partir(texto: string): { lineas: string[]; eol: string } {
+export function partir(texto: string): { lineas: string[]; eol: string } {
   const eol = texto.includes('\r\n') ? '\r\n' : '\n';
   return { lineas: texto.split(eol), eol };
 }

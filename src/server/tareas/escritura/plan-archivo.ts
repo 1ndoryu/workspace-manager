@@ -82,7 +82,7 @@ function texto(v: string | null | undefined): string | null {
 
 /* El diff, campo a campo, entre lo que dice el archivo y lo que dice TASK. Es lo que va al
  * historial: «prioridad: antes -> despues», no un «se reescribio la linea». */
-function diferencias(a: EspejoContenido, b: EspejoContenido, id: string): CambioArchivo[] {
+export function diferencias(a: EspejoContenido, b: EspejoContenido, id: string): CambioArchivo[] {
   const cambios: CambioArchivo[] = [];
   const push = (campo: string, antes: string | null, despues: string | null): void => {
     if (antes !== despues) cambios.push({ id, campo, antes, despues });

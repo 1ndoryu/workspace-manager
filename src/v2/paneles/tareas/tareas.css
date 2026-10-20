@@ -20,6 +20,15 @@
     color: var(--v2-invertido);
 }
 
+/* Lo que salio a medias (20AA-10 F3b): la tarjeta se guardo y el roadmap del proyecto no. No es un
+ * error del tab —no hay nada que reintentar a mano— pero tiene que verse: borde en vez de relleno,
+ * para no confundirlo con el fallo. */
+.tareasAviso {
+    padding: var(--v2-spaceXs) var(--v2-spaceMd);
+    font-size: var(--v2-textSm);
+    border: 1px solid var(--v2-texto);
+}
+
 /* Fila de columnas con scroll horizontal (07AA-15): cada columna mide lo
  * mismo y la fila desborda con scroll en vez de aplastarlas. */
 .tareasColumnas {

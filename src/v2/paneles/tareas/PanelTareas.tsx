@@ -66,6 +66,8 @@ export function PanelTareas() {
   return (
     <div className="tareasContenedor">
       {t.error && <div className="tareasError" role="alert">{t.error}</div>}
+      {/* La tarjeta se guardo y el roadmap no (20AA-10 F3b): se dice, no se esconde. */}
+      {t.aviso && <div className="tareasAviso" role="status">{t.aviso}</div>}
       <div className="tareasColumnas">
         {t.columnas.map((col) => (
           <div key={col.clave} className="tareasColumna">

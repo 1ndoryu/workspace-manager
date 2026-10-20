@@ -12,6 +12,7 @@ import {crearPuenteTareas, puenteTareas, type PuenteTareas} from './puente-tarea
 import {sincronizarColumnas, type EntradaWm} from './sincronizacion/sincronizar-proyectos.js';
 import {sincronizarTareasRoadmap, type ProyectoWm} from './sincronizacion/sincronizar-tareas.js';
 import {escribirRoadmaps} from './escritura/escribir-roadmaps.js';
+import {confirmarBorrado, prepararBorrado, trasGuardar, trasReordenar, type DepsAccionesTab} from './escritura/acciones-tab.js';
 import {validarParche} from './tarea-unitaria.js';
 import {estadoTaller} from '../taller/estado.js';
 import {revisarTuneles} from '../taller/tuneles.js';
@@ -80,6 +81,9 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
   const leerCuerpo = deps.leerCuerpo ?? leerBody;
   const leerWm = deps.leerWm ?? (() => []);
   const leerProyectos = deps.leerProyectos ?? (() => []);
+  /* Acciones del tab sobre el roadmap (20AA-10 F3b): cada escritura en TASK se refleja en el
+   * archivo. Sin `leerProyectos` no hay proyecto que emparejar y no se toca ningun archivo. */
+  const acciones: DepsAccionesTab = {proyectos: leerProyectos, puente};
 
   /* [por que] Un `red` suele ser el túnel caído, y es justo el fallo que ve la
    * usuaria en la tab: se pide al supervisor que revise (solo repara proyectos
@@ -187,7 +191,9 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
       }
       try {
         const actualizadas = await puente.reordenar(validado.lote);
-        json(res, 200, {actualizadas});
+        /* El mismo orden en el archivo (20AA-10 F3b): el lote dice a que columna va cada id. */
+        const roadmap = await trasReordenar(acciones, validado.lote.movimientos);
+        json(res, 200, {actualizadas, roadmap});
       } catch (e) {
         responder(res, e);
       }
@@ -203,10 +209,24 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
         return true;
       }
       if (req.method === 'DELETE') {
+        /* La columna viene en la query porque TASK no tiene GET por id: sin ella no se sabe que
+         * linea del roadmap corresponde a la tarjeta borrada (20AA-10 F3b). */
+        const crudo = url.searchParams.get('columna') ?? '';
+        const columna = Number(crudo);
+        const hayColumna = crudo !== '' && esIdValido(columna);
         try {
+          /* Se mira la tarea antes de borrarla: despues ya no esta. */
+          const pendiente = hayColumna ? await prepararBorrado(acciones, columna, legacyId) : null;
           await puente.eliminar(legacyId);
-          res.writeHead(204);
-          res.end();
+          const roadmap = pendiente === null ? null : confirmarBorrado(acciones, pendiente);
+          /* 204 es el contrato de siempre; solo cuando hay algo que contar (no se pudo escribir
+           * el archivo) la respuesta lleva cuerpo. */
+          if (roadmap === null || roadmap.aviso === null) {
+            res.writeHead(204);
+            res.end();
+          } else {
+            json(res, 200, {borrada: true, roadmap});
+          }
         } catch (e) {
           responder(res, e, 'tarea-no-encontrada');
         }
@@ -225,8 +245,13 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
         return true;
       }
       try {
-        const tarea = await puente.actualizar(legacyId, validado.valor);
-        json(res, 200, {tarea});
+        let tarea = await puente.actualizar(legacyId, validado.valor);
+        /* La misma accion en el roadmap (20AA-10 F3b). La columna es la que quedo guardada; el
+         * alta se repite para grabar el espejo con el ID que reparte el archivo. */
+        const columna = typeof tarea.item.proyectoId === 'number' ? tarea.item.proyectoId : validado.valor.proyectoId;
+        const reflejo = typeof columna === 'number' ? await trasGuardar(acciones, columna, tarea, validado.valor) : {roadmap: null, repetir: null};
+        if (reflejo.repetir !== null) tarea = await puente.actualizar(legacyId, reflejo.repetir);
+        json(res, 200, {tarea, roadmap: reflejo.roadmap});
       } catch (e) {
         responderKanban(res, e, 'tarea-no-encontrada');
       }

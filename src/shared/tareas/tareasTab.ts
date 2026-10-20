@@ -117,6 +117,25 @@ export function parcheConColumna(columna: number, parche: ParcheTareaTab): Parch
   return {...parche, proyectoId: columna};
 }
 
+/* Lo que la respuesta dice de la escritura en el roadmap (20AA-10 F3b). El PUT/DELETE/reorden
+ * tocan dos sitios —TASK y el `roadmap.md` del proyecto— y el segundo puede fallar despues de que
+ * el primero haya funcionado: la tarjeta esta guardada y el archivo no. Eso no puede quedarse en
+ * el cuerpo de la respuesta sin que nadie lo lea, asi que se convierte en una linea de aviso.
+ * [por que se acepta objeto o lista] El reorden puede tocar dos columnas (arrastre entre
+ * proyectos) y devuelve una por cada una. */
+export function avisoDeRespuesta(datos: unknown): string | null {
+  const roadmap = (datos as {roadmap?: unknown} | null)?.roadmap;
+  const items = Array.isArray(roadmap) ? roadmap : roadmap === null || roadmap === undefined ? [] : [roadmap];
+  const partes: string[] = [];
+  for (const item of items) {
+    if (typeof item !== 'object' || item === null) continue;
+    const {aviso, proyecto} = item as {aviso?: unknown; proyecto?: unknown};
+    if (typeof aviso !== 'string' || aviso === '') continue;
+    partes.push(typeof proyecto === 'string' && proyecto !== '' ? `${proyecto}: ${aviso}` : aviso);
+  }
+  return partes.length === 0 ? null : partes.join(' · ');
+}
+
 /* Vocabulario de niveles (07AA-15): espejo exacto de TASKS
  * frontend/src/app/utils/constantes.ts (OPCIONES_PRIORIDAD/URGENCIA) y
  * types/tarea.ts (NivelPrioridad/NivelUrgencia). El proxy solo acepta

@@ -44,6 +44,10 @@ interface EstadoPanelTareas {
   estado: TareasEstado | null;
   cargando: boolean;
   error: string | null;
+  /* Lo que salio a medias: la tarjeta se guardo en TASK y el roadmap del proyecto no (20AA-10
+   * F3b). No es un fallo del tab —por eso no comparte canal con `error`— pero tampoco puede
+   * desaparecer: es el unico sitio donde se ve que el archivo quedo desincronizado. */
+  aviso: string | null;
   moviendo: string | null;
 }
 
@@ -52,6 +56,7 @@ type AccionTareas =
   | { tipo: 'cache'; foto: CacheTareasTab }
   | { tipo: 'cargado'; estado: TareasEstado; columnas: ColumnaTab[]; tareas: Record<number, TareaTab[]> }
   | { tipo: 'fallo'; error: string }
+  | { tipo: 'aviso'; aviso: string | null }
   | { tipo: 'moviendo'; clave: string }
   | { tipo: 'movido' }
   | { tipo: 'optimista'; columna: number; tarea: TareaTab }
@@ -63,6 +68,7 @@ const ESTADO_INICIAL: EstadoPanelTareas = {
   estado: null,
   cargando: false,
   error: null,
+  aviso: null,
   moviendo: null,
 };
 
@@ -77,7 +83,9 @@ function reductor(prev: EstadoPanelTareas, a: AccionTareas): EstadoPanelTareas {
     case 'cargado':
       return { ...prev, cargando: false, error: null, estado: a.estado, columnas: a.columnas, tareas: a.tareas };
     case 'fallo':
-      return { ...prev, cargando: false, moviendo: null, error: a.error };
+      return { ...prev, cargando: false, moviendo: null, error: a.error, aviso: null };
+    case 'aviso':
+      return { ...prev, aviso: a.aviso };
     case 'moviendo':
       return { ...prev, moviendo: a.clave, error: null };
     case 'movido':
@@ -192,12 +200,13 @@ export function usePanelTareas() {
    * relectura confirma que TASKS persistio) y libera. Al fallar, corre
    * `alFallar` (08AA-8: el alta optimista descarta su tarjeta fantasma) y
    * el banner pinta el motivo. */
-  async function operar(clave: string, fn: () => Promise<void>, alFallar?: () => void): Promise<void> {
+  async function operar(clave: string, fn: () => Promise<string | null>, alFallar?: () => void): Promise<void> {
     dispatch({ tipo: 'moviendo', clave });
     await encolar(async () => {
       try {
-        await fn();
+        const aviso = await fn();
         dispatch({ tipo: 'movido' });
+        dispatch({ tipo: 'aviso', aviso });
         await cargarInner();
       } catch (err) {
         alFallar?.();
@@ -230,7 +239,7 @@ export function usePanelTareas() {
             ...construirMovimientos(restoOrigen, origen),
             ...construirMovimientos(destinoNuevo, destino),
           ];
-    await operar(`${destino}:${legacyId}`, () => reordenarTareas(movimientos).then(() => undefined));
+    await operar(`${destino}:${legacyId}`, () => reordenarTareas(movimientos).then((r) => r.aviso));
   }
 
   /* Edicion inline del menu (07AA-15): el texto viaja siempre (F1 exige
@@ -239,13 +248,14 @@ export function usePanelTareas() {
    * bug 2026-10-07: completar desde el menu "borraba" la tarjeta). */
   async function editar(columna: number, legacyId: number, parche: ParcheTareaTab): Promise<void> {
     await operar(`${columna}:${legacyId}`, () =>
-      actualizarTarea(legacyId, parcheConColumna(columna, parche)).then(() => undefined),
+      actualizarTarea(legacyId, parcheConColumna(columna, parche)).then((r) => r.aviso),
     );
   }
 
-  /* Borrado del menu (07AA-15): DELETE idempotente + relectura. */
+  /* Borrado del menu (07AA-15): DELETE idempotente + relectura. La columna viaja al proxy porque
+   * el roadmap se toca por tarea y linea (20AA-10 F3b). */
   async function eliminar(columna: number, legacyId: number): Promise<void> {
-    await operar(`${columna}:${legacyId}`, () => eliminarTarea(legacyId));
+    await operar(`${columna}:${legacyId}`, () => eliminarTarea(columna, legacyId));
   }
 
   /* Alta por modal (08AA-6 PUT-upsert con id espejo-TASKS al final de la
@@ -279,7 +289,7 @@ export function usePanelTareas() {
       campos: { ...parche, completado: false },
     };
     dispatch({ tipo: 'optimista', columna: columna.legacyId, tarea: fantasma });
-    await operar(`${columna.legacyId}:nueva`, () => actualizarTarea(id, parche).then(() => undefined), () =>
+    await operar(`${columna.legacyId}:nueva`, () => actualizarTarea(id, parche).then((r) => r.aviso), () =>
       dispatch({ tipo: 'descartar', columna: columna.legacyId, legacyId: id }),
     );
   }

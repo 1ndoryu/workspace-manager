@@ -5,6 +5,7 @@
  * motivo, 429 cuota, 404 proyecto) para pintarlo tal cual. */
 import axios from 'axios';
 import {
+  avisoDeRespuesta,
   baseDeEstado,
   columnasDeRespuesta,
   tareaDePuente,
@@ -15,6 +16,14 @@ import {
   type TareasEstado,
   type TareasMovimientoTab,
 } from '../../shared/tareas/tareasTab.js';
+
+/* Toda escritura de la tab toca dos sitios (TASK y el roadmap del proyecto, 20AA-10 F3b): el
+ * valor que devuelve el proxy y el aviso de lo que le paso al archivo, que puede haber fallado
+ * con la tarjeta ya guardada. */
+export interface ResultadoEscritura<T> {
+  valor: T;
+  aviso: string | null;
+}
 
 function mensajeFallo(operacion: string, err: unknown): Error {
   const resp = axios.isAxiosError(err) ? err.response : undefined;
@@ -60,15 +69,19 @@ export async function columnasTareas(): Promise<ColumnaTab[]> {
   }
 }
 
-export async function reordenarTareas(movimientos: TareasMovimientoTab[]): Promise<number> {
+export async function reordenarTareas(movimientos: TareasMovimientoTab[]): Promise<ResultadoEscritura<number>> {
   try {
     const { data } = await axios.post<{ actualizadas?: unknown }>('/api/tareas/reordenar', {
       movimientos,
     });
     /* El proxy devuelve {actualizadas: ItemVersionado[]}; el conteo es su
      * longitud (antes se esperaba number y siempre daba 0). */
-    if (Array.isArray(data.actualizadas)) return data.actualizadas.length;
-    return typeof data.actualizadas === 'number' ? data.actualizadas : 0;
+    const valor = Array.isArray(data.actualizadas)
+      ? data.actualizadas.length
+      : typeof data.actualizadas === 'number'
+        ? data.actualizadas
+        : 0;
+    return { valor, aviso: avisoDeRespuesta(data) };
   } catch (err) {
     throw mensajeFallo('reordenar', err);
   }
@@ -76,22 +89,25 @@ export async function reordenarTareas(movimientos: TareasMovimientoTab[]): Promi
 
 /* Edicion inline (07AA-15): PUT al proxy (upsert F1: actualiza) y normaliza
  * la respuesta igual que proyectoTareas. */
-export async function actualizarTarea(legacyId: number, parche: ParcheTareaTab): Promise<TareaTab> {
+export async function actualizarTarea(legacyId: number, parche: ParcheTareaTab): Promise<ResultadoEscritura<TareaTab>> {
   try {
     const { data } = await axios.put<{ tarea?: unknown }>(`/api/tareas/tarea/${legacyId}`, parche);
     const t = tareaDePuente(data.tarea);
     if (t === null) throw new Error(`actualizar ${legacyId}: respuesta inesperada del servidor`);
-    return t;
+    return { valor: t, aviso: avisoDeRespuesta(data) };
   } catch (err) {
     throw mensajeFallo(`actualizar ${legacyId}`, err);
   }
 }
 
 /* Borrado (07AA-15): DELETE al proxy (204 F1, idempotente: repetir da 204,
- * nunca 404 — semántica del frente, no del proxy). */
-export async function eliminarTarea(legacyId: number): Promise<void> {
+ * nunca 404 — semántica del frente, no del proxy). La columna viaja porque
+ * TASK no tiene GET por id: sin ella el proxy no sabe qué línea del roadmap
+ * corresponde a la tarjeta (20AA-10 F3b). */
+export async function eliminarTarea(columna: number, legacyId: number): Promise<string | null> {
   try {
-    await axios.delete(`/api/tareas/tarea/${legacyId}`);
+    const { data } = await axios.delete(`/api/tareas/tarea/${legacyId}`, { params: { columna } });
+    return avisoDeRespuesta(data);
   } catch (err) {
     throw mensajeFallo(`eliminar ${legacyId}`, err);
   }
