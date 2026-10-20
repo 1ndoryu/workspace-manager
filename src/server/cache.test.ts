@@ -87,3 +87,22 @@ test('forzar no se une a un escaneo en curso; uno normal sí', async () => {
   await Promise.all([primero, unido, forzado]);
   assert.equal(llamadas, 2);
 });
+
+/* [por que] Varias peticiones con el git caducado deben compartir una sola relectura de git. */
+test('git caducado: peticiones simultáneas comparten una relectura', async () => {
+  const viejo = snapshot(hace(120_000), hace(120_000));
+  actualizarSnapshot(viejo);
+  let llamadas = 0;
+  let abrir!: () => void;
+  const puerta = new Promise<void>((r) => (abrir = r));
+  const releerGit = async (s: SnapshotWorkspace) => {
+    llamadas++;
+    await puerta;
+    return { ...s, gitEn: new Date().toISOString() };
+  };
+  const pedidos = [1, 2, 3].map(() => obtenerSnapshot(viejo.raiz, async () => viejo, false, releerGit));
+  await new Promise((r) => setImmediate(r));
+  abrir();
+  await Promise.all(pedidos);
+  assert.equal(llamadas, 1);
+});

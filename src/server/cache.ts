@@ -59,6 +59,21 @@ function gitCaducado(snapshot: SnapshotWorkspace): boolean {
   return Date.now() - Date.parse(snapshot.gitEn ?? snapshot.escaneadoEn) >= VIGENCIA_GIT_MS;
 }
 
+/* Relectura de git compartida. [por que] Con el estado caducado, cada petición que llega
+ * a la vez lanzaba su propia lectura (2 procesos git por repo); el tablero hace varias
+ * peticiones seguidas, así que se multiplicaba el coste. Quien llega mientras corre espera la misma. */
+let refrescoGitEnCurso: Promise<SnapshotWorkspace> | null = null;
+
+function refrescarGitCompartido(
+  vigente: SnapshotWorkspace,
+  refrescarGit: (snapshot: SnapshotWorkspace) => Promise<SnapshotWorkspace>,
+): Promise<SnapshotWorkspace> {
+  refrescoGitEnCurso ??= refrescarGit(vigente).finally(() => {
+    refrescoGitEnCurso = null;
+  });
+  return refrescoGitEnCurso;
+}
+
 /** Devuelve el snapshot: usa cache si existe, si no escanea y cachea.
  * Con cache, si el estado git tiene más de VIGENCIA_GIT_MS, lo relee antes de servirlo. */
 export async function obtenerSnapshot(
@@ -77,7 +92,7 @@ export async function obtenerSnapshot(
         snapshotMemoria = vigente;
         return { snapshot: vigente, desdeCache: true };
       }
-      const refrescado = await refrescarGit(vigente);
+      const refrescado = await refrescarGitCompartido(vigente, refrescarGit);
       actualizarSnapshot(refrescado);
       return { snapshot: refrescado, desdeCache: true };
     }
