@@ -45,18 +45,25 @@ type Destino = (typeof CENTRALES)[number];
 type Toggle = (typeof TOGGLES)[number];
 
 /* [por que] Un solo render de cada boton para la fila real y la fila de
- * medida: si divergieran, la medida no valdria. */
+ * medida: si divergieran, la medida no valdria.
+ * [por que] Los destinos son de solo icono y el nombre aparece dentro del boton
+ * al pasar el raton o al enfocar (pedido de la usuaria, 2026-10-20): con 11
+ * etiquetas el nav no cabia en ventanas estrechas. Sin `title`: el nombre del
+ * `role="tab"` va en `aria-label`, porque en reposo el texto esta en
+ * `display: none` y no cuenta para el arbol de accesibilidad (y un `title`
+ * añadiria el aviso flotante del navegador que la usuaria no quiere). */
 function BotonDestino({ destino, activo, onClick }: { destino: Destino; activo: boolean; onClick: () => void }) {
   return (
     <Button
       role="tab"
       aria-selected={activo}
+      aria-label={destino.etiqueta}
       activo={activo}
+      className="v2NavDestino"
       onClick={onClick}
-      title={`Mostrar ${destino.etiqueta}`}
     >
-      <destino.icono size={14} />
-      <span>{destino.etiqueta}</span>
+      <destino.icono size={14} aria-hidden />
+      <span className="v2NavDestinoEtiqueta">{destino.etiqueta}</span>
     </Button>
   );
 }

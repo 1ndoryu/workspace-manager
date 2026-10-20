@@ -25,6 +25,22 @@
     gap: 2px;
 }
 
+/* Destino de solo icono: el nombre aparece al pasar el raton o al enfocar.
+ * [por que] El nombre vuelve DENTRO del boton, como antes de 2026-10-20, no en
+ * un aviso flotante por encima (la usuaria pidio las dos cosas en ese orden:
+ * fuera en reposo, dentro al pasar el raton). En reposo `display: none`, asi
+ * que el boton mide solo el icono y la fila de medida mide lo mismo que se ve;
+ * el nombre no se parte nunca (`nowrap`) porque el boton lo ensancha. */
+.v2NavDestinoEtiqueta {
+    display: none;
+    white-space: nowrap;
+}
+
+.v2NavDestino:hover .v2NavDestinoEtiqueta,
+.v2NavDestino:focus-visible .v2NavDestinoEtiqueta {
+    display: inline;
+}
+
 /* Fila de medida: los mismos destinos, fuera de flujo y sin pintar.
  * [por que] Los botones visibles encogen al recortarse, asi que no sirven
  * para saber cuanto mide cada etiqueta; esta copia nunca se recorta. Va
