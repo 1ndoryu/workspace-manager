@@ -141,15 +141,8 @@ export function planEspejo(d: DepsPlanEspejo): PlanEspejo {
     const huella = huellaDeTarea(t);
     const existente = porId.get(t.id) ?? null;
     const guardado = existente === null ? null : espejoDeItem(existente.item);
-    if (existente !== null && guardado?.huella === huella) {
-      alDia += 1;
-      orden += 1;
-      continue;
-    }
-
-    const legacyId = existente?.id ?? generarIdLibre(d.ocupados, d.ahoraMs);
-    d.ocupados.add(legacyId);
-    const item = existente?.item ?? {};
+    /* El espejo se arma antes del salto porque las subtareas lo heredan (proyecto, archivo,
+     * seccion, mtime) y hay que planificarlas tambien cuando el padre no cambio. */
     const espejo: EspejoRoadmap = {
       id: t.id,
       proyecto: d.wmClave,
@@ -160,6 +153,18 @@ export function planEspejo(d: DepsPlanEspejo): PlanEspejo {
       mtimeArchivo: d.mtimeArchivo,
       espejo: contenidoDe(t.propiedades, texto),
     };
+    if (existente !== null && guardado?.huella === huella) {
+      alDia += 1;
+      orden += 1;
+      /* La linea del padre esta intacta, pero una hija puede haber cambiado o ser nueva: sin
+       * mirarlas aqui, una subtarea anadida a mano a una tarea ya espejada no llegaria nunca. */
+      planSubtareas(d, t, existente.id, espejo, acciones, rechazadas);
+      continue;
+    }
+
+    const legacyId = existente?.id ?? generarIdLibre(d.ocupados, d.ahoraMs);
+    d.ocupados.add(legacyId);
+    const item = existente?.item ?? {};
     const parche: ParcheTarea = {
       texto,
       completado: false,
@@ -189,6 +194,14 @@ export function planEspejo(d: DepsPlanEspejo): PlanEspejo {
   return { acciones, alDia, rechazadas };
 }
 
+/* Huella de una subtarea. Lleva version porque el parche de una subtarea cambio de forma (ahora
+ * escribe prioridad y urgencia, como el de la tarea): los items escritos por la version anterior
+ * traen una huella que ya coincide con la del roadmap aunque les falte lo nuevo, y sin la version
+ * el salto por huella los daria por buenos para siempre. */
+function huellaDeSubtarea(texto: string, p: PropiedadesTarea): string {
+  return `${huellaDeTexto(texto, p)}-2`;
+}
+
 /* Subtareas de una tarea ya resuelta. [por que] Van despues de su padre en la lista: TASK exige
  * que el padre exista y sea raiz antes de aceptar un `parentId`. */
 function planSubtareas(
@@ -215,7 +228,7 @@ function planSubtareas(
     if (existente === null && i < hijos.length && libres.has(hijos[i])) existente = hijos[i];
     if (existente !== null) libres.delete(existente);
 
-    const huella = huellaDeTexto(texto, s.propiedades);
+    const huella = huellaDeSubtarea(texto, s.propiedades);
     const guardado = existente === null ? null : espejoDeItem(existente.item);
     if (existente !== null && guardado?.huella === huella) continue;
 
@@ -232,19 +245,28 @@ function planSubtareas(
       padre: t.id,
       hueco: i,
     };
+    const parche: ParcheTarea = {
+      texto,
+      completado: s.completada,
+      proyectoId: d.proyectoId,
+      parentId: padreLegacyId,
+      orden: i,
+      payload: { ...payloadPropio(item), [CLAVE_ESPEJO]: espejo },
+      expectedUpdatedAt: existente === null ? null : (existente.updatedAt ?? null),
+    };
+    /* Prioridad y urgencia, igual que en la tarea padre: una subtarea del roadmap puede traerlas
+     * (su linea «·» va con sangria 4) y sin esto se perderian al pasar al tab, donde la tarjeta
+     * las pinta como las de cualquier otra. */
+    const prioridad = valorVigente(s.propiedades.prioridad, item.prioridad, PRIORIDADES_TAREA);
+    const urgencia = valorVigente(s.propiedades.urgencia, item.urgencia, URGENCIAS_TAREA);
+    if (prioridad !== undefined) parche.prioridad = prioridad;
+    if (urgencia !== undefined) parche.urgencia = urgencia;
+
     acciones.push({
       tipo: existente === null ? 'crear' : 'actualizar',
       id: etiqueta,
       legacyId,
-      parche: {
-        texto,
-        completado: s.completada,
-        proyectoId: d.proyectoId,
-        parentId: padreLegacyId,
-        orden: i,
-        payload: { ...payloadPropio(item), [CLAVE_ESPEJO]: espejo },
-        expectedUpdatedAt: existente === null ? null : (existente.updatedAt ?? null),
-      },
+      parche,
       motivo: existente === null ? `subtarea nueva de ${t.id}` : `subtarea de ${t.id} cambiada`,
     });
   }

@@ -4,7 +4,7 @@
  * accion concreta y puede vivir sola. */
 import { join } from 'node:path';
 import { RAIZ_REPO } from '../../plataforma/rutas.js';
-import { analizarRoadmap, type AnalisisRoadmap } from '../../scanner/roadmap/roadmap.js';
+import { analizarRoadmap, TOPE_LINEAS_ROADMAP, type AnalisisRoadmap } from '../../scanner/roadmap/roadmap.js';
 import { apuntarHistorial, copiaPrevia, escribirAtomico, hashTexto } from './escritura-roadmap.js';
 import { type CambioArchivo } from './plan-archivo.js';
 import { leerDelDisco, partir, type LecturaRoadmap } from './escribir-roadmaps.js';
@@ -100,6 +100,14 @@ export function escribir(
   const analisis = analizarRoadmap(texto);
   const linea =
     id === null ? null : (situar?.(analisis) ?? analisis.tareas.find((t) => t.id === id)?.linea ?? null);
+  /* Tope de lineas del roadmap (D8): pasarlo significa tener demasiado abierto, y hasta ahora solo
+   * lo avisaba el chequeo de salud, que se mira cuando ya esta pasando. Aqui se dice en el momento
+   * en que se puede hacer algo. Se escribe igual: bloquear perderia el cambio que la usuaria acaba
+   * de hacer, y quien lo decide es ella. */
+  const aviso =
+    analisis.lineas > TOPE_LINEAS_ROADMAP
+      ? `roadmap-largo: ${analisis.lineas} lineas (tope ${TOPE_LINEAS_ROADMAP}, D8)`
+      : null;
   if (cambios.length > 0) {
     const at = ctx.ahora.toISOString();
     apuntarHistorial(
@@ -117,5 +125,5 @@ export function escribir(
       })),
     );
   }
-  return { accion, clave: p.clave, proyecto: p.nombre, id, linea, escribio: true, copia: ruta, cambios, aviso: null };
+  return { accion, clave: p.clave, proyecto: p.nombre, id, linea, escribio: true, copia: ruta, cambios, aviso };
 }

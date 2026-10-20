@@ -11,6 +11,7 @@ import {esIdValido, validarLote} from './nucleo/validaciones.js';
 import {crearPuenteTareas, puenteTareas, type PuenteTareas} from './puente-tareas.js';
 import {sincronizarColumnas, type EntradaWm} from './sincronizacion/sincronizar-proyectos.js';
 import {sincronizarTareasRoadmap, type ProyectoWm} from './sincronizacion/sincronizar-tareas.js';
+import type {SincroniaFondo} from './sincronizacion/sincronia-fondo.js';
 import {escribirRoadmaps} from './escritura/escribir-roadmaps.js';
 import {confirmarBorrado, prepararBorrado, trasGuardar, trasReordenar, type DepsAccionesTab} from './escritura/acciones-tab.js';
 import {validarParche} from './tarea-unitaria.js';
@@ -36,6 +37,9 @@ export interface DepsRutasTareas {
   /* Proyectos con su carpeta, para la sincronizacion del roadmap (20AA-10 F2):
    * la clave empareja con la columna de TASK y la ruta da el roadmap.md. */
   leerProyectos?: () => ProyectoWm[] | Promise<ProyectoWm[]>;
+  /* Sincronia de fondo (20AA-10 F6). Sin ella (tests, o un server sin roadmap) el tab funciona
+   * igual: solo se pierde el empujon tras cada gesto, que es lo que evita esperar al escaneo. */
+  sincronia?: SincroniaFondo;
 }
 
 function esErrorKanban(e: unknown): e is ErrorKanban {
@@ -84,6 +88,13 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
   /* Acciones del tab sobre el roadmap (20AA-10 F3b): cada escritura en TASK se refleja en el
    * archivo. Sin `leerProyectos` no hay proyecto que emparejar y no se toca ningun archivo. */
   const acciones: DepsAccionesTab = {proyectos: leerProyectos, puente};
+  const sincronia = deps.sincronia ?? null;
+  /* Tras un gesto del tab que toca el roadmap, una pasada de la sincronia (F6). Es un empujon, no
+   * una espera: el gesto responde ya y la pasada va por detras con su calma, que ademas junta
+   * varios gestos seguidos en una sola. */
+  function empujarSincronia(): void {
+    sincronia?.programar();
+  }
 
   /* [por que] Un `red` suele ser el túnel caído, y es justo el fallo que ve la
    * usuaria en la tab: se pide al supervisor que revise (solo repara proyectos
@@ -108,6 +119,13 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
   ): Promise<boolean> {
     if (ruta === '/api/tareas/estado' && req.method === 'GET') {
       json(res, 200, puente.estado());
+      return true;
+    }
+    /* Como va la sincronia de fondo (20AA-10 F6): cuando fue la ultima pasada, que hizo y que le
+     * fallo. Existe para que el automatismo no sea invisible: sin esto, una sincronia que falla
+     * cada cinco segundos se ve igual que una que va bien. */
+    if (ruta === '/api/tareas/sincronia' && req.method === 'GET') {
+      json(res, 200, sincronia === null ? {activa: false} : {activa: true, ...sincronia.estado()});
       return true;
     }
     /* Columnas fijas sincronizadas (08AA-6): empareja cada repo WM con su
@@ -152,6 +170,7 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
           { proyectos: leerProyectos, puente },
           { seco: url.searchParams.get('seco') === '1' },
         );
+        empujarSincronia();
         json(res, 200, informe);
       } catch (e) {
         responder(res, e);
@@ -193,6 +212,7 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
         const actualizadas = await puente.reordenar(validado.lote);
         /* El mismo orden en el archivo (20AA-10 F3b): el lote dice a que columna va cada id. */
         const roadmap = await trasReordenar(acciones, validado.lote.movimientos);
+        empujarSincronia();
         json(res, 200, {actualizadas, roadmap});
       } catch (e) {
         responder(res, e);
@@ -217,8 +237,17 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
         try {
           /* Se mira la tarea antes de borrarla: despues ya no esta. */
           const pendiente = hayColumna ? await prepararBorrado(acciones, columna, legacyId) : null;
+          /* Las subtareas se van con su padre. [por que] El tab sube a raiz la tarjeta cuyo padre
+           * no encuentra, asi que una hija que se quedara se pintaria como tarea suelta, fuera del
+           * roadmap y sin nadie que la gestione. Se borran antes: si una falla, el padre sigue
+           * vivo y el archivo no se toca (mejor repetir el borrado que dejarlo a medias). */
+          const hijas = hayColumna
+            ? (await puente.listar(columna)).filter((t) => t.item.parentId === legacyId)
+            : [];
+          for (const h of hijas) await puente.eliminar(h.id);
           await puente.eliminar(legacyId);
           const roadmap = pendiente === null ? null : confirmarBorrado(acciones, pendiente);
+          empujarSincronia();
           /* 204 es el contrato de siempre; solo cuando hay algo que contar (no se pudo escribir
            * el archivo) la respuesta lleva cuerpo. */
           if (roadmap === null || roadmap.aviso === null) {
@@ -251,6 +280,7 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
         const columna = typeof tarea.item.proyectoId === 'number' ? tarea.item.proyectoId : validado.valor.proyectoId;
         const reflejo = typeof columna === 'number' ? await trasGuardar(acciones, columna, tarea, validado.valor) : {roadmap: null, repetir: null};
         if (reflejo.repetir !== null) tarea = await puente.actualizar(legacyId, reflejo.repetir);
+        empujarSincronia();
         json(res, 200, {tarea, roadmap: reflejo.roadmap});
       } catch (e) {
         responderKanban(res, e, 'tarea-no-encontrada');

@@ -253,4 +253,37 @@ describe('espejo: subtareas', () => {
     /* La hija de otro padre no vale como pareja: las tres se crean. */
     assert.deepEqual(p.acciones.map((a) => a.tipo), ['crear', 'crear', 'crear']);
   });
+
+  it('una subtarea nueva bajo un padre ya al dia se sincroniza igual', () => {
+    /* El padre no cambio: su huella guardada es la de ahora. Lo unico nuevo es la hija, y sin
+     * mirar las subtareas en la rama «al dia» no llegaria nunca al tab. */
+    const padre = item({
+      id: 900,
+      texto: 'Padre.',
+      parentId: null,
+      roadmap: { id: '20AA-1', huella: huellaDeTarea(conSubs()[0]) },
+    });
+    const p = planEspejo(deps({ tareas: conSubs(), enTask: [padre] }));
+    assert.equal(p.alDia, 1, 'el padre no se reescribe');
+    assert.deepEqual(p.acciones.map((a) => a.id), ['20AA-1#1', '20AA-1#2']);
+    assert.equal(p.acciones[0].parche.parentId, 900);
+  });
+
+  it('la prioridad de la subtarea viaja al parche, como la de su padre', () => {
+    const conProps = (): TareaRoadmap[] =>
+      tareas(
+        [
+          '## Pendientes',
+          '',
+          '- [ ] `20AA-1` — **Padre.**',
+          '  · prioridad: alta',
+          '  - [ ] **Primera.**',
+          '    · prioridad: baja',
+          '',
+        ].join('\n'),
+      );
+    const p = planEspejo(deps({ tareas: conProps() }));
+    assert.equal(p.acciones[0].parche.prioridad, 'alta');
+    assert.equal(p.acciones[1].parche.prioridad, 'baja');
+  });
 });

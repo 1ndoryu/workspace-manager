@@ -9,7 +9,7 @@ import { RAIZ_REPO } from './plataforma/rutas.js';
 /* [por que] `snapshotArea` vive en snapshot.ts desde que se extrajo alli por
  * limite de lineas; tener aqui una copia era una segunda fuente de verdad del
  * mismo escaneo (y arrastraba estos imports). */
-import { snapshotArea } from './snapshot.js';
+import { alEscanearWorkspace, snapshotArea } from './snapshot.js';
 import { manejarRutasGate } from './rutas/rutasGate.js';
 import { manejarRutasAlta } from './rutas/rutasAlta.js';
 import { manejarRutasGuardian } from './rutas/guardian/rutasGuardian.js';
@@ -26,6 +26,8 @@ import { manejarRutasVps } from './vps/rutas/rutasVps.js';
 import { manejarRutasVpsHistorial } from './vps/rutas/rutasVpsHistorial.js';
 import { manejarRutasVpsPiezas } from './vps/rutas/rutasVpsPiezas.js';
 import { crearManejadorTareas } from './tareas/rutasTareas.js';
+import { puenteTareas } from './tareas/puente-tareas.js';
+import { crearSincroniaFondo } from './tareas/sincronizacion/sincronia-fondo.js';
 import { verificarEntrada } from './seguridad/entrada.js';
 import { obtenerToken } from './seguridad/token.js';
 import { registrarAuditoria, rutaAuditoriaPorDefecto } from './seguridad/auditoria.js';
@@ -50,15 +52,29 @@ const MIME: Record<string, string> = {
 
 /* Escaner con cache; el flag `forzar` re-escanea. */
 
+/* Proyectos del workspace con su carpeta: la sincronizacion del roadmap (20AA-10) la necesita
+ * para leer el `roadmap.md` de cada uno. Cacheada a proposito (`false`): lo que hay que leer
+ * fresco es el archivo, y eso lo hace la sincronizacion; el snapshot solo da la lista. */
+const leerProyectos = async () =>
+  (await snapshotArea(false)).snapshot.proyectos.map((p) => ({clave: p.clave, nombre: p.id, ruta: p.ruta}));
+
+/* Sincronia automatica roadmap <-> TASK (20AA-10 F6): una sola instancia para todo el proceso,
+ * porque «una pasada a la vez» solo vale si quien la dispara desde un escaneo y quien la dispara
+ * desde un gesto del tab comparten el mismo estado. */
+const sincronia = crearSincroniaFondo({proyectos: leerProyectos, puente: puenteTareas});
+/* El ciclo de escaneo es el disparador de fondo: cada escaneo de verdad (el del auto-timer, el
+ * del boton, el que sigue a guardar un archivo) mira los roadmaps y pone al dia TASK. */
+alEscanearWorkspace(() => sincronia.programar());
+
 /* Proxy tareas con las columnas del snapshot (08AA-6 sync): instancia unica;
  * `snapshotArea(false)` sirve cache sin escanear (la columna nueva aparece
  * tras el siguiente escaneo). */
 const manejarTareas = crearManejadorTareas({
   leerWm: async () => (await snapshotArea(false)).snapshot.proyectos.map((p) => ({clave: p.clave, nombre: p.id})),
-  /* La sincronizacion del roadmap (20AA-10) necesita ademas la carpeta: el
-   * snapshot la trae y asi no hay que resolver rutas por segunda vez. */
-  leerProyectos: async () =>
-    (await snapshotArea(false)).snapshot.proyectos.map((p) => ({clave: p.clave, nombre: p.id, ruta: p.ruta})),
+  leerProyectos,
+  /* Las acciones del tab tambien disparan una pasada: lo que se acaba de escribir en el archivo
+   * tiene que llegar a TASK sin esperar al siguiente escaneo. */
+  sincronia,
 });
 
 /* Sirve archivos estaticos del build (dist) o del index.html. */

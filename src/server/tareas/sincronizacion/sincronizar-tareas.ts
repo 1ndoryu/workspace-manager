@@ -35,6 +35,8 @@ export interface ResumenProyectoSync {
   rechazadas: { id: string; motivo: string }[];
   /* Tareas que no se pudieron escribir, con el motivo (conflicto, red, validacion). */
   errores: { id: string; motivo: string }[];
+  /* Tareas que el tope de la pasada dejo para la siguiente (F6). */
+  aplazadas: number;
   /* Se leyo el roadmap pero no se escribio nada (modo seco). */
   seco: boolean;
 }
@@ -47,6 +49,8 @@ export interface InformeSync {
   crear: number;
   actualizar: number;
   alDia: number;
+  /* Escrituras que el tope de la pasada aplazo (F6): >0 significa que queda trabajo para otra. */
+  aplazadas: number;
   /* Proyectos con roadmap y sin columna en TASK: fuera del alcance de esta obra (19AA-16). */
   sinColumna: { proyecto: string; clave: string; pendientes: number }[];
   detalle: ResumenProyectoSync[];
@@ -66,6 +70,8 @@ export interface DepsSincronizarTareas {
 export interface OpcionesSync {
   /* En seco: calcula y cuenta, pero no escribe en TASK. */
   seco?: boolean;
+  /* Tope de escrituras por pasada (F6). Por defecto, el de la sincronia de fondo. */
+  topeEscrituras?: number;
 }
 
 /* Lectura real: el roadmap del disco y su mtime (lo que permitira a F3 detectar quien cambio). */
@@ -94,30 +100,52 @@ function motivoDe(e: unknown): string {
   return 'desconocido';
 }
 
-/* Aplica el plan de un proyecto. Devuelve cuantas se escribieron y que fallo. */
+/* Aplica el plan de un proyecto. Devuelve cuantas se escribieron, que fallo y que quedo para la
+ * pasada siguiente.
+ * [por que un tope] Medido el 2026-10-20: 197 PUT en 51 s, en serie porque TASK exige que el padre
+ * de una subtarea exista antes que ella. A mano se esperaba; en segundo plano (F6) una pasada asi
+ * monopoliza el puente y compite con lo que la usuaria acaba de pedir, asi que se corta y lo que
+ * queda se cuenta en `aplazadas` para que la pasada siguiente lo siga.
+ * [por que no corta a mitad de un grupo] Un hijo sin su padre lo rechaza TASK: si el tope cae
+ * entre los dos, se termina el grupo de subtareas que se estaba escribiendo. */
 async function aplicar(
   puente: PuenteTareas,
   plan: PlanEspejo,
   seco: boolean,
-): Promise<{ crear: number; actualizar: number; errores: { id: string; motivo: string }[] }> {
+  tope: number,
+): Promise<{ crear: number; actualizar: number; errores: { id: string; motivo: string }[]; aplazadas: number }> {
   const errores: { id: string; motivo: string }[] = [];
   let crear = 0;
   let actualizar = 0;
+  let escritas = 0;
+  let aplazadas = 0;
+  /* Grupo de la ultima accion escrita: su padre si es una subtarea, ella misma si es una tarea
+   * (sus hijas la referencian a ella). Sirve para no cortar entre un padre y sus subtareas. */
+  let grupo: number | null = null;
   for (const a of plan.acciones) {
+    const padre = typeof a.parche.parentId === 'number' ? a.parche.parentId : null;
+    if (escritas >= tope && !(padre !== null && padre === grupo)) {
+      aplazadas += 1;
+      continue;
+    }
     if (seco) {
       if (a.tipo === 'crear') crear += 1;
       else actualizar += 1;
+      escritas += 1;
+      grupo = padre ?? a.legacyId;
       continue;
     }
     try {
       await puente.actualizar(a.legacyId, a.parche);
       if (a.tipo === 'crear') crear += 1;
       else actualizar += 1;
+      escritas += 1;
+      grupo = padre ?? a.legacyId;
     } catch (e) {
       errores.push({ id: a.id, motivo: motivoDe(e) });
     }
   }
-  return { crear, actualizar, errores };
+  return { crear, actualizar, errores, aplazadas };
 }
 
 /* Sincroniza todas las columnas de una pasada. En serie: TASK es un solo servicio y el orden
@@ -127,6 +155,9 @@ export async function sincronizarTareasRoadmap(
   opciones: OpcionesSync = {},
 ): Promise<InformeSync> {
   const seco = opciones.seco === true;
+  /* El tope solo acota lo que se escribe: una pasada en seco no cuesta nada y su cuenta tiene que
+   * ser la del trabajo entero, no la de lo que cabria en una pasada. */
+  const tope = seco ? Number.POSITIVE_INFINITY : (opciones.topeEscrituras ?? Number.POSITIVE_INFINITY);
   const ahora = deps.ahora ?? Date.now;
   const leer = deps.leerRoadmap ?? leerRoadmapDisco;
   const arranque = ahora();
@@ -146,6 +177,7 @@ export async function sincronizarTareasRoadmap(
   let crear = 0;
   let actualizar = 0;
   let alDia = 0;
+  let aplazadas = 0;
   let leidos = 0;
 
   for (const p of proyectos) {
@@ -173,10 +205,11 @@ export async function sincronizarTareasRoadmap(
       escritura: new Date(ahora()).toISOString(),
       ocupados,
     });
-    const r = await aplicar(deps.puente, plan, seco);
+    const r = await aplicar(deps.puente, plan, seco, tope);
     crear += r.crear;
     actualizar += r.actualizar;
     alDia += plan.alDia;
+    aplazadas += r.aplazadas;
     detalle.push({
       proyecto: p.nombre,
       clave: p.clave,
@@ -187,6 +220,7 @@ export async function sincronizarTareasRoadmap(
       alDia: plan.alDia,
       rechazadas: plan.rechazadas,
       errores: r.errores,
+      aplazadas: r.aplazadas,
       seco,
     });
   }
@@ -198,6 +232,7 @@ export async function sincronizarTareasRoadmap(
     crear,
     actualizar,
     alDia,
+    aplazadas,
     sinColumna,
     detalle,
     ms: ahora() - arranque,

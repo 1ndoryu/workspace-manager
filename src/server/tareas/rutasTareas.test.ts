@@ -228,4 +228,19 @@ void describe('/api/tareas', () => {
     assert.equal(r2.estado, 404);
     assert.equal((r2.datos as {error: string}).error, 'tarea-no-encontrada');
   });
+
+  void it('DELETE tarea se lleva sus subtareas, y no la de otro padre', async () => {
+    const llamadas: string[] = [];
+    const conHijas = [
+      {id: 5, item: {parentId: null}, updatedAt: 'hoy'},
+      {id: 6, item: {parentId: 5}, updatedAt: 'hoy'},
+      {id: 7, item: {parentId: 5}, updatedAt: 'hoy'},
+      {id: 8, item: {parentId: 9}, updatedAt: 'hoy'},
+    ];
+    const manejar = manejarCon(fakePuente({llamadas, listar: async () => conHijas}));
+    const r = await llamar(manejar, '/api/tareas/tarea/5?columna=9', 'DELETE');
+    assert.equal(r.estado, 204);
+    /* Primero las hijas y despues el padre: si una hija falla, el padre sigue vivo. */
+    assert.deepEqual(llamadas.filter((l) => l.startsWith('eliminar:')), ['eliminar:6', 'eliminar:7', 'eliminar:5']);
+  });
 });
