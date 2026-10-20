@@ -219,9 +219,9 @@ test('xwin: se fuerza el target de Windows; uno explícito manda', () => {
 });
 
 test('base por rama: paquete con guiones bajos; main/master sin sufijo', () => {
-  assert.equal(nombreBaseDatos(cargoToml, 'main'), 'agente_tiempo_real');
-  assert.equal(nombreBaseDatos(cargoToml, 'master'), 'agente_tiempo_real');
-  assert.equal(nombreBaseDatos(cargoToml, 'feature/Login-2'), 'agente_tiempo_real_feature_login_2');
+  assert.equal(nombreBaseDatos(cargoToml, 'main'), 'proyecto_b');
+  assert.equal(nombreBaseDatos(cargoToml, 'master'), 'proyecto_b');
+  assert.equal(nombreBaseDatos(cargoToml, 'feature/Login-2'), 'proyecto_b_feature_login_2');
 });
 
 test('base por rama: solo cuenta [package].name, no [[bin]]', () => {
@@ -231,7 +231,7 @@ test('base por rama: solo cuenta [package].name, no [[bin]]', () => {
 
 test('base por rama: rechaza nombres fuera de [a-z0-9_] o de más de 63 caracteres', () => {
   assert.throws(() => nombreBaseDatos(cargoToml, 'x'.repeat(60)), /demasiado largo|no válido/);
-  assert.equal(nombreBaseDatos(cargoToml, 'a'.repeat(40)).length, 'agente_tiempo_real_'.length + 40);
+  assert.equal(nombreBaseDatos(cargoToml, 'a'.repeat(40)).length, 'proyecto_b_'.length + 40);
 });
 
 test('base por proyecto: `basedatos` pisa al paquete y conserva el sufijo de rama', () => {
@@ -243,16 +243,16 @@ test('base por proyecto: `basedatos` pisa al paquete y conserva el sufijo de ram
 });
 
 test('URL de la base: usuario por socket, sin contraseña', () => {
-  assert.equal(urlBaseRemota(config.bd, 'agente_tiempo_real'), 'postgres://dev@%2Fvar%2Frun%2Fpostgresql/agente_tiempo_real');
+  assert.equal(urlBaseRemota(config.bd, 'proyecto_b'), 'postgres://dev@%2Fvar%2Frun%2Fpostgresql/proyecto_b');
 });
 
 test('comando de base: crea solo si falta y con paréntesis', () => {
-  const cmd = comandoBaseRemota(config.bd, 'agente_tiempo_real_x');
+  const cmd = comandoBaseRemota(config.bd, 'proyecto_b_x');
   assert.ok(cmd.startsWith('( psql '));
   // El SQL va entrecomillado para el shell (shQuote): se comprueban las partes, no el texto literal.
   assert.ok(cmd.includes('pg_database WHERE datname='));
-  assert.ok(cmd.includes('agente_tiempo_real_x'));
-  assert.ok(cmd.includes('CREATE DATABASE "agente_tiempo_real_x"'));
+  assert.ok(cmd.includes('proyecto_b_x'));
+  assert.ok(cmd.includes('CREATE DATABASE "proyecto_b_x"'));
   assert.ok(cmd.includes('ON_ERROR_STOP=1'));
   assert.ok(cmd.endsWith(' )'));
 });
@@ -273,20 +273,20 @@ test('comando remoto con base: DATABASE_URL solo cuando se pasa nombre', () => {
 // tests de base viva fallan con «no existe la relación …» (el portátil lo
 // cubría con run-with-db.mjs, que compila en el portátil y está prohibido).
 test('base de rama: clona el esquema de la base de trabajo solo si está vacía', () => {
-  const cmd = comandoPrepararRama(config.bd, 'agente_tiempo_real_x', 'agente_tiempo_real', 'scripts/fixtures/seed.sql');
+  const cmd = comandoPrepararRama(config.bd, 'proyecto_b_x', 'proyecto_b', 'scripts/fixtures/seed.sql');
   assert.ok(cmd.startsWith('if [ "$(psql '));
   // El SQL va entrecomillado para el shell (shQuote): se comprueban las partes, no el texto literal.
   assert.ok(cmd.includes('information_schema.tables WHERE table_schema='));
   assert.ok(cmd.includes('pg_dump -h'));
   assert.ok(cmd.includes('--schema-only'));
-  assert.ok(cmd.includes("agente_tiempo_real'"), 'la base de trabajo va como origen del clon');
+  assert.ok(cmd.includes("proyecto_b'"), 'la base de trabajo va como origen del clon');
   assert.ok(cmd.includes('-f -'), 'el clon entra por stdin');
   assert.ok(cmd.includes("'scripts/fixtures/seed.sql'"));
   assert.ok(cmd.endsWith('; fi'));
 });
 
 test('base de rama: sin semilla declarada solo clona el esquema', () => {
-  const cmd = comandoPrepararRama(config.bd, 'agente_tiempo_real_x', 'agente_tiempo_real');
+  const cmd = comandoPrepararRama(config.bd, 'proyecto_b_x', 'proyecto_b');
   assert.ok(cmd.includes('pg_dump'));
   assert.ok(!cmd.includes('seed.sql'));
   assert.equal(cmd.match(/-f /g).length, 1);
