@@ -30,12 +30,24 @@ export const NOMBRE_MANAGER = process.env.WS_NOMBRE || basename(RAIZ_REPO);
  * el repo cuelga de ella. Quien clone el manager suelto pone WS_AREA_ROOT. */
 export const RAIZ_AREA = process.env.WS_AREA_ROOT || dirname(RAIZ_REPO);
 
+/* [por que] Todo dato que escribe el manager (historiales, caché del limpiador, binario)
+ * vive en `<área>/data/`, junto a `cache/` y la config. El repo se publica tal cual y
+ * `data/` queda fuera de él; un solo sitio evita que cada módulo arme su propia ruta. */
+export const RAIZ_DATOS = join(RAIZ_AREA, 'data');
+
 /* Checkout compartido de las herramientas de calidad (sentinel, varsense) dentro del área.
  * [por que] Lo escribían a mano cuatro módulos del gate; cambiar la carpeta exigía tocar todos. */
 export const RAIZ_QUALITY_TOOLS = join(RAIZ_AREA, '.quality-tools');
 
 /** Carpeta de skills del agente (índice en AGENTS §11). */
 export const CARPETA_SKILLS = process.env.WS_SKILLS_ROOT || join(homedir(), '.agents', 'skills');
+
+/* [por que] Nombre de la carpeta que instala GlorySentinel bajo %LOCALAPPDATA% (current.json,
+ * current.js, versions/). Lo deletreaban cuatro módulos: cambiarlo exigía tocarlos todos. */
+export const NOMBRE_SENTINEL = 'GlorySentinel';
+
+/* Carpeta de configuración global de Claude Code, relativa al home (CLAUDE.md del usuario). */
+export const NOMBRE_CARPETA_CLAUDE = '.claude';
 
 
 /* Config privada del área: registro de proyectos y ficha del taller. No se

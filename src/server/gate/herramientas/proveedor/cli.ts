@@ -4,13 +4,13 @@
  * [por que] Separado de proveedor.ts (gate limite-lineas); proveedor.ts lo reexporta. */
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { RAIZ_QUALITY_TOOLS } from '../../../plataforma/rutas.js';
+import { NOMBRE_SENTINEL, RAIZ_QUALITY_TOOLS } from '../../../plataforma/rutas.js';
 
 /* Raíz de las versiones instaladas de GlorySentinel (AppData local). [por que] Función
  * con el entorno como parámetro (no constante al cargar el módulo): así se prueba con
  * un entorno falso y el valor sale de quien llama, no de un global. */
 export function raizVersiones(entorno: NodeJS.ProcessEnv = process.env): string {
-  return join(entorno.LOCALAPPDATA || join(entorno.APPDATA || '', '..'), 'GlorySentinel', 'versions');
+  return join(entorno.LOCALAPPDATA || join(entorno.APPDATA || '', '..'), NOMBRE_SENTINEL, 'versions');
 }
 
 /* Checkout COMPARTIDO de Sentinel (<área>/.quality-tools/sentinel): el mismo

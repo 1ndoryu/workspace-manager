@@ -8,7 +8,7 @@
  * de disco jamás rompe la ruta (el historial es decorativo, el vivo manda). */
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { RAIZ_DATOS } from '../plataforma/rutas.js';
 import {
   HIST_INTERVALO_MS,
   HIST_MAX_MUESTRAS,
@@ -31,11 +31,9 @@ export interface OpcionesHistorial {
   ahora?: () => number;
 }
 
-/* Misma raíz que agente.ts (leerTokenLocal): el backend puede arrancar en
- * otra carpeta y la ruta relativa fallaría en silencio. `data/*` está
- * gitignored: el historial es dato runtime, nunca se commitea. */
-const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const RUTA_DEFECTO = join(RAIZ, 'data', 'vps-historial.json');
+/* Ruta en `<área>/data/` (RAIZ_DATOS): el backend puede arrancar en otra carpeta y
+ * una ruta relativa fallaría en silencio. El historial es dato runtime; no va al repo. */
+const RUTA_DEFECTO = join(RAIZ_DATOS, 'vps-historial.json');
 
 function redondear1(n: number): number {
   return Math.round(n * 10) / 10;

@@ -2,6 +2,7 @@
  * máquina (disco, variables, runtime global). Funciones puras sobre DatosArea. */
 import type { Hallazgo } from '../../shared/salud/salud.js';
 import type { Comprobacion, DatosArea } from './tipos.js';
+import { CARPETA_SKILLS, NOMBRE_SENTINEL } from '../plataforma/rutas.js';
 
 // [por que] Compartidas con comprobacionesProyecto.ts y comprobacionesRoadmap.ts.
 export const DIA_MS = 86_400_000;
@@ -119,7 +120,7 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
           {
             id: 'sentinel-runtime',
             severidad: 'aviso',
-            mensaje: 'runtime global de Sentinel no encontrado en AppData\\Local\\GlorySentinel\\current.json',
+            mensaje: `runtime global de Sentinel no encontrado en AppData\\Local\\${NOMBRE_SENTINEL}\\current.json`,
             accion: 'instala la versión fijada con scripts/quality/bump.mjs',
             doc: 'AGENTS.md',
           },
@@ -177,7 +178,7 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
             id: 'skill-desfasada',
             severidad: 'aviso',
             mensaje: `skill workspace-manager no documenta: ${lista(sinDocumentar)}`,
-            accion: 'añade cada subcomando (Arranque <subcomando>) a ~/.agents/skills/workspace-manager/SKILL.md',
+            accion: `añade cada subcomando (Arranque <subcomando>) a ${CARPETA_SKILLS}/workspace-manager/SKILL.md`,
             doc: 'workspace-manager/scripts/dev/dev.mjs',
           });
         }
@@ -187,7 +188,7 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
           id: 'skill-desfasada',
           severidad: 'aviso',
           mensaje: `copia de skill desfasada: ${copia.nombre}`,
-          accion: 'sincroniza desde ~/.agents/skills (AGENTS §10); no se corrige sola',
+          accion: `sincroniza desde ${CARPETA_SKILLS} (AGENTS §10); no se corrige sola`,
           doc: 'AGENTS.md',
         });
       }

@@ -15,7 +15,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
-import { RAIZ_AREA, RAIZ_REPO } from '../plataforma/rutas.js';
+import { RAIZ_AREA, RAIZ_DATOS } from '../plataforma/rutas.js';
 import { avisoSinPapel, papelDeArea } from '../plataforma/area.js';
 import { PUERTO_PROCESOS } from '../plataforma/sistema/procesos.js';
 import type { PuertoProcesos } from '../plataforma/sistema/procesos.js';
@@ -28,11 +28,9 @@ const ROL_LIMPIADOR = papelDeArea('limpiador');
  * de entrada lo dicen. Nunca se resuelve a una ruta relativa, que seria peor
  * que no tenerla (leeria un Cargo.toml del cwd). */
 const DIR_LIMPIADOR = ROL_LIMPIADOR ? join(RAIZ_AREA, ROL_LIMPIADOR) : null;
-/* [por que] `data/` es de ESTE repo, asi que se pide desde RAIZ_REPO y no como
- * `<area>/workspace-manager/data`: el nombre del proyecto estaba incrustado y
- * la ruta solo valia si el area era la carpeta padre del repo. */
+/* [por que] Binario en `<área>/data/bin` (RAIZ_DATOS): no depende del nombre del repo. */
 export const BIN_PC =
-  process.env.LIMPIADOR_BIN || join(RAIZ_REPO, 'data', 'bin', `${ROL_LIMPIADOR ?? 'limpiador'}.exe`);
+  process.env.LIMPIADOR_BIN || join(RAIZ_DATOS, 'bin', `${ROL_LIMPIADOR ?? 'limpiador'}.exe`);
 /* Huella de la fuente que produjo el binario actual. Si falta (binario de antes
  * de este flujo) `actualizado` es false y se reconstruye una vez. */
 const HUELLA_PC = join(dirname(BIN_PC), `${ROL_LIMPIADOR ?? 'limpiador'}.huella.json`);

@@ -100,8 +100,8 @@ export interface DatosArea {
   titulosClaudeMd: string[];
   /* Subcomandos de scripts/dev/dev.mjs (AYUDA); [] si no se pudo leer. */
   subcomandosArranque: string[];
-  /* SKILL.md de workspace-manager en ~/.agents/skills; null si no existe. */
+  /* SKILL.md de workspace-manager en la carpeta de skills (CARPETA_SKILLS); null si no existe. */
   skillArranque: string | null;
-  /* Skills de ~/.config/opencode/skills que también existen en ~/.agents/skills. */
+  /* Skills de ~/.config/opencode/skills que también existen en CARPETA_SKILLS. */
   copiasSkill: { nombre: string; coincide: boolean }[];
 }

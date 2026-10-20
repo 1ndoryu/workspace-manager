@@ -12,6 +12,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { ErrorValidacion, type Listas } from '../configuracion/politica.js';
 import { raizTemporales } from '../../plataforma/sistema/temporales.js';
+import { NOMBRE_SENTINEL } from '../../plataforma/rutas.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -76,7 +77,7 @@ export function comprobarRegistrada(ejecutable: string, listas: Listas): void {
 
 export function runtimeJsPorDefecto(): string {
   const local = process.env.LOCALAPPDATA ?? path.join(homedir(), 'AppData', 'Local');
-  return path.join(local, 'GlorySentinel', 'current.js');
+  return path.join(local, NOMBRE_SENTINEL, 'current.js');
 }
 
 function validarEntrada(entrada: EntradaProbar): void {

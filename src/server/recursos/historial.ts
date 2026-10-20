@@ -16,7 +16,7 @@ import {
   type MuestraRecursos,
   type TabRecursos,
 } from '../../shared/recursosHistorial.js';
-import { RAIZ_REPO } from '../plataforma/rutas.js';
+import { RAIZ_DATOS } from '../plataforma/rutas.js';
 import { escribirAtomico } from '../guardian/escritura.js';
 
 /* El anillo solo cambia una vez por minuto, pero volcarlo entero cada vez sería
@@ -29,9 +29,9 @@ export interface OpcionesHistorialRecursos {
   ahora?: () => number;
 }
 
-/* Ruta derivada de la raíz del repo (no del cwd): el backend puede arrancar en otra
+/* Ruta derivada de la raíz del área (no del cwd): el backend puede arrancar en otra
  * carpeta y la ruta relativa fallaría en silencio. */
-const RUTA_DEFECTO = join(RAIZ_REPO, 'data', 'recursos-historial.json');
+const RUTA_DEFECTO = join(RAIZ_DATOS, 'recursos-historial.json');
 
 export function crearHistorialRecursos(op: OpcionesHistorialRecursos = {}) {
   const ruta = op.ruta ?? RUTA_DEFECTO;

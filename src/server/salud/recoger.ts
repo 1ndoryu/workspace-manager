@@ -17,6 +17,7 @@ import type { Entorno } from './entorno.js';
 import { medirTmp } from './recoger/tmp.js';
 import { copiasSkill, skillArranque } from './recoger/skill.js';
 import { abiertasDelPlan, encabezados } from './recoger/puro.js';
+import { NOMBRE_CARPETA_CLAUDE, NOMBRE_SENTINEL } from '../plataforma/rutas.js';
 export { abiertasDelPlan } from './recoger/puro.js';
 
 const GB = 1024 ** 3;
@@ -56,7 +57,7 @@ export function leerPinArea(raizRepo: string): string | null {
 /* Runtime global instalado: %LOCALAPPDATA%\GlorySentinel\current.json. */
 function leerRuntimeSentinel(entorno: Entorno): string | null {
   const local = entorno.localAppData ?? join(entorno.homedir, 'AppData', 'Local');
-  const v = leerJson(join(local, 'GlorySentinel', 'current.json'))?.version;
+  const v = leerJson(join(local, NOMBRE_SENTINEL, 'current.json'))?.version;
   return typeof v === 'string' ? v : null;
 }
 
@@ -259,7 +260,7 @@ export async function recogerArea(
     sentinelRuntime: leerRuntimeSentinel(entorno),
     agentsBytes,
     titulosAgents: encabezados(agentsTexto),
-    titulosClaudeMd: encabezados(leerArchivo(join(entorno.homedir, '.claude', 'CLAUDE.md'))),
+    titulosClaudeMd: encabezados(leerArchivo(join(entorno.homedir, NOMBRE_CARPETA_CLAUDE, 'CLAUDE.md'))),
     subcomandosArranque: subcomandosArranque(entorno),
     skillArranque: skillArranque(entorno),
     copiasSkill: copiasSkill(entorno),
