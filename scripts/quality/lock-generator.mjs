@@ -28,9 +28,11 @@ function git(cwd, ...args) {
   return result.stdout.trim();
 }
 
+// Sin conversión de fin de línea: con core.autocrlf=true (Windows) el archivo cambia y el hash deja de ser reproducible entre máquinas.
 function gitArchiveSha256(toolRoot) {
   return new Promise((resolve, reject) => {
-    const child = spawn(BIN_GIT, ['-C', toolRoot, 'archive', '--format=tar', 'HEAD'], {
+    const args = ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', '-C', toolRoot, 'archive', '--format=tar', 'HEAD'];
+    const child = spawn(BIN_GIT, args, {
       cwd: toolRoot, shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     });
     const hash = createHash('sha256');
