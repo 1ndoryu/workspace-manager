@@ -11,6 +11,8 @@ import {esIdValido, validarLote} from './nucleo/validaciones.js';
 import {crearPuenteTareas, puenteTareas, type PuenteTareas} from './puente-tareas.js';
 import {sincronizarColumnas, type EntradaWm} from './sincronizar-proyectos.js';
 import {validarParche} from './tarea-unitaria.js';
+import {estadoTaller} from '../taller/estado.js';
+import {revisarTuneles} from '../taller/tuneles.js';
 
 const CODIGOS_KANBAN = [
   'no-autenticado',
@@ -73,6 +75,21 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
   const leerCuerpo = deps.leerCuerpo ?? leerBody;
   const leerWm = deps.leerWm ?? (() => []);
 
+  /* [por que] Un `red` suele ser el túnel caído, y es justo el fallo que ve la
+   * usuaria en la tab: se pide al supervisor que revise (solo repara proyectos
+   * que la 89 tiene en marcha) sin bloquear esta respuesta. El estado del taller
+   * llega de caché cuando el panel lo ha pedido hace poco. */
+  function revisarTunelesDelTaller(): void {
+    void estadoTaller()
+      .then(({entrada}) => revisarTuneles(entrada.t89?.tmux ?? []))
+      .catch(() => undefined);
+  }
+
+  function responder(res: ServerResponse, e: unknown, noEncontrado?: string): void {
+    if (esErrorKanban(e) && e.codigo === 'red') revisarTunelesDelTaller();
+    responderKanban(res, e, noEncontrado);
+  }
+
   return async function manejarRutasTareas(
     req: IncomingMessage,
     res: ServerResponse,
@@ -96,7 +113,7 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
         });
         json(res, 200, {proyectos});
       } catch (e) {
-        responderKanban(res, e);
+        responder(res, e);
       }
       return true;
     }
@@ -111,7 +128,7 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
         const tareas = await puente.listar(legacyId);
         json(res, 200, {tareas});
       } catch (e) {
-        responderKanban(res, e);
+        responder(res, e);
       }
       return true;
     }
@@ -135,7 +152,7 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
         const actualizadas = await puente.reordenar(validado.lote);
         json(res, 200, {actualizadas});
       } catch (e) {
-        responderKanban(res, e);
+        responder(res, e);
       }
       return true;
     }
@@ -154,7 +171,7 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
           res.writeHead(204);
           res.end();
         } catch (e) {
-          responderKanban(res, e, 'tarea-no-encontrada');
+          responder(res, e, 'tarea-no-encontrada');
         }
         return true;
       }

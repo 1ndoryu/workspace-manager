@@ -96,6 +96,13 @@ function reductor(prev: EstadoPanelTareas, a: AccionTareas): EstadoPanelTareas {
  * (el boundary storage.ts ya traga cuota/modo-privado en silencio). */
 const CLAVE_CACHE_TAREAS = 'wm.tareas.cache.v1';
 
+/* Auto-recuperacion (19AA-15). [por que] El tunel del taller hacia TASKS se cae
+ * solo y el servidor lo reabre por su cuenta (supervisor de tuneles): sin esto
+ * la tab se quedaba en «no disponible» hasta que alguien pulsara reintentar a
+ * mano, aunque el tunel ya estuviera de vuelta. La espera es mas larga que el
+ * breaker del puente (30 s) para no gastar peticiones en balde. */
+const REINTENTO_MS = 15_000;
+
 function leerFoto(): CacheTareasTab | null {
   return restaurarCacheTareas(leerJson<unknown>(CLAVE_CACHE_TAREAS));
 }
@@ -169,6 +176,17 @@ export function usePanelTareas() {
   function recargar(): void {
     void cargar();
   }
+
+  /* Mientras el puente no este disponible, se reintenta solo (19AA-15). Se para
+   * en cuanto vuelve: el estado sigue pintado durante el reintento, asi que no
+   * hay parpadeo (el reductor de 'cargando' no borra `estado`). */
+  const noDisponible = s.estado !== null && !s.estado.disponible;
+  useEffect(() => {
+    if (!noDisponible) return undefined;
+    const id = setInterval(() => void cargar(), REINTENTO_MS);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noDisponible]);
 
   /* Escritura en serie: marca la tarjeta en vuelo, ejecuta, relee todo (la
    * relectura confirma que TASKS persistio) y libera. Al fallar, corre

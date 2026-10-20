@@ -48,9 +48,9 @@ export function PanelTareas() {
           no disponible{t.estado.motivo ? `: ${t.estado.motivo}` : ''} (el puente informa, no inventa)
         </div>
         <div className="docsVacio">
-          para probarla: define TASKS_EMAIL y TASKS_PASSWORD en logs/.tareas-env (workspace-manager)
-          y reinicia el backend; las columnas las sincroniza el servidor (una por
-          proyecto no-ignorado)
+          si sigue así: define TASKS_BASE_URL y TASKS_EMAIL/TASKS_PASSWORD en logs/.tareas-env
+          (workspace-manager); el puente lo lee en cada llamada, sin reiniciar nada. Las columnas
+          las sincroniza el servidor (una por proyecto no-ignorado)
         </div>
         <Button pequeno onClick={t.recargar} title="Reintentar la conexión con el servidor de tareas">
           <RotateCw size={12} aria-hidden /> reintentar

@@ -18,34 +18,13 @@ import type {
 import {crearHttpNativo} from './transporte/transporte-tareas.js';
 import {pedirProyectosPuente} from './proyectos-puente.js';
 import {mapearErrorTarea, type ParcheTarea, type ProyectoPuente} from './tarea-unitaria.js';
+import {configPuenteViva, type ConfigPuente} from './entorno/config-puente.js';
 
 const RUTA_LOGIN = '/api/auth/login';
 const COOKIE_SESION = 'session_id';
 const COOKIE_CSRF = 'csrf_token';
 const VALOR_COOKIE_OK = /^[A-Za-z0-9._-]{1,256}$/;
 const TOPE_ESPERA_CUOTA_MS = 30_000;
-
-export interface ConfigPuente {
-  base: string;
-  email: string;
-  password: string;
-  timeoutMs: number;
-  maxReintentosCuota: number;
-  enfriamientoMs: number;
-}
-
-/* Sin TASKS_BASE_URL la base queda vacía: el puente se declara «sin-base» en vez de
- * asumir un puerto de otra máquina. */
-export function leerConfigPuente(env: Record<string, string | undefined> = process.env): ConfigPuente {
-  return {
-    base: (env.TASKS_BASE_URL ?? '').trim(),
-    email: (env.TASKS_EMAIL ?? '').trim(),
-    password: (env.TASKS_PASSWORD ?? '').trim(),
-    timeoutMs: 10_000,
-    maxReintentosCuota: 3,
-    enfriamientoMs: 30_000,
-  };
-}
 
 export type {FetchPuente, RespuestaPuente} from './transporte/transporte-tipos.js';
 import type {FetchPuente, RespuestaPuente} from './transporte/transporte-tipos.js';
@@ -133,8 +112,9 @@ export interface PuenteTareas {
 }
 
 export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
-  const config = deps.config ?? leerConfigPuente();
-  const transporte = deps.transporte ?? crearHttpNativo(config.timeoutMs);
+  const configFija = deps.config;
+  const cfg = (): ConfigPuente => configFija ?? configPuenteViva();
+  const transporte = deps.transporte ?? crearHttpNativo(cfg().timeoutMs);
   const dormir = deps.dormir ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   const azar = deps.azar ?? Math.random;
   const ahora = deps.ahora ?? Date.now;
@@ -146,7 +126,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
   let ultimaFalla = 0;
   let motivoFalla: string | null = null;
 
-  const conCredenciales = (): boolean => config.email !== '' && config.password !== '';
+  const conCredenciales = (): boolean => cfg().email !== '' && cfg().password !== '';
 
   function abrir(motivo: string): void {
     motivoFalla = motivo.slice(0, 200);
@@ -160,10 +140,10 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
   async function hacerLogin(): Promise<Sesion> {
     let respuesta: RespuestaPuente;
     try {
-      respuesta = await transporte(`${config.base}${RUTA_LOGIN}`, {
+      respuesta = await transporte(`${cfg().base}${RUTA_LOGIN}`, {
         method: 'POST',
         headers: {'content-type': 'application/json'},
-        body: JSON.stringify({email: config.email, password: config.password}),
+        body: JSON.stringify({email: cfg().email, password: cfg().password}),
       });
     } catch {
       abrir('red-tasks: TASKS no responde al login');
@@ -211,7 +191,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
   ): Promise<unknown> {
     let respuesta: RespuestaHttp;
     try {
-      respuesta = await fetchConSesion(`${config.base}/api/${recurso}/${legacyId}`, {
+      respuesta = await fetchConSesion(`${cfg().base}/api/${recurso}/${legacyId}`, {
         method,
         headers: {
           'content-type': 'application/json',
@@ -242,13 +222,21 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
 
   /* Proyectos via modulo extraido (08AA-6; el gate limita a 300 lineas). */
   const pedirProyectos = (): Promise<ProyectoPuente[]> =>
-    pedirProyectosPuente({base: config.base, csrf: sesion?.csrf ?? null, llamar: fetchConSesion});
+    pedirProyectosPuente({base: cfg().base, csrf: sesion?.csrf ?? null, llamar: fetchConSesion});
 
-  const cliente: ClienteKanban = crearClienteKanban({
-    base: config.base,
-    fetchFn: fetchConSesion,
-    leerCsrf: () => sesion?.csrf ?? null,
-  });
+  /* El cliente lleva la base dentro, así que se rehace cuando la base cambia
+   * (el archivo de entorno apareció o se editó con el backend ya arriba). */
+  let clienteCache: {base: string; cliente: ClienteKanban} | null = null;
+  const cliente = (): ClienteKanban => {
+    const base = cfg().base;
+    if (clienteCache === null || clienteCache.base !== base) {
+      clienteCache = {
+        base,
+        cliente: crearClienteKanban({base, fetchFn: fetchConSesion, leerCsrf: () => sesion?.csrf ?? null}),
+      };
+    }
+    return clienteCache.cliente;
+  };
 
   /* 429 con `retry-after`: espera acotada con jitter y reintento limitado
    * (el re-login pega en otro limiter: sin tormenta). */
@@ -257,7 +245,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
       try {
         return await trabajo();
       } catch (e) {
-        if (!esKanban(e, 'cuota') || intento >= config.maxReintentosCuota) throw e;
+        if (!esKanban(e, 'cuota') || intento >= cfg().maxReintentosCuota) throw e;
         const base = (e as ErrorKanban).reintentarEnMs ?? 1000;
         await dormir(Math.round(Math.min(base, TOPE_ESPERA_CUOTA_MS) * (0.5 + azar())));
       }
@@ -265,13 +253,13 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
   }
 
   async function operar<T>(trabajo: () => Promise<T>): Promise<T> {
-    if (config.base === '') {
+    if (cfg().base === '') {
       throw {codigo: 'red', mensaje: 'sin-base (TASKS_BASE_URL)'} satisfies ErrorKanban;
     }
     if (!conCredenciales()) {
       throw {codigo: 'red', mensaje: 'sin-credenciales (TASKS_EMAIL/TASKS_PASSWORD)'} satisfies ErrorKanban;
     }
-    if (motivoFalla !== null && ahora() - ultimaFalla < config.enfriamientoMs) {
+    if (motivoFalla !== null && ahora() - ultimaFalla < cfg().enfriamientoMs) {
       throw {codigo: 'red', mensaje: motivoFalla} satisfies ErrorKanban;
     }
     try {
@@ -299,18 +287,18 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
 
   return {
     estado(): EstadoPuente {
-      if (config.base === '') {
+      if (cfg().base === '') {
         return {disponible: false, motivo: 'sin-base (TASKS_BASE_URL)', base: '', conCredenciales: conCredenciales()};
       }
       if (!conCredenciales()) {
-        return {disponible: false, motivo: 'sin-credenciales (TASKS_EMAIL/TASKS_PASSWORD)', base: config.base, conCredenciales: false};
+        return {disponible: false, motivo: 'sin-credenciales (TASKS_EMAIL/TASKS_PASSWORD)', base: cfg().base, conCredenciales: false};
       }
-      if (motivoFalla !== null && ahora() - ultimaFalla < config.enfriamientoMs) {
-        return {disponible: false, motivo: motivoFalla, base: config.base, conCredenciales: true};
+      if (motivoFalla !== null && ahora() - ultimaFalla < cfg().enfriamientoMs) {
+        return {disponible: false, motivo: motivoFalla, base: cfg().base, conCredenciales: true};
       }
-      return {disponible: true, motivo: null, base: config.base, conCredenciales: true};
+      return {disponible: true, motivo: null, base: cfg().base, conCredenciales: true};
     },
-    listar: (legacyId) => operar(() => cliente.listarTareasProyecto(legacyId)),
+    listar: (legacyId) => operar(() => cliente().listarTareasProyecto(legacyId)),
     proyectos: () => operar(pedirProyectos),
     /* Crea el proyecto TASKS espejo de un repo WM (08AA-6 sync): upsert por
      * id generado + `payload.wmClave` como llave de emparejado futuro. Sin
@@ -325,7 +313,7 @@ export function crearPuenteTareas(deps: DepsPuente = {}): PuenteTareas {
         return legacyId;
       });
     },
-    reordenar: (lote) => operar(() => cliente.reordenarBulk(lote)),
+    reordenar: (lote) => operar(() => cliente().reordenarBulk(lote)),
     actualizar: (legacyId, parche) =>
       operar(async () => {
         if (!esIdValido(legacyId)) {
