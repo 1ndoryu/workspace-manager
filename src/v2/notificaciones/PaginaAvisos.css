@@ -1,0 +1,47 @@
+/* Página de avisos (20AA-29): SOLO layout. Las filas, el bloque de 6 h y el detalle son las
+ * mismas piezas de la campana y llevan su estilo en `Campana.css`. Monocromo, sin radios ni
+ * sombras, como el resto del shell v2. */
+/* La lista ocupa el alto de su caja y hace su propio scroll: la página no crece con 500 avisos.
+ * `min-height: 0` deja encogerse a un hijo flex con `overflow`; sin él el alto mínimo lo fija el
+ * contenido y la caja se estira. */
+.avisosLista {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceSm);
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+/* Separación entre el bloque de 6 h y las filas del tramo anterior. */
+.avisosLista > .v2CampanaGrupo + .v2CampanaGrupo {
+    margin-top: var(--v2-spaceXs);
+}
+
+/* Filas de la página: aire entre una y otra, que aquí sí caben. En la campana van pegadas para
+ * que quepan más en 360 px. */
+.avisosLista .v2CampanaGrupo {
+    gap: var(--v2-spaceXs);
+}
+
+/* El detalle respira igual que la lista: sin este relleno su texto arrancaba pegado al borde de
+ * la caja y no se alineaba con el de las filas de la izquierda. */
+.avisosDetalle .cajaCuerpo {
+    padding: var(--v2-spaceSm) var(--v2-spaceMd);
+}
+
+/* Pedir el tramo siguiente a mano: la línea lo separa de lo ya leído. */
+.avisosMas {
+    display: flex;
+    justify-content: center;
+    padding: var(--v2-spaceSm) 0;
+    border-top: 1px solid var(--v2-borde);
+}
+
+/* Leyenda del filtro activo, pegada a la cabecera de la caja. */
+.avisosFiltro {
+    padding: 0 var(--v2-spaceMd) var(--v2-spaceXs);
+    border-top: 0;
+}

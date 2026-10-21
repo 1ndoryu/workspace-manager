@@ -10,7 +10,7 @@
  * 2026-10-17): son control de lo que se ve y tienen que estar siempre a mano.
  * El recorte es solo de destinos. */
 import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type Ref } from 'react';
-import { BookOpen, Boxes, Ellipsis, FolderOpen, GitBranch, HardDrive, Kanban, Network, PanelLeft, PanelRight, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, type LucideIcon } from 'lucide-react';
+import { BellRing, BookOpen, Boxes, Ellipsis, FolderOpen, GitBranch, HardDrive, Kanban, Network, PanelLeft, PanelRight, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, type LucideIcon } from 'lucide-react';
 import { useWorkspaceStore, type PanelCentral, type VisibilidadPaneles } from '../../../hooks/useWorkspace.js';
 import { Button } from '../form/Button.js';
 import { useDesplegable } from './useDesplegable.js';
@@ -30,6 +30,7 @@ const CENTRALES: { clave: PanelCentral; icono: LucideIcon; etiqueta: string }[] 
   { clave: 'pc', icono: HardDrive, etiqueta: 'pc' },
   { clave: 'vps', icono: Server, etiqueta: 'vps' },
   { clave: 'taller', icono: Network, etiqueta: 'taller' },
+  { clave: 'avisos', icono: BellRing, etiqueta: 'avisos' },
 ];
 
 const TOGGLES: {

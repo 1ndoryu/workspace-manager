@@ -25,6 +25,7 @@ import { PanelRepos } from './paneles/PanelRepos.js';
 import { PanelTareas } from './paneles/tareas/PanelTareas.js';
 import { PanelVps } from './paneles/vps/PanelVps.js';
 import { PanelTaller } from './paneles/taller/PanelTaller.js';
+import { PaginaAvisos } from './notificaciones/PaginaAvisos.js';
 import { Resizer } from './ui/overlay/Resizer.js';
 import { Toaster } from './ui/overlay/Toaster.js';
 import './styles/v2.css';
@@ -92,6 +93,7 @@ export function AppV2() {
     pc: <PanelPc />,
     vps: <PanelVps />,
     taller: <PanelTaller />,
+    avisos: <PaginaAvisos />,
   }[panelCentral];
 
   /* [por que] El marco con borde solo envuelve al mapa (el usuario pidio el

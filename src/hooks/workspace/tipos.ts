@@ -28,7 +28,7 @@ export interface InformeDevVivo extends InformeDev {
  * layout y la seleccion: sobreviven a recargas. [por que] El usuario pidio
  * un nav para cambiar el panel central (mapa/docs/repos/config) y controlar
  * que paneles laterales/consola estan visibles. */
-export type PanelCentral = 'mapa' | 'docs' | 'repos' | 'tareas' | 'navegador' | 'config' | 'sentinel' | 'guardian' | 'pc' | 'vps' | 'taller';
+export type PanelCentral = 'mapa' | 'docs' | 'repos' | 'tareas' | 'navegador' | 'config' | 'sentinel' | 'guardian' | 'pc' | 'vps' | 'taller' | 'avisos';
 
 /* Posicion del menu contextual (clic derecho) sobre un proyecto. La seleccion
  * usa el id (nombre) y la clave (ruta relativa) para ignorar/configurar. */

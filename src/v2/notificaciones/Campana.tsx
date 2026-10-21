@@ -11,44 +11,16 @@
  * informaba; el bloque, centrado, sitúa el aviso una sola vez por tramo y el detalle da la hora. */
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  ArrowLeft,
-  Bell,
-  BellOff,
-  CheckCheck,
-  CircleCheck,
-  Globe,
-  GlobeLock,
-  Layers,
-  ListFilter,
-  ShieldAlert,
-  ShieldCheck,
-  TriangleAlert,
-  WifiOff,
-  X,
-} from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, ListFilter, X } from 'lucide-react';
 import type { Aviso, TipoAviso } from '../../shared/notificaciones/tipos.js';
-import { ETIQUETA, NIVEL, TIPOS } from '../../shared/notificaciones/tipos.js';
-import { etiquetaContador, etiquetaDia, diaLocal, horaLocal } from '../../shared/notificaciones/presentacion.js';
+import { ETIQUETA, TIPOS } from '../../shared/notificaciones/tipos.js';
+import { etiquetaContador } from '../../shared/notificaciones/presentacion.js';
 import { cuerpoDocumento } from '../../shared/platform/plataforma.js';
 import { Button } from '../ui/form/Button.js';
+import { DetalleAviso, FilaAviso, ICONO } from './FilaAviso.js';
 import { useCampana } from './useCampana.js';
 import { useNotificaciones } from './useNotificaciones.js';
 import './Campana.css';
-
-/* Icono de cada tipo. [por que aquí y no en el contrato] `tipos.ts` lo comparten el servidor y
- * los tests de Node: meter componentes de React allí arrastraría la UI al motor. Monocromos y a
- * 14 px, como el icono de la campana. */
-const ICONO: Record<TipoAviso, typeof Bell> = {
-  'tarea-nueva': Layers,
-  'tarea-completada': CheckCheck,
-  'problema-detectado': TriangleAlert,
-  'problema-resuelto': CircleCheck,
-  'sitio-caido': GlobeLock,
-  'sitio-recuperado': Globe,
-  'proyecto-caido': ShieldAlert,
-  'proyecto-recuperado': ShieldCheck,
-};
 
 export function Campana() {
   const {
@@ -75,12 +47,8 @@ export function Campana() {
   const alternarSilencio = useNotificaciones((s) => s.alternarSilencio);
 
   const contador = etiquetaContador(noLeidos);
-
   /* Fila con foco de la lista: sólo es parada de tabulador (0 o -1), se navega con flechas. */
   const enfocable = (gi: number, i: number): number => (gi === 0 && i === 0 ? 0 : -1);
-  /* Índice plano de una fila. [por que] `refsItems` es la única lista que recorren las flechas:
-   * si sólo se registra la primera fila, ArrowDown/ArrowUp giran sobre ella y el resto de la
-   * lista queda inalcanzable con el teclado. */
   const indicePlano = (gi: number, i: number): number =>
     grupos.slice(0, gi).reduce((n, g) => n + g.avisos.length, i);
 
@@ -154,7 +122,7 @@ export function Campana() {
             ))}
           </span>
 
-          {vista?.tipo === 'detalle' && <DetalleAviso aviso={vista.aviso} onCerrar={cerrarVista} />}
+          {vista?.tipo === 'detalle' && <DetalleEnCampana aviso={vista.aviso} onCerrar={cerrarVista} />}
           {vista?.tipo === 'filtro' && (
             <ModalFiltro
               filtro={filtro}
@@ -170,50 +138,12 @@ export function Campana() {
   );
 }
 
-/* Una fila de la lista. `button` nativo y no Button: la fila es texto de dos líneas a todo el
- * ancho, no un control del sistema (Button.css es para los botones del shell). Sin hora: el tramo
- * de 6 h ya la sitúa y la hora exacta está en el detalle. */
-function FilaAviso({
-  aviso,
-  tabIndex,
-  refFila,
-  onAbrir,
-}: {
-  aviso: Aviso;
-  tabIndex: number;
-  refFila: (el: HTMLButtonElement | null) => void;
-  onAbrir: (a: Aviso) => void;
-}) {
+/* Detalle de un aviso dentro del panel. [por que un envoltorio] La ficha es la misma que la de la
+ * página de avisos (`FilaAviso.tsx`); lo que cambia es dónde vive: aquí es una capa que cubre el
+ * panel, con su propio Escape y un botón «volver» como primera parada del tabulador. No atrapa el
+ * foco: el panel entero ya es el diálogo. */
+function DetalleEnCampana({ aviso, onCerrar }: { aviso: Aviso; onCerrar: () => void }) {
   const Icono = ICONO[aviso.tipo];
-  return (
-    <button
-      type="button"
-      ref={refFila}
-      tabIndex={tabIndex}
-      className={`v2CampanaAviso${aviso.leido ? '' : ' v2CampanaAviso--nuevo'}`}
-      onClick={() => onAbrir(aviso)}
-    >
-      <Icono size={14} className="v2CampanaIcono" aria-hidden />
-      <span className="v2CampanaTexto">
-        <span className="v2CampanaTituloAviso">{aviso.titulo}</span>
-        {aviso.detalle !== '' && <span className="v2CampanaDetalle">{aviso.detalle}</span>}
-      </span>
-    </button>
-  );
-}
-
-/* Detalle de un aviso: todo lo que el motor guardó, no lo que cabía en una fila. Va dentro del
- * panel y no como modal a pantalla completa: es el mismo asunto, un paso más adentro.
- * [por que un campo por línea y no un JSON] Se lee, y el pie da el día y la hora exacta, que es
- * lo que la lista ya no enseña.
- * [por que no atrapa el foco] El panel entero es un diálogo; esto es una capa suya con su propio
- * Escape y un botón «volver» como primera parada del tabulador. */
-function DetalleAviso({ aviso, onCerrar }: { aviso: Aviso; onCerrar: () => void }) {
-  const Icono = ICONO[aviso.tipo];
-  const fecha = new Date(aviso.cuando);
-  const cuando = Number.isFinite(fecha.getTime())
-    ? `${etiquetaDia(diaLocal(fecha), fecha)} · ${horaLocal(fecha)}`
-    : aviso.cuando;
   const refVolver = useRef<HTMLButtonElement>(null);
 
   return (
@@ -224,6 +154,7 @@ function DetalleAviso({ aviso, onCerrar }: { aviso: Aviso; onCerrar: () => void 
       aria-label={`detalle: ${aviso.titulo}`}
       ref={() => refVolver.current?.focus()}
       onKeyDown={(ev) => {
+        /* Escape cierra esta capa, no el panel entero. */
         if (ev.key === 'Escape') {
           ev.stopPropagation();
           onCerrar();
@@ -237,20 +168,7 @@ function DetalleAviso({ aviso, onCerrar }: { aviso: Aviso; onCerrar: () => void 
         <Icono size={14} aria-hidden />
         <span className="v2CampanaDetalleTipo">{ETIQUETA[aviso.tipo]}</span>
       </span>
-
-      <span className={`v2CampanaDetalleCuerpo${NIVEL[aviso.tipo] === 'alta' ? ' v2CampanaDetalleCuerpo--alta' : ''}`}>
-        <span className="v2CampanaDetalleTitulo">{aviso.titulo}</span>
-        {aviso.detalle !== '' && <span className="v2CampanaDetalleTexto">{aviso.detalle}</span>}
-        <span className="v2CampanaDetallePie">
-          <span>{cuando}</span>
-          <span>
-            {aviso.fuente}
-            {aviso.clave !== '' ? ` · ${aviso.clave}` : ''}
-          </span>
-          {aviso.agrupados > 1 && <span>{aviso.agrupados} avisos agrupados</span>}
-          <span>{NIVEL[aviso.tipo] === 'alta' ? 'sale fuera de la app' : 'sólo en la campana'}</span>
-        </span>
-      </span>
+      <DetalleAviso aviso={aviso} />
     </span>
   );
 }
