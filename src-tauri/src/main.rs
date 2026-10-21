@@ -48,6 +48,13 @@ fn main() {
                     }
                 });
             }
+            /* [por que] El backend puede caerse con la app abierta (alguien mata
+             * el `node`). Sin vigilante, la ventana se queda en 502 hasta que se
+             * reinicia la app; con el, se vuelve a levantar en unos segundos. */
+            std::thread::spawn({
+                let proceso = Arc::clone(&al_arrancar);
+                move || backend::vigilar(proceso)
+            });
             let sin_backend = !proxy::salud(crate::ajustes::PUERTO_API);
 
             let puerto = servidor::arrancar(app.handle().clone(), Arc::clone(&al_arrancar))?;
