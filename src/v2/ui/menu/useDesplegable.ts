@@ -11,8 +11,14 @@ export function useDesplegable<T extends HTMLElement = HTMLSpanElement>() {
 
   useEffect(() => {
     if (!abierto) return;
+    /* Lo que cuelga de `body` por un portal (un modal, un submenu) es parte del desplegable aunque
+     * no sea hijo suyo en el DOM: sin esto, pulsar dentro del portal cerraria el panel antes de
+     * que el clic llegara a su boton. Se marca con `data-portal` el contenedor del portal. */
+    const dentro = (nodo: Node | null): boolean =>
+      raiz.current !== null &&
+      (raiz.current.contains(nodo) || (nodo instanceof Element && nodo.closest('[data-portal]') !== null));
     const fuera = (e: Event) => {
-      if (raiz.current && e.target instanceof Node && !raiz.current.contains(e.target)) {
+      if (raiz.current && e.target instanceof Node && !dentro(e.target)) {
         setAbierto(false);
       }
     };
