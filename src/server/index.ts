@@ -36,6 +36,9 @@ import { crearSincroniaFondo } from './tareas/sincronizacion/sincronia-fondo.js'
 import { crearServicioNotificaciones } from './notificaciones/notificaciones.js';
 import { fuentesReales } from './notificaciones/componer.js';
 import { crearManejadorNotificaciones } from './notificaciones/rutasNotificaciones.js';
+import { crearBusEventos } from './eventos/bus.js';
+import { crearManejadorEventos } from './eventos/rutasEventos.js';
+import { crearPublicadores } from './eventos/publicar.js';
 import { verificarEntrada } from './seguridad/entrada.js';
 import { obtenerToken } from './seguridad/token.js';
 import { registrarAuditoria, rutaAuditoriaPorDefecto } from './seguridad/auditoria.js';
@@ -75,13 +78,23 @@ const sincronia = crearSincroniaFondo({proyectos: leerProyectos, puente: puenteT
 /* Campana de avisos (20AA-25): un servicio para todo el proceso. Se engancha a los mismos
  * momentos que la sincronia —fin de un escaneo real y los gestos del tab—; su propio latido solo
  * existe mientras haya una pestana escuchando. */
+/* Canal de eventos del tablero (20AA-24 F3): un bus para todo el proceso y un publicador por
+ * dominio. El mapa y los paneles dejan de sondear; el único latido es el de `vivos`, y sólo
+ * existe con una pestaña escuchando. */
+const bus = crearBusEventos();
+const publicadores = crearPublicadores(bus);
+const manejarEventos = crearManejadorEventos(bus, publicadores.ajustarLatido);
 const notificaciones = crearServicioNotificaciones({
   rutaFichero: join(RAIZ_DATOS, 'cache', 'notificaciones.json'),
   fuentes: fuentesReales(),
+  /* La campana y el canal son dos vistas del mismo aviso: el toast del sistema (20AA-27) y la
+   * pestaña lo leen del mismo evento, así que no pueden decir cosas distintas. */
+  alAviso: (aviso) => bus.publicar('avisos', aviso),
 });
 alEscanearWorkspace(() => {
   sincronia.programar();
   notificaciones.programar();
+  void publicadores.publicarWorkspace();
 });
 /* Al arrancar: una pasada para tener línea base y la foto de ahora. `void`: no bloquea el
  * servidor, y el primer acceso a la campana la enseña en cuanto termine. */
@@ -124,6 +137,7 @@ const MANEJADORES_API: ManejadorRuta[] = [
   manejarRutasTaller,       /* /api/taller/estado (S3) */
   manejarRutasTallerAgente, /* /api/taller/agente y /api/taller/pieza (20AA-16) */
   manejarRutasSalud,        /* /api/salud/* (10AA-2 F8) */
+  manejarEventos,           /* /api/eventos (20AA-24 F3): canal único del tablero */
   manejarNotificaciones,    /* /api/notificaciones* (20AA-25): campana y canal SSE */
   manejarTareas,            /* /api/tareas/* (07AA-5 F2): el puente custodia la sesión D1 */
 ];

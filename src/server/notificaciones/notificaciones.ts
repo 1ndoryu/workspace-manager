@@ -35,6 +35,10 @@ export interface OpcionesServicio {
   ahora?: () => Date;
   calmaMs?: number;
   latidoMs?: number;
+  /* Se llama por cada aviso nuevo, además de los suscriptores del canal propio. [por que existe]
+   * El canal único del tablero (20AA-24) y la campana son dos transportes del mismo hecho: quien
+   * compone el servidor engancha aquí el bus y el aviso viaja por los dos sin releer nada. */
+  alAviso?: (aviso: Aviso) => void;
 }
 
 /* Lo que se emite por SSE. `tipo` es obligatorio para `iniciarSse`; el resto, el aviso entero. */
@@ -72,6 +76,7 @@ export function crearServicioNotificaciones(opciones: OpcionesServicio): Servici
 
   function avisar(aviso: Aviso): void {
     emisor.emit('aviso', aviso);
+    opciones.alAviso?.(aviso);
   }
 
   async function correr(): Promise<Aviso[]> {
