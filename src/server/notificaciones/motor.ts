@@ -198,6 +198,8 @@ const PLURAL: Record<Aviso['tipo'], string> = {
   'problema-resuelto': 'problemas resueltos',
   'sitio-caido': 'sitios caídos',
   'sitio-recuperado': 'sitios recuperados',
+  'proyecto-caido': 'proyectos parados',
+  'proyecto-recuperado': 'proyectos arriba',
 };
 
 function plural(tipo: Aviso['tipo']): string {

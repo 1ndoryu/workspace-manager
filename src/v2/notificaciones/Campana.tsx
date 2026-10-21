@@ -8,22 +8,14 @@
  * [por que arranca cerrada] La historia está ahí al abrir; anunciar de golpe 20 cosas de ayer al
  * arrancar sería ruido, justo lo que la usuaria no quería. */
 import { Bell } from 'lucide-react';
-import type { Aviso, TipoAviso } from '../../shared/notificaciones/tipos.js';
-import { ETIQUETA } from '../../shared/notificaciones/tipos.js';
+import type { Aviso } from '../../shared/notificaciones/tipos.js';
+import { ETIQUETA, TIPOS } from '../../shared/notificaciones/tipos.js';
 import { etiquetaContador, hace } from '../../shared/notificaciones/presentacion.js';
 import { Button } from '../ui/form/Button.js';
 import { useCampana } from './useCampana.js';
 import { useNotificaciones } from './useNotificaciones.js';
 import './Campana.css';
 
-const TIPOS: TipoAviso[] = [
-  'tarea-nueva',
-  'tarea-completada',
-  'problema-detectado',
-  'problema-resuelto',
-  'sitio-caido',
-  'sitio-recuperado',
-];
 
 export function Campana() {
   const {

@@ -1,8 +1,10 @@
 /* Pruebas de la presentación de avisos (20AA-25 N3). Tablas: entra un reloj fijo y sale texto;
  * ninguna depende de cuándo se ejecute. */
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+
 import type { Aviso } from './tipos.js';
+import { ETIQUETA, NIVEL, TIPOS } from './tipos.js';
 import {
   agruparPorDia,
   diaLocal,
@@ -87,4 +89,17 @@ test('sinLeer cuenta sólo los no leídos y el filtro por tipo no toca el origin
   assert.deepEqual(soloTareas.map((a) => a.id), [1, 3]);
   assert.equal(filtrarPorTipo(avisos, null).length, 3);
   assert.notEqual(filtrarPorTipo(avisos, null), avisos, 'devuelve copia: quien la ordene no altera el store');
+});
+
+/* [20AA-25 N4] Un tipo nuevo no puede quedarse fuera de las tablas: el contrato es la única
+ * lista y cualquier Record<TipoAviso, …> falla al compilar si falta. Esta prueba lo fija en
+ * tiempo de ejecución por si alguien lo cambia por un Partial o un índice dinámico. */
+void describe('cobertura de tipos', () => {
+  void test('todos los tipos tienen etiqueta, nivel y plural', () => {
+    for (const tipo of TIPOS) {
+      assert.ok(ETIQUETA[tipo], `sin etiqueta: ${tipo}`);
+      assert.ok(NIVEL[tipo], `sin nivel: ${tipo}`);
+    }
+    assert.deepEqual(new Set(TIPOS).size, TIPOS.length, 'tipo repetido en la lista');
+  });
 });

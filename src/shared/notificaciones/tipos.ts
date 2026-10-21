@@ -11,7 +11,9 @@ export type TipoAviso =
   | 'problema-detectado'
   | 'problema-resuelto'
   | 'sitio-caido'
-  | 'sitio-recuperado';
+  | 'sitio-recuperado'
+  | 'proyecto-caido'
+  | 'proyecto-recuperado';
 
 /* Cuánto pesa un aviso. `alta` justifica salir del tablero (toast del sistema, 20AA-27);
  * `media` se queda en la campana. */
@@ -24,7 +26,23 @@ export const NIVEL: Record<TipoAviso, NivelAviso> = {
   'problema-resuelto': 'media',
   'sitio-caido': 'alta',
   'sitio-recuperado': 'media',
+  'proyecto-caido': 'alta',
+  'proyecto-recuperado': 'media',
 };
+
+/* Todos los tipos, en orden de presentación. [por que aquí] Antes cada módulo repetía su propia
+ * lista, así que añadir un tipo obligaba a tocar cinco sitios y el que se olvidaba rechazaba el
+ * aviso en silencio al releerlo del disco. */
+export const TIPOS: readonly TipoAviso[] = [
+  'tarea-nueva',
+  'tarea-completada',
+  'problema-detectado',
+  'problema-resuelto',
+  'sitio-caido',
+  'sitio-recuperado',
+  'proyecto-caido',
+  'proyecto-recuperado',
+];
 
 /* Nombre legible del tipo, para la UI y para el toast. */
 export const ETIQUETA: Record<TipoAviso, string> = {
@@ -34,6 +52,8 @@ export const ETIQUETA: Record<TipoAviso, string> = {
   'problema-resuelto': 'Problema resuelto',
   'sitio-caido': 'Sitio caído',
   'sitio-recuperado': 'Sitio recuperado',
+  'proyecto-caido': 'Proyecto del taller parado',
+  'proyecto-recuperado': 'Proyecto del taller arriba',
 };
 
 /* Un aviso ya emitido y guardado. `id` es estable y monótono: sirve para deduplicar en el

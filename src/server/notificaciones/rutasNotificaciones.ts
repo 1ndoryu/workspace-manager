@@ -11,17 +11,12 @@
  * todos para agrupar por día; paginar aquí sólo añadiría estado en el cliente. */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json, leerBody } from '../http.js';
+import { TIPOS } from '../../shared/notificaciones/tipos.js';
 import type { TipoAviso } from '../../shared/notificaciones/tipos.js';
 import type { ServicioNotificaciones } from './notificaciones.js';
 
-const TIPOS: ReadonlySet<string> = new Set<TipoAviso>([
-  'tarea-nueva',
-  'tarea-completada',
-  'problema-detectado',
-  'problema-resuelto',
-  'sitio-caido',
-  'sitio-recuperado',
-]);
+/* Lista única del contrato, para validar el filtro `?tipo=` de la campana. */
+const TIPOS_VALIDOS: ReadonlySet<string> = new Set<string>(TIPOS);
 
 /* Latido del canal: un comentario SSE cada 20 s. [por que] Un proxy (el túnel, el proxy de la app
  * de escritorio) cierra una conexión en la que no pasa nada durante un minuto; el comentario la
@@ -95,7 +90,7 @@ function tiposDe(cuerpo: unknown): TipoAviso[] | 'invalido' {
   if (cuerpo === null || typeof cuerpo !== 'object') return 'invalido';
   const bruto = (cuerpo as { tipos?: unknown }).tipos;
   if (!Array.isArray(bruto)) return 'invalido';
-  if (!bruto.every((t) => typeof t === 'string' && TIPOS.has(t))) return 'invalido';
+  if (!bruto.every((t) => typeof t === 'string' && TIPOS_VALIDOS.has(t))) return 'invalido';
   return [...new Set(bruto as TipoAviso[])];
 }
 

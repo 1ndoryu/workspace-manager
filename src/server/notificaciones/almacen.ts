@@ -11,11 +11,12 @@
  * su forma. La escritura atómica (temporal + rename) sí se copia: es la parte que importa. */
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type {
-  Aviso,
-  EstadoNotificaciones,
-  PreferenciasNotificaciones,
-  TipoAviso,
+import {
+  TIPOS as TIPOS_AVISO,
+  type Aviso,
+  type EstadoNotificaciones,
+  type PreferenciasNotificaciones,
+  type TipoAviso,
 } from '../../shared/notificaciones/tipos.js';
 import { estadoMotorInicial, type EstadoMotor, type MemoriaFuente } from './motor.js';
 
@@ -233,14 +234,8 @@ function sanearMotor(v: unknown): EstadoMotor {
   };
 }
 
-const TIPOS: ReadonlySet<string> = new Set([
-  'tarea-nueva',
-  'tarea-completada',
-  'problema-detectado',
-  'problema-resuelto',
-  'sitio-caido',
-  'sitio-recuperado',
-]);
+/* Lista única del contrato: un tipo nuevo no puede quedar fuera de la relectura del disco. */
+const TIPOS: ReadonlySet<string> = new Set<string>(TIPOS_AVISO);
 
 function esAviso(v: unknown): v is Aviso {
   const a = v as Partial<Aviso>;

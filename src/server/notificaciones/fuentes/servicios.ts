@@ -86,8 +86,10 @@ export interface DatosTaller {
 export function fuenteTaller(leer: () => Promise<DatosTaller>): Fuente {
   return {
     nombre: 'taller',
-    tipoAlta: 'sitio-recuperado',
-    tipoBaja: 'sitio-caido',
+    /* Tipos propios: la campana dice «sitio caído» de producción y «proyecto parado» del taller.
+     * Compartir tipo hacía que un mismo aviso significara dos cosas según de dónde viniera. */
+    tipoAlta: 'proyecto-recuperado',
+    tipoBaja: 'proyecto-caido',
     async leer() {
       try {
         const datos = await leer();
