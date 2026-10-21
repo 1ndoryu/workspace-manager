@@ -155,6 +155,11 @@ if [[ -n "${CM_HEAVY_HELD:-}" ]] ||
 fi
 exec 9>>/run/lock/cm-heavy.lock
 flock -w "$ESPERA" 9 || { echo "cm-heavy: otro build ocupa el lock tras ${ESPERA} s" >&2; exit 75; }
+# Buzón con nuestro PID: el shell lo conserva al hacer `exec` del scope (`$$` sobrevive), así
+# que las etapas de dentro, que pierden `CM_HEAVY_HELD` porque Sentinel filtra el entorno,
+# nos encuentran en su cadena de padres y saben que el candado ya es suyo. Vive aparte del
+# candado para no mezclar contenido con el fichero que bloquea.
+printf '%s\n' "$$" > /run/lock/cm-heavy.owner 2>/dev/null || true
 DISPONIBLE_MB=$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)
 if ((DISPONIBLE_MB < MIN_MB)); then
   echo "cm-heavy: ${DISPONIBLE_MB} MB libres (mínimo ${MIN_MB})" >&2
@@ -173,6 +178,7 @@ EOF
 chmod 755 /usr/local/bin/cm-heavy
 cat > /usr/lib/tmpfiles.d/cm-heavy.conf <<'EOF'
 f /run/lock/cm-heavy.lock 0666 root root -
+f /run/lock/cm-heavy.owner 0666 root root -
 EOF
 systemd-tmpfiles --create /usr/lib/tmpfiles.d/cm-heavy.conf
 log "cm-heavy instalado"
