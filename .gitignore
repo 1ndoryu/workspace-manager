@@ -30,3 +30,8 @@ Agente/
 
 # Tests que afirman datos del registro privado (nombres y hosts reales): locales, nunca al repo.
 scripts/dev/doctor/pruebas/*.privado.test.mjs
+
+# App de escritorio (Tauri 2): el target local se compila en la 89 y no se
+# versiona; `.cargo/config.toml` sólo tiene rutas de este portátil.
+target
+.cargo/
