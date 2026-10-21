@@ -141,14 +141,18 @@ MEM_MAX="${CM_HEAVY_MEM_MAX:-4G}"
 MIN_MB="${CM_HEAVY_MIN_MB:-4608}"
 MIN_DISCO_GB="${CM_HEAVY_MIN_DISK_GB:-15}"
 (($#)) || { echo "uso: cm-heavy <comando...>" >&2; exit 2; }
-# [10AA-3] Reentrante: si un cm-heavy ancestro ya tiene el candado, no se vuelve a pedir. El
-# entorno lo dice (`CM_HEAVY_HELD`), no un intento de `flock`, porque el candado vive en un
-# descriptor heredado y el hijo no puede saber si el que lo tiene es su ancestro o un ajeno.
-# Sin esto, envolver una orden que ya llama a cm-heavy se bloquea contra si misma: el gate de
-# calidad envuelve todo el ssh en cm-heavy y su etapa de Rust vuelve a entrar aqui; el build
-# esperaba 600 s, salia 75 y el fallo parecia del codigo del proyecto. El preflight de memoria
-# tampoco se repite: el ancestro ya lo hizo con el scope que lo acota.
-if [[ -n "${CM_HEAVY_HELD:-}" ]]; then exec "$@"; fi
+# [10AA-3] Reentrante: si un cm-heavy ancestro ya tiene el candado, no se vuelve a pedir.
+# Se mira de dos formas, porque la marca del entorno no siempre llega: Sentinel filtra el
+# entorno al lanzar las etapas del gate y se lleva `CM_HEAVY_HELD` por delante, con lo que el
+# `cm-heavy` de dentro esperaba 600 s, salia 75 y el fallo parecia del codigo del proyecto.
+#   - `CM_HEAVY_HELD`, que pone el ancestro, y
+#   - el descriptor 9, que viaja por herencia y ningun filtro de entorno lo quita: si lo
+#     tenemos abierto sobre el candado, lo abrio un ancestro (nadie mas abre ese fichero).
+# El preflight de memoria tampoco se repite: el ancestro ya lo hizo con el scope que lo acota.
+if [[ -n "${CM_HEAVY_HELD:-}" ]] ||
+   { [[ -e /proc/self/fd/9 ]] && [[ "$(readlink /proc/self/fd/9 2>/dev/null)" == */cm-heavy.lock ]]; }; then
+  exec "$@"
+fi
 exec 9>>/run/lock/cm-heavy.lock
 flock -w "$ESPERA" 9 || { echo "cm-heavy: otro build ocupa el lock tras ${ESPERA} s" >&2; exit 75; }
 DISPONIBLE_MB=$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)
