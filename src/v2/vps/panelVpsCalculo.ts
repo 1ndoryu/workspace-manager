@@ -156,14 +156,34 @@ export function contenedoresDeSeleccion(
   return grupos.sitios.find(([n]) => `sitio:${n}` === selFila.clave)?.[1].filas ?? [];
 }
 
+/* Edad en palabras, sin dependencias: lo que hace falta para decidir si esperar o intervenir. */
+export function edadTexto(ms: number): string {
+  if (ms < 60_000) return `${Math.max(0, Math.round(ms / 1000))} s`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)} min`;
+  if (ms < 86_400_000) return `${Math.round(ms / 3_600_000)} h`;
+  return `${Math.round(ms / 86_400_000)} d`;
+}
+
+/* « · abierto hace 4 min · último dato hace 2 min» o « · sin ningún dato bueno». */
+export function textoBreaker(breaker: { desdeMs: number; ultimoBuenoMs: number | null } | undefined): string {
+  if (!breaker) return '';
+  const ultimo = breaker.ultimoBuenoMs === null
+    ? 'sin ningún dato bueno'
+    : `último dato hace ${edadTexto(breaker.ultimoBuenoMs)}`;
+  return ` · abierto hace ${edadTexto(breaker.desdeMs)} · ${ultimo}`;
+}
+
 /* Avisos: solo existen cuando hay algo que decir. */
 export function calcularAvisos(
   agente: VpsAgenteRespuesta | null,
   snapAgente: VpsAgenteSnapshot | null,
 ): { bannerAgente: string | null; avisoTruncado: string | null } {
+  /* [20AA-24 F2] Con el breaker abierto se dice desde cuándo y qué edad tiene el último dato bueno:
+   * «agente-abierto» a secas se lee igual a los dos minutos que a los dos días, y la usuaria no sabía
+   * si reiniciar algo o esperar. */
   const bannerAgente =
     agente && !agente.disponible && agente.error !== null && agente.error !== 'sin-configurar'
-      ? `pulse-inaccesible${agente.error === 'pulse-inaccesible' ? '' : `: ${agente.error}`}`
+      ? `pulse-inaccesible${agente.error === 'pulse-inaccesible' ? '' : `: ${agente.error}`}${textoBreaker(agente.breaker)}`
       : null;
   const avisoTruncado =
     snapAgente?.truncado === true
