@@ -121,3 +121,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* Interruptor del protocolo permanente junto a los botones del mando. */
+.panelDetalleDevPermanente {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+    margin-right: var(--v2-spaceSm);
+    font-size: var(--v2-textXs);
+    cursor: pointer;
+}

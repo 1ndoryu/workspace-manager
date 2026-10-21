@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -14,6 +14,7 @@ import {
   comandoRemotoUp,
   comandoSondaRemota,
   construirFrontRemoto,
+  despacharPermanente,
   contenidoEnvFrontend,
   contenidoEnvRemoto,
   diferenciasConteos,
@@ -574,4 +575,53 @@ test('comandoSondaRemota: con marcador exige que el cuerpo lo contenga; sin él,
   // Sin marcador en el cuerpo la sonda no da 200: en build `/` también lo sirve la API.
   assert.ok(con.includes('%{http_code}'));
   assert.ok(con.includes('echo 000'));
+});
+
+// --- Bandera `permanente` (protocolo de estado permanente, 2026-10-21) ----------------
+// El tablero enciende la bandera con este subcomando: si grabara la ficha lanzando un `up`,
+// encenderla costaria reconstruir el front (minutos) y tocaria la BD de la 89.
+
+function conRegistroTemporal(crudo, fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'wm-perm-'));
+  const ruta = join(dir, 'registro.json');
+  writeFileSync(ruta, JSON.stringify(crudo));
+  const salida = [];
+  const original = console.log;
+  console.log = (t) => salida.push(String(t));
+  try {
+    return { codigo: fn(ruta), salida, ficha: () => JSON.parse(readFileSync(ruta, 'utf8')).proyectos[0] };
+  } finally {
+    console.log = original;
+  }
+}
+
+test('despacharPermanente: enciende la bandera y borra el alias deprecado', () => {
+  const r = conRegistroTemporal(
+    { proyectos: [{ id: 'P', host: 'h', puertos: [3001], supervisar: true }] },
+    (ruta) => despacharPermanente(['P', '--permanente', '--registro', ruta, '--json']),
+  );
+  assert.equal(r.codigo, 0);
+  assert.equal(r.ficha().permanente, true);
+  assert.equal('supervisar' in r.ficha(), false);
+  assert.match(r.salida[0], /"permanente P: permanente"/);
+});
+
+test('despacharPermanente: apaga la bandera y avisa que ya lo estaba', () => {
+  const r = conRegistroTemporal(
+    { proyectos: [{ id: 'P', host: 'h', puertos: [3001], permanente: false }] },
+    (ruta) => despacharPermanente(['P', '--no-permanente', '--registro', ruta]),
+  );
+  assert.equal(r.codigo, 0);
+  assert.equal(r.ficha().permanente, false);
+  assert.match(r.salida[0], /ya lo estaba/);
+});
+
+test('despacharPermanente: falla cerrado sin valor, sin id o con id ausente del registro', () => {
+  // [por que] Sin `--registro` estos dos no tocan el registro real: se cortan antes de leerlo.
+  assert.equal(despacharPermanente(['P']), 1);
+  assert.equal(despacharPermanente(['--permanente']), 1);
+  const r = conRegistroTemporal({ proyectos: [] }, (ruta) =>
+    despacharPermanente(['No-Existe', '--permanente', '--registro', ruta]),
+  );
+  assert.equal(r.codigo, 1);
 });

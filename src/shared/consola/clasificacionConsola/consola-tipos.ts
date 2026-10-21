@@ -26,6 +26,9 @@ export interface Entrada {
    * `parado` (05AA-4) no genera entrada: detenido normal no va en
    * problemas; se opera desde el detalle (clic en la caja). */
   devId?: string | null;
+  /* Bandera `permanente` de la ficha, solo en la linea del mando dev: la consola pinta la casilla
+   * «permanente» junto a los botones sin releer el registro. Ausente = falsa. */
+  devPermanente?: boolean;
 }
 
 /* Severidad de una vulnerabilidad de dependencias (npm/pnpm/cargo audit). */

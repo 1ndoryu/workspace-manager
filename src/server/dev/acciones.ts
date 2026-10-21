@@ -19,6 +19,9 @@ export const DEV_MJS = join(DIR_DEV, 'dev.mjs');
 const RUTA_REGISTRO = rutaConfigPrivada('registro.json');
 
 export type AccionDev = 'up' | 'stop' | 'status' | 'logs' | 'open';
+/* Acciones que el tablero ofrece por HTTP; `permanente` no es un subcomando del CLI (lo que
+ * escribe la ficha es el `up`), pero se ejecuta por el mismo puente hijo-sin-shell. */
+export type AccionTablero = AccionDev | 'permanente';
 
 export interface ResultadoAccionDev {
   codigo: number;
@@ -43,11 +46,13 @@ function arranqueMsDe(id: string): number {
   return Math.min(Math.max(ms, 5_000), 300_000) + 30_000;
 }
 
-const TIMEOUT_FIJO: Record<Exclude<AccionDev, 'up'>, number> = {
+const TIMEOUT_FIJO: Record<Exclude<AccionTablero, 'up'>, number> = {
   stop: 60_000,
   status: 60_000,
   logs: 30_000,
   open: 30_000,
+  /* `permanente` solo reescribe un booleano en el registro: segundos. */
+  permanente: 30_000,
 };
 
 export interface OpcionesAccionDev {
@@ -56,10 +61,16 @@ export interface OpcionesAccionDev {
   /* Solo `up` remoto: no refrescar la BD de la 89 desde el portatil (D3). Lo
    * usa el supervisor de tuneles: reabrir un tunel caido no debe tocar datos. */
   sinBd?: boolean;
+  /* Solo `up` remoto: reabrir UNICAMENTE el tunel del portatil de lo ya declarado
+   * en la ficha. Es lo que llama el supervisor (protocolo de estado permanente):
+   * un `up` completo reconstruye el front y tarda minutos; esto, segundos. */
+  soloTunel?: boolean;
+  /* Solo `permanente`: el valor a grabar en la ficha. */
+  permanente?: boolean;
 }
 
 export async function ejecutarAccionDev(
-  accion: AccionDev,
+  accion: AccionTablero,
   id: string,
   opciones: OpcionesAccionDev = {},
 ): Promise<ResultadoAccionDev> {
@@ -76,6 +87,8 @@ export async function ejecutarAccionDev(
     const argv =
       accion === 'logs'
         ? [DEV_MJS, 'logs', id, '--lineas', String(opciones.lineas ?? 50)]
+        : accion === 'permanente'
+        ? [DEV_MJS, 'permanente', id, ...(opciones.permanente === true ? ['--permanente'] : ['--no-permanente']), '--json']
         : [
             DEV_MJS,
             accion,
@@ -84,6 +97,7 @@ export async function ejecutarAccionDev(
             tmp,
             '--json',
             ...(opciones.sinBd === true ? ['--sin-bd'] : []),
+            ...(opciones.soloTunel === true ? ['--solo-tunel'] : []),
           ];
     const r = await new Promise<{ codigo: number; salida: string }>((res) => {
       execFile(

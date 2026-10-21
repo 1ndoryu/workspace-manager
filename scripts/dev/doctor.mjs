@@ -46,6 +46,8 @@ export {
   localesDeModo,
   urlsServidas,
   paresTunel,
+  paresTunelPortatil,
+  tunelPortatilDe,
   reenviosTunel,
   tunelDeEntrada,
   tunelDeListener,
@@ -63,9 +65,11 @@ export {
   esSistemaIgnorado,
 } from './doctor/sistema/puertos.mjs';
 
-export {
-  validarMotivo,
-} from './doctor/ficha/validacion.mjs';
+// `esPermanente` sale de las reglas puras: la bandera la leen el `up` remoto y el supervisor
+// del tablero, y su validacion vive con ellas (una sola definicion de «permanente»).
+export { esPermanente } from './doctor/ficha/validacion-reglas.mjs';
+
+export { validarMotivo } from './doctor/ficha/validacion.mjs';
 
 export {
   leerRegistro,

@@ -6,6 +6,7 @@ import { RAIZ_REPO } from './base.mjs';
 import { repoPrincipalDeWorktree } from './worktree.mjs';
 import { datosCimDe, normalizarRuta, procesosSshVivos, sensoresDeSistema, sshDeSistema } from './sistema/procesos.mjs';
 import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esAppInstalada, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeListener, tunelDeQuien } from './sistema/puertos.mjs';
+import { esPermanente } from './ficha/validacion-reglas.mjs';
 import { entradaDeProyecto } from './clasificar-entrada.mjs';
 
 // Reexports: la API publica no cambia (doctor.mjs e indice.mjs importan de este modulo).
@@ -71,7 +72,8 @@ export async function clasificar(proyectos, registro, escucha, ignorados = [], e
     }
     const r = await clasificarEntrada(p, entrada, porPuerto, procs);
     for (const k of r.consumidos) consumidos.add(k);
-    resultado.push({ clave: p.clave, id: entrada.id, estado: r.estado, motivo: r.motivo });
+    // `permanente` viaja al tablero para pintar la casilla sin releer el registro en el cliente.
+    resultado.push({ clave: p.clave, id: entrada.id, estado: r.estado, motivo: r.motivo, permanente: esPermanente(entrada) });
   }
 
   const huerfanos = [];

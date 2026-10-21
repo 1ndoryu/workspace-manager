@@ -1,21 +1,42 @@
 /* Ciclo de vida remoto: preparar, up, status, stop y logs. */
 
 import { asegurarSesion, comandoBaseRemota, detectarRama, rutasRemotas, shQuote } from '../../remoto/rcargo.mjs';
-import { entradaEfectiva, modoDe, puertosRemotosDe } from '../doctor.mjs';
+import { entradaEfectiva, esPermanente, modoDe, paresTunelPortatil, puertosRemotosDe } from '../doctor.mjs';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { sincronizarBd } from './bd/sincronizar.mjs';
-import { comandoConstruirFront, comandoNpmCi, comandoPrecompilar, comandoRemotoUp, rutaLogNpmCi } from './comandos.mjs';
+import { comandoConstruirFront, comandoNpmCi, comandoPrecompilar, comandoRemotoUp, rutaLogNpmCi, sesionTmux } from './comandos.mjs';
 import { contenidoEnvFrontend, contenidoEnvRemoto, entornoRemoto, validarHostRemoto } from './entorno.mjs';
-import { escribirEstado, leerEstado, rutaEstado } from './estado.mjs';
+import { escribirEstado, escribirEstadoTunel, leerEstado, rutaEstado } from './estado.mjs';
 import { estadoRemoto, localesTodos, marcadorSonda, pararSesiones, pararSesionesPuertos, puertosConEntornoDistinto, puertosTodos, rutaSonda } from './ficha.mjs';
 import { rutaAbsDe } from './rutaLocal.mjs';
 import { esperarEscucha, esperarLibre, esperarSonda, esperarSondaRemota } from './sondas.mjs';
 import { escribirArchivoRemoto, sshRemoto } from './ssh.mjs';
-import { abrirTunel, matarTunel, puertosLocalesDe, tunelVivo, tunelesNuestrosEnPuertos, usaTunel } from './tunel.mjs';
+import { abrirTunel, abrirTunelPares, matarTunel, puertosLocalesDe, tunelVivo, tunelesNuestrosEnPuertos, usaTunel } from './tunel.mjs';
 
 const TIMEOUT_BUILD_MS = 900_000;
+
+/* Sesiones VIVAS de esta entrada que NO estan bajo supervision. Se pregunta a tmux por el argv
+ * real del bucle (`bucleSupervisado` deja el marcador `supervisar`), no al registro en disco.
+ * [por que] `stop` borra el registro al parar, pero no puede mudar el proceso que corre: una
+ * sesion arrancada antes de la bandera tiene argv sin bucle y registro sobrante, y una rearmada
+ * despues tiene lo contrario. El argv es la unica verdad de lo que se va a rearmar.
+ * `has-session` va primero porque sin sesion `list-panes` no devuelve nada y el `||` mentira. */
+async function sesionesSinSupervisar(config, id, puertos) {
+  const consulta = puertos
+    .map((p) => {
+      const s = shQuote(sesionTmux(id, p));
+      return `if tmux has-session -t ${s} 2>/dev/null; then tmux list-panes -t ${s} -F '#{pane_start_command}' | grep -q supervisar || echo ${p}; fi`;
+    })
+    .join('; ');
+  const r = await sshRemoto(config, consulta);
+  if (!r.ok) return [];
+  /* A numeros: llegan como texto del `echo` y con texto `indexOf` nunca encuentra su puerto
+   * (`-1`), asi que se acabaria lanzando el boton de otro puerto en esa sesion. */
+  return r.salida.split(/\r?\n/).map((l) => Number(l.trim())).filter((n) => Number.isInteger(n));
+}
+
 // Dónde deja el front construido `npm run build` en los seis proyectos del taller. Es el directorio
 // que sirve el backend en modo build, así que su `index.html` es la prueba de que el build cuajó.
 
@@ -126,6 +147,9 @@ export async function upRemoto(config, id, entrada, args = []) {
   // `ficha` guarda la entrada cruda: los puertos de los dos modos solo están ahí.
   const ficha = entrada;
   entrada = entradaEfectiva(entrada, modo);
+  // La bandera vive en la ficha cruda (no en el bloque del modo): ser permanente no depende de dev
+  // o build. Se lee aquí porque la rama `bajo-mando` responde antes de llegar al arranque.
+  const supervisar = esPermanente(ficha);
   const rama = detectarRama(rutaAbsDe(entrada));
   const rutas = rutasRemotas(config, id, rama);
   // [por que] Antes del estado: si la sesión de sync se perdió, `up` la restaura aunque los procesos sigan vivos.
@@ -152,6 +176,38 @@ export async function upRemoto(config, id, entrada, args = []) {
   if (previo.estado === 'bajo-mando') {
     reiniciar = await puertosConEntornoDistinto(config, id, entrada, rama);
     if (!reiniciar.ok) return { codigo: 1, resumen: `up ${id}: ${reiniciar.motivo}: NO verde` };
+    /* Encender la bandera con el proyecto ya arriba: la sesion se creo SIN bucle y
+     * `taller-vigilante.sh` solo repite lo que quedo en el registro de supervision. Sin esta
+     * pasada, la bandera encendida desde el tablero no prometeria nada hasta el siguiente reinicio.
+     * Se rearma aqui y no mas abajo porque el camino de arranque completo reconstruye el front
+     * (minutos) para escribir un booleano. Se pregunta a tmux por el argv real, no a un archivo. */
+    if (!reiniciar.puertos.length && !sincronizar && supervisar) {
+      const sinBucle = await sesionesSinSupervisar(config, id, puertosRemotosDe(entrada));
+      if (sinBucle.length) {
+        let env;
+        try {
+          env = entornoRemoto(config, id, entrada, rama).env;
+        } catch (e) {
+          return { codigo: 1, resumen: `up ${id}: ${e.message}: NO verde` };
+        }
+        const parado = await pararSesionesPuertos(config, id, sinBucle);
+        if (!parado.ok) return { codigo: 1, resumen: `up ${id}: no paro sesiones sin bucle (${sinBucle.join(', ')}) en ${config.host}: ${parado.error}: NO verde` };
+        const libre = await esperarLibre(config, sinBucle, 15_000);
+        if (!libre.ok) return { codigo: 1, resumen: `up ${id}: ${libre.motivo}: NO verde` };
+        const remotos = puertosRemotosDe(entrada);
+        const botones = entrada.botonRemoto ?? entrada.boton;
+        for (const p of sinBucle) {
+          // Sin boton propio para ese puerto no se inventa uno: se sigue con el arranque normal.
+          const boton = botones[remotos.indexOf(p)] ?? botones[0];
+          if (!boton) return { codigo: 1, resumen: `up ${id}: la ficha no declara boton para el puerto ${p}: NO verde` };
+          const r = await sshRemoto(config, comandoRemotoUp(config, rutas, id, p, boton, env, true));
+          if (!r.ok) return { codigo: 1, resumen: `up ${id}: no rearme con bucle el puerto ${p}: ${r.error}` };
+        }
+        const escucha2 = await esperarEscucha(config, entrada, entrada.arranqueMs ?? 60_000);
+        if (!escucha2.ok) return { codigo: 1, resumen: `up ${id}: ${escucha2.motivo} tras armar el bucle: NO verde` };
+        return { codigo: 0, resumen: `up ${id}: ya-arriba (${previo.motivo}), rearmado con bucle permanente` };
+      }
+    }
     if (!reiniciar.puertos.length && !sincronizar) {
       // [por que] Sin esto un proyecto ya arriba nunca reconstruía el front: esta rama responde
       // antes de `prepararRemoto`, así que el `dist` se quedaba con el código de la vez anterior.
@@ -188,8 +244,6 @@ export async function upRemoto(config, id, entrada, args = []) {
     if (!libre.ok) return { codigo: 1, resumen: `up ${id}: ${libre.motivo}: NO verde` };
   }
   const remotos = puertosRemotosDe(entrada);
-  // La bandera vive en la ficha cruda (no en el bloque del modo): supervisar no depende de dev o build.
-  const supervisar = ficha.supervisar === true;
   for (const [i, p] of remotos.entries()) {
     const r = await sshRemoto(config, comandoRemotoUp(config, rutas, id, p, (entrada.botonRemoto ?? entrada.boton)[i], prep.env, supervisar));
     if (!r.ok) return { codigo: 1, resumen: `up ${id}: arranque remoto fallo (puerto ${p}): ${r.error}` };
@@ -233,6 +287,28 @@ export async function upRemoto(config, id, entrada, args = []) {
   return { codigo: 0, resumen: `up ${id}: arrancado en ${config.host} (modo ${modo}, puertos ${remotos.join(', ')}, ${via}${reinicio})${bdResumen ? `; ${bdResumen}` : ''} + probe verde` };
 }
 
+
+/* Reabre SOLO el tramo del portátil: los ssh que esta entrada necesita (`paresTunelPortatil`,
+ * que suma `tunelesExtra` y `tunelesLab`). No toca la 89, no toca la BD y no reconstruye el front.
+ * [por que] Un `up` completo tarda minutos (reconstruye el front en build) y el supervisor del
+ * tablero lo llamaría cada vez que se cae la red: reparar un túnel tiene que costar segundos.
+ * [por que] Un solo ssh con todos los reenvíos, como los demás del taller: `ExitOnForwardFailure`
+ * falla entero si un puerto local está ocupado, y así no queda un túnel a medias que parezca vivo.
+ * El PID se guarda en DOS sitios: el estado del `up` (lo que valida `stop`) y un registro propio
+ * con los pares de la lab (lo que vigila el supervisor, que también mira 33110). */
+export async function upRemotoTunel(config, id, entrada) {
+  const pares = paresTunelPortatil(entrada);
+  if (!pares.length) return { codigo: 1, resumen: `up ${id} --solo-tunel: la ficha no declara ningun reenvio para el portatil` };
+  const locales = pares.map(([l]) => l);
+  const remotos = pares.map(([, r]) => r);
+  // Primero se matan los túneles nuestros que ocupan esos puertos: con ExitOnForwardFailure un
+  // puerto tomado hace fallar el nuevo (pasó con MN al cambiar de modo).
+  for (const pid of await tunelesNuestrosEnPuertos(config, locales, remotos)) await matarTunel(pid);
+  const t = await abrirTunelPares(config, pares, id);
+  if (!t.pid) return { codigo: 1, resumen: `up ${id} --solo-tunel: el tunel no levanto (log ${t.rutaLog})` };
+  escribirEstadoTunel(id, { pid: t.pid, creado: t.creado, pares, en: new Date().toISOString() });
+  return { codigo: 0, resumen: `up ${id} --solo-tunel: tunel reabierto (pid ${t.pid}, ${pares.map(([l, r]) => `${l}->${r}`).join(', ')})` };
+}
 
 export async function statusRemoto(config, id, entrada) {
   const r = await estadoRemoto(config, id, entrada);

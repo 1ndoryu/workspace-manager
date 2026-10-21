@@ -6,9 +6,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json, leerBody } from '../http.js';
 import { obtenerVigilancia } from '../dev/vigilancia.js';
-import { ejecutarAccionDev, type AccionDev } from '../dev/acciones.js';
+import { ejecutarAccionDev, type AccionTablero } from '../dev/acciones.js';
 
-const ACCIONES: readonly AccionDev[] = ['up', 'stop', 'status', 'logs', 'open'];
+const ACCIONES: readonly AccionTablero[] = ['up', 'stop', 'status', 'logs', 'open', 'permanente'];
 
 export async function manejarRutasDev(
   req: IncomingMessage,
@@ -35,18 +35,29 @@ export async function manejarRutasDev(
   /* Acciones del mando (F3): up/stop por POST (mutan), status/logs/open por
    * GET (lectura). El server valida id y propaga { codigo, salida } del CLI;
    * codigo != 0 es estado del area (rehusado/deriva), no fallo HTTP. */
-  const m = /^\/api\/dev\/(up|stop|status|logs|open)$/.exec(ruta);
+  const m = /^\/api\/dev\/(up|stop|status|logs|open|permanente)$/.exec(ruta);
   if (m && (ACCIONES as readonly string[]).includes(m[1])) {
-    const accion = m[1] as AccionDev;
+    const accion = m[1] as AccionTablero;
     try {
       let id: unknown;
       let lineas: number | undefined;
-      if (accion === 'up' || accion === 'stop') {
+      let permanente: boolean | undefined;
+      if (accion === 'up' || accion === 'stop' || accion === 'permanente') {
         if (req.method !== 'POST') {
           json(res, 405, { error: 'Método no permitido' });
           return true;
         }
-        id = (await leerBody(req) as { id?: unknown })?.id;
+        const cuerpo = await leerBody(req) as { id?: unknown; valor?: unknown };
+        id = cuerpo?.id;
+        if (accion === 'permanente') {
+          /* [por que] Falla cerrado ante un valor que no sea booleano: un `undefined` aqui
+           * apagaria la bandera de un proyecto en produccion por un cuerpo mal formado. */
+          if (typeof cuerpo?.valor !== 'boolean') {
+            json(res, 400, { error: 'valor booleano requerido (true|false)' });
+            return true;
+          }
+          permanente = cuerpo.valor;
+        }
       } else {
         if (req.method !== 'GET') {
           json(res, 405, { error: 'Método no permitido' });
@@ -62,7 +73,10 @@ export async function manejarRutasDev(
         json(res, 400, { error: 'id requerido' });
         return true;
       }
-      const r = await ejecutarAccionDev(accion, id, { lineas });
+      /* [por que] El rearme por la casilla ocurre con la sesion ya en marcha: `upRemoto` solo
+       * sincroniza la base cuando el proyecto NO estaba bajo mando (o con `--bd`), asi que no
+       * hay peligro de pisar la de la 89 y no hace falta forzar `--sin-bd`. */
+      const r = await ejecutarAccionDev(accion, id, { lineas, permanente });
       json(res, 200, r);
     } catch (err) {
       json(res, 400, { error: `accion dev no ejecutada: ${err instanceof Error ? err.message : String(err)}` });

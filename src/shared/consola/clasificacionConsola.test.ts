@@ -106,6 +106,27 @@ describe('dev: bajo mando', () => {
     assert.equal(p, null);
   });
 
+  /* El interruptor del protocolo permanente vive en la consola: sin su linea no habria donde
+   * encenderlo ni apagarlo desde el panel (el detalle solo opera al clicar la caja). */
+  it('bajo mando con permanente lleva la casilla encendida', () => {
+    const conBandera = {
+      proyectos: [{ clave: 'demo', id: 'demo-dev', estado: 'bajo-mando', motivo: 'm', permanente: true }],
+      huerfanos: [],
+      errorSensor: null,
+    } as unknown as InformeDev;
+    const p = problemasDevDe(proyecto, conBandera, null);
+    assert.ok(p);
+    assert.equal(p.entradas[0].devId, 'demo-dev');
+    assert.equal(p.entradas[0].devPermanente, true);
+  });
+
+  /* Al apagarla, la linea desaparece: la consola vuelve a ocultar el bajo-mando sano (2026-10-12),
+   * y encenderla otra vez se hace desde la casilla del detalle del proyecto. */
+  it('bajo mando sin permanente no deja linea ni casilla', () => {
+    const p = problemasDevDe(proyecto, informe('bajo-mando'), null);
+    assert.equal(p, null);
+  });
+
   it('deriva sigue contando como problema', () => {
     const p = problemasDevDe(proyecto, informe('deriva'), null);
     assert.ok(p);

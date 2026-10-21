@@ -13,6 +13,9 @@ export interface ProyectoDev {
   id: string | null;
   estado: EstadoDev;
   motivo: string;
+  /* Bandera `permanente` de la ficha (protocolo de estado permanente): el tablero la pinta como
+   * casilla junto a «arrancar». Ausente = falsa. */
+  permanente?: boolean;
 }
 
 // Listener sin entrada que lo reclame. `clave` es la mejor atribucion por

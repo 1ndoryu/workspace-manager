@@ -145,6 +145,7 @@ export function usePanelDetalle() {
   const dev = useWorkspaceStore((s) => s.dev);
   const devOcupado = useWorkspaceStore((s) => s.devOcupado);
   const accionDev = useWorkspaceStore((s) => s.accionDev);
+  const alternarPermanente = useWorkspaceStore((s) => s.alternarPermanente);
   const { ocupado: escaneando, escanearProyecto } = useEscanear();
 
   const proyecto = snapshot && seleccionadoId
@@ -189,6 +190,7 @@ export function usePanelDetalle() {
     devInfo: devInfo?.id ? devInfo : null,
     devOcupado,
     accionDev,
+    alternarPermanente,
     resumen: resumenAnalisis(analisisProy),
     resumenAudit: resumenAuditoria(auditoriaProy),
     analizadoEn: analisisProy?.analizadoEn,

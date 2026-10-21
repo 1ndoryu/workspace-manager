@@ -23,6 +23,24 @@ export function escribirEstado(id, estado) {
   writeFileSync(rutaEstado(id), `${JSON.stringify(estado, null, 2)}\n`);
 }
 
+/* Registro del túnel que sostiene el PORTÁTIL para esta entrada (protocolo de estado permanente,
+ * 2026-10-21). Es aparte del estado del `up` a propósito: el supervisor del tablero reabre solo
+ * este tramo y no debe pisar lo que un `up`/`stop` dejó dicho sobre los puertos del proyecto. */
+export const rutaEstadoTunel = (id) => join(DIR_LOGS, `remoto-tunel-${id}.json`);
+
+export function leerEstadoTunel(id) {
+  try {
+    return JSON.parse(readFileSync(rutaEstadoTunel(id), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export function escribirEstadoTunel(id, estado) {
+  mkdirSync(DIR_LOGS, { recursive: true });
+  writeFileSync(rutaEstadoTunel(id), `${JSON.stringify(estado, null, 2)}\n`);
+}
+
 // PID del tunel solo si sigue siendo el que abrimos (creationTime exacta) y su linea de comando es la nuestra.
 
 export function marcaTiempo() {

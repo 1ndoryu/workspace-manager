@@ -12,15 +12,21 @@ import { cierre } from './proyecto/cierre.mjs';
 import { alta } from './proyecto/alta.mjs';
 import { artefactos } from './proyecto/artefactos.mjs';
 import { app } from './proyecto/app-escritorio.mjs';
-import { despachar as remoto, entradaRemotaDe } from './remoto.mjs';
+import { despachar as remoto, despacharPermanente, entradaRemotaDe } from './remoto.mjs';
 
 const AYUDA = `uso: dev <comando>
   doctor --all [--json] [--snapshot-file <ruta>] [--assert]   clasifica (F0)
-  up <id> [--sin-bd] [--bd] [--dev|--build] [--snapshot-file <ruta>] [--registro <ruta>] [--json]   arranca/verifica (F1)
+  up <id> [--sin-bd] [--bd] [--dev|--build] [--permanente|--no-permanente] [--solo-tunel] [--snapshot-file <ruta>] [--registro <ruta>] [--json]   arranca/verifica (F1)
       --sin-bd: no toca la base de la 89 (para reiniciar codigo sin perder lo escrito alli)
       --bd:     refresca la base de la 89 desde la laptop aunque ya este arriba (pisa lo de la 89)
       --dev:    esta sesion en modo dev (vite con HMR), aunque la ficha diga build
       --build:  esta sesion en modo build (front a dist/ servido por el backend), aunque diga dev
+      --permanente/--no-permanente: graba la bandera en la ficha antes de arrancar (protocolo de
+                estado permanente: proceso en la 89, tunel del portatil y produccion; ver
+                Agente/documentacion/arquitectura/protocolo-estado-permanente-2026-10-21.md)
+      --solo-tunel: reabre SOLO el tunel del portatil de lo ya declarado (segundos, no minutos):
+                no toca la 89, ni la base, ni el front. Lo usa el supervisor del tablero
+  permanente <id> --permanente|--no-permanente [--registro <ruta>] [--json]  graba la bandera sin arrancar nada (protocolo de estado permanente)
   status [id] [--snapshot-file <ruta>] [--registro <ruta>] [--json]  estado (F2)
   logs <id> [--lineas N] [--registro <ruta>]                  cola del log (F2)
   open <id> [--registro <ruta>]                               imprime URLs (F2)
@@ -37,6 +43,9 @@ export async function main(argv) {
   const args = argv ?? process.argv.slice(2);
   const [cmd, ...resto] = args;
   // [por que] Solo estos cuatro tienen camino remoto; el resto de comandos sigue local. Entrada sin `host` = camino local intacto.
+  // [por que] `permanente` se despacha ANTES de mirar el host: escribir la bandera no arranca,
+  // detiene ni reabre nada, y vale igual para un proyecto del portatil.
+  if (cmd === 'permanente') return despacharPermanente(resto);
   if (['up', 'status', 'logs', 'stop'].includes(cmd)) {
     const entrada = entradaRemotaDe(resto[0], resto);
     if (entrada) return remoto(cmd, resto, entrada);

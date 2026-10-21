@@ -6,7 +6,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json } from '../http.js';
 import { estadoTaller } from './estado.js';
-import { revisarTuneles } from './tuneles.js';
+import { rearmesRecientes, revisarTuneles } from './tuneles.js';
 
 export async function manejarRutasTaller(
   req: IncomingMessage,
@@ -38,10 +38,15 @@ export async function manejarRutasTaller(
       registro: entrada.registro,
       historial,
       motivoHistorial,
+      /* Protocolo de estado permanente (2026-10-21): cuándo reabrió el supervisor el túnel de
+       * cada proyecto. Vive en memoria del servidor: se pierde al reiniciarlo, y es lo que el
+       * panel pinta como «rearmado a las HH:MM». */
+      rearmes: rearmesRecientes(),
     });
-    /* Latido del supervisor de túneles (19AA-15): el panel pide este estado cada
-     * 60 s, así que es la cadencia natural para reabrir un túnel caído. No se
-     * espera: un `up` tarda minutos y esta respuesta no depende de él. */
+    /* Latido extra del supervisor de túneles (19AA-15): la cadencia de verdad es su propio
+     * temporizador (arrancarSupervisor, en index.ts); pedir el estado adelanta la pasada para
+     * que quien acaba de abrir el panel no espere al minuto. No se espera: el rearme va por
+     * detrás y esta respuesta no depende de él. */
     void revisarTuneles(entrada.t89?.tmux ?? []).catch(() => undefined);
   } catch (err) {
     json(res, 500, { error: 'No se pudo evaluar el taller', detalle: String(err) });

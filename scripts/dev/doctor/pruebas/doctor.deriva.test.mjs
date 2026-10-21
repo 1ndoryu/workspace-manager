@@ -12,7 +12,9 @@ import {
   detectarDerivaEnv,
   detectarRust,
   duenoDePuerto,
+  esPermanente,
   paresTunel,
+  paresTunelPortatil,
   reenviosTunel,
   tunelDeEntrada,
   tunelDeListener,
@@ -197,6 +199,24 @@ test('tunelDeListener: un listener con pid muerto es el túnel vivo de su ficha'
   assert.equal(tunelDeListener(3105, [], [proyectoA]), null);
 });
 
+test('paresTunelPortatil: reenvíos del túnel del modo efectivo + `tunelPortatil`, sin `tunelesExtra`', () => {
+  // Un `tunelesExtra` es de otro dueño (el gateway del proyecto): si el supervisor del tablero lo
+  // abriera, dos ssh se pisarían el puerto local y `ExitOnForwardFailure` los haría chocar.
+  // FICHA sirve sola por Cloudflare (tunelSsh:false): su túnel de proyecto no existe. Aun así el
+  // portátil puede necesitar reenvíos suyos, y esos sí los rearma el supervisor.
+  const conReenvio = { ...FICHA, tunelesExtra: [[33110, 3110]], tunelPortatil: [[14190, 3110]] };
+  assert.deepEqual(paresTunelPortatil(conReenvio), [[14190, 3110]]);
+  // Con túnel del proyecto (tunelSsh por defecto) salen sus puertos del modo efectivo.
+  const conTunel = { ...FICHA, tunelSsh: true, tunelPortatil: [[14191, 3110]] };
+  assert.deepEqual(paresTunelPortatil(conTunel), [[13110, 3110], [12024, 20241], [14191, 3110]]);
+  // Con `tunelSsh:false` el túnel del proyecto no existe: solo queda lo que declare `tunelPortatil`.
+  const exponeSola = { id: 'X', host: 'taller-remoto', tunelSsh: false, puertosRemotos: [3110], tunelPortatil: [[3110, 3110]] };
+  assert.deepEqual(paresTunelPortatil(exponeSola), [[3110, 3110]]);
+  // En build manda el bloque build, igual que en `up`.
+  const enBuild = { id: 'X', host: 'taller-remoto', modo: 'build', puertosRemotos: [5199], build: { puertos: [3110] } };
+  assert.deepEqual(paresTunelPortatil(enBuild), [[3110, 3110]]);
+});
+
 test('paresTunel: `tunelesExtra` añade el puente del gateway (33110 -> 3110 de la 89)', () => {
   const conPuente = { ...FICHA, tunelesExtra: [[33110, 3110]] };
   assert.ok(paresTunel(conPuente).some(([l, r]) => l === 33110 && r === 3110));
@@ -208,3 +228,12 @@ test('paresTunel: `tunelesExtra` añade el puente del gateway (33110 -> 3110 de 
   assert.equal(tunelDeQuien(puente, [conPuente])?.id, 'X');
 });
 
+
+test('esPermanente: `permanente`, alias deprecado `supervisar` y nada mas', () => {
+  assert.equal(esPermanente({ permanente: true }), true);
+  assert.equal(esPermanente({ supervisar: true }), true);
+  assert.equal(esPermanente({ permanente: false, supervisar: true }), true);
+  assert.equal(esPermanente({ permanente: false }), false);
+  assert.equal(esPermanente({}), false);
+  assert.equal(esPermanente(undefined), false);
+});

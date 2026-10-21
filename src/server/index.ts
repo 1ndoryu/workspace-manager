@@ -20,6 +20,8 @@ import { manejarRutasPc } from './rutas/rutasPc.js';
 import { manejarRutasDev } from './rutas/rutasDev.js';
 import { manejarRutasConsola } from './rutas/rutasConsola.js';
 import { manejarRutasTaller } from './taller/rutasTaller.js';
+import { estadoTaller } from './taller/estado.js';
+import { arrancarSupervisor } from './taller/tuneles.js';
 import { manejarRutasTallerAgente } from './taller/rutasTallerAgente.js';
 import { manejarRutasSalud } from './rutas/salud/rutasSalud.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
@@ -209,6 +211,11 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '
    * crearServidor] Las pruebas montan el servidor con crearServidor: un temporizador ahí
    * dentro muestrearía en los tests y escribiría en el fichero real. */
   muestreadorProd().arrancar();
+  /* Protocolo de estado permanente (2026-10-21): el túnel del portátil de los proyectos
+   * `permanente` se rearma solo cada minuto, sin depender de que haya una pestaña abierta.
+   * [por que aquí y no en crearServidor] Las pruebas montan el servidor con crearServidor: ahí
+   * dentro el supervisor lanzaría `up` reales sobre el taller. */
+  arrancarSupervisor({tmuxVivos: async () => (await estadoTaller(false)).entrada.t89?.tmux ?? []});
   const servidor = crearServidor();
   servidor.listen(PUERTO, '127.0.0.1', () => {
     logger.log(`API escuchando en http://127.0.0.1:${PUERTO}`);

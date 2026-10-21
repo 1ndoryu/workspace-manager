@@ -183,3 +183,12 @@
     margin-left: var(--v2-spaceSm);
     vertical-align: middle;
 }
+
+/* Interruptor del protocolo permanente (casilla + etiqueta en la linea dev). */
+.consolaDevPermanente {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+    margin-right: var(--v2-spaceSm);
+    cursor: pointer;
+}

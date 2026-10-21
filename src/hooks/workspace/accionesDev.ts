@@ -75,5 +75,32 @@ export function crearAccionesDev(set: Set, get: Get): AccionesDev {
         set({ devOcupado: false });
       }
     },
+    /* Bandera `permanente` (protocolo de estado permanente): escribe la ficha sin arrancar ni
+     * parar el proyecto, asi que NO pasa por `up` (que reconstruiria el front y tardaria
+     * minutos). Se refresca la vigilancia porque el doctor lee la ficha. Nunca rechaza. */
+    alternarPermanente: async (id: string, valor: boolean) => {
+      if (get().devOcupado) return;
+      set({ devOcupado: true });
+      try {
+        const { data } = await axios.post<{ codigo: number; salida: string }>('/api/dev/permanente', { id, valor });
+        const codigo = typeof data?.codigo === 'number' ? data.codigo : 1;
+        const salida = typeof data?.salida === 'string' && data.salida ? data.salida : '(sin salida)';
+        set({ devResultado: { accion: 'permanente', id, codigo, salida, en: new Date().toISOString() } });
+      } catch (err) {
+        logger.warn(`permanente ${id} no disponible:`, err);
+        set({
+          devResultado: {
+            accion: 'permanente',
+            id,
+            codigo: 1,
+            salida: err instanceof Error ? err.message : 'Error al pedir /api/dev/permanente',
+            en: new Date().toISOString(),
+          },
+        });
+      } finally {
+        set({ devOcupado: false });
+        await get().cargarDev();
+      }
+    },
   };
 }

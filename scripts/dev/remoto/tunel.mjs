@@ -105,6 +105,41 @@ export async function abrirTunel(config, entrada, id) {
 }
 
 
+/* Abre el túnel con TODOS los reenvíos que se le pidan, sin deducirlos de la entrada.
+ * [por que] El túnel del portátil del protocolo permanente lleva también los pares de la lab y el
+ * puente del gateway, que no son puertos «del proyecto»; deducirlos con `argsTunel` obligaría a
+ * inventar puertos en la ficha. `identidad` es la entrada contra la que se valida el proceso. */
+export async function abrirTunelPares(config, pares, id) {
+  mkdirSync(DIR_LOGS, { recursive: true });
+  const rutaLog = join(DIR_LOGS, `remoto-tunel-${id}.log`);
+  const fd = openSync(rutaLog, 'a');
+  const args = [
+    '-N',
+    '-o', 'ExitOnForwardFailure=yes',
+    '-o', 'ControlMaster=no',
+    '-o', 'ControlPath=none',
+    '-o', 'BatchMode=yes',
+    '-o', 'ConnectTimeout=10',
+    // [por que] Más corto que el de `argsTunel` a propósito: este túnel es el que la red del
+    // portátil tumba varias veces al día, y queremos que muera en ~45 s en vez de ~90 para que el
+    // supervisor lo vea caído y lo rearme, en vez de dejarlo aceptando conexiones que no llegan.
+    '-o', 'ServerAliveInterval=15',
+    '-o', 'ServerAliveCountMax=3',
+    '-o', 'TCPKeepAlive=yes',
+    ...pares.flatMap(([l, r]) => ['-L', fragmentoReenvio(l, r)]),
+    config.host,
+  ];
+  const hijo = spawn(BIN_SSH, args, { detached: true, stdio: ['ignore', fd, fd], windowsHide: true });
+  hijo.on('error', () => {});
+  hijo.unref();
+  closeSync(fd);
+  if (!hijo.pid) return { pid: null, rutaLog };
+  await new Promise((r) => setTimeout(r, 1500));
+  const proc = (await procesosDe([hijo.pid])).get(hijo.pid);
+  if (!proc?.creado || !reenviosTunel(proc.cmd).length) return { pid: null, rutaLog };
+  return { pid: hijo.pid, creado: proc.creado, rutaLog };
+}
+
 export async function matarTunel(pid) {
   return new Promise((resolveP) => {
     execFile('taskkill.exe', ['/F', '/PID', String(pid), '/T'], { timeout: 15_000, windowsHide: true }, (err) => resolveP(!err));

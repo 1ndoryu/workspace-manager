@@ -44,7 +44,19 @@ export function problemasDevDe(
   }
   /* [05AA-4] `parado` no entra: detenido normal, nada que ver en problemas.
    * `bajo-mando` tampoco (decisión de la usuaria, 2026-10-12: ocultarla):
-   * sano y gestionado por el mando; sus botones siguen en el detalle del proyecto. */
+   * sano y gestionado por el mando; sus botones siguen en el detalle del proyecto.
+   * [por que] Con la bandera `permanente` encendida sí entra: el tablero declara que se rearma
+   * solo, y esa linea es donde se apaga el interruptor. Solo la bandera ENCENDIDA: al apagarla la
+   * linea desaparece y la consola vuelve a ocultar el bajo-mando sano, como antes. */
+  if (info?.id && info.permanente === true) {
+    entradas.push({
+      categoria: 'dev',
+      motivo: 'dev permanente: se rearma solo (proceso en la 89 y túnel del portátil)',
+      seriedad: null,
+      devId: info.id,
+      devPermanente: true,
+    });
+  }
   if (dev?.errorSensor && esMando) {
     entradas.push({ categoria: 'dev', motivo: `dev: sensor falló: ${dev.errorSensor}`, seriedad: 'error' });
   }

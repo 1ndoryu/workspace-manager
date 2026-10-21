@@ -31,6 +31,7 @@ export function usePanelConsola() {
   const devOcupado = useWorkspaceStore((s) => s.devOcupado);
   const devResultado = useWorkspaceStore((s) => s.devResultado);
   const accionDev = useWorkspaceStore((s) => s.accionDev);
+  const alternarPermanente = useWorkspaceStore((s) => s.alternarPermanente);
   const seleccionadoId = useWorkspaceStore((s) => s.proyectoSeleccionado);
   const seleccionar = useWorkspaceStore((s) => s.seleccionar);
   const irAArchivos = useWorkspaceStore((s) => s.irAArchivos);
@@ -173,6 +174,7 @@ export function usePanelConsola() {
     devOcupado,
     devResultado,
     accionDev,
+    alternarPermanente,
     seleccionadoId,
     /* [por que] El grupo sintetico '(puertos sin proyecto)' no es un proyecto
      * real: plegar/desplegar sigue funcionando (estado local del panel) pero

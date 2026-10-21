@@ -132,8 +132,10 @@ export interface DatosDev {
   devResultado: ResultadoDev | null;
 }
 
-/* Accion del mando invocable desde el tablero (F3): las que ofrece el CLI. */
-export type AccionDevNombre = 'up' | 'stop' | 'status' | 'logs' | 'open';
+/* Accion del mando invocable desde el tablero (F3): las que ofrece el CLI.
+ * `permanente` no es un subcomando con argv propio de boton (lleva el valor), pero se pinta en la
+ * misma linea de resultado y la consola la distingue por nombre. */
+export type AccionDevNombre = 'up' | 'stop' | 'status' | 'logs' | 'open' | 'permanente';
 
 /* Resultado de una accion del mando para pintar en la consola. */
 export interface ResultadoDev {
@@ -148,6 +150,9 @@ export interface ResultadoDev {
 export interface AccionesDev {
   cargarDev: () => Promise<void>;
   accionDev: (accion: AccionDevNombre, id: string) => Promise<void>;
+  /* Enciende o apaga la bandera `permanente` de la ficha SIN arrancar ni parar nada (protocolo de
+   * estado permanente). Tras grabar, recarga la vigilancia: el doctor lee la ficha. */
+  alternarPermanente: (id: string, valor: boolean) => Promise<void>;
 }
 
 /* Carga inicial e hidratacion: snapshot, catalogo de reglas y un esquema (3). */

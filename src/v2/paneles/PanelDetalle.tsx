@@ -6,6 +6,7 @@
 import { usePanelDetalle } from '../../hooks/usePanelDetalle.js';
 import { verticesParedDer, verticesParedIzq, verticesTecho } from '../mapa/geometria/tiles.js';
 import { Button } from '../ui/form/Button.js';
+import { Casilla } from '../ui/form/Casilla.js';
 import './detalle.css';
 
 /* Cubo decorativo de la cabecera: la MISMA caja iso del mapa (mismas
@@ -48,6 +49,7 @@ export function PanelDetalle() {
     devInfo,
     devOcupado,
     accionDev,
+    alternarPermanente,
     resumen,
     resumenAudit,
     analizadoEn,
@@ -97,6 +99,20 @@ export function PanelDetalle() {
             dev: {ETIQUETA_DEV[devInfo.estado] ?? devInfo.estado} · {devInfo.motivo}
           </div>
           <div className="panelDetalleDevBotones">
+            {/* [por que] La casilla se marca ANTES de «arrancar» y el `up` del tablero la usa; con
+                el proyecto ya arriba, pulsarla al momento viaja por POST /api/dev/permanente. */}
+            <label
+              className="panelDetalleDevPermanente"
+              title="estado permanente: se rearma solo el proceso en la 89 y el túnel del portátil"
+            >
+              <Casilla
+                checked={devInfo.permanente === true}
+                disabled={devOcupado}
+                aria-label={`permanente ${devInfo.id}`}
+                onChange={(ev) => void alternarPermanente(devInfo.id as string, ev.target.checked)}
+              />
+              permanente
+            </label>
             {BOTONES_DETALLE_DEV.map((b) => (
               <Button
                 key={b.accion}

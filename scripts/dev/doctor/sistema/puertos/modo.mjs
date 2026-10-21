@@ -93,6 +93,40 @@ export function paresTunel(entrada) {
   return pares;
 }
 
+/* Reenvíos que el PORTÁTIL debe tener abiertos mientras la entrada sea permanente: el túnel del
+ * modo efectivo —si la ficha lo usa (`tunelSsh !== false`)— más `tunelPortatil`, donde la ficha
+ * declara los que el portátil necesita para sí y que no salen de `puertos` (una app local que
+ * habla con el servicio por un puerto fijo, p. ej.). Sin repetir pares.
+ * [por que] NO incluye `tunelesExtra`: esos son reenvíos del propio proyecto que mantiene otro
+ * (el puente de un gateway, p. ej.), y abrirlos aquí haría que dos ssh se pisaran el mismo puerto
+ * local (`ExitOnForwardFailure`). Cada tramo tiene un solo dueño.
+ * Puro y genérico: no sabe de ningún proyecto concreto. */
+export function paresTunelPortatil(entrada) {
+  const ef = entradaEfectiva(entrada);
+  const delProyecto = ef.tunelSsh === false ? [] : puertosRemotosDe(ef).map((r, i) => [localesDeModo(ef)[i], r]);
+  const vistos = new Set();
+  return [...delProyecto, ...(entrada.tunelPortatil ?? []).map(([l, r]) => [l, r])].filter(([l, r]) => {
+    const clave = `${l}:${r}`;
+    if (vistos.has(clave)) return false;
+    vistos.add(clave);
+    return true;
+  });
+}
+
+/* ¿`proc` es el túnel del portátil de esta entrada? Valida el HOST y que TODOS sus reenvíos sean
+ * pares declarados; a diferencia de `tunelDeEntrada` admite `tunelPortatil`, y a diferencia de un
+ * juego exacto tolera que la ficha haya dejado de declarar un par: si no lo reconociéramos, el
+ * supervisor abriría otro encima y `ExitOnForwardFailure` los haría chocar. */
+export function tunelPortatilDe(proc, entrada) {
+  if (!proc?.creado || !proc.cmd) return false;
+  if (!/^ssh(\.exe)?$/i.test(proc.imagen ?? '')) return false;
+  if (!esEntradaRemota(entrada) || !proc.cmd.includes(entrada.host)) return false;
+  const reenvios = reenviosTunel(proc.cmd);
+  if (!reenvios.length) return false;
+  const pares = paresTunelPortatil(entrada);
+  return reenvios.every(([l, r]) => pares.some(([pl, pr]) => pl === l && pr === r));
+}
+
 
 /* Reenvíos `-L` de un túnel ssh, como pares [local, remoto]. Puro.
  * [por que] El bind explícito es opcional: `-L 3110:127.0.0.1:3110` (lo que

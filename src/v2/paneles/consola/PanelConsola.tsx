@@ -8,6 +8,7 @@ import { usePanelConsola } from './usePanelConsola.js';
 import { useEscanear } from '../../../hooks/useEscanear.js';
 import { contarProblemas } from '../../../shared/consola/clasificacionConsola.js';
 import { Button } from '../../ui/form/Button.js';
+import { Casilla } from '../../ui/form/Casilla.js';
 import { Selector } from '../../ui/selector/Selector.js';
 import {
   type Categoria,
@@ -66,6 +67,7 @@ export function PanelConsola() {
     devOcupado,
     devResultado,
     accionDev,
+    alternarPermanente,
   } = usePanelConsola();
 
   /* Acceso rapido al escaneo unificado (el mismo de la configuracion).
@@ -187,6 +189,23 @@ export function PanelConsola() {
                     {/* Botones del mando (F3): solo lineas dev con entrada. */}
                     {e.categoria === 'dev' && e.devId ? (
                       <span className="consolaDevBotones">
+                        {/* [por que] La casilla vive en la linea «dev permanente»: se pulsa sin
+                            arrancar ni parar nada (POST /api/dev/permanente) y apagarla quita la
+                            linea. Para encenderla, el detalle del proyecto (clic en la caja). */}
+                        {e.devPermanente === undefined ? null : (
+                          <label
+                            className="consolaDevPermanente"
+                            title="estado permanente: se rearma solo el proceso en la 89 y el túnel del portátil"
+                          >
+                            <Casilla
+                              checked={e.devPermanente}
+                              disabled={devOcupado}
+                              aria-label={`permanente ${e.devId}`}
+                              onChange={(ev) => void alternarPermanente(e.devId as string, ev.target.checked)}
+                            />
+                            permanente
+                          </label>
+                        )}
                         {BOTONES_DEV.map((b) => (
                           <Button
                             key={b.accion}

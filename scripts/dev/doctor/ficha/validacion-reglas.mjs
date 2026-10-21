@@ -9,7 +9,7 @@ import { entradaEfectiva, puertoDeSaludValido, validarBloqueBuild } from '../sis
 
 // [por que 06AA-1] Campos admitidos por el registro: cualquier otro es error de escritura.
 // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-const CONOCIDAS = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto', 'sinServicio', 'supervisar']);
+const CONOCIDAS = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'tunelPortatil', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto', 'sinServicio', 'permanente', 'supervisar']);
 
 // [por que 06AA-1] Un aviso sin id no tiene a quien anotarse: solo con id valido se puede marcar la entrada.
 export const idValido = (e) => typeof e.id === 'string' && e.id.length > 0;
@@ -25,14 +25,20 @@ export function motivoClaveDesconocida(e) {
   return k === undefined ? null : `registro: clave desconocida '${k}' en '${e.id}'`;
 }
 
-// [por que] envTareas, tokenPulse, higieneRust y supervisar son banderas del proyecto:
+// [por que] envTareas, tokenPulse, higieneRust y permanente son banderas del proyecto:
 // antes se deducian comparando `id` con un nombre concreto; ahora las declara el registro.
-// [por que] `supervisar` la lee el `up` remoto (ciclo.mjs) para grabar el arranque y meter el
-// proceso en un bucle de reinicio; el vigilante de la 89 repite lo grabado.
+// [por que] `permanente` (antes `supervisar`, que sigue valiendo como alias) es EL protocolo de
+// estado permanente: la lee el `up` remoto (ciclo.mjs) para grabar el arranque y meter el proceso
+// en un bucle de reinicio, el vigilante de la 89 repite lo grabado y el supervisor del tablero
+// rearma el túnel del portátil (src/server/taller/tuneles.ts). Una sola bandera, tres tramos.
 export function motivoBanderas(e) {
-  const k = ['envTareas', 'tokenPulse', 'higieneRust', 'supervisar'].find((c) => c in e && typeof e[c] !== 'boolean');
+  const k = ['envTareas', 'tokenPulse', 'higieneRust', 'permanente', 'supervisar'].find((c) => c in e && typeof e[c] !== 'boolean');
   return k === undefined ? null : `registro: '${e.id}' ${k} debe ser booleano`;
 }
+
+// Una sola lectura de la bandera para todo el que la necesite (up, stop, supervisor del tablero
+// y el propio tablero): `supervisar` sigue valiendo como alias deprecado, no como segunda verdad.
+export const esPermanente = (entrada) => entrada?.permanente === true || entrada?.supervisar === true;
 
 // [por que] `host` = la entrada corre en esa VPS (scripts/dev/remoto.mjs). Solo el nombre; que coincida con taller.json lo exige remoto.mjs (fail-closed).
 export function motivoHost(e) {
@@ -84,6 +90,10 @@ export function motivoCamposTaller(e) {
   if ('puertosPublicos' in e && (!Array.isArray(e.puertosPublicos) || e.puertosPublicos.some((p) => !Number.isInteger(p) || p < 1 || p > 65535))) return `registro: '${e.id}' puertosPublicos invalidos`;
   if ('tunelSsh' in e && typeof e.tunelSsh !== 'boolean') return `registro: '${e.id}' tunelSsh debe ser true o false`;
   if ('tunelesExtra' in e && (!Array.isArray(e.tunelesExtra) || e.tunelesExtra.some((p) => !Array.isArray(p) || p.length !== 2 || p.some((n) => !Number.isInteger(n) || n < 1024 || n > 65535)))) return `registro: '${e.id}' tunelesExtra debe ser array de pares [local, remoto] (1024-65535)`;
+  // [por que] tunelPortatil: reenvíos que el PORTÁTIL necesita para sí y que no salen de `puertos`
+  // (una app local que habla con el servicio por un puerto fijo, p. ej.). El supervisor del tablero
+  // los rearma junto con los del proyecto. `tunelesExtra` no sirve para eso: es del proyecto.
+  if ('tunelPortatil' in e && (!Array.isArray(e.tunelPortatil) || e.tunelPortatil.some((p) => !Array.isArray(p) || p.length !== 2 || p.some((n) => !Number.isInteger(n) || n < 1024 || n > 65535)))) return `registro: '${e.id}' tunelPortatil debe ser array de pares [local, remoto] (1024-65535)`;
   return null;
 }
 

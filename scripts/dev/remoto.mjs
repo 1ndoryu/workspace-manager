@@ -43,4 +43,4 @@ export { desvioConLaptop, desviosDeConteos, diferenciasConteos, parsearConteos, 
 
 export { construirFrontRemoto } from './remoto/ciclo.mjs';
 
-export { despachar, entradaRemotaDe } from './remoto/indice.mjs';
+export { despachar, despacharPermanente, entradaRemotaDe } from './remoto/indice.mjs';
