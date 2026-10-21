@@ -6,6 +6,7 @@ import axios from 'axios';
 import type { EntradaArchivo, ListadoDirectorio } from '../shared/types.js';
 import { nombreDeRuta } from '../shared/vista/format.js';
 import { useWorkspaceStore } from './useWorkspace.js';
+import { useVolverARevalidar } from '../v2/canal/useVolverARevalidar.js';
 
 export interface ArchivoAbierto {
   ruta: string;
@@ -73,6 +74,9 @@ export function usePanelNavegador() {
     if (navegadorRuta === null) void cargarDir('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* 20AA-24 F4: los archivos cambian por fuera (editores, scripts); al volver se relee. */
+  useVolverARevalidar(() => void cargarDir(dir));
 
   /* Cuando la consola pide abrir la carpeta de un proyecto, navegar ahi. */
   useEffect(() => {

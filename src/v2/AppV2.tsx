@@ -63,8 +63,17 @@ export function AppV2() {
     const canal = abrirCanal({
       workspace: (snapshot) => useWorkspaceStore.setState({ snapshot, cargando: false, desdeCache: false }),
       vivos: (vivos) => useWorkspaceStore.getState().aplicarVivos(vivos.laptop, vivos.produccion),
-      /* Un corte pudo dejar un cambio sin ver: se pide la foto de ahora sin abrir otro canal. */
-      alVolver: () => void useWorkspaceStore.getState().cargar(),
+      /* Un corte pudo dejar un cambio sin ver: se pide la foto de ahora sin abrir otro canal.
+       * [20AA-24 F4] Análisis, vulnerabilidades y salud no viajan en el tema `workspace` (son
+       * caros y cambian poco), así que sólo se refrescaban al montar: se revalidan junto al
+       * snapshot cada vez que la pestaña vuelve o el canal reconecta. */
+      alVolver: () => {
+        const s = useWorkspaceStore.getState();
+        void s.cargar();
+        void s.cargarAnalisis();
+        void s.cargarVulnerabilidades();
+        void s.cargarSalud();
+      },
     });
     return () => canal.cerrar();
   }, []);

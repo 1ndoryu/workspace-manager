@@ -4,6 +4,7 @@
  * formulario se monta con key = hash, igual que la política. */
 import { useCallback, useEffect, useState } from 'react';
 import { Seccion } from '../../../ui/caja/Caja.js';
+import { useVolverARevalidar } from '../../../canal/useVolverARevalidar.js';
 import { Button } from '../../../ui/form/Button.js';
 import { Campo } from '../../../ui/form/Campo.js';
 import { mensajeDeError, toastError, toastOk } from '../../../toast.js';
@@ -37,6 +38,9 @@ export function SeccionPlantilla({ datos }: { datos: GuardianDatos }) {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  /* 20AA-24 F4: la plantilla vive en un JSON que se edita a mano. */
+  useVolverARevalidar(() => void cargar());
 
   return (
     <Seccion titulo="plantilla de stacks (guard-plantillas.json)">

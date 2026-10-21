@@ -38,6 +38,7 @@ import {
   reordenarTareas,
 } from '../v2/tareas/apiTareas.js';
 import { ESTADO_INICIAL, avisoDeSincronia, reductor } from './tareas/panelTareasEstado.js';
+import { useVolverARevalidar } from '../v2/canal/useVolverARevalidar.js';
 
 /* Foto local (08AA-8): clave unica, lectura validada, escritura best-effort
  * (el boundary storage.ts ya traga cuota/modo-privado en silencio). */
@@ -124,6 +125,9 @@ export function usePanelTareas() {
     void cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* 20AA-24 F4: una tarea escrita desde otra pestaña o por el puente no llegaba sin recargar. */
+  useVolverARevalidar(() => void cargar());
 
   function recargar(): void {
     void cargar();

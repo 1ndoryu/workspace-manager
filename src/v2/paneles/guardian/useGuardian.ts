@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { mensajeDeError } from '../../toast.js';
 import { estadoArea, estadoProyecto, leerOk } from './apiGuardian.js';
 import type { EstadoArea, EstadoProyecto } from './tiposGuardian.js';
+import { useVolverARevalidar } from '../../canal/useVolverARevalidar.js';
 
 export interface GuardianDatos {
   area: EstadoArea | null;
@@ -57,6 +58,10 @@ export function useGuardian(): GuardianDatos {
   useEffect(() => {
     void cargarArea();
   }, [cargarArea]);
+
+  /* 20AA-24 F4: la política y los leases cambian desde fuera del tablero (el guardián, otra
+   * sesión); al volver a la pestaña se releen. */
+  useVolverARevalidar(() => void cargarArea());
 
   const elegir = useCallback(
     (clave: string) => {
