@@ -114,3 +114,35 @@ export function sinLeer(avisos: readonly Aviso[]): number {
 export function filtrarPorTipo(avisos: readonly Aviso[], tipo: TipoAviso | null): Aviso[] {
   return tipo === null ? [...avisos] : avisos.filter((a) => a.tipo === tipo);
 }
+
+/* Cuántos avisos se pintan de entrada y cuántos se suman al llegar al final.
+ * [por que por tramos de bloque] La página de avisos puede tener 500 filas; pintarlas todas de golpe
+ * es medio segundo de bloqueo y 500 nodos que nadie mira. Se corta en bloques de 6 h completos para
+ * que un tramo no aparezca a medias y se complete al bajar, que se leería como si se reordenara. */
+export const AVISOS_POR_TRAMO = 40;
+
+/* Lo que se pinta con un tope de avisos: los grupos completos que caben, sus avisos en orden y
+ * cuántos faltan. Se corta por grupo entero —un tramo a medias se completaría al bajar y parecería
+ * que la lista se reordena—, así que un grupo puede pasarse del tope. */
+export interface Tramo {
+  grupos: GrupoTiempo[];
+  avisos: Aviso[];
+  quedan: number;
+}
+
+export function tramoVisible(grupos: readonly GrupoTiempo[], tope: number): Tramo {
+  const elegidos: GrupoTiempo[] = [];
+  const avisos: Aviso[] = [];
+  for (const grupo of grupos) {
+    if (avisos.length >= tope) break;
+    elegidos.push(grupo);
+    avisos.push(...grupo.avisos);
+  }
+  const total = grupos.reduce((n, g) => n + g.avisos.length, 0);
+  return { grupos: elegidos, avisos, quedan: total - avisos.length };
+}
+
+/* Cuántos avisos hay en total, repartidos en esos grupos. */
+export function contarAvisos(grupos: readonly GrupoTiempo[]): number {
+  return grupos.reduce((n, g) => n + g.avisos.length, 0);
+}

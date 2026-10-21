@@ -1,6 +1,6 @@
 /* Pruebas de la presentación de avisos (20AA-25 N3). Tablas: entra un reloj fijo y sale texto;
  * ninguna depende de cuándo se ejecute. */
-import { describe, test } from 'node:test';
+import { describe, it, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { Aviso } from './tipos.js';
@@ -13,6 +13,8 @@ import {
   filtrarPorTipo,
   horaLocal,
   sinLeer,
+  contarAvisos,
+  tramoVisible,
 } from './presentacion.js';
 
 const AHORA = new Date('2026-10-21T12:00:00');
@@ -132,5 +134,42 @@ void describe('cobertura de tipos', () => {
       assert.ok(NIVEL[tipo], `sin nivel: ${tipo}`);
     }
     assert.deepEqual(new Set(TIPOS).size, TIPOS.length, 'tipo repetido en la lista');
+  });
+});
+
+describe('tramoVisible: carga diferida por scroll', () => {
+  /* Ocho avisos en dos tramos de 6 h: cuatro de la mañana y cuatro de la tarde. */
+  const lista = () => [
+    ...Array.from({ length: 4 }, (_, i) => aviso(4 + i, `2026-10-21T14:0${i}:00`, 'sitio-caido')),
+    ...Array.from({ length: 4 }, (_, i) => aviso(3 - i, `2026-10-21T08:0${i}:00`, 'tarea-nueva')),
+  ];
+  const grupos = () => agruparPorTiempo(lista(), new Date('2026-10-21T20:00:00'));
+
+  it('con tope menor que el primer tramo pinta el tramo entero', () => {
+    const t = tramoVisible(grupos(), 2);
+    assert.equal(t.grupos.length, 1, 'corta por grupo, no por fila');
+    assert.equal(t.avisos.length, 4);
+    assert.equal(t.quedan, 4);
+  });
+
+  it('con tope suficiente pinta todo y no queda nada', () => {
+    const t = tramoVisible(grupos(), 100);
+    assert.equal(t.avisos.length, 8);
+    assert.equal(t.quedan, 0);
+    assert.equal(contarAvisos(t.grupos), 8);
+  });
+
+  it('un tope de cero no pinta nada', () => {
+    const t = tramoVisible(grupos(), 0);
+    assert.equal(t.avisos.length, 0);
+    assert.equal(t.quedan, 8);
+  });
+
+  it('el orden se conserva: el más nuevo primero', () => {
+    const t = tramoVisible(grupos(), 100);
+    assert.deepEqual(
+      t.avisos.map((a) => a.cuando.slice(11, 16)),
+      ['14:00', '14:01', '14:02', '14:03', '08:00', '08:01', '08:02', '08:03'],
+    );
   });
 });
