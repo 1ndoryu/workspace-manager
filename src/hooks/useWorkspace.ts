@@ -18,6 +18,7 @@ import { crearAccionesAnalisis } from './workspace/accionesAnalisis.js';
 import { crearAccionesVulnerabilidades } from './workspace/accionesVulnerabilidades.js';
 import { crearAccionesConfig } from './workspace/accionesConfig.js';
 import { crearAccionesDev } from './workspace/accionesDev.js';
+import { crearAccionesVivos } from './workspace/accionesVivos.js';
 
 /* Compat: los tipos se importaban desde este modulo (p. ej. NavBar). */
 export type {
@@ -62,6 +63,8 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   vulnerabilidades: {},
   auditando: false,
   salud: {},
+  vivosLaptop: null,
+  vivosProduccion: null,
   dev: null,
   devCargando: false,
   devError: null,
@@ -72,6 +75,7 @@ export const useWorkspaceStore = create<EstadoWorkspace>((set, get) => ({
   ...crearAccionesVulnerabilidades(set, get),
   ...crearAccionesConfig(set),
   ...crearAccionesDev(set, get),
+  ...crearAccionesVivos(set, get),
   seleccionar: (id) => {
     /* La persistencia vive en workspace/persistencia.ts. */
     guardarSeleccion(id);

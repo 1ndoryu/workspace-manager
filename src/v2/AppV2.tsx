@@ -7,6 +7,7 @@
  * se persisten en localStorage. */
 import { useEffect, type CSSProperties } from 'react';
 import { useWorkspaceStore } from '../hooks/useWorkspace.js';
+import { abrirCanal } from './canal/canalEventos.js';
 import { MapaV2 } from './mapa/MapaV2.js';
 import { useLayoutV2, MAX_ANCHO, MAX_ALTO, MIN_ANCHO, MIN_ALTO } from './useLayoutV2.js';
 import { NavBar } from './ui/menu/NavBar.js';
@@ -51,6 +52,22 @@ export function AppV2() {
     void cargarVulnerabilidades();
     void cargarSalud();
   }, [cargar, cargarAnalisis, cargarVulnerabilidades, cargarSalud]);
+
+  /* Canal vivo del tablero (20AA-24 F3.2): una sola conexión por pestaña. El tema `workspace`
+   * sustituye al snapshot cargado una vez al montar —hasta ahora la única forma de ver un cambio
+   * hecho fuera del tablero era recargar— y el tema `vivos` alimenta el mapa y la lista. Al
+   * reabrirse tras un corte o al volver la pestaña, el servidor ya mandó lo que faltaba.
+   * [por que se lee el store con `getState`] El efecto corre una vez: suscribirse a `cargar` volvería
+   * a abrir el canal en cada cambio de identidad sin ganar nada. */
+  useEffect(() => {
+    const canal = abrirCanal({
+      workspace: (snapshot) => useWorkspaceStore.setState({ snapshot, cargando: false, desdeCache: false }),
+      vivos: (vivos) => useWorkspaceStore.getState().aplicarVivos(vivos.laptop, vivos.produccion),
+      /* Un corte pudo dejar un cambio sin ver: se pide la foto de ahora sin abrir otro canal. */
+      alVolver: () => void useWorkspaceStore.getState().cargar(),
+    });
+    return () => canal.cerrar();
+  }, []);
 
   const conDetalle = seleccionadoId !== null && snapshot !== null && visibles.detalle;
 

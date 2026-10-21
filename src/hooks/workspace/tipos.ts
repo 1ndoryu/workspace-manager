@@ -207,6 +207,21 @@ export interface AccionesUi {
   configurarProyecto: (clave: string) => void;
 }
 
+/* Estado vivo del área (20AA-24 F3.2), tal como lo publica el canal. [por que en el store y no en
+ * un contexto] El mapa, la lista de proyectos y los paneles dev leen lo mismo: si cada uno
+ * abriera su canal, la pestaña tendría tres conexiones y tres formas de decidir «está vivo».
+ * `vivosLaptop`/`vivosProduccion` en `null` = esa fuente no contestó (nunca «no hay nada»). */
+export interface DatosVivos {
+  vivosLaptop: ReadonlySet<string> | null;
+  vivosProduccion: ReadonlySet<string> | null;
+}
+
+/* Acciones del canal: aplican lo que llega y lo que se pide a mano al arrancar (1). */
+export interface AccionesVivos {
+  /* Sustituye el conjunto sólo si cambió: un evento idéntico no debe re-renderizar el mapa. */
+  aplicarVivos: (laptop: string[] | null, produccion: string[] | null) => void;
+}
+
 /* Estado completo del store, compuesto por extension (0 miembros propios). */
 export interface EstadoWorkspace
   extends DatosSesion,
@@ -214,6 +229,8 @@ export interface EstadoWorkspace
     DatosGate,
     DatosAnalisis,
     DatosDev,
+    DatosVivos,
+    AccionesVivos,
     AccionesCarga,
     AccionesAnalisis,
     AccionesVulnerabilidades,

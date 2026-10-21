@@ -37,19 +37,19 @@ export function urlsVivas(
   });
 }
 
+const SIN_VIVOS: ReadonlySet<string> = new Set();
+
 export function useConexiones(): Conexiones {
   const snapshot = useWorkspaceStore((s) => s.snapshot);
-  const dev = useWorkspaceStore((s) => s.dev);
+  const vivosLaptop = useWorkspaceStore((s) => s.vivosLaptop);
+  const vivosProduccion = useWorkspaceStore((s) => s.vivosProduccion);
   const proyectos = snapshot?.proyectos ?? SIN_PROYECTOS;
 
-  /* Solo `bajo-mando` = sonda verde real: parado, deriva o sin botón no brillan (05AA-4). */
-  const enMarcha = useMemo(() => {
-    const set = new Set<string>();
-    for (const d of dev?.proyectos ?? []) if (d.estado === 'bajo-mando') set.add(d.clave);
-    return set;
-  }, [dev]);
-
-  const enProd = useProduccionViva(proyectos);
+  /* Los dos conjuntos los publica el canal (20AA-24 F3): misma lectura para el mapa, la lista y el
+   * dev. `null` = la fuente no contestó: no se pinta nada vivo, pero tampoco se borra lo anterior.
+   * Solo `bajo-mando` = sonda verde real: parado, deriva o sin botón no brillan (05AA-4). */
+  const enMarcha = vivosLaptop ?? SIN_VIVOS;
+  const enProd = useProduccionViva(proyectos, vivosProduccion);
 
   const destinos = useMemo(
     () => new Map(proyectos.map((p) => [p.clave, destinosDe(p, enMarcha, enProd)] as const)),
