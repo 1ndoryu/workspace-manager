@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Workspace Manager</title>
+    <style>
+      /* Pantalla de aviso: se ve justo cuando la API no esta, asi que no puede
+         depender del front ni de red. Estilo propio, sin fuentes externas. */
+      html, body { margin: 0; height: 100%; background: #0f1115; color: #e6e8ee;
+        font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+      main { max-width: 560px; margin: 0 auto; padding: 12vh 24px; }
+      h1 { font-size: 20px; margin: 0 0 12px; }
+      p { color: #a7adbb; margin: 0 0 18px; }
+      code { background: #1b1f27; padding: 2px 6px; border-radius: 4px; }
+      button { background: #2563eb; color: #fff; border: 0; border-radius: 6px;
+        padding: 9px 16px; font: inherit; cursor: pointer; }
+      button:disabled { opacity: .5; cursor: default; }
+      pre { background: #1b1f27; padding: 12px; border-radius: 6px; overflow: auto;
+        font-size: 13px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>El backend del tablero no responde</h1>
+      <p>
+        La ventana esta viva, pero la API del portatil en el puerto 8787 no
+        contesta. El backend necesita <code>node</code> en el PATH y la carpeta
+        del repo con <code>dist-server</code> compilado.
+      </p>
+      <p id="ruta"></p>
+      <button id="reintentar">Reintentar</button>
+      <pre id="detalle" hidden></pre>
+    </main>
+    <script>
+      const boton = document.getElementById('reintentar');
+      /* [por qué] Al abrir la app el backend suele estar levantándose: se prueba
+       * solo cada 2 s durante un par de minutos y se pasa al tablero en cuanto
+       * responde. El botón queda para cuando alguien tiene que intervenir. */
+      let intentos = 0;
+      const espera = setInterval(async () => {
+        if (++intentos > 60) return clearInterval(espera);
+        try {
+          const r = await fetch('/__reintentar');
+          const datos = await r.json();
+          if (datos.backend) { clearInterval(espera); location.href = '/'; }
+        } catch { /* sigue intentándolo */ }
+      }, 2000);
+      boton.addEventListener('click', async () => {
+        boton.disabled = true;
+        boton.textContent = 'Reintentando...';
+        try {
+          const r = await fetch('/__reintentar');
+          const datos = await r.json();
+          if (datos.backend) { location.href = '/'; return; }
+          document.getElementById('detalle').hidden = false;
+          document.getElementById('detalle').textContent = datos.detalle || 'sigue sin responder';
+        } catch (e) {
+          document.getElementById('detalle').hidden = false;
+          document.getElementById('detalle').textContent = String(e);
+        }
+        boton.disabled = false;
+        boton.textContent = 'Reintentar';
+      });
+    </script>
+  </body>
+</html>
