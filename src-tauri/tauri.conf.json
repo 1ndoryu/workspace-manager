@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Workspace Manager",
+  "version": "0.1.0",
+  "identifier": "es.area.workspace-manager",
+  "build": {
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["icons/icon.png", "icons/icon.ico"]
+  }
+}

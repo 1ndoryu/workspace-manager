@@ -1,0 +1,21 @@
+# Workspace Manager como app de escritorio: un solo binario Rust, sin JS propio.
+# [por que] `rcargo.mjs` compila desde la raíz del repo; el manifiesto de la app
+# vive en `src-tauri/`, así que la raíz solo reúne el miembro.
+
+[workspace]
+resolver = "2"
+members = ["src-tauri"]
+
+# Exe pequeño: lo que pesa (el front) va empotrado como datos, no como código.
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+incremental = false
+
+# Ciclos de compilación más cortos en la 89.
+[profile.dev]
+debug = "line-tables-only"
+split-debuginfo = "packed"
