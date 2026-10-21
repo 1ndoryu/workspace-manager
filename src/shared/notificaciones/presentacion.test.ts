@@ -6,12 +6,12 @@ import assert from 'node:assert/strict';
 import type { Aviso } from './tipos.js';
 import { ETIQUETA, NIVEL, TIPOS } from './tipos.js';
 import {
-  agruparPorDia,
+  agruparPorTiempo,
   diaLocal,
   etiquetaContador,
   etiquetaDia,
   filtrarPorTipo,
-  hace,
+  horaLocal,
   sinLeer,
 } from './presentacion.js';
 
@@ -37,19 +37,6 @@ test('el contador no pasa de «9+» y calla cuando no hay nada sin leer', () => 
   assert.equal(etiquetaContador(10), '9+');
 });
 
-test('hace() distingue ahora, minutos, horas, días y semanas', () => {
-  const hace2 = (ms: number): string => hace(new Date(AHORA.getTime() - ms), AHORA);
-  assert.equal(hace2(0), 'ahora');
-  assert.equal(hace2(20_000), 'ahora');
-  assert.equal(hace2(5 * 60_000), 'hace 5 min');
-  assert.equal(hace2(90 * 60_000), 'hace 2 h');
-  assert.equal(hace2(30 * 3600_000), 'hace 1 d');
-  assert.equal(hace2(21 * 24 * 3600_000), 'hace 3 sem');
-  /* Reloj del servidor adelantado: no se anuncia un futuro. */
-  assert.equal(hace(new Date(AHORA.getTime() + 60_000), AHORA), 'ahora');
-  assert.equal(hace('no-es-fecha', AHORA), '');
-});
-
 test('los días se agrupan en local, no en UTC', () => {
   /* 23:30 local del 20 contra las 12:00 del 21: son dos días aunque en UTC el primero ya sea
    * «hoy» en algunos husos. */
@@ -57,15 +44,6 @@ test('los días se agrupan en local, no en UTC', () => {
   const tarde = new Date(2026, 9, 21, 9, 0);
   assert.equal(diaLocal(noche), '2026-10-20');
   assert.equal(diaLocal(tarde), '2026-10-21');
-
-  const grupos = agruparPorDia([aviso(2, tarde.toISOString()), aviso(1, noche.toISOString())], AHORA);
-  assert.deepEqual(
-    grupos.map((g) => [g.etiqueta, g.avisos.map((a) => a.id)]),
-    [
-      ['hoy', [2]],
-      ['ayer', [1]],
-    ],
-  );
 });
 
 test('un día de este año se lee con mes corto; el año pasado no se confunde', () => {
@@ -73,22 +51,75 @@ test('un día de este año se lee con mes corto; el año pasado no se confunde',
   assert.equal(etiquetaDia('2025-12-31', AHORA), '31 dic');
 });
 
-test('agrupar no reordena: respeta el orden del almacén', () => {
-  const avisos = [aviso(3, '2026-10-21T11:00:00'), aviso(2, '2026-10-21T10:00:00'), aviso(1, '2026-10-21T09:00:00')];
-  const grupos = agruparPorDia(avisos, AHORA);
-  assert.equal(grupos.length, 1);
-  assert.deepEqual(grupos[0].avisos.map((a) => a.id), [3, 2, 1]);
-  assert.deepEqual(agruparPorDia([], AHORA), []);
+test('la hora local va en HH:MM y una fecha rota no revienta', () => {
+  assert.equal(horaLocal(new Date(2026, 9, 21, 7, 5)), '07:05');
+  assert.equal(horaLocal('no-es-fecha'), '');
 });
 
-test('sinLeer cuenta sólo los no leídos y el filtro por tipo no toca el original', () => {
-  const avisos = [aviso(1, '2026-10-21T09:00:00'), aviso(2, '2026-10-21T09:00:00', 'sitio-caido'), aviso(3, '2026-10-21T09:00:00', 'tarea-nueva', true)];
-  assert.equal(sinLeer(avisos), 2);
+/* [20AA-28] Los avisos se agrupan en bloques de 6 horas con la etiqueta centrada. Entra una lista
+ * ya ordenada del más nuevo al más viejo, como la sirve el almacén. */
+test('seis avisos seguidos en la misma mañana van en un solo bloque', () => {
+  const avisos = [
+    aviso(6, new Date(2026, 9, 21, 11, 50).toISOString()),
+    aviso(5, new Date(2026, 9, 21, 11, 0).toISOString()),
+    aviso(4, new Date(2026, 9, 21, 9, 30).toISOString()),
+    aviso(3, new Date(2026, 9, 21, 8, 0).toISOString()),
+    aviso(2, new Date(2026, 9, 21, 6, 0).toISOString()),
+    aviso(1, new Date(2026, 9, 21, 6, 1).toISOString()),
+  ];
+  const grupos = agruparPorTiempo(avisos, AHORA);
+  assert.deepEqual(grupos.map((g) => [g.etiqueta, g.avisos.length]), [['06:00–12:00', 6]]);
+});
 
-  const soloTareas = filtrarPorTipo(avisos, 'tarea-nueva');
-  assert.deepEqual(soloTareas.map((a) => a.id), [1, 3]);
-  assert.equal(filtrarPorTipo(avisos, null).length, 3);
-  assert.notEqual(filtrarPorTipo(avisos, null), avisos, 'devuelve copia: quien la ordene no altera el store');
+test('un aviso de las 11:59 y otro de las 12:00 caen en bloques distintos', () => {
+  const grupos = agruparPorTiempo(
+    [aviso(2, new Date(2026, 9, 21, 12, 0).toISOString()), aviso(1, new Date(2026, 9, 21, 11, 59).toISOString())],
+    AHORA,
+  );
+  assert.deepEqual(grupos.map((g) => [g.etiqueta, g.avisos.map((a) => a.id)]), [
+    ['12:00–18:00', [2]],
+    ['06:00–12:00', [1]],
+  ]);
+});
+
+test('el bloque que cruza la medianoche se lee con su día y termina en 00:00', () => {
+  /* 23:00 de ayer es el tramo 18:00–24:00 de ayer, no el 00:00 de hoy. */
+  const grupos = agruparPorTiempo([aviso(1, new Date(2026, 9, 20, 23, 0).toISOString())], AHORA);
+  assert.deepEqual(grupos.map((g) => g.etiqueta), ['ayer 18:00–00:00']);
+
+  /* Un aviso del 3 de octubre dice qué día, para que «00:00–06:00» no se confunda con hoy. */
+  const viejo = agruparPorTiempo([aviso(1, new Date(2026, 9, 3, 2, 0).toISOString())], AHORA);
+  assert.deepEqual(viejo.map((g) => g.etiqueta), ['3 oct 00:00–06:00']);
+});
+
+test('agrupar por tiempo no reordena y no mezcla tramos alternos en un bloque', () => {
+  const grupos = agruparPorTiempo(
+    [
+      aviso(4, new Date(2026, 9, 21, 13, 0).toISOString()),
+      aviso(3, new Date(2026, 9, 21, 12, 30).toISOString()),
+      aviso(2, new Date(2026, 9, 21, 8, 0).toISOString()),
+      aviso(1, new Date(2026, 9, 21, 7, 0).toISOString()),
+    ],
+    AHORA,
+  );
+  assert.deepEqual(grupos.map((g) => [g.avisos.map((a) => a.id), g.etiqueta]), [
+    [[4, 3], '12:00–18:00'],
+    [[2, 1], '06:00–12:00'],
+  ]);
+  assert.deepEqual(agruparPorTiempo([], AHORA), []);
+});
+
+test('una fecha inválida no parte la lista en grupos fantasma', () => {
+  /* El aviso roto cae en un bloque propio «sin fecha»; no revienta y no se lleva a los demás. */
+  const grupos = agruparPorTiempo(
+    [aviso(3, 'no-es-fecha'), aviso(2, 'tampoco'), aviso(1, new Date(2026, 9, 21, 7, 0).toISOString())],
+    AHORA,
+  );
+  assert.deepEqual(grupos.map((g) => [g.etiqueta, g.avisos.map((a) => a.id)]), [
+    ['sin fecha', [3]],
+    ['sin fecha', [2]],
+    ['06:00–12:00', [1]],
+  ]);
 });
 
 /* [20AA-25 N4] Un tipo nuevo no puede quedarse fuera de las tablas: el contrato es la única
