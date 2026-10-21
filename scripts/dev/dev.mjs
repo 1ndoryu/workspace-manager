@@ -11,6 +11,7 @@ import { comandos, gate } from './proyecto/gate.mjs';
 import { cierre } from './proyecto/cierre.mjs';
 import { alta } from './proyecto/alta.mjs';
 import { artefactos } from './proyecto/artefactos.mjs';
+import { app } from './proyecto/app-escritorio.mjs';
 import { despachar as remoto, entradaRemotaDe } from './remoto.mjs';
 
 const AYUDA = `uso: dev <comando>
@@ -29,7 +30,8 @@ const AYUDA = `uso: dev <comando>
   comandos <id> [--json]                                      contrato de comandos (F9)
   cierre <id> [--tarea <ID>]                                  puerta de cierre, solo lectura (F9)
   alta <id|carpeta> [--aplicar] [--json]                  lista de alta; en seco salvo --aplicar (F10)
-  artefactos [--json]                                         que un proyecto consume de otro (20AA-7)`;
+  artefactos [--json]                                         que un proyecto consume de otro (20AA-7)
+  app <id>                                                    compila el front y el .exe de una app de escritorio en la 89`;
 
 export async function main(argv) {
   const args = argv ?? process.argv.slice(2);
@@ -51,6 +53,7 @@ export async function main(argv) {
   if (cmd === 'cierre') return cierre(resto);
   if (cmd === 'alta') return alta(resto);
   if (cmd === 'artefactos') return artefactos(resto);
+  if (cmd === 'app') return app(resto);
   console.log(AYUDA);
   return cmd ? 1 : 0;
 }

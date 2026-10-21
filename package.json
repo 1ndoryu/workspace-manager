@@ -3,7 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "license": "GPL-3.0-only",
-  "repository": { "type": "git", "url": "https://github.com/1ndoryu/workspace-manager.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/1ndoryu/workspace-manager.git"
+  },
   "type": "module",
   "description": "Gestor del area de trabajo: control de proyectos, estado Git/Sentinel/VarSense/roadmap, mapa isometrico y gestion de AGENTS.md y skills.",
   "engines": {
@@ -34,7 +37,10 @@
     "privacidad": "node scripts/dev/privacidad/privacidad.mjs",
     "privacidad:historial": "node scripts/dev/privacidad/privacidad.mjs --historial",
     "privacidad:test": "node scripts/dev/ejecutar-tests.mjs node --test scripts/dev/privacidad/privacidad.test.mjs",
-    "prepare": "node scripts/dev/privacidad/activar-hooks.mjs"
+    "prepare": "node scripts/dev/privacidad/activar-hooks.mjs",
+    "build:app": "node scripts/dev/dev.mjs app workspace-manager",
+    "check:app": "node scripts/run-cargo.mjs xwin check --target x86_64-pc-windows-msvc --prepath=/usr/lib/llvm-18/bin",
+    "gate:app": "node scripts/run-cargo.mjs clippy --target x86_64-pc-windows-msvc --prepath=/usr/lib/llvm-18/bin -- -D warnings"
   },
   "dependencies": {
     "axios": "^1.7.0",
