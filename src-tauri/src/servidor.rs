@@ -99,6 +99,21 @@ fn atender(
             return responder(peticion, respuesta(400, "text/plain", format!("cuerpo ilegible: {e}").into_bytes(), false));
         }
         abrir_json(&cuerpo)
+    } else if ruta == "/__aviso" {
+        /* Un sobre del canal, tal cual llegó al `EventSource` de la página. [por que por HTTP y
+         * no por Tauri] Así la app no expone ni un comando al front: el enganche `enlaces.js` lo
+         * manda y la campana sigue siendo un front normal que, en el navegador, aquí no hace nada. */
+        let mut cuerpo = String::new();
+        if let Err(e) = peticion.as_reader().take(64 * 1024).read_to_string(&mut cuerpo) {
+            return responder(peticion, respuesta(400, "application/json", format!(r#"{{"ok":false,"detalle":"cuerpo ilegible: {e}"}}"#).into_bytes(), false));
+        }
+        aviso_json(&cuerpo)
+    } else if ruta == "/__pendiente" {
+        /* Lo que el cupo retuvo mientras la pestaña estaba en segundo plano: la página lo dice
+         * ella misma al volver (es la que sabe si sigue oculta). */
+        let pendientes = crate::avisos::pendiente();
+        let json = serde_json::to_string(&pendientes).unwrap_or_else(|_| "[]".to_string());
+        respuesta(200, "application/json", json.into_bytes(), false)
     } else if ruta.starts_with("/api/") {
         /* El SSE no se puede bufferizar: se responde en flujo, copiando trozos
          * en cuanto llegan (el escaneo de la tab PC dura minutos). */
@@ -150,6 +165,26 @@ fn reintentar(proceso: &Mutex<Option<Backend>>) -> Salida {
     };
     let json = serde_json::json!({ "backend": false, "detalle": detalle }).to_string();
     respuesta(200, "application/json", json.into_bytes(), false)
+}
+
+/// `{"datos":"…","al_frente":false,"atrasados":0}` → quizá uno o dos toasts.
+/// La respuesta dice qué se hizo, para poder medirlo sin mirar ventanas: `pintados` y `motivo`.
+fn aviso_json(cuerpo: &str) -> Salida {
+    let pedido: crate::avisos::Pedido = match serde_json::from_str(cuerpo) {
+        Ok(p) => p,
+        Err(e) => return json_error(400, &e.to_string()),
+    };
+    let (pintados, motivo) = crate::avisos::atender(&pedido);
+    let mut json = serde_json::json!({ "ok": true, "pintados": pintados });
+    if let Some(m) = motivo {
+        json["motivo"] = serde_json::json!(m.como_texto());
+    }
+    respuesta(200, "application/json", json.to_string().into_bytes(), false)
+}
+
+fn json_error(estado: u16, detalle: &str) -> Salida {
+    let json = serde_json::json!({ "ok": false, "detalle": detalle });
+    respuesta(estado, "application/json", json.to_string().into_bytes(), false)
 }
 
 /// `{"url":"https://..."}` → se abre en el navegador del sistema.

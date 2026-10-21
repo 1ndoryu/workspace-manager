@@ -16,3 +16,26 @@ tiny_http = "0.12"
 ureq = { version = "2", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Toast de Windows (20AA-27). Se usa el runtime de WinRT directamente y no el plugin oficial
+# porque el plugin pinta por `notify-rust` con el identificador de Tauri sin registrar en el
+# menú Inicio: en Windows eso no muestra nada. Aquí el AUMID se registra en `avisos.rs`.
+# [por que sólo para Windows] Estos dos crates no compilan fuera de Windows y los tests de
+# `avisos.rs` tienen que poder correr donde se compila (la 89 no tiene `wine` ni `link.exe`).
+[target.'cfg(windows)'.dependencies]
+tauri-winrt-notification = "0.7"
+# COM: registrar el AUMID del acceso directo del menú Inicio y llamar al runtime de notificaciones.
+# Misma versión que ya arrastra `tauri-winrt-notification`, para no compilar dos copias.
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+  "Win32_Storage_EnhancedStorage",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+  # `FindWindowW`/`SetForegroundWindow`: el clic del toast sube la ventana (si ya está viva).
+  "Win32_UI_WindowsAndMessaging",
+  # `GetCurrentProcessId`/`GetWindowThreadProcessId`: comprobar que la ventana es de esta app.
+  "Win32_System_Threading",
+] }

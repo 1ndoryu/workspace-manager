@@ -11,6 +11,7 @@
 
 mod abrir;
 mod ajustes;
+mod avisos;
 mod backend;
 mod dicho;
 mod proxy;
@@ -56,6 +57,10 @@ fn main() {
                 move || backend::vigilar(proceso)
             });
             let sin_backend = !proxy::salud(crate::ajustes::PUERTO_API);
+
+            /* Toast del sistema (20AA-27): registra el AUMID en el menú Inicio (sin eso Windows
+             * descarta el toast en silencio). El canal lo abre la página, en `enlaces.js`. */
+            avisos::preparar();
 
             let puerto = servidor::arrancar(app.handle().clone(), Arc::clone(&al_arrancar))?;
             let inicial = if sin_backend { "/__sin-backend" } else { "/" };
