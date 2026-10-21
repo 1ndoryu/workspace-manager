@@ -10,6 +10,7 @@ use crate::ajustes::PUERTO_API;
 use crate::proxy;
 use std::net::TcpStream;
 use std::process::{Child, Command, Stdio};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// Espera maxima a que el backend conteste tras lanzarlo.
@@ -68,6 +69,16 @@ pub fn asegurar() -> (Option<Backend>, String) {
         .current_dir(&raiz)
         /* Sin consola: la app no tiene ninguna y Windows abriria una negra. */
         .stdin(Stdio::null());
+    /* [por que] `node` es un programa de consola: al lanzarlo desde un proceso
+     * GUI sin consola, Windows le crea una ventana propia aunque stdout y stderr
+     * vayan a un fichero. Esa ventana era la que se veia (y cerrarla mataba el
+     * backend: de ahi el 502). CREATE_NO_WINDOW la evita sin tocar el proceso. */
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        orden.creation_flags(CREATE_NO_WINDOW);
+    }
     match salida {
         Ok(a) => {
             orden.stdout(a.try_clone().map(Stdio::from).unwrap_or_else(|_| Stdio::null()));
@@ -100,6 +111,42 @@ pub fn asegurar() -> (Option<Backend>, String) {
     let _ = hijo.kill();
     let _ = hijo.wait();
     (None, detalle)
+}
+
+/// Vigila el backend mientras la app vive: si el que lanzamos murio (o nadie
+/// contesta y el puerto quedo libre), lo vuelve a levantar.
+///
+/// [por que] Sin esto, matar el backend deja la ventana en 502 para siempre y la
+/// unica salida es cerrar y abrir la app. Solo actua cuando el puerto esta
+/// LIBRE: si Arranque esta reiniciando el suyo, no compite con el.
+pub fn vigilar(proceso: Arc<Mutex<Option<Backend>>>) {
+    const CADA: Duration = Duration::from_secs(3);
+    /* Dos comprobaciones seguidas antes de actuar: un backend que arranca tarda
+     * un par de segundos en abrir el puerto y no queremos pisarlo. */
+    let mut libres = 0u8;
+    loop {
+        std::thread::sleep(CADA);
+        let mut guarda = proceso.lock().expect("candado del backend");
+        let propio_muerto = guarda.as_mut().is_some_and(|b| !b.sigue());
+        if propio_muerto {
+            *guarda = None;
+        }
+        if responde() || puerto_ocupado() {
+            libres = 0;
+            continue;
+        }
+        libres += 1;
+        if libres < 2 {
+            continue;
+        }
+        libres = 0;
+        drop(guarda);
+        let (quien, detalle) = asegurar();
+        *proceso.lock().expect("candado del backend") = quien;
+        if !detalle.is_empty() {
+            crate::dicho::anotar(&format!("el backend del tablero se cayo: {detalle}"));
+        }
+    }
 }
 
 /// ¿Alguien escucha en el puerto? Sirve para distinguir «no hay nada» de «hay
