@@ -123,7 +123,7 @@ const MANEJADORES_API: ManejadorRuta[] = [
   manejarRutasGate,         /* /api/proyecto/gate, /api/proyectos/doctor, /api/gate/* */
   manejarRutasAlta,         /* lista de alta por proyecto (10AA-2 F10) */
   manejarRutasGuardian,     /* /api/guardian/* (10AA-2 F11.4) */
-  manejarRutasConfig,       /* /api/config* */
+  (req, res, url, ruta) => manejarRutasConfig(req, res, url, ruta, publicadores.publicarWorkspace), /* /api/config* */
   manejarRutasDocumentos,   /* /api/skills/*, /api/agentes */
   manejarRutasArchivos,     /* /api/archivos* */
   manejarRutasRepos,        /* /api/repos/* */

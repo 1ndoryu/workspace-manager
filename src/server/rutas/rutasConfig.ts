@@ -18,6 +18,9 @@ export async function manejarRutasConfig(
   res: ServerResponse,
   url: URL,
   ruta: string,
+  /* 20AA-24 F4: avisar al canal tras una mutación. El snapshot ya se actualizó aquí, así que
+   * publicar es sólo comparar una huella y repartir; sin esto la otra pestaña esperaba 30 s. */
+  alCambiarConfig: () => Promise<boolean> = async () => false,
 ): Promise<boolean> {
   /* Config del area: alternar un proyecto entre ignorar / dejar de
    * ignorar. La clave es la ruta relativa (no el nombre). */
@@ -55,6 +58,8 @@ export async function manejarRutasConfig(
         escaneadoEn: new Date().toISOString(),
       };
       actualizarSnapshot(mutado);
+      /* 20AA-24 F4: la config cambió en ESTA pestaña; las demás se enteraban al latido de 30 s. */
+      void alCambiarConfig();
       json(res, 200, { ok: true, config: configNueva, snapshot: mutado });
       return true;
     } catch (err) {
@@ -93,6 +98,7 @@ export async function manejarRutasConfig(
       const base = await snapshotArea(false);
       const mutado: SnapshotWorkspace = { ...base.snapshot, config: configNueva };
       actualizarSnapshot(mutado);
+      void alCambiarConfig();
       json(res, 200, { ok: true, config: configNueva, snapshot: mutado });
       return true;
     } catch (err) {
@@ -122,6 +128,7 @@ export async function manejarRutasConfig(
     const base = await snapshotArea(false);
     const mutado: SnapshotWorkspace = { ...base.snapshot, config };
     actualizarSnapshot(mutado);
+    void alCambiarConfig();
     json(res, 200, { ok: true, config });
     return true;
   }
