@@ -40,6 +40,7 @@
     display: none;
 }
 
+/* La cabecera ya no lleva rótulo: sólo el botón de filtro, alineado a la derecha. */
 .v2CampanaPanel {
     position: absolute;
     z-index: 40;
@@ -55,19 +56,14 @@
 .v2CampanaCabecera {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: var(--v2-spaceSm);
     padding-bottom: var(--v2-spaceXs);
     border-bottom: 1px solid var(--v2-borde);
 }
 
-.v2CampanaAcciones {
-    display: inline-flex;
-    gap: var(--v2-spaceXs);
-}
-
 /* Lista con tope de alto: el panel nunca tapa la pantalla entera. [por que 420px] Cinco filas de
- * dos líneas y su día; más allá, se desplaza. */
+ * dos líneas y su bloque; más allá, se desplaza. */
 .v2CampanaLista {
     display: flex;
     flex-direction: column;
@@ -83,20 +79,31 @@
     gap: 2px;
 }
 
+/* Etiqueta del bloque de 6 h, centrada como la fecha de un chat. Va entre dos hairlines: así se
+ * lee como separador del tramo y no como el título de un grupo más. */
 .v2CampanaDia {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+    padding: var(--v2-spaceXs) 0 2px;
     font-size: var(--v2-textXs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    padding: var(--v2-spaceXs) 0 2px;
-    border-bottom: 1px solid var(--v2-borde);
-    margin-bottom: 2px;
+    white-space: nowrap;
 }
 
-/* Fila: hora a la izquierda, texto a la derecha. [por que nativo y no .botonV2] Es una fila de
+.v2CampanaDia::before,
+.v2CampanaDia::after {
+    content: '';
+    flex: 1;
+    border-top: 1px solid var(--v2-borde);
+}
+
+/* Fila: icono a la izquierda, texto a la derecha. [por que nativo y no .botonV2] Es una fila de
  * lista a todo el ancho, no un botón compacto; lleva su propio foco visible abajo. */
 .v2CampanaAviso {
-    display: grid;
-    grid-template-columns: 62px 1fr;
+    display: flex;
+    align-items: flex-start;
     gap: var(--v2-spaceXs);
     width: 100%;
     padding: var(--v2-spaceXs);
@@ -104,7 +111,7 @@
     color: var(--v2-texto);
     border: 1px solid transparent;
     font-family: var(--v2-font);
-    font-size: var(--v2-textSm);
+    font-size: var(--v2-textXs);
     text-align: start;
     cursor: pointer;
 }
@@ -124,11 +131,11 @@
     border-left: 3px solid var(--v2-texto);
 }
 
-.v2CampanaHora {
-    font-size: var(--v2-textXs);
-    align-self: start;
-    /* [por que no se parte] «hace 4 min» en tres líneas no se lee; la columna ya lo contiene. */
-    white-space: nowrap;
+/* El icono no se encoge con un título largo y se alinea con la primera línea del texto. */
+.v2CampanaIcono {
+    flex: none;
+    margin-top: 2px;
+    opacity: 0.75;
 }
 
 .v2CampanaTexto {
@@ -171,14 +178,144 @@
     font-size: var(--v2-textXs);
 }
 
-.v2CampanaTipos {
+/* Detalle de un aviso. Cubre el panel en vez de ser una capa flotante: el panel ya es el diálogo
+ * y esto es su contenido, un paso más adentro. Opaco, o la lista se leería por debajo. */
+.v2CampanaDetallePanel {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.v2CampanaDetalleCabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+    padding-bottom: var(--v2-spaceXs);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.v2CampanaDetalleTipo {
+    font-size: var(--v2-textXs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.v2CampanaDetalleCuerpo {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceSm);
+    padding: var(--v2-spaceXs) 0;
+    border-left: 3px solid transparent;
+}
+
+/* Un aviso que sale fuera de la app (nivel alto) lleva el mismo relleno que una fila sin leer. */
+.v2CampanaDetalleCuerpo--alta {
+    border-left-color: var(--v2-texto);
+}
+
+.v2CampanaDetalleTitulo {
+    padding-left: var(--v2-spaceXs);
+    font-size: var(--v2-textXs);
+}
+
+/* El texto completo, sin recorte: es justo lo que la fila no podía enseñar. */
+.v2CampanaDetalleTexto {
+    padding-left: var(--v2-spaceXs);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: var(--v2-textXs);
+}
+
+.v2CampanaDetallePie {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--v2-spaceXs) 0 0 var(--v2-spaceXs);
+    margin-top: var(--v2-spaceXs);
+    border-top: 1px solid var(--v2-borde);
+    font-size: var(--v2-textXs);
+    opacity: 0.75;
+    overflow-wrap: anywhere;
+}
+
+/* Filtro por tipo: modal centrado. [por que un portal] Se pinta sobre todo lo demás para que el
+ * nav no lo recorte; el fondo cubre la pantalla para cerrar al tocar fuera. */
+.v2CampanaFondo {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    font-family: var(--v2-font);
+}
+
+.v2CampanaModal {
+    width: 420px;
+    max-width: calc(100vw - 2 * var(--v2-spaceMd));
+    max-height: calc(100vh - 2 * var(--v2-spaceMd));
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.v2CampanaModalCabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceSm);
+    padding-bottom: var(--v2-spaceXs);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.v2CampanaModalTitulo {
+    font-size: var(--v2-textXs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* Una columna por tipo: el nombre largo no cabe en dos columnas de 420 px. */
+.v2CampanaModalGrid {
     display: flex;
     flex-direction: column;
     gap: 2px;
 }
 
-.v2CampanaTipoFila {
+.v2CampanaModalFila {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 2px;
+}
+
+/* «todos» manda sobre la lista: separado por un hairline y sin silencio al lado. */
+.v2CampanaModalFila--todos {
+    grid-template-columns: 1fr;
+    padding-bottom: 2px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+/* [por que justificado al inicio] Un botón centrado con icono y texto deja el icono en un sitio
+ * distinto en cada fila; alineados a la izquierda, los ocho iconos forman una columna. */
+.v2CampanaModalTipo {
+    justify-content: flex-start;
+    font-size: var(--v2-textXs);
+}
+
+.v2CampanaModalPie {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-spaceXs);
+    padding-top: var(--v2-spaceXs);
+    border-top: 1px solid var(--v2-borde);
+    font-size: var(--v2-textXs);
+    opacity: 0.75;
 }
