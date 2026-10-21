@@ -260,6 +260,22 @@ npm run quality:sync:test
 Las suites completas usan `node --test` (`scripts/**/*.test.mjs`) o `npx tsx --test`
 (`src/**/*.test.ts`), y se lanzan igual, a través del ejecutor.
 
+## App de escritorio (Tauri 2)
+
+El tablero también se entrega como `.exe` de Windows: el front va empotrado y Rust lo sirve desde
+`127.0.0.1:<puerto libre>` haciendo de proxy de `/api` (inyecta el token; el front no cambia). Usa
+el backend que ya corre y sólo levanta el suyo si no hay ninguno.
+
+```
+npm run build:app     # front en la 89 + cargo xwin (vía run-cargo.mjs → rcargo.mjs)
+```
+
+El `.exe` sale en la 89 (`…/x86_64-pc-windows-msvc/release/workspace-manager.exe`) y se instala en
+`%USERPROFILE%/Apps/WorkspaceManager/`. El patrón completo —servidor local, ciclo del backend,
+enlaces externos, build, artefacto— está en
+`Agente/documentacion/arquitectura/patron-app-escritorio-tauri-2026-10-21.md` (local, fuera del repo
+público).
+
 ## Estructura
 
 ```
@@ -270,6 +286,7 @@ src/
   shared/     tipos y utilidades puras, sin E/S: lo que puede importar el front
   v2/         front: mapa y paneles (React). Es el que se sirve.
   hooks/ styles/ assets/   apoyo del front v2 (hooks, CSS y fuentes)
+src-tauri/    app de escritorio (Tauri 2): servidor local, proxy y ventana
 scripts/
   dev/        mando de desarrollo (dev.mjs y sus módulos)
   quality/    provisionado de Sentinel y VarSense
