@@ -165,9 +165,12 @@ export function nombreBaseDatos(cargoToml, rama, base = null) {
   let paquete = base;
   if (!paquete) {
     // Solo la sección [package]: un `name` de [[bin]] o [lib] no es el paquete.
-    const seccion = cargoToml.split(/^\[/m).find((s) => s.startsWith('package]'));
+    const seccion = cargoToml?.split(/^\[/m).find((s) => s.startsWith('package]'));
     const m = seccion?.match(/^name\s*=\s*"([^"]+)"/m);
-    if (!m) throw new Error('Cargo.toml de la raíz sin [package].name: no se puede derivar la base de datos');
+    /* Sin `[package]` (workspace virtual, como la app de escritorio) no hay paquete del que sacar
+     * el nombre: eso es «proyecto sin BD», no un fallo. Antes se lanzaba y dejaba sin camino
+     * ningún `cargo test` desde la raíz del workspace. */
+    if (!m) return null;
     paquete = m[1].replace(/-/g, '_');
   }
   const defecto = rama === 'main' || rama === 'master';
@@ -335,7 +338,7 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun, extr
       // Sin manifiesto en la raíz ni `basedatos` en la ficha: proyecto sin BD, etapa omitida.
       if (cargoToml || basedatos) {
         nombreBd = nombreBaseDatos(cargoToml, rama, basedatos);
-        const base = nombreBaseDatos(cargoToml, 'main', basedatos);
+        const base = nombreBd === null ? null : nombreBaseDatos(cargoToml, 'main', basedatos);
         // [16AA-9 F3] Solo la base de rama: la base de trabajo la mantiene `Arranque up`.
         if (nombreBd !== base) preparar = { base, semilla: config.proyectos?.[proyecto]?.bdRama?.semilla ?? null };
       }

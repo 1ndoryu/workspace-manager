@@ -226,7 +226,9 @@ test('base por rama: paquete con guiones bajos; main/master sin sufijo', () => {
 
 test('base por rama: solo cuenta [package].name, no [[bin]]', () => {
   const sinPackage = '[workspace]\nmembers = []\n\n[[bin]]\nname = "x"\n';
-  assert.throws(() => nombreBaseDatos(sinPackage, 'main'), /sin \[package\]\.name/);
+  /* Un workspace virtual no es un proyecto con BD: devuelve `null` para que `cargo test` desde
+   * la raíz siga funcionando en vez de morir antes de sincronizar nada. */
+  assert.equal(nombreBaseDatos(sinPackage, 'main'), null);
 });
 
 test('base por rama: rechaza nombres fuera de [a-z0-9_] o de más de 63 caracteres', () => {

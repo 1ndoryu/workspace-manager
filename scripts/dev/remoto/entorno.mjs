@@ -161,8 +161,12 @@ export function entornoRemoto(config, id, entrada, rama) {
     // [por que] Decidido 2026-10-14 (2 bases como máximo): un proyecto con bdDesdeLocal usa su base de trabajo sin sufijo de rama; `main` como rama fuerza ese nombre.
     const bdTrabajo = config.proyectos?.[id]?.bdDesdeLocal !== undefined;
     nombreBd = nombreBaseDatos(readFileSync(join(ruta, 'Cargo.toml'), 'utf8'), bdTrabajo ? 'main' : rama, config.proyectos?.[id]?.basedatos);
-    urlBd = urlBaseRemota(config.bd, nombreBd);
-    env.DATABASE_URL = urlBd;
+    /* Workspace virtual (`[workspace]` sin `[package]`, la app de escritorio): no hay BD y por
+     * tanto no se toca `DATABASE_URL`, que además no consumiría nadie. */
+    if (nombreBd !== null) {
+      urlBd = urlBaseRemota(config.bd, nombreBd);
+      env.DATABASE_URL = urlBd;
+    }
   }
   return { env, urlBd, nombreBd };
 }
