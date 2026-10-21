@@ -229,6 +229,24 @@ test('POST leidas marca todas o sólo las indicadas, y valida', async () => {
   }
 });
 
+test('GET /api/notificaciones/preferencias sólo trae los tipos silenciados', async () => {
+  const f = fuenteFalsa();
+  const { servicio, base, cerrar } = await montar([f]);
+  try {
+    servicio.silenciar(['sitio-caido', 'problema-detectado']);
+    const r = await fetch(`${base}/api/notificaciones/preferencias`);
+    assert.equal(r.status, 200);
+    /* [por que importa] El toast del sistema pregunta esto antes de pintar cada aviso; si
+     * viniera el estado entero serían 500 avisos para leer una lista corta. */
+    assert.deepEqual(await r.json(), { silenciados: ['sitio-caido', 'problema-detectado'] });
+
+    const malo = await fetch(`${base}/api/notificaciones/preferencias`, { method: 'POST' });
+    assert.equal(malo.status, 405);
+  } finally {
+    await cerrar();
+  }
+});
+
 test('POST silenciar guarda los tipos y rechaza los inventados', async () => {
   const f = fuenteFalsa();
   const { servicio, base, cerrar } = await montar([f]);

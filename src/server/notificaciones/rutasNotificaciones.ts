@@ -1,6 +1,7 @@
 /* Rutas de la campana (20AA-25 N2).
  *   GET  /api/notificaciones            estado completo (avisos, preferencias, fuentes rotas)
  *   GET  /api/notificaciones/eventos    SSE: un evento `aviso` por aviso nuevo
+ *   GET  /api/notificaciones/preferencias  sólo `{ silenciados }` (lo que lee el toast del sistema)
  *   POST /api/notificaciones/leidas     { ids?: number[] }  (sin ids = todas)
  *   POST /api/notificaciones/silenciar  { tipos: string[] }
  * [por que SSE y no sondeo] La campana no puede preguntar cada segundo: el servidor ya sabe
@@ -39,6 +40,14 @@ export function crearManejadorNotificaciones(servicio: ServicioNotificaciones) {
 
     if (ruta === '/api/notificaciones/eventos' && req.method === 'GET') {
       atenderCanal(req, res, servicio, url);
+      return true;
+    }
+
+    /* Sólo los tipos silenciados. [por que una ruta aparte] El toast del sistema (20AA-27) pregunta
+     * esto antes de pintar cada aviso: pedir el estado entero serían 500 avisos para leer una lista
+     * de cero a ocho palabras. */
+    if (ruta === '/api/notificaciones/preferencias' && req.method === 'GET') {
+      json(res, 200, servicio.estado().preferencias);
       return true;
     }
 
