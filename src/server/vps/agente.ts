@@ -44,6 +44,10 @@ export function crearAgente(op: OpcionesAgente): {
 
   let fallos = 0;
   let abiertoHasta = 0;
+  /* Cuándo se abrió el breaker y cuándo llegó el último dato bueno (20AA-24 F2): sin esto el panel
+   * sólo sabía que estaba abierto, no desde cuándo ni qué edad tenía lo último que enseñó. */
+  let abiertoEn: number | null = null;
+  let ultimoBueno: number | null = null;
   let cache: { cuando: number; snap: VpsAgenteSnapshot } | null = null;
   /* [309A-2] Caché por sitio (el detalle no comparte la del snapshot:
    * mezclarlas serviría el sitio A al pedir el B). Mismo breaker: si el
@@ -70,9 +74,23 @@ export function crearAgente(op: OpcionesAgente): {
 
   function anotarFallo(err: unknown): string {
     fallos += 1;
-    if (fallos >= fallosParaAbrir) abiertoHasta = ahora() + sondeoMs;
+    if (fallos >= fallosParaAbrir) {
+      abiertoHasta = ahora() + sondeoMs;
+      /* Sólo la primera vez: si se reabre tras la sonda, la usuaria quiere saber desde cuándo
+       * lleva caído, no cuándo se reintentó. */
+      abiertoEn ??= ahora();
+    }
     const codigo = err instanceof Error ? err.message : 'agente-fallo';
     return codigo.slice(0, 120);
+  }
+
+  /* Lo que el panel necesita para no mentir mientras el breaker está abierto. */
+  function datosBreaker(): { desdeMs: number; ultimoBuenoMs: number | null } {
+    const t = ahora();
+    return {
+      desdeMs: Math.max(0, t - (abiertoEn ?? t)),
+      ultimoBuenoMs: ultimoBueno === null ? null : Math.max(0, t - ultimoBueno),
+    };
   }
 
   async function pedir(): Promise<VpsAgenteSnapshot> {
@@ -106,11 +124,13 @@ export function crearAgente(op: OpcionesAgente): {
       return { disponible: true, snapshot: cache.snap, error: null };
     }
     if (t < abiertoHasta) {
-      return { disponible: false, snapshot: null, error: 'agente-abierto' };
+      return { disponible: false, snapshot: null, error: 'agente-abierto', breaker: datosBreaker() };
     }
     try {
       const snap = await pedir();
       fallos = 0;
+      abiertoEn = null;
+      ultimoBueno = ahora();
       cache = { cuando: t, snap };
       return { disponible: true, snapshot: snap, error: null };
     } catch (err) {
@@ -125,7 +145,7 @@ export function crearAgente(op: OpcionesAgente): {
       return { disponible: true, detalle: previo.det, error: null };
     }
     if (t < abiertoHasta) {
-      return { disponible: false, detalle: null, error: 'agente-abierto' };
+      return { disponible: false, detalle: null, error: 'agente-abierto', breaker: datosBreaker() };
     }
     try {
       const crudo = await pedirConTimeout(`/detalle?sitio=${encodeURIComponent(uuid)}`);
@@ -139,6 +159,8 @@ export function crearAgente(op: OpcionesAgente): {
         totalContenedores: crudo.totalContenedores,
       };
       fallos = 0;
+      abiertoEn = null;
+      ultimoBueno = ahora();
       cacheDetalle.set(uuid, { cuando: t, det });
       return { disponible: true, detalle: det, error: null };
     } catch (err) {

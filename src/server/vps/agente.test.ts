@@ -143,6 +143,8 @@ void describe('agente proyecto-b', () => {
     const abierta = await agente.snapshot();
     assert.equal(abierta.error, 'agente-abierto');
     assert.equal(llamadas, 3); // abierta: no toca red
+    /* 20AA-24 F2: el panel necesita saber desde cuándo, y que nunca hubo dato bueno. */
+    assert.deepEqual(abierta.breaker, { desdeMs: 1000, ultimoBuenoMs: null });
     ahora += 60_000;
     await agente.snapshot();
     assert.equal(llamadas, 4); // sonda: reintenta
@@ -171,6 +173,7 @@ void describe('agente proyecto-b', () => {
     falla = false;
     const ok = await agente.snapshot();
     assert.equal(ok.disponible, true);
+    assert.equal(ok.breaker, undefined); // una respuesta buena no lleva diagnóstico de corte
     falla = true;
     ahora += 1000;
     await agente.snapshot(); // fallo 1 de nuevo, no 2

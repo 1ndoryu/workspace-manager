@@ -106,6 +106,11 @@ export interface VpsAgenteRespuesta {
   disponible: boolean;
   snapshot: VpsAgenteSnapshot | null;
   error: string | null;
+  /* Qué contarle a la usuaria cuando el breaker está abierto (20AA-24 F2). [por que] «agente-abierto»
+   * a secas no distingue un corte de hace tres minutos de uno de ayer, y el panel no puede decidir
+   * si avisar. `desdeMs` = hace cuánto se abrió; `ultimoBuenoMs` = edad del último dato bueno
+   * (`null` = nunca hubo). Ausentes cuando la llamada fue bien. */
+  breaker?: { desdeMs: number; ultimoBuenoMs: number | null };
 }
 
 /* [309A-2] Detalle por sitio en una conexión: subconjunto del snapshot
@@ -124,6 +129,8 @@ export interface VpsAgenteDetalleRespuesta {
   disponible: boolean;
   detalle: VpsAgenteDetalle | null;
   error: string | null;
+  /* Mismo diagnóstico que el snapshot (20AA-24 F2): el breaker es uno solo por agente. */
+  breaker?: { desdeMs: number; ultimoBuenoMs: number | null };
 }
 
 /* [07AA-4] Historial persistente por despliegue (`GET /api/vps/historial`):
