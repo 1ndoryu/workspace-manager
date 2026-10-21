@@ -8,6 +8,7 @@ import type {
   VpsRecursos,
   VpsSitio,
 } from '../../shared/types.js';
+import { peorSalud, saludDeEstado } from '../../shared/vps/salud.js';
 
 /* % de uso de disco del host desde el resumen del audit (`Disco:
  * ... use=N%`). La forma es `datos desconocido`: se extrae a la
@@ -25,23 +26,32 @@ import type {
   }
 }
 
-/* Clase del estado en la tabla (fase:detalle → running:healthy, degraded:unhealthy…): running =
- * relleno, degraded = borde, resto (apagado, detenido, sin datos) = atenuado. Vive aquí desde
- * 20AA-16 porque el panel del taller pinta el mismo lenguaje de estados. */
+/* Clase del estado en la tabla (fase:detalle → running:healthy, degraded:unhealthy…): vivo =
+ * relleno, degradado = borde, resto (apagado, detenido, sin datos) = atenuado. Vive aquí desde
+ * 20AA-16 porque el panel del taller pinta el mismo lenguaje de estados. La lectura del estado no
+ * se hace aquí: la decide `shared/vps/salud.ts`, la misma que usa la campana de avisos. */
 export function claseEstado(estado: string): string {
-  if (estado.startsWith('running')) return 'vpsEstado vpsEstado--ok';
-  if (estado.startsWith('degraded')) return 'vpsEstado vpsEstado--mal';
+  const salud = saludDeEstado(estado);
+  if (salud === 'vivo') return 'vpsEstado vpsEstado--ok';
+  if (salud === 'degradado') return 'vpsEstado vpsEstado--mal';
   return 'vpsEstado vpsEstado--apagado';
 }
 
-/* Peor estado del despliegue para la tabla: degraded manda, luego
- * cualquier no-running; en caso contrario, running. Exportada desde 20AA-16: el panel del taller
- * agrupa distinto (una fila por proyecto del registro) pero el estado se resume igual. */
+/* Peor estado del despliegue para la tabla: el degradado manda, luego cualquier no vivo; en caso
+ * contrario, vivo. Exportada desde 20AA-16: el panel del taller agrupa distinto (una fila por
+ * proyecto del registro) pero el estado se resume igual.
+ * [por que devuelve una cadena cruda] La tabla pinta el estado tal cual llegó del agente
+ * (`degraded:unhealthy` es información útil en el detalle); aquí sólo se elige CUÁL de los
+ * contenedores lo representa. El orden de gravedad sí viene de `peorSalud`. */
 export function peorEstado(cs: VpsAgenteContenedor[]): string {
-  const deg = cs.find((c) => c.estado.startsWith('degraded'));
-  if (deg) return deg.estado;
-  const otro = cs.find((c) => !c.estado.startsWith('running'));
-  return otro ? otro.estado : 'running';
+  const peor = peorSalud(cs.map((c) => c.estado));
+  if (cs.length === 0) return 'running';
+  /* Todo vivo se resume con la palabra corta que ya pintaba la tabla; el `:healthy` del agente es
+   * detalle del contenedor, no del despliegue. */
+  if (peor === 'vivo') return 'running';
+  const delGrado = (grado: string): VpsAgenteContenedor | undefined =>
+    cs.find((c) => saludDeEstado(c.estado) === grado);
+  return (delGrado(peor) ?? cs[0]).estado;
 }
 
 /* Fila resumen de la tabla: un despliegue = cpu/mem sumadas. Las filas

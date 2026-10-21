@@ -15,6 +15,7 @@ import { useWorkspaceStore, type PanelCentral, type VisibilidadPaneles } from '.
 import { Button } from '../form/Button.js';
 import { useDesplegable } from './useDesplegable.js';
 import { useRecorteNav } from './useRecorteNav.js';
+import { Campana } from '../../notificaciones/Campana.js';
 import './NavBar.css';
 
 const CENTRALES: { clave: PanelCentral; icono: LucideIcon; etiqueta: string }[] = [
@@ -116,7 +117,7 @@ export function NavBar() {
       ? TOGGLES
       : TOGGLES.filter((t) => t.clave === 'consola');
 
-  const { nav, toggles, medidor, cuantos } = useRecorteNav(CENTRALES.length);
+  const { nav, toggles, fijos, medidor, cuantos } = useRecorteNav(CENTRALES.length);
   const menu = useDesplegable();
 
   const destinosFuera = CENTRALES.slice(cuantos);
@@ -234,6 +235,12 @@ export function NavBar() {
             onClick={() => setPanelVisible(t.clave, !visibles[t.clave])}
           />
         ))}
+      </div>
+      {/* Campana: el último control del nav y fuera del recorte. [por que aquí] Es lo que hay que
+       * poder alcanzar siempre, y vive en su propio grupo para que `useRecorteNav` descuente su
+       * ancho como el de los toggles. */}
+      <div className="v2NavFijo" ref={(el) => { fijos.current[0] = el; }}>
+        <Campana />
       </div>
       {/* Fila de medida: fuera de flujo, sin pintar y fuera del arbol de
        * accesibilidad. Nunca se recorta, asi que sus anchos son los naturales.

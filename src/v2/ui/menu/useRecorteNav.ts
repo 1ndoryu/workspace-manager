@@ -14,6 +14,10 @@ export function useRecorteNav(nCentral: number) {
   const nav = useRef<HTMLElement>(null);
   const toggles = useRef<HTMLDivElement>(null);
   const medidor = useRef<HTMLDivElement>(null);
+  /* Grupos fijos que van DESPUÉS del central (la campana). [por que una lista y no una ref] El
+   * cálculo sólo descontaba los toggles: cualquier grupo nuevo a la derecha se comía el ancho
+   * disponible sin que el recorte lo supiera, y los destinos se salían del borde. */
+  const fijos = useRef<Array<HTMLElement | null>>([]);
   const [cuantos, setCuantos] = useState(nCentral);
 
   /* useLayoutEffect, no useEffect: el primer render pinta todos los destinos y
@@ -29,13 +33,22 @@ export function useRecorteNav(nCentral: number) {
       const hijos = [...fila.children] as HTMLElement[];
       if (hijos.length !== nCentral + 1) return;
       const estilo = getComputedStyle(barra);
-      const anchoToggles = toggles.current?.offsetWidth ?? 0;
-      const gapGrupos = anchoToggles > 0 ? parseFloat(estilo.columnGap) || 0 : 0;
+      /* Todos los grupos a la derecha del central, cada uno con su hueco. Un grupo vacío (sin
+       * toggles en esta pestaña) no ocupa ni gap. */
+      let anchoFijos = 0;
+      let gruposFijos = 0;
+      for (const grupo of [toggles.current, ...fijos.current]) {
+        const ancho = grupo?.offsetWidth ?? 0;
+        if (!grupo || ancho === 0) continue;
+        anchoFijos += ancho;
+        gruposFijos += 1;
+      }
+      const gapGrupos = (parseFloat(estilo.columnGap) || 0) * gruposFijos;
       const disponible =
         barra.clientWidth -
         parseFloat(estilo.paddingLeft) -
         parseFloat(estilo.paddingRight) -
-        anchoToggles -
+        anchoFijos -
         gapGrupos;
       const gap = parseFloat(getComputedStyle(fila).columnGap) || 0;
       const anchoSobra = hijos[nCentral].offsetWidth;
@@ -55,13 +68,15 @@ export function useRecorteNav(nCentral: number) {
     const observador = new ResizeObserver(medir);
     observador.observe(barra);
     /* El ancho disponible tambien cambia si cambian los toggles (en mapa son
-     * tres y en el resto uno), y eso no redimensiona la barra. */
+     * tres y en el resto uno), y eso no redimensiona la barra. Lo mismo vale
+     * para cualquier grupo fijo de la derecha. */
     if (toggles.current) observador.observe(toggles.current);
+    for (const grupo of fijos.current) if (grupo) observador.observe(grupo);
     /* La fuente es self-hosted con font-display:swap: hasta que carga, las
      * etiquetas miden con la mono del sistema y el recorte seria otro. */
     void document.fonts.ready.then(medir);
     return () => observador.disconnect();
   }, [nCentral]);
 
-  return { nav, toggles, medidor, cuantos };
+  return { nav, toggles, fijos, medidor, cuantos };
 }

@@ -200,10 +200,14 @@ async function responderAgenteDetalle(res: ServerResponse, url: URL): Promise<vo
   json(res, 200, r);
 }
 
-async function responderSitios(res: ServerResponse): Promise<void> {
+/* El listado de sitios, sin responder por HTTP. [por que existe] La campana de avisos
+ * (20AA-25) necesita exactamente este dato, y servírselo a sí misma por una petición interna
+ * sería una vuelta de más con el mismo coste. Aquí hay una sola implementación: la ruta la
+ * serializa y la fuente la lee. `sinLectura` viaja aparte porque «no pude preguntar» no es «no
+ * hay ningún sitio vivo»: si no, una VPS inalcanzable anunciaría la caída de todo. */
+export async function leerSitios(): Promise<{ sitios: VpsSitio[]; avisos: VpsAviso[]; aviso: string | null; sinLectura: string | null }> {
   if (!rutaBinario()) {
-    json(res, 503, { error: 'sin-binario', ayuda: dondeBuscarBinario() });
-    return;
+    return { sitios: [], avisos: [], aviso: 'sin-binario', sinLectura: `sin binario de despliegue: ${dondeBuscarBinario()}` };
   }
   const [base, detalle] = await listadoSitiosCacheado();
   const filas = base.ok ? parsearListado(String(base.datos), false) : [];
@@ -226,12 +230,24 @@ async function responderSitios(res: ServerResponse): Promise<void> {
     }
   }
   nombresConocidos = sitios.map((s) => s.nombre);
+  /* Sin el listado básico no hay dato que interpretar; con él pero sin el detallado, los estados
+   * son desconocidos y no se puede declarar ninguna caída. */
+  const sinLectura = !base.ok
+    ? 'no se pudo leer el listado (¿VPS inalcanzable?)'
+    : !detalle.ok
+      ? 'sin estado real: el detallado falló'
+      : null;
   const aviso =
     !base.ok && !detalle.ok
       ? 'no se pudo leer el listado (¿VPS inalcanzable?)'
       : !detalle.ok
         ? 'sin estado real: el detallado fallo, los estados son desconocidos'
         : null;
+  return { sitios, avisos, aviso, sinLectura };
+}
+
+async function responderSitios(res: ServerResponse): Promise<void> {
+  const { sitios, avisos, aviso } = await leerSitios();
   json(res, 200, { sitios, avisos, aviso });
 }
 

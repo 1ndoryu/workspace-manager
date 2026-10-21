@@ -57,3 +57,23 @@ export function bajarDocumento<K extends keyof DocumentEventMap>(
 ): void {
   document.removeEventListener(tipo, oyente as EventListener);
 }
+
+/* Canal de eventos en vivo del servidor (SSE). [por que un constructor y no `new EventSource`
+ * suelto] El día que la app de escritorio sirva su propio origen, o que haya que sustituir el
+ * canal, se cambia aquí y no en cada consumidor; y el DOM queda tocado sólo en el boundary. */
+export function abrirCanalEventos(url: string): EventSource {
+  return new EventSource(url);
+}
+
+/* Reloj del navegador, para textos relativos («hace 4 min»). [por que] Sin esto cada componente
+ * leería `Date.now()` por su cuenta y no habría forma de probar el texto. */
+export function ahoraMs(): number {
+  return Date.now();
+}
+
+/* ¿Está la pestaña a la vista? [por que] Lo que se entrega en vivo (el canal SSE) no hace falta
+ * en una pestaña oculta: con esto, la pestaña en segundo plano cierra su canal y el servidor deja
+ * de hacer pasadas para nadie. */
+export function pestanaVisible(): boolean {
+  return document.visibilityState !== 'hidden';
+}

@@ -1,0 +1,184 @@
+/* Campana de avisos: SOLO layout contextual. [por que] Las reglas del shell v2 son monocromo,
+ * sin radios, sin sombras, sin bold (variables-v2.css), y `css-especificacion-diseno-local`
+ * prohibe especificación visual local: la superficie es la receta canónica .v2Superficie y los
+ * botones son .botonV2 (Button.css). Aquí sólo va dónde se colocan las piezas.
+
+ * Anclaje. `position: relative` contra el propio contenedor y no contra el nav: el panel mide 360
+ * px y el nav puede ser más estrecho, así que se alinea por la derecha del botón y crece hacia
+ * dentro de la ventana. */
+.v2Campana {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+}
+
+/* Contador pegado a la campana. [por que absoluto] El botón no puede crecer: el nav se recorta
+ * por medida y un ancho que cambia con el número movería los destinos de sitio. */
+.v2CampanaBoton {
+    position: relative;
+}
+
+.v2CampanaPunto {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--v2-texto);
+    color: var(--v2-invertido);
+    border: 1px solid var(--v2-borde);
+    font-size: var(--v2-textXs);
+    line-height: 1;
+}
+
+/* Sin nada sin leer no queda un hueco: el punto desaparece del todo. */
+.v2CampanaPunto:empty {
+    display: none;
+}
+
+.v2CampanaPanel {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 360px;
+    max-width: calc(100vw - 2 * var(--v2-spaceMd));
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+}
+
+.v2CampanaCabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--v2-spaceSm);
+    padding-bottom: var(--v2-spaceXs);
+    border-bottom: 1px solid var(--v2-borde);
+}
+
+.v2CampanaAcciones {
+    display: inline-flex;
+    gap: var(--v2-spaceXs);
+}
+
+/* Lista con tope de alto: el panel nunca tapa la pantalla entera. [por que 420px] Cinco filas de
+ * dos líneas y su día; más allá, se desplaza. */
+.v2CampanaLista {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+    max-height: 420px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.v2CampanaGrupo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.v2CampanaDia {
+    font-size: var(--v2-textXs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: var(--v2-spaceXs) 0 2px;
+    border-bottom: 1px solid var(--v2-borde);
+    margin-bottom: 2px;
+}
+
+/* Fila: hora a la izquierda, texto a la derecha. [por que nativo y no .botonV2] Es una fila de
+ * lista a todo el ancho, no un botón compacto; lleva su propio foco visible abajo. */
+.v2CampanaAviso {
+    display: grid;
+    grid-template-columns: 62px 1fr;
+    gap: var(--v2-spaceXs);
+    width: 100%;
+    padding: var(--v2-spaceXs);
+    background: var(--v2-fondo);
+    color: var(--v2-texto);
+    border: 1px solid transparent;
+    font-family: var(--v2-font);
+    font-size: var(--v2-textSm);
+    text-align: start;
+    cursor: pointer;
+}
+
+.v2CampanaAviso:hover {
+    border-color: var(--v2-borde);
+}
+
+.v2CampanaAviso:focus-visible {
+    outline: 1px solid var(--v2-texto);
+    outline-offset: -1px;
+}
+
+/* Sin leer: el borde izquierdo se rellena. [por que no un color] Regla monocroma: los estados se
+ * distinguen por relleno y borde, nunca por color. */
+.v2CampanaAviso--nuevo {
+    border-left: 3px solid var(--v2-texto);
+}
+
+.v2CampanaHora {
+    font-size: var(--v2-textXs);
+    align-self: start;
+    /* [por que no se parte] «hace 4 min» en tres líneas no se lee; la columna ya lo contiene. */
+    white-space: nowrap;
+}
+
+.v2CampanaTexto {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.v2CampanaTituloAviso {
+    /* Dos líneas como mucho: un título largo no debe empujar la lista. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.v2CampanaDetalle {
+    font-size: var(--v2-textXs);
+    opacity: 0.75;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.v2CampanaVacio {
+    padding: var(--v2-spaceMd);
+    text-align: center;
+    font-size: var(--v2-textXs);
+    opacity: 0.75;
+}
+
+/* Banda de estado (sin conexión o una fuente sin lectura). [por que borde arriba y abajo] Se lee
+ * como algo aparte de la lista, no como otro aviso. */
+.v2CampanaBanda {
+    padding: var(--v2-spaceXs);
+    border-top: 1px solid var(--v2-borde);
+    border-bottom: 1px solid var(--v2-borde);
+    font-size: var(--v2-textXs);
+}
+
+.v2CampanaTipos {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.v2CampanaTipoFila {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px;
+}

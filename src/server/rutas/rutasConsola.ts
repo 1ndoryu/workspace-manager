@@ -82,7 +82,9 @@ export async function manejarRutasConsola(
  * vigilancia, salud y taller no se necesitan entre sí: en paralelo tarda lo que el más
  * lento, en vez de sumar sus tiempos. La vigilancia no se fuerza: trae TTL 60 s y
  * single-flight propios, y su frescura viaja en `vigencia.devEn`. */
-async function recogerFuentes(forzar: boolean, emergencia: boolean) {
+/* Exportada para la campana (20AA-25): necesita la misma agregación que esta ruta, no una
+ * parecida. Sin forzar, todo sale de caché. */
+export async function recogerFuentes(forzar: boolean, emergencia: boolean) {
   /* [por que] snapshotArea(true) invalida la memoria del server (igual que
    * analizarTodo): si no, un commit reciente seguiría mostrando el HEAD
    * viejo en las entradas sinCommit/sinPush. */

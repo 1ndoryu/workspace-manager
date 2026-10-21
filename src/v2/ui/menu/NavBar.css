@@ -63,3 +63,13 @@
 .v2NavMedidorSobra {
     display: inline-flex;
 }
+
+/* Grupo fijo de la derecha (la campana). [por que tiene clase propia] useRecorteNav descuenta el
+ * ancho de cada grupo fijo; sin un contenedor que lo mida, el botón de la campana quedaría fuera
+ * del cálculo y los destinos se saldrían por el borde en ventanas estrechas. */
+.v2NavFijo {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--v2-spaceSm);
+}

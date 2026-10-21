@@ -5,7 +5,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { json } from './http.js';
-import { RAIZ_REPO } from './plataforma/rutas.js';
+import { RAIZ_DATOS, RAIZ_REPO } from './plataforma/rutas.js';
 /* [por que] `snapshotArea` vive en snapshot.ts desde que se extrajo alli por
  * limite de lineas; tener aqui una copia era una segunda fuente de verdad del
  * mismo escaneo (y arrastraba estos imports). */
@@ -33,6 +33,9 @@ import { manejarRutasVpsPiezas } from './vps/rutas/rutasVpsPiezas.js';
 import { crearManejadorTareas } from './tareas/rutasTareas.js';
 import { puenteTareas } from './tareas/puente-tareas.js';
 import { crearSincroniaFondo } from './tareas/sincronizacion/sincronia-fondo.js';
+import { crearServicioNotificaciones } from './notificaciones/notificaciones.js';
+import { fuentesReales } from './notificaciones/componer.js';
+import { crearManejadorNotificaciones } from './notificaciones/rutasNotificaciones.js';
 import { verificarEntrada } from './seguridad/entrada.js';
 import { obtenerToken } from './seguridad/token.js';
 import { registrarAuditoria, rutaAuditoriaPorDefecto } from './seguridad/auditoria.js';
@@ -69,7 +72,21 @@ const leerProyectos = async () =>
 const sincronia = crearSincroniaFondo({proyectos: leerProyectos, puente: puenteTareas});
 /* El ciclo de escaneo es el disparador de fondo: cada escaneo de verdad (el del auto-timer, el
  * del boton, el que sigue a guardar un archivo) mira los roadmaps y pone al dia TASK. */
-alEscanearWorkspace(() => sincronia.programar());
+/* Campana de avisos (20AA-25): un servicio para todo el proceso. Se engancha a los mismos
+ * momentos que la sincronia —fin de un escaneo real y los gestos del tab—; su propio latido solo
+ * existe mientras haya una pestana escuchando. */
+const notificaciones = crearServicioNotificaciones({
+  rutaFichero: join(RAIZ_DATOS, 'cache', 'notificaciones.json'),
+  fuentes: fuentesReales(),
+});
+alEscanearWorkspace(() => {
+  sincronia.programar();
+  notificaciones.programar();
+});
+/* Al arrancar: una pasada para tener línea base y la foto de ahora. `void`: no bloquea el
+ * servidor, y el primer acceso a la campana la enseña en cuanto termine. */
+void notificaciones.correr();
+const manejarNotificaciones = crearManejadorNotificaciones(notificaciones);
 
 /* Proxy tareas con las columnas del snapshot (08AA-6 sync): instancia unica;
  * `snapshotArea(false)` sirve cache sin escanear (la columna nueva aparece
@@ -78,8 +95,10 @@ const manejarTareas = crearManejadorTareas({
   leerWm: async () => (await snapshotArea(false)).snapshot.proyectos.map((p) => ({clave: p.clave, nombre: p.id})),
   leerProyectos,
   /* Las acciones del tab tambien disparan una pasada: lo que se acaba de escribir en el archivo
-   * tiene que llegar a TASK sin esperar al siguiente escaneo. */
+   * tiene que llegar a TASK sin esperar al siguiente escaneo. Y la campana mira lo mismo: un
+   * gesto puede completar una tarea. */
   sincronia,
+  alGesto: () => notificaciones.programar(),
 });
 
 type ManejadorRuta = (req: IncomingMessage, res: ServerResponse, url: URL, ruta: string) => Promise<boolean>;
@@ -105,6 +124,7 @@ const MANEJADORES_API: ManejadorRuta[] = [
   manejarRutasTaller,       /* /api/taller/estado (S3) */
   manejarRutasTallerAgente, /* /api/taller/agente y /api/taller/pieza (20AA-16) */
   manejarRutasSalud,        /* /api/salud/* (10AA-2 F8) */
+  manejarNotificaciones,    /* /api/notificaciones* (20AA-25): campana y canal SSE */
   manejarTareas,            /* /api/tareas/* (07AA-5 F2): el puente custodia la sesión D1 */
 ];
 

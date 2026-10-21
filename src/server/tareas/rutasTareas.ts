@@ -35,6 +35,9 @@ export interface DepsRutasTareas {
   /* Sincronia de fondo (20AA-10 F6). Sin ella (tests, o un server sin roadmap) el tab funciona
    * igual: solo se pierde el empujon tras cada gesto, que es lo que evita esperar al escaneo. */
   sincronia?: SincroniaFondo;
+  /* Aviso de «un gesto puede haber cambiado lo que se ve» (20AA-25). El tab no sabe que existe una
+   * campana: solo dice que acaba de escribir algo, igual que ya dispara la sincronia. */
+  alGesto?: () => void;
 }
 
 /* Traduce un fallo de la red de tareas a la pista de túneles: un `red` suele ser el túnel caído,
@@ -56,11 +59,13 @@ export function crearManejadorTareas(deps: DepsRutasTareas = {}) {
    * archivo. Sin `leerProyectos` no hay proyecto que emparejar y no se toca ningun archivo. */
   const acciones: DepsAccionesTab = {proyectos: leerProyectos, puente};
   const sincronia = deps.sincronia ?? null;
+  const alGesto = deps.alGesto ?? (() => undefined);
   /* Tras un gesto del tab que toca el roadmap, una pasada de la sincronia (F6). Es un empujon, no
    * una espera: el gesto responde ya y la pasada va por detras con su calma, que ademas junta
    * varios gestos seguidos en una sola. */
   function empujarSincronia(): void {
     sincronia?.programar();
+    alGesto();
   }
   /* [por que] El listado de columnas se cachea: ver cacheProyectosTasks.ts. */
   const proyectosTasks = crearCacheProyectos(() => puente.proyectos(), TTL_PROYECTOS_TASKS_MS);
