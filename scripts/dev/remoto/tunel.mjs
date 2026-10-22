@@ -88,6 +88,31 @@ export async function tunelVivo(config, entrada, estado) {
 }
 
 
+/* Espera a que el hijo recien lanzado aparezca como nuestro.
+ * [por que] Una unica consulta a los 1,5 s no basta: el sensor de procesos tarda ~2 s y un ssh
+ * recien nacido a veces aun no sale en CIM, asi que un tunel bueno se daba por muerto y quedaba
+ * huerfano ocupando el puerto local (el `up` siguiente fallaba con ExitOnForwardFailure). Se
+ * sondea hasta `ESPERA_MS`, y se abandona antes si el proceso ya no existe: con
+ * ExitOnForwardFailure un reenvio imposible lo mata en < 1 s. */
+const ESPERA_MS = 8000;
+const SONDA_MS = 600;
+
+async function esperarTunel(hijo, acepta) {
+  const limite = Date.now() + ESPERA_MS;
+  let intentos = 0;
+  while (Date.now() < limite) {
+    await new Promise((r) => setTimeout(r, SONDA_MS));
+    const proc = (await procesosDe([hijo.pid])).get(hijo.pid);
+    if (!proc?.creado) {
+      // Dos ausencias seguidas: el proceso no llego a existir o ya murio.
+      if (++intentos >= 2) return null;
+      continue;
+    }
+    if (acepta(proc)) return proc;
+  }
+  return null;
+}
+
 export async function abrirTunel(config, entrada, id) {
   mkdirSync(DIR_LOGS, { recursive: true });
   const rutaLog = join(DIR_LOGS, `remoto-tunel-${id}.log`);
@@ -97,10 +122,8 @@ export async function abrirTunel(config, entrada, id) {
   hijo.unref();
   closeSync(fd);
   if (!hijo.pid) return { pid: null, rutaLog };
-  // [por que] Con ExitOnForwardFailure un reenvio fallido sale en < 1 s; esperar evita dar por bueno un PID muerto.
-  await new Promise((r) => setTimeout(r, 1500));
-  const proc = (await procesosDe([hijo.pid])).get(hijo.pid);
-  if (!tunelEsNuestro(proc, config, entrada)) return { pid: null, rutaLog };
+  const proc = await esperarTunel(hijo, (p) => tunelEsNuestro(p, config, entrada));
+  if (!proc) return { pid: null, rutaLog };
   return { pid: hijo.pid, creado: proc.creado, rutaLog };
 }
 
@@ -134,9 +157,8 @@ export async function abrirTunelPares(config, pares, id) {
   hijo.unref();
   closeSync(fd);
   if (!hijo.pid) return { pid: null, rutaLog };
-  await new Promise((r) => setTimeout(r, 1500));
-  const proc = (await procesosDe([hijo.pid])).get(hijo.pid);
-  if (!proc?.creado || !reenviosTunel(proc.cmd).length) return { pid: null, rutaLog };
+  const proc = await esperarTunel(hijo, (p) => Boolean(p.creado) && reenviosTunel(p.cmd).length > 0);
+  if (!proc) return { pid: null, rutaLog };
   return { pid: hijo.pid, creado: proc.creado, rutaLog };
 }
 
