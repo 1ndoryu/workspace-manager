@@ -101,8 +101,11 @@ export function comandoPrecompilar(config, rutas, id, argv, env = {}) {
 // `entrada.env` lleva la URL del proxy de dev (`http://localhost:3103`), que desde el navegador del
 // portátil no existe. Solo cuenta el `env K=V` escrito en su propio argv.
 
-export function comandoConstruirFront(rutas, id, argv) {
-  const log = `${rutas.dirLogs}/construir-front-${id}.log`;
+/* [por que `etiqueta`] El mismo ayudante construye el front y el servidor compilado: si los
+ * dos escribieran en `construir-front-<id>.log`, el fallo del segundo se leería en el log del
+ * primero. */
+export function comandoConstruirFront(rutas, id, argv, etiqueta = 'front') {
+  const log = `${rutas.dirLogs}/construir-${etiqueta}-${id}.log`;
   const interno = `${PATH_NODE}cd ${shQuote(rutas.dirRemoto)} && ${argv.map(shQuote).join(' ')}`;
   return `mkdir -p ${shQuote(rutas.dirLogs)} && bash -lc ${shQuote(interno)} >> ${shQuote(log)} 2>&1`;
 }

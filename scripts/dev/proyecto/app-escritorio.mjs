@@ -78,6 +78,21 @@ export async function app(resto) {
     console.error(`app: el front no dejó dist/index.html en ${config.host}`);
     return 1;
   }
+  /* 2b) Servidor compilado: la app arranca `node dist-server/server/index.js` desde el repo.
+   * [por qué aquí] Lo construía `npm run build` en la cabeza de quien se acordara; un clon
+   * nuevo compilaba el .exe y se quedaba sin backend. Va por el mismo ayudante (wrapper). */
+  console.log(`app: compilando el servidor de ${id} en la 89`);
+  const servidor = await sshRemoto(
+    config,
+    comandoConstruirFront(rutas, id, ['npm', 'run', 'build:server'], 'servidor'),
+    TIMEOUT_BUILD_MS,
+  );
+  const hayServidor = await sshRemoto(config, `test -f ${rutas.dirRemoto}/dist-server/server/index.js`);
+  if (!servidor.ok || !hayServidor.ok) {
+    console.error(`app: el servidor no compiló (log: ${rutas.dirLogs}/construir-servidor-${id}.log)`);
+    if (servidor.error) console.error(servidor.error);
+    return 1;
+  }
 
   /* 3) El exe, por el wrapper del proyecto: nunca `cargo` desde aquí. */
   console.log(`app: compilando ${id} para Windows`);

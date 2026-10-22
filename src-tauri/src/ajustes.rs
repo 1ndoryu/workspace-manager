@@ -5,7 +5,7 @@
 // la carpeta del usuario y lo lee Rust; el front nunca lo ve, igual que con el
 // proxy de Vite en el navegador.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Puerto del backend del tablero: `WS_PORT`, con el defecto de `puertos.ts`. [por que] Era una
 /// constante: el backend honraba `WS_PORT` y la app seguía llamando a 8787, así que mover el puerto
