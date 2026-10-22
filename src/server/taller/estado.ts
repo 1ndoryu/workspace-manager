@@ -5,7 +5,6 @@
  * [por que] Cada lectura cuesta (una sesión SSH, PowerShell de 1-2 s): el resultado se cachea
  * 60 s y las peticiones simultáneas comparten una sola lectura (single-flight). Así el panel y
  * la consola no multiplican sesiones SSH. */
-import { execFile } from 'node:child_process';
 import {
   evaluarConformidad,
   type EntradaConformidad,
@@ -19,6 +18,7 @@ import { hostsActivos } from '../../shared/taller/conformidadPublico.js';
 import { leerRegistroConformidad } from './registroConformidad.js';
 import { NOMBRE_MANAGER } from '../plataforma/rutas.js';
 import { BIN_SSH } from '../plataforma/sistema/binarios.js';
+import { PUERTO_PROCESOS, type PuertoProcesos } from '../plataforma/sistema/procesos.js';
 import { escuchasConProceso, obtenerSistemaLocal } from '../plataforma/sistema/sistemaLocal.js';
 import { bdTrabajoDe, cloudflaredEnvDe, dirDatosTaller, hostTaller, leerConfigRemota, leerTallerSiExiste, sondaTallerDe, type TallerAnalisis } from '../gate/herramientas/config.js';
 import { errorFormaTaller89, funcionMutagen, parsearHistorial, SCRIPT_MUTAGEN, sesionesMutagenMalas } from './estadoParseo.js';
@@ -47,17 +47,19 @@ export interface EstadoTallerCompleto {
 }
 
 /* Lectura de un comando sin shell. `error` es null si salió con 0; si no, la primera línea
- * de stderr (o del propio error), acotada. */
-function correr(archivo: string, args: string[], timeoutMs: number): Promise<{ salida: string; error: string | null }> {
-  return new Promise((resolver) => {
-    execFile(archivo, args, { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024, windowsHide: true, encoding: 'utf8' },
-      (err, stdout, stderr) => {
-        const salida = String(stdout ?? '');
-        if (!err) return resolver({ salida, error: null });
-        const detalle = String(stderr || err.message).trim().split('\n')[0].slice(0, 300);
-        resolver({ salida, error: detalle || 'error sin detalle' });
-      });
-  });
+ * de stderr (o del propio error), acotada. [por que] Va por `PuertoProcesos`, como el resto
+ * del servidor: aquí había un `execFile` propio, así que este módulo no se podía probar sin
+ * lanzar procesos y era el único sitio con su propio `maxBuffer`/timeout. */
+async function correr(archivo: string, args: string[], timeoutMs: number, puerto: PuertoProcesos = PUERTO_PROCESOS): Promise<{ salida: string; error: string | null }> {
+  try {
+    const { stdout } = await puerto.ejecutar(archivo, args, { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024, windowsHide: true });
+    return { salida: stdout, error: null };
+  } catch (err) {
+    const e = err as { stderr?: unknown; message?: unknown };
+    const texto = typeof e.stderr === 'string' && e.stderr.trim() ? e.stderr : typeof e.message === 'string' ? e.message : '';
+    const detalle = String(texto).trim().split('\n')[0].slice(0, 300);
+    return { salida: '', error: detalle || 'error sin detalle' };
+  }
 }
 
 /* ---------- VPS 89 (sonda por SSH) ---------- */
