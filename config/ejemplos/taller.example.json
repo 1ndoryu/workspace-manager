@@ -36,7 +36,7 @@
     ]
   },
   "bd": {
-    "usuario": "dev",
+    "usuario": "<USUARIO_BD>",
     "socket": "/var/run/postgresql",
     "subcomandos": [
       "test",
@@ -54,8 +54,8 @@
       },
       "bdDesdeLocal": {
         "verificar": [
-          "inmuebles",
-          "fotos",
+          "tabla_a",
+          "tabla_b",
           "_sqlx_migrations"
         ]
       }

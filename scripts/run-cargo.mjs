@@ -17,7 +17,7 @@ const proyecto = taller.detectarProyecto(process.cwd());
 
 if (taller.modoEfectivo(argvCargo, config, proyecto) !== 'remoto') {
   /* El modo local ya no existe: se sale en claro en vez de fallar con un ENOENT. */
-  console.error('[run-cargo] El portátil no compila Rust: quita --local y compila en la VPS 89.');
+  console.error('[run-cargo] El portátil no compila Rust: quita --local y compila en el taller.');
   process.exit(1);
 }
 

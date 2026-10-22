@@ -78,7 +78,7 @@
       "env": {
         "SCCACHE_BASEDIRS": "<RAIZ_AREA>"
       },
-      "tipoLauncher": "binario directo (cargo run dejaba la consola visible del hijo; exe en target por rama <TMP>\\target\\app-<rama> [05AA-1]; si falta, `up` lo reconstruye solo vía `reconstruir`; requiere <TOKEN_API>>=32 en entorno, en local vale cualquiera, el real solo vive en el gestor de despliegues)",
+      "tipoLauncher": "binario directo (el exe vive en target por rama <TMP>\\target\\app-<rama> [05AA-1]; si falta, `up` lo reconstruye solo vía `reconstruir`; requiere <TOKEN_API> de al menos 32 caracteres en el entorno, en local vale cualquiera, el real solo vive en el gestor de despliegues)",
       "reconstruir": {
         "manifest": "app/Cargo.toml",
         "targetDir": "<TMP>\\target\\app-main"
@@ -240,13 +240,13 @@
       "auxiliares": [
         {
           "puerto": 3122,
-          "marcador": "mejora.mjs",
-          "motivo": "server:mejora (frontend/server/mejora.mjs), arranque manual fuera del mando"
+          "marcador": "<MARCADOR_DEL_AUXILIAR>",
+          "motivo": "auxiliar de desarrollo: proceso propio fuera del mando (script o binario)"
         },
         {
           "puerto": 3103,
-          "marcador": "--gateway-mn",
-          "motivo": "gateway de mensajeria: vive en el portatil (tiene las sesiones); lo mantiene el guardian de Inicio"
+          "marcador": "<MARCADOR_DEL_AUXILIAR>",
+          "motivo": "servicio auxiliar que se mantiene fuera del mando (p. ej. un gateway con sesiones propias)"
         }
       ],
       "tipoLauncher": "plantilla con wrapper run-with-db.mjs: backend en <TMP> + Vite bajo ruta; PORT por env del mando; front via --prefix+-- para que --port llegue a vite",

@@ -67,7 +67,7 @@ export function dentroDe(raiz, carpeta) {
  * (para eso está `dirRemotoDeHerramienta`). */
 export function dirRemotoDe(config, id, raiz, carpeta) {
   if (!dentroDe(raiz, carpeta)) {
-    throw new Error(`${carpeta} está fuera de ${raiz}: no se replica en la VPS 89`);
+    throw new Error(`${carpeta} está fuera de ${raiz}: no se replica en el taller`);
   }
   const relativa = path.relative(raiz, carpeta);
   const partes = relativa ? relativa.split(path.sep).join('/') : '';
