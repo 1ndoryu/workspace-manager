@@ -53,9 +53,9 @@ npm run dev      # front, por defecto en 127.0.0.1:5175
 ```
 
 Requisitos: Node 24 o superior y Git (cada proyecto del área es un repositorio).
-Sin `config/taller.json` el análisis no corre en la propia máquina: queda en error con el
-motivo («sin VPS configurada»). Los proyectos analizan en la 89 salvo que el registro
-diga `analisisEn: "local"`; ver «Funciona con o sin taller».
+Sin `config/taller.json` el análisis corre en esta máquina y lo dice con un aviso: sirve para
+un clon recién hecho, sin servidor. Con taller configurado, los proyectos analizan en el taller
+salvo que el registro diga `analisisEn: "local"`; ver «Funciona con o sin taller».
 
 Para producción: `npm run build` compila el front; `npm run build:server` compila el
 backend a `dist-server/` y `npm run server:compilado` lo arranca.
@@ -183,7 +183,7 @@ node scripts/dev/dev.mjs <subcomando> [args]
 | `logs <id>` | Cola del registro. |
 | `open <id>` | Imprime las URLs. |
 | `problemas` | Consola agregada de todo el área. |
-| `gate <id> --inicio\|--cierre` | Guarda la línea base de hallazgos o compara contra ella. `--cierre` además corre el autogate (`comandos.gate` de la ficha) en la 89; sin orden se omite con aviso. Si el autogate ejecuta pruebas de VS Code en Linux, su `comandos.gate` debe fijar `DISPLAY` (p. ej. `DISPLAY=:99 TMPDIR=/var/tmp npm run quality:check` en la 89; el ejemplo `config/ejemplos/registro.example.json` lo muestra en `proyecto-1`). |
+| `gate <id> --inicio\|--cierre` | Guarda la línea base de hallazgos o compara contra ella. `--cierre` además corre el autogate (`comandos.gate` de la ficha) en el taller; sin orden se omite con aviso. Si el autogate ejecuta pruebas de VS Code en Linux, su `comandos.gate` debe fijar `DISPLAY` (p. ej. `DISPLAY=:99 TMPDIR=/var/tmp npm run quality:check` en el taller; el ejemplo `config/ejemplos/registro.example.json` lo muestra en `proyecto-1`). |
 | `cierre <id>` | Puerta de cierre de una tarea. |
 | `alta <id\|carpeta>` | Lista de alta de un proyecto nuevo (en seco salvo `--aplicar`). |
 | `comandos <id>` | Imprime el contrato de comandos del proyecto. |
@@ -224,14 +224,16 @@ El manager distingue dos papeles, y esa separación es el eje del diseño:
 
 Sin `config/taller.json`, o con el taller apagado, todo lo local sigue
 funcionando: mapa, repos, documentos, tareas y config. El análisis de los proyectos
-**va a la 89 por defecto**: sin VPS no baja al portátil, queda en error con el motivo
-(`sin VPS configurada`, `el taller no respondió`) y el tablero lo muestra. Es a
-propósito: el portátil edita, y lo pesado va a la 89.
+**corre en esta máquina mientras no haya taller configurado**, con un aviso visible para que
+nadie lo confunda con un análisis en el taller. Con taller configurado, el análisis va al
+taller por defecto y, si no responde, queda en error con el motivo (`sin VPS configurada`,
+`el taller no respondió`): no baja al portátil, porque el portátil edita y lo pesado va al
+taller.
 
 Para activarlo basta con rellenar `config/taller.json` (host y directorio base). Dónde
 se analiza cada proyecto lo marca `config/registro.json`: solo `analisisEn: "local"`
 fuerza el análisis en el portátil; cualquier otro caso, incluido el `host` del taller,
-va a la 89.
+va al taller.
 
 ## Pruebas
 
@@ -267,10 +269,10 @@ El tablero también se entrega como `.exe` de Windows: el front va empotrado y R
 el backend que ya corre y sólo levanta el suyo si no hay ninguno.
 
 ```
-npm run build:app     # front en la 89 + cargo xwin (vía run-cargo.mjs → rcargo.mjs)
+npm run build:app     # front en el taller + cargo xwin (vía run-cargo.mjs → rcargo.mjs)
 ```
 
-El `.exe` sale en la 89 (`…/x86_64-pc-windows-msvc/release/workspace-manager.exe`) y se instala en
+El `.exe` sale en el taller (`…/x86_64-pc-windows-msvc/release/workspace-manager.exe`) y se instala en
 `%USERPROFILE%/Apps/WorkspaceManager/`. El patrón completo —servidor local, ciclo del backend,
 enlaces externos, build, artefacto— está en
 `Agente/documentacion/arquitectura/patron-app-escritorio-tauri-2026-10-21.md` (local, fuera del repo
@@ -302,10 +304,11 @@ TypeScript.
 
 ## Herramientas de calidad
 
-Sentinel y VarSense son proyectos aparte. `quality-tools.json` declara de dónde
-se clonan y en qué commit; `npm run quality:setup` los provisiona en
-`.quality-tools/`. Si no están, el manager funciona igual, pero el análisis de
-ese proyecto aparece como **error de datos con su motivo**, nunca como limpio.
+Sentinel y VarSense son proyectos aparte, **opcionales**. `quality-tools.json` declara de
+dónde se clonan y en qué commit (son los repos upstream); `npm run quality:setup` los
+provisiona en `.quality-tools/`. Si no están —o no tienes acceso a esos repos— el manager
+funciona igual: el análisis de ese proyecto aparece como **error de datos con su motivo**,
+nunca como limpio, y el resto de paneles no depende de ellos.
 
 ## Datos personales
 
