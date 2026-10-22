@@ -91,3 +91,12 @@
     inset-inline-start: 0;
     opacity: .5;
 }
+
+/* Código dentro del texto del changelog: se distingue del cuerpo sin gritar. */
+.v2ChangelogCuerpo code {
+    font-family: var(--v2-font);
+    font-size: .92em;
+    opacity: .85;
+    background: color-mix(in srgb, var(--v2-texto) 8%, transparent);
+    padding: 0 .2em;
+}
