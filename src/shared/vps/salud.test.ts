@@ -2,7 +2,7 @@
  * comparten el panel, la campana y el aviso del sistema: si se desvía, el tablero se contradice. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { estaVivo, peorSalud, saludDeEstado } from './salud.js';
+import { ESTADO_CAIDO, estaVivo, peorSalud, saludDeEstado } from './salud.js';
 
 test('estados vivos', () => {
   for (const e of ['running', 'running:healthy', 'Running', 'restarting', 'restarting:unhealthy']) {
@@ -21,6 +21,11 @@ test('caído: apagado, detenido, exited y lo que no reconozco', () => {
     assert.equal(saludDeEstado(e), 'caido', e);
     assert.equal(estaVivo(e), false, e);
   }
+});
+
+test('ESTADO_CAIDO se lee como caído: el panel del taller y la campana dicen lo mismo', () => {
+  assert.equal(saludDeEstado(ESTADO_CAIDO), 'caido');
+  assert.equal(estaVivo(ESTADO_CAIDO), false);
 });
 
 test('sin dato es desconocido, nunca caído', () => {

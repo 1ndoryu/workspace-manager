@@ -9,6 +9,11 @@
 /* Cuatro grados, y no más: es lo que distingue de verdad una fila del tablero. */
 export type SaludServicio = 'vivo' | 'degradado' | 'caido' | 'desconocido';
 
+/* Estado de un servicio del que no sabemos nada: ni contenedores ni fase. [por que aquí] Es una
+ * palabra del vocabulario de la salud y se leía como caído; escrita a mano en el panel del taller,
+ * un cambio de criterio aquí la dejaba mintiendo (20AA-30 N4-4). */
+export const ESTADO_CAIDO = 'apagado';
+
 /* `running` y `restarting` cuentan como vivos (un reinicio está corriendo, no muerto);
  * `degraded` está vivo con un chequeo de salud fallando; lo que no se puede leer es desconocido,
  * que nunca se anuncia como caída. */
@@ -17,7 +22,7 @@ export function saludDeEstado(estado: string | null | undefined): SaludServicio 
   if (e === '' || e === 'desconocido' || e === 'sin-asignar' || e === 'sin-estado-real') return 'desconocido';
   if (e.startsWith('running') || e.startsWith('restarting')) return 'vivo';
   if (e.startsWith('degraded')) return 'degradado';
-  if (e === 'apagado' || e === 'detenido' || e.startsWith('exited') || e.startsWith('stopped')) return 'caido';
+  if (e.startsWith(ESTADO_CAIDO) || e === 'detenido' || e.startsWith('exited') || e.startsWith('stopped')) return 'caido';
   /* Cualquier otro estado concreto (`created`, `paused`...) se lee como no vivo: la duda se
    * resuelve hacia fuera, no hacia dentro. */
   return 'caido';

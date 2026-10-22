@@ -11,12 +11,14 @@ import { json } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
 import { analizarTodo, analisisVigentes } from '../gate/analizador.js';
 import { auditarTodo, auditoriasVigentes } from '../gate/vulnerabilidades/vulnerabilidades.js';
+
 import { obtenerVigilancia } from '../dev/vigilancia.js';
 import { saludArea, saludProyectos } from '../salud/runner.js';
 import {
   contarProblemas,
   problemaHuerfanosSinProyecto,
   problemaSaludArea,
+  marcarHuellas,
   problemasDe,
   problemasDevDe,
   problemasSaludDe,
@@ -135,6 +137,7 @@ export function agruparProblemas(f: Fuentes): { clave: string; id: string; entra
   const solos = problemaHuerfanosSinProyecto(f.dev);
   if (solos) poner('', solos.p.id, solos.entradas);
 
-  /* [por que] El total cuenta todas las entradas que la consola muestra. */
-  return [...porProyecto.values()].map((g) => ({ ...g, total: contarProblemas(g.entradas) }));
+  /* [por que] El total cuenta todas las entradas que la consola muestra. La huella se pone aquí,
+   * con la lista completa del grupo: es lo único estable para key, badge y diff (20AA-30 N4-1). */
+  return marcarHuellas([...porProyecto.values()]).map((g) => ({ ...g, total: contarProblemas(g.entradas) }));
 }

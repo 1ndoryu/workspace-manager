@@ -170,9 +170,12 @@ export function PanelConsola() {
               </button>
               {colapsados.has(pr.p.id) ? null : (
               <ul className="consolaMotivos">
-                {pr.entradas.map((e, i) => (
+                {pr.entradas.map((e) => (
                   <li
-                    key={`${e.motivo}-${i}`}
+                    /* [por que la huella y no el motivo ni el índice] El motivo lleva números que
+                     * fluctúan; el índice cambia al reordenar. Con la huella, React conserva la fila
+                     * entre escaneos (20AA-30 N4-1). */
+                    key={e.huella ?? e.motivo}
                     className={`consolaMotivo v2Guia${e.seriedad ? ` consolaMotivo--${e.seriedad === 'error' ? 'error' : 'warn'}` : ''}`}
                   >
                     {e.sentinelSeveridad ? (

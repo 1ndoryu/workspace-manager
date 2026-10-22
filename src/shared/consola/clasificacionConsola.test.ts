@@ -4,6 +4,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   contarProblemas,
+  huellaMotivo,
+  marcarHuellas,
   problemasDe,
   categoriasDe,
   problemaHuerfanosSinProyecto,
@@ -235,5 +237,39 @@ describe('artefacto: lo que esta entrada consume de otro proyecto', () => {
 
   it('sin artefactos no cambia nada', () => {
     assert.equal(problemasDevDe(proyecto, informe([]), null), null);
+  });
+});
+
+describe('huellaMotivo', () => {
+  it('ignora numeros, tildes y mayusculas: es la identidad del problema', () => {
+    assert.equal(
+      huellaMotivo('PROYECTO TASKS: línea 163 — Usar selector del sistema'),
+      huellaMotivo('proyecto tasks:  linea 27 — usar selector del sistema'),
+    );
+  });
+
+  it('distingue dos problemas distintos del mismo archivo', () => {
+    assert.notEqual(huellaMotivo('html nativo en vez de componente'), huellaMotivo('color a mano'));
+  });
+});
+
+describe('marcarHuellas', () => {
+  it('numera los empates dentro del grupo, en orden de aparición', () => {
+    const grupos = marcarHuellas([
+      { p: proyecto, entradas: [entrada({ motivo: 'línea 12 rota' }), entrada({ motivo: 'línea 99 rota' }), entrada({ motivo: 'otra cosa' })] },
+    ]);
+    const h = grupos[0].entradas.map((e) => e.huella);
+    assert.equal(h[0], h[1]!.replace('~1', ''), 'la primera se queda con la base');
+    assert.match(h[1]!, /~1$/);
+    assert.match(h[2]!, /^sentinel\|otra cosa$/);
+  });
+
+  it('la misma entrada conserva su huella al reordenar el grupo', () => {
+    const a = entrada({ motivo: 'problema A' });
+    const b = entrada({ motivo: 'problema B' });
+    const [ida] = marcarHuellas([{ p: proyecto, entradas: [a, b] }])[0].entradas;
+    const [idb] = marcarHuellas([{ p: proyecto, entradas: [b, a] }])[0].entradas;
+    assert.equal(a.huella, ida.huella);
+    assert.equal(b.huella, idb.huella);
   });
 });

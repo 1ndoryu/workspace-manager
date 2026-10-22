@@ -29,6 +29,13 @@ export interface Entrada {
   /* Bandera `permanente` de la ficha, solo en la linea del mando dev: la consola pinta la casilla
    * «permanente» junto a los botones sin releer el registro. Ausente = falsa. */
   devPermanente?: boolean;
+  /* Identidad estable de la linea dentro de su grupo (20AA-30 N4-1): `categoria|huella del motivo`
+   * y un sufijo de orden si dos lineas del mismo grupo dan la misma huella. La pone
+   * `marcarHuellas` al agrupar; nunca se escribe a mano.
+   * [por que] Sin esto, la identidad de un problema era su indice en la lista: reordenar lineas
+   * cambiaba el key de React, el diff de la campana y la numeracion del badge. `motivo` no vale
+   * como clave: lleva numeros que fluctuan (lineas, pids, contadores). */
+  huella?: string;
 }
 
 /* Severidad de una vulnerabilidad de dependencias (npm/pnpm/cargo audit). */

@@ -11,6 +11,7 @@ import type {
   VpsAgenteSnapshot,
 } from '../../shared/types.js';
 import { calcularAvisos, peorEstado } from '../vps/panelVpsCalculo.js';
+import { ESTADO_CAIDO } from '../../shared/vps/salud.js';
 
 /* Una fila de la tabla: el proyecto con lo que pulse sepa de él. */
 export interface FilaTaller {
@@ -67,7 +68,7 @@ function filaDe(id: string, cs: VpsAgenteContenedor[], p: ProyectoTaller | null)
     puertoLocal: p?.puertoLocal ?? null,
     /* Sin filas en pulse el proyecto no está vivo y el registro no dice su estado: se dice
      * `apagado` en vez de inventar un running. */
-    estado: cs.length > 0 ? peorEstado(cs) : 'apagado',
+    estado: cs.length > 0 ? peorEstado(cs) : ESTADO_CAIDO,
     cpu: cs.reduce((a, c) => a + c.cpuPct, 0),
     mem: cs.reduce((a, c) => a + c.memMiB, 0),
     n: cs.length,

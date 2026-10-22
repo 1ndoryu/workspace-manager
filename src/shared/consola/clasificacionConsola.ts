@@ -17,4 +17,4 @@ export { problemasDe } from './clasificacionConsola/consola-proyecto.js';
 export { problemasSentinelDe, problemasVulnerabilidadDe } from './clasificacionConsola/consola-analisis.js';
 export { problemasDevDe, problemaHuerfanosSinProyecto } from './clasificacionConsola/consola-dev.js';
 export { problemasSaludDe, problemaSaludArea, problemasTallerDe } from './clasificacionConsola/consola-salud.js';
-export { contarProblemas, categoriasDe, rutaRelativa } from './clasificacionConsola/consola-util.js';
+export { contarProblemas, categoriasDe, huellaMotivo, marcarHuellas, rutaRelativa } from './clasificacionConsola/consola-util.js';

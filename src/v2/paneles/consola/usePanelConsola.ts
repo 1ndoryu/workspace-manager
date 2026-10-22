@@ -11,6 +11,7 @@ import {
   problemasDevDe,
   problemasSaludDe,
   contarProblemas,
+  marcarHuellas,
   problemasSentinelDe,
   problemasTallerDe,
   problemasVulnerabilidadDe,
@@ -137,16 +138,22 @@ export function usePanelConsola() {
   }, [problemas, problemasSentinel, problemasVuln, problemasDev, problemasSalud, problemasTaller]);
 
   const visibles = useMemo(() => {
-    if (filtro === 'sentinel') return problemasSentinel;
-    if (filtro === 'vulnerabilidad') return problemasVuln;
-    if (filtro === 'todos') return problemasTodo;
-    /* Cada filtro renderiza SOLO sus entradas: al filtrar por una categoria
-     * no deben verse las lineas de otras categorias del mismo proyecto.
-     * [por que] antes devolviamos el grupo completo y se colaban lineas de
-     * config/sin-push/analisis al filtrar por sentinel-varsense o la inversa. */
-    return problemasBase
-      .map((pr) => ({ p: pr.p, entradas: pr.entradas.filter((e) => e.categoria === filtro) }))
-      .filter((pr) => pr.entradas.length > 0);
+    const filtrar = (): Problema[] => {
+      if (filtro === 'sentinel') return problemasSentinel;
+      if (filtro === 'vulnerabilidad') return problemasVuln;
+      if (filtro === 'todos') return problemasTodo;
+      /* Cada filtro renderiza SOLO sus entradas: al filtrar por una categoria
+       * no deben verse las lineas de otras categorias del mismo proyecto.
+       * [por que] antes devolviamos el grupo completo y se colaban lineas de
+       * config/sin-push/analisis al filtrar por sentinel-varsense o la inversa. */
+      return problemasBase
+        .map((pr) => ({ p: pr.p, entradas: pr.entradas.filter((e) => e.categoria === filtro) }))
+        .filter((pr) => pr.entradas.length > 0);
+    };
+    /* [por que aquí] La huella es la identidad de cada linea en la lista, y sólo
+     * con el grupo entero se resuelven los empates: ponerla en cada rama la
+     * habría escrito cuatro veces con cuatro criterios (20AA-30 N4-1). */
+    return marcarHuellas(filtrar());
   }, [problemasBase, problemasSentinel, problemasVuln, problemasTodo, filtro]);
 
   /* El conteo es por PROBLEMA individual (entradas), no por proyecto.

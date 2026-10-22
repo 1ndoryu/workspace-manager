@@ -5,19 +5,20 @@
  * «documentación»), asi que se mide el ancho real de cada boton. La medida se
  * toma sobre una fila oculta con los MISMOS botones: los visibles encogen al
  * recortarse y no sirven de regla.
- * [por que] Los toggles de visibilidad no entran en el recorte: son control
- * de paneles y el usuario pidio que no se oculten (2026-10-17). Su ancho se
- * descuenta, no se pliegan. */
+ * [por que] Los grupos fijos (toggles de paneles, campana) no entran en el
+ * recorte: son control de paneles y de avisos, y el usuario pidio que no se
+ * oculten (2026-10-17). Su ancho se descuenta, no se pliegan.
+ * [por que los descubre del DOM] Antes cada grupo se registraba a mano y el que
+ * se olvidaba se comia el ancho sin que el recorte lo supiera (20AA-30 N4-2).
+ * Ahora se miden TODOS los hijos de la barra que no son el central ni el
+ * medidor: añadir un grupo a la derecha no exige tocar este hook. */
 import { useLayoutEffect, useRef, useState } from 'react';
 
 export function useRecorteNav(nCentral: number) {
   const nav = useRef<HTMLElement>(null);
-  const toggles = useRef<HTMLDivElement>(null);
   const medidor = useRef<HTMLDivElement>(null);
-  /* Grupos fijos que van DESPUÉS del central (la campana). [por que una lista y no una ref] El
-   * cálculo sólo descontaba los toggles: cualquier grupo nuevo a la derecha se comía el ancho
-   * disponible sin que el recorte lo supiera, y los destinos se salían del borde. */
-  const fijos = useRef<Array<HTMLElement | null>>([]);
+  /* El grupo central: el único hijo de la barra que se recorta. */
+  const centralRef = useRef<HTMLDivElement>(null);
   const [cuantos, setCuantos] = useState(nCentral);
 
   /* useLayoutEffect, no useEffect: el primer render pinta todos los destinos y
@@ -25,7 +26,8 @@ export function useRecorteNav(nCentral: number) {
   useLayoutEffect(() => {
     const barra = nav.current;
     const fila = medidor.current;
-    if (!barra || !fila) return;
+    const central = centralRef.current;
+    if (!barra || !fila || !central) return;
 
     const medir = () => {
       /* La fila oculta lleva un hijo de mas: el boton de sobra, que tambien
@@ -33,13 +35,14 @@ export function useRecorteNav(nCentral: number) {
       const hijos = [...fila.children] as HTMLElement[];
       if (hijos.length !== nCentral + 1) return;
       const estilo = getComputedStyle(barra);
-      /* Todos los grupos a la derecha del central, cada uno con su hueco. Un grupo vacío (sin
-       * toggles en esta pestaña) no ocupa ni gap. */
+      /* Todos los grupos fijos, descubiertos del DOM: los hijos de la barra que no son el central
+       * ni la fila de medida. Un grupo vacío (sin toggles en esta pestaña) no ocupa ni gap. */
+      const grupos = ([...barra.children] as HTMLElement[]).filter((h) => h !== central && h !== fila);
       let anchoFijos = 0;
       let gruposFijos = 0;
-      for (const grupo of [toggles.current, ...fijos.current]) {
-        const ancho = grupo?.offsetWidth ?? 0;
-        if (!grupo || ancho === 0) continue;
+      for (const grupo of grupos) {
+        const ancho = grupo.offsetWidth;
+        if (ancho === 0) continue;
         anchoFijos += ancho;
         gruposFijos += 1;
       }
@@ -66,17 +69,19 @@ export function useRecorteNav(nCentral: number) {
 
     medir();
     const observador = new ResizeObserver(medir);
-    observador.observe(barra);
-    /* El ancho disponible tambien cambia si cambian los toggles (en mapa son
-     * tres y en el resto uno), y eso no redimensiona la barra. Lo mismo vale
-     * para cualquier grupo fijo de la derecha. */
-    if (toggles.current) observador.observe(toggles.current);
-    for (const grupo of fijos.current) if (grupo) observador.observe(grupo);
+    /* La barra no cambia de ancho cuando cambia el contenido de un grupo fijo (en mapa hay tres
+     * toggles y en el resto uno), así que se observa cada grupo además de la barra. */
+    /* La barra nunca cambia de ancho por dentro, y un grupo fijo sí (en mapa hay tres toggles y
+     * en el resto uno): se observan los dos. Al montar ya están todos los grupos (el cambio de
+     * pestaña no añade grupos, solo cambia su contenido), así que basta con los que hay. */
+    for (const nodo of [barra, ...Array.from(barra.children as HTMLCollectionOf<HTMLElement>)]) {
+      if (nodo !== fila) observador.observe(nodo);
+    }
     /* La fuente es self-hosted con font-display:swap: hasta que carga, las
      * etiquetas miden con la mono del sistema y el recorte seria otro. */
     void document.fonts.ready.then(medir);
     return () => observador.disconnect();
   }, [nCentral]);
 
-  return { nav, toggles, fijos, medidor, cuantos };
+  return { nav, central: centralRef, medidor, cuantos };
 }
