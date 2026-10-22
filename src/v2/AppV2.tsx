@@ -26,6 +26,7 @@ import { PanelTareas } from './paneles/tareas/PanelTareas.js';
 import { PanelVps } from './paneles/vps/PanelVps.js';
 import { PanelTaller } from './paneles/taller/PanelTaller.js';
 import { PaginaAvisos } from './notificaciones/PaginaAvisos.js';
+import { useNotificaciones } from './notificaciones/useNotificaciones.js';
 import { Resizer } from './ui/overlay/Resizer.js';
 import { Toaster } from './ui/overlay/Toaster.js';
 import './styles/v2.css';
@@ -52,6 +53,10 @@ export function AppV2() {
     void cargarAnalisis();
     void cargarVulnerabilidades();
     void cargarSalud();
+    /* Interruptor de la campana (20AA-32): el shell lo necesita para no pintar el nav ni la página
+     * de avisos cuando está apagada. Una sola petición para toda la pestaña; el store la comparte
+     * y de-duplica la carga, así que la campana no pide otra. */
+    void useNotificaciones.getState().cargar();
   }, [cargar, cargarAnalisis, cargarVulnerabilidades, cargarSalud]);
 
   /* Canal vivo del tablero (20AA-24 F3.2): una sola conexión por pestaña. El tema `workspace`

@@ -21,6 +21,7 @@ import './PaginaAvisos.css';
 
 export function PaginaAvisos() {
   const {
+    campana,
     gruposVisibles,
     quedan,
     total,
@@ -76,6 +77,13 @@ export function PaginaAvisos() {
         }
         columna
       >
+        {/* Apagada (20AA-32): la lista que hay es la última de cuando estaba encendida. Decirlo
+         * evita leerla como «no ha pasado nada desde entonces». */}
+        {!campana.activa && (
+          <div className="v2CampanaBanda" role="status">
+            avisos apagados{campana.motivo !== null ? `: ${campana.motivo}` : ''}; esto es lo último que se guardó
+          </div>
+        )}
         {error !== null && (
           <div className="v2CampanaBanda" role="status">
             avisos sin conexión: {error}

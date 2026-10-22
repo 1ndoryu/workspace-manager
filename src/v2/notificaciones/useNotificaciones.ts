@@ -9,7 +9,13 @@
  * [por que se deduplica por id] El canal entrega la historia al conectar y la carga inicial puede
  * llegar después; sin deduplicar, el mismo aviso saldría dos veces. */
 import { create } from 'zustand';
-import type { Aviso, EstadoNotificaciones, TipoAviso } from '../../shared/notificaciones/tipos.js';
+import { CAMPANA_ACTIVA } from '../../shared/notificaciones/tipos.js';
+import type {
+  Aviso,
+  EstadoNotificaciones,
+  InterruptorCampana,
+  TipoAviso,
+} from '../../shared/notificaciones/tipos.js';
 import { sinLeer } from '../../shared/notificaciones/presentacion.js';
 import { cargarEstado, marcarLeidas, silenciar } from './apiNotificaciones.js';
 import { ahoraMs } from '../../shared/platform/plataforma.js';
@@ -27,6 +33,9 @@ interface EstadoCampana {
   fuentesRotas: { fuente: string; problema: string }[];
   /** ISO de la última pasada, para saber si el dato está fresco. */
   pasadaEn: string | null;
+  /** Interruptor de la función (20AA-32), tal como lo aplica el servidor. Apagada, la campana no
+   * se pinta y no se abre el canal. */
+  campana: InterruptorCampana;
   /** Cargada al menos una vez (para distinguir «vacía» de «todavía no»). */
   lista: boolean;
   /** Error de la última carga, si lo hubo. */
@@ -55,31 +64,47 @@ function fusionar(previos: Aviso[], nuevos: Aviso[]): Aviso[] {
   return [...porId.values()].sort((a, b) => b.id - a.id).slice(0, TOPE_LOCAL);
 }
 
+/* La carga en vuelo, fuera del store: no es estado que se pinte. */
+let cargaEnVuelo: Promise<void> | null = null;
+
 export const useNotificaciones = create<EstadoCampana>((set, get) => ({
   avisos: [],
   silenciados: [],
   fuentesRotas: [],
   pasadaEn: null,
+  /* Activa hasta que el servidor diga lo contrario: si el GET falla, la campana se pinta y la
+   * banda de error explica por qué está vacía. */
+  campana: CAMPANA_ACTIVA,
   lista: false,
   error: null,
   filtro: null,
   ahora: ahoraMs(),
 
   async cargar() {
-    try {
-      const estado = await cargarEstado();
-      set((s) => ({
-        /* La copia del servidor manda, pero lo que ya llegó por SSE y es más nuevo no se pierde. */
-        avisos: fusionar(estado.avisos, s.avisos),
-        silenciados: estado.preferencias.silenciados,
-        fuentesRotas: estado.fuentesRotas,
-        pasadaEn: estado.pasadaEn,
-        lista: true,
-        error: null,
-      }));
-    } catch (err) {
-      set({ lista: true, error: mensaje(err) });
-    }
+    /* Una sola carga en vuelo. [por que] Desde 20AA-32 el shell también pregunta por el
+     * interruptor, y la campana y la página cargan al montar: tres GET simultáneos del mismo dato
+     * sobraban. Quien llega tarde espera a la que hay. */
+    if (cargaEnVuelo !== null) return cargaEnVuelo;
+    cargaEnVuelo = (async () => {
+      try {
+        const estado = await cargarEstado();
+        set((s) => ({
+          /* La copia del servidor manda, pero lo que ya llegó por SSE y es más nuevo no se pierde. */
+          avisos: fusionar(estado.avisos, s.avisos),
+          silenciados: estado.preferencias.silenciados,
+          fuentesRotas: estado.fuentesRotas,
+          pasadaEn: estado.pasadaEn,
+          campana: estado.campana ?? CAMPANA_ACTIVA,
+          lista: true,
+          error: null,
+        }));
+      } catch (err) {
+        set({ lista: true, error: mensaje(err) });
+      } finally {
+        cargaEnVuelo = null;
+      }
+    })();
+    return cargaEnVuelo;
   },
 
   recibir(aviso) {

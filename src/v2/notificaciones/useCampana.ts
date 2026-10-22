@@ -23,6 +23,7 @@ export function useCampana() {
   const lista = useNotificaciones((s) => s.lista);
   const error = useNotificaciones((s) => s.error);
   const fuentesRotas = useNotificaciones((s) => s.fuentesRotas);
+  const campana = useNotificaciones((s) => s.campana);
   const cargar = useNotificaciones((s) => s.cargar);
   const recibir = useNotificaciones((s) => s.recibir);
   const actualizarReloj = useNotificaciones((s) => s.actualizarReloj);
@@ -34,12 +35,16 @@ export function useCampana() {
   const refBoton = useRef<HTMLButtonElement>(null);
   const refsItems = useRef<Array<HTMLButtonElement | null>>([]);
 
-  /* Una sola carga al montar; el canal se abre en paralelo (trae la historia él mismo). */
+  /* Una sola carga al montar; el canal se abre en paralelo (trae la historia él mismo).
+   * [por que apagada se sale] Sin campana no hay a quién avisar ni qué cargar: una petición y un
+   * SSE contra un servidor que no piensa mandar nada (20AA-32). */
+  const activa = campana.activa;
   useEffect(() => {
+    if (!activa) return;
     void cargar();
     const canal = abrirCanal(recibir, () => void cargar());
     return () => canal.cerrar();
-  }, [cargar, recibir]);
+  }, [activa, cargar, recibir]);
 
   /* Al abrir se refresca el reloj y el estado, y el foco entra en la lista. [por que no un
    * temporizador] Un `setInterval` repintando la lista en una pestaña olvidada es trabajo para
@@ -111,6 +116,7 @@ export function useCampana() {
   }
 
   return {
+    campana,
     abierto,
     raiz,
     alternar,

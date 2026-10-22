@@ -24,6 +24,7 @@ export function usePaginaAvisos() {
   const lista = useNotificaciones((s) => s.lista);
   const error = useNotificaciones((s) => s.error);
   const fuentesRotas = useNotificaciones((s) => s.fuentesRotas);
+  const campana = useNotificaciones((s) => s.campana);
   const cargar = useNotificaciones((s) => s.cargar);
   const recibir = useNotificaciones((s) => s.recibir);
   const actualizarReloj = useNotificaciones((s) => s.actualizarReloj);
@@ -41,12 +42,16 @@ export function usePaginaAvisos() {
     setSeleccionId(null);
   }, [filtro]);
 
+  /* Apagada (20AA-32): se carga una vez para enseñar lo guardado, pero no se abre el canal: el
+   * servidor contestaría 410 y el navegador reintentaría sin fin. */
+  const activa = campana.activa;
   useEffect(() => {
     actualizarReloj();
     void cargar();
+    if (!activa) return;
     const canal = abrirCanal(recibir, () => void cargar());
     return () => canal.cerrar();
-  }, [cargar, recibir, actualizarReloj]);
+  }, [activa, cargar, recibir, actualizarReloj]);
 
   const visibles = filtrarPorTipo(avisos, filtro);
   const grupos = agruparPorTiempo(visibles, ahora);
@@ -75,6 +80,7 @@ export function usePaginaAvisos() {
   }
 
   return {
+    campana,
     gruposVisibles: scroll.gruposVisibles,
     quedan: scroll.quedan,
     refLista: scroll.refLista,

@@ -16,6 +16,7 @@ import { Button } from '../form/Button.js';
 import { useDesplegable } from './useDesplegable.js';
 import { useRecorteNav } from './useRecorteNav.js';
 import { Campana } from '../../notificaciones/Campana.js';
+import { useNotificaciones } from '../../notificaciones/useNotificaciones.js';
 import './NavBar.css';
 
 const CENTRALES: { clave: PanelCentral; icono: LucideIcon; etiqueta: string }[] = [
@@ -118,10 +119,19 @@ export function NavBar() {
       ? TOGGLES
       : TOGGLES.filter((t) => t.clave === 'consola');
 
-  const { nav, toggles, fijos, medidor, cuantos } = useRecorteNav(CENTRALES.length);
+  /* Campana apagada (20AA-32): ni el destino «avisos» ni el botón. [por que se quita el destino y
+   * no se deja una página vacía] Llevaría a una lista que no se está alimentando; quien la pulse
+   * creería que no hay avisos cuando lo que pasa es que la función está apagada. */
+  /* La campana se pinta desde el primer render con el valor por defecto (activa) y se retira sola
+   * cuando llega el GET con el interruptor apagado. */
+  const campana = useNotificaciones((s) => s.campana);
+  const conCampana = campana.activa;
+  const destinos = conCampana ? CENTRALES : CENTRALES.filter((c) => c.clave !== 'avisos');
+
+  const { nav, central, medidor, cuantos } = useRecorteNav(destinos.length);
   const menu = useDesplegable();
 
-  const destinosFuera = CENTRALES.slice(cuantos);
+  const destinosFuera = destinos.slice(cuantos);
   const fuera = destinosFuera.length;
 
   /* Teclado del desplegable. [por que] Llevaba `role="menu"` con
@@ -164,15 +174,15 @@ export function NavBar() {
   /* [por que] El recorte es un prefijo, asi que la pagina activa puede caer
    * dentro del desplegable: sin marcarlo, el usuario no veria en cual esta.
    * El boton de sobra se invierte y dice la pagina activa. */
-  const indiceActivo = CENTRALES.findIndex((c) => c.clave === panelCentral);
+  const indiceActivo = destinos.findIndex((c) => c.clave === panelCentral);
   const activaOculta = indiceActivo >= cuantos;
-  const etiquetaActiva = CENTRALES[indiceActivo]?.etiqueta;
+  const etiquetaActiva = destinos[indiceActivo]?.etiqueta;
   const tituloSobra = `${fuera} ${fuera === 1 ? 'botón más' : 'botones más'}${activaOculta ? ` (estás en ${etiquetaActiva})` : ''}`;
 
   return (
     <nav className="v2Nav" aria-label="Navegación principal" ref={nav}>
-      <div className="v2NavCentral" role="tablist" aria-label="Panel central">
-        {CENTRALES.slice(0, cuantos).map((c) => (
+      <div className="v2NavCentral" role="tablist" aria-label="Panel central" ref={central}>
+        {destinos.slice(0, cuantos).map((c) => (
           <BotonDestino
             key={c.clave}
             destino={c}
@@ -227,7 +237,7 @@ export function NavBar() {
         )}
       </div>
       {/* Los toggles de paneles van SIEMPRE visibles, fuera del recorte. */}
-      <div className="v2NavVisible" role="group" aria-label="Visibilidad de paneles" ref={toggles}>
+      <div className="v2NavVisible" role="group" aria-label="Visibilidad de paneles">
         {togglesVisibles.map((t) => (
           <BotonToggle
             key={t.clave}
@@ -237,17 +247,17 @@ export function NavBar() {
           />
         ))}
       </div>
-      {/* Campana: el último control del nav y fuera del recorte. [por que aquí] Es lo que hay que
-       * poder alcanzar siempre, y vive en su propio grupo para que `useRecorteNav` descuente su
-       * ancho como el de los toggles. */}
-      <div className="v2NavFijo" ref={(el) => { fijos.current[0] = el; }}>
-        <Campana />
+      {/* Campana: el último control del nav y fuera del recorte. [por que su propio grupo] Es lo
+       * que hay que poder alcanzar siempre, y `useRecorteNav` lo descubre del DOM como cualquier
+       * otro hijo de la barra: no hay que registrarlo a mano. */}
+      <div className="v2NavFijo">
+        {conCampana && <Campana />}
       </div>
       {/* Fila de medida: fuera de flujo, sin pintar y fuera del arbol de
        * accesibilidad. Nunca se recorta, asi que sus anchos son los naturales.
        * Lleva los destinos y, de ultimo, el boton de sobra: tambien ocupa. */}
       <div className="v2NavMedidor" aria-hidden="true" ref={medidor}>
-        {CENTRALES.map((c) => (
+        {destinos.map((c) => (
           <BotonDestino key={c.clave} destino={c} activo={false} onClick={() => {}} />
         ))}
         <span className="v2NavMedidorSobra">
