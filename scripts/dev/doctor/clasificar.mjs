@@ -149,14 +149,18 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
   const healths = entrada.healths?.length ? entrada.healths : entrada.puertos.map((puerto) => ({ puerto }));
   const consumidos = new Set();
   const detalle = [];
-  let estado = 'bajo-mando';
-  let motivo = 'probe verde';
+  /* [por que null] `bajo-mando` es una AFIRMACION («sonde y respondio 200»): darlo por cierto antes
+   * de mirar hacia que una ficha sin nada que sondear (sinServicio, `puertosRemotos: []`) saliera
+   * conectada en el mapa sin que nadie hubiera comprobado nada. Con null, el verde solo se alcanza
+   * al pasar un probe de verdad. */
+  let estado = null;
+  let motivo = null;
   // [por que 10AA-3] Varios puertos pueden caer a la vez (proyecto-h 3105+5182
   // tras `stop`). Antes cada problema hacía `break`: el 5182 nunca entraba en
   // `detalle`, `up` lanzaba solo 3105 y reportaba "probe verde". Ahora se
   // clasifican todos los puertos; el primer problema fija el motivo.
   const fijarDeriva = (texto) => {
-    if (estado !== 'bajo-mando') return;
+    if (estado !== null) return;
     estado = 'deriva';
     motivo = texto;
   };
@@ -231,6 +235,11 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
       detalle.push({ puerto: h.puerto, situacion: 'sin-probe', pids: [propio.pid] });
       continue;
     }
+    /* [por que] El verde se alcanza AQUI y solo aqui: es el unico punto con un probe 200 real. */
+    if (estado === null) {
+      estado = 'bajo-mando';
+      motivo = 'probe verde';
+    }
     detalle.push({ puerto: h.puerto, situacion: 'arriba', pids: [propio.pid] });
   }
   // [por que] El corte en el primer health fallido dejaba sin consumir los
@@ -255,6 +264,12 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
     }
     if (entrada.tunelSsh !== false) fijarDeriva(`tunel cerrado (${sinTunel.join(', ')})`);
   }
+  /* [por que] Ninguna ficha llega aqui sin puertos salvo que lo declare: `sinServicio` (se
+   * normaliza a `puertos: []`) o `puertosRemotos: []` («no expongas nada»). Antes eso devolvia
+   * `bajo-mando` sin haber sondeado un solo puerto y esos tres proyectos salian CONECTADOS en el
+   * mapa. Sin evidencia no hay estado: `no-aplica` es lo que de verdad pasa —el mando no tiene
+   * nada que verificar— y no se cuela en `vivos`. */
+  if (estado === null) return { estado: 'no-aplica', motivo: 'sin-servicio', detalle, consumidos };
   if (estado === 'deriva' && detalle.length > 0 && detalle.every((d) => d.situacion === 'libre')) {
     /* [05AA-4] Todo libre = detenido normal, no caida: 'parado' (exit 0,
      * seriedad null con botones). Parcial (alguno arriba + alguno libre)
