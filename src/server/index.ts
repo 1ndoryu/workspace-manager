@@ -95,6 +95,9 @@ const notificaciones = crearServicioNotificaciones({
   /* La campana y el canal son dos vistas del mismo aviso: el toast del sistema (20AA-27) y la
    * pestaña lo leen del mismo evento, así que no pueden decir cosas distintas. */
   alAviso: (aviso) => bus.publicar('avisos', aviso),
+  /* Mientras la sincronía escribe roadmaps, una pasada de avisos leería una foto a medias
+   * (20AA-30 N4-3). La campana espera y corre una sola vez al terminar. */
+  sincroniaEnCurso: () => sincronia.estado().enCurso,
 });
 alEscanearWorkspace(() => {
   sincronia.programar();

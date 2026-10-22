@@ -30,6 +30,10 @@ export const CALMA_MS = 1500;
  * real» no dependa de que alguien mire. Sin suscriptores no corre: no hay a quién avisar. */
 export const LATIDO_MS = 10_000;
 
+/* Reintento mientras la sincronía de fondo sigue escribiendo. [por que corto] No es un sondeo de
+ * estado: es esperar a que el otro escritor termine, y ese es un plazo de segundos. */
+export const ESPERA_SINCRONIA_MS = 1000;
+
 export interface OpcionesServicio {
   rutaFichero: string;
   fuentes: Fuente[];
@@ -46,6 +50,11 @@ export interface OpcionesServicio {
    * El canal único del tablero (20AA-24) y la campana son dos transportes del mismo hecho: quien
    * compone el servidor engancha aquí el bus y el aviso viaja por los dos sin releer nada. */
   alAviso?: (aviso: Aviso) => void;
+  /* Hay una sincronía de fondo escribiendo roadmaps ahora mismo. [por que existe] Las dos se
+   * programan con el mismo escaneo, pero la sincronía tarda segundos en escribir archivos: una
+   * pasada de avisos en medio leería una foto a medias y dispararía otra al terminar. Con esto, la
+   * pasada espera a que el área esté quieta y corre una sola vez (20AA-30 N4-3). */
+  sincroniaEnCurso?: () => boolean;
 }
 
 /* Lo que se emite por SSE. `tipo` es obligatorio para `iniciarSse`; el resto, el aviso entero. */
@@ -87,6 +96,8 @@ export function crearServicioNotificaciones(opciones: OpcionesServicio): Servici
   let temporizador: ReturnType<typeof setTimeout> | null = null;
   let latido: ReturnType<typeof setInterval> | null = null;
   let enVuelo: Promise<Aviso[]> | null = null;
+  /* Cuándo terminó la última pasada (ms). Sólo lo usa `recienCorrida`. */
+  let ultimaPasada: number | null = null;
 
   function avisar(aviso: Aviso): void {
     emisor.emit('aviso', aviso);
@@ -104,6 +115,7 @@ export function crearServicioNotificaciones(opciones: OpcionesServicio): Servici
       try {
         const r = await pasada(opciones.fuentes, almacen.motor(), () => ahora());
         almacen.guardarPasada(r.estado, ahora().toISOString(), r.rotas);
+        ultimaPasada = ahora().getTime();
         almacen.anadir(r.avisos);
         for (const aviso of r.avisos) avisar(aviso);
         /* Las fuentes rotas no se avisan: no son un suceso del área, son un fallo del propio
@@ -116,23 +128,47 @@ export function crearServicioNotificaciones(opciones: OpcionesServicio): Servici
     return enVuelo;
   }
 
-  function programar(): void {
+  /* ¿Hay que esperar? Solo por la sincronía. [por que no por `enVuelo`] Con una pasada en vuelo,
+   * `correr` ya devuelve la que hay: esperar aquí no añadiría nada. */
+  function esperarSincronia(): boolean {
+    return opciones.sincroniaEnCurso?.() === true;
+  }
+
+  function programar(ms: number = calmaMs): void {
     if (!campana.activa) return;
     if (temporizador !== null) return;
     const t = setTimeout(() => {
       temporizador = null;
+      if (recienCorrida()) return;
+      /* La sincronía late una vez al terminar; mientras escriba, esta pasada vería media foto. */
+      if (esperarSincronia()) {
+        programar(ESPERA_SINCRONIA_MS);
+        return;
+      }
       /* `correr` nunca lanza: las fuentes rotas vienen en el resultado. */
       void correr();
-    }, calmaMs);
+    }, ms);
     temporizador = t;
     (t as { unref?: () => void }).unref?.();
   }
 
-  /* El latido solo existe mientras haya alguien escuchando. */
+  /* ¿Acaba de correr una pasada? [por que] Quien pide una pasada ya suele ser el final de un
+   * escaneo o un gesto, y el motor corre otra vez a los pocos instantes por el mismo hecho: dos
+   * lecturas seguidas de las mismas fuentes dan el mismo diff, y la segunda no puede anunciar
+   * nada. Este es el único criterio, y no depende de quién haya pedido: si la anterior terminó
+   * hace menos de una calma, lo que hay en disco es lo que acaba de leer. `correr` no pasa por
+   * aquí (es una pasada inmediata y explícita). */
+  function recienCorrida(): boolean {
+    return ultimaPasada !== null && ahora().getTime() - ultimaPasada < calmaMs;
+  }
+
+  /* El latido solo existe mientras haya alguien escuchando. [por que pasa por `programar`] Para
+   * heredar la misma espera que las demás: sin alguien mirando no hay prisa, y leer a mitad de una
+   * sincronía da una foto a medias. */
   function ajustarLatido(): void {
     if (!campana.activa) return;
     if (suscriptores > 0 && latido === null) {
-      latido = setInterval(() => void correr(), latidoMs);
+      latido = setInterval(() => programar(), latidoMs);
       (latido as { unref?: () => void }).unref?.();
       return;
     }

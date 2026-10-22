@@ -17,6 +17,8 @@ import { crearManejadorNotificaciones } from './rutasNotificaciones.js';
 interface FuenteFalsa extends Fuente {
   estado: Entidad[];
   fallar: boolean;
+  /* Cuántas veces se llamó a `leer`: es lo que cuenta cuando lo que se mide es el ritmo. */
+  llamadas: number;
 }
 
 function fuenteFalsa(nombre = 'tareas'): FuenteFalsa {
@@ -26,7 +28,9 @@ function fuenteFalsa(nombre = 'tareas'): FuenteFalsa {
     tipoBaja: 'tarea-completada',
     estado: [],
     fallar: false,
+    llamadas: 0,
     leer: async () => {
+      f.llamadas += 1;
       if (f.fallar) throw new Error('sin lectura');
       return { entidades: f.estado, problema: null };
     },
@@ -175,31 +179,6 @@ test('el canal manda la historia al conectar y respeta Last-Event-ID al reconect
   }
 });
 
-test('apagada: ni lee las fuentes, ni arma pasadas, ni abre el canal (20AA-32)', async () => {
-  const f = fuenteFalsa();
-  f.estado = [e('a')];
-  const { servicio, base, cerrar } = await montar([f], { activa: false, motivo: 'desactivada en config/area.json' });
-  try {
-    assert.deepEqual(await servicio.correr(), []);
-    servicio.programar();
-    await new Promise((r) => setTimeout(r, 30));
-    assert.equal(f.llamadas, 0, 'una pasada apagada no puede tocar la fuente');
-
-    /* El estado sigue contestando (el frente pregunta por el interruptor) y lo dice. */
-    const estado = (await (await fetch(`${base}/api/notificaciones`)).json()) as {
-      campana: { activa: boolean; motivo: string | null };
-    };
-    assert.equal(estado.campana.activa, false);
-    assert.match(estado.campana.motivo ?? '', /area[.]json/);
-
-    /* 410: `EventSource` no reintenta ante un 4xx, un SSE vacío sí se quedaría colgado. */
-    const canal = await fetch(`${base}/api/notificaciones/eventos`);
-    assert.equal(canal.status, 410);
-  } finally {
-    await cerrar();
-  }
-});
-
 test('sin-historia no suelta la historia: sólo dice en qué id va', async () => {
   const f = fuenteFalsa();
   f.estado = [];
@@ -304,6 +283,62 @@ test('una ruta hermana desconocida no se queda en el 404 de la app', async () =>
     assert.equal(r.status, 405, 'es hermana de las conocidas: se dice que no se atiende así');
   } finally {
     await cerrar();
+  }
+});
+
+test('apagada: ni lee las fuentes, ni arma pasadas, ni abre el canal (20AA-32)', async () => {
+  const f = fuenteFalsa();
+  f.estado = [e('a')];
+  const { servicio, base, cerrar } = await montar([f], { activa: false, motivo: 'desactivada en config/area.json' });
+  try {
+    assert.deepEqual(await servicio.correr(), []);
+    servicio.programar();
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(f.llamadas, 0, 'una pasada apagada no puede tocar la fuente');
+
+    /* El estado sigue contestando (el frente pregunta por el interruptor) y lo dice. */
+    const estado = (await (await fetch(`${base}/api/notificaciones`)).json()) as {
+      campana: { activa: boolean; motivo: string | null };
+    };
+    assert.equal(estado.campana.activa, false);
+    assert.match(estado.campana.motivo ?? '', /area\.json/);
+
+    /* 410: `EventSource` no reintenta ante un 4xx, un SSE vacío sí se quedaría colgado. */
+    const canal = await fetch(`${base}/api/notificaciones/eventos`);
+    assert.equal(canal.status, 410);
+  } finally {
+    await cerrar();
+  }
+});
+
+test('mientras la sincronía escribe, la pasada espera y corre una sola vez al terminar', async () => {
+  const f = fuenteFalsa();
+  f.estado = [e('a')];
+  const enCurso = { valor: true };
+  const dir = mkdtempSync(join(tmpdir(), 'notif-'));
+  const servicio = crearServicioNotificaciones({
+    rutaFichero: join(dir, 'n.json'),
+    fuentes: [f],
+    calmaMs: 1,
+    latidoMs: 60_000,
+    sincroniaEnCurso: () => enCurso.valor,
+  });
+  try {
+    await servicio.correr();
+    /* Fuera de la calma: `programar` ignora una pasada pedida justo después de otra, y con
+     * `calmaMs: 1` esa ventana se cruzaba o no según el día (prueba intermitente). */
+    await new Promise((r) => setTimeout(r, 10));
+    servicio.programar();
+    await new Promise((r) => setTimeout(r, 40));
+    assert.equal(f.llamadas, 1, 'no se leyó mientras la sincronía estaba en vuelo');
+    enCurso.valor = false;
+    /* El reintento (ESPERA_SINCRONIA_MS) es más largo que la calma: se espera a que llegue. */
+    const fin = Date.now() + 3000;
+    while (Date.now() < fin && f.llamadas < 2) await new Promise((r) => setTimeout(r, 20));
+    assert.equal(f.llamadas, 2, 'al quedar quieta el área, corrió exactamente una vez más');
+  } finally {
+    await servicio.detener();
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
