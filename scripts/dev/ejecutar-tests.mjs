@@ -5,7 +5,8 @@
  *
  *  - En la 89 (hostname = hostnameTaller): ejecuta aqui.
  *  - Otro equipo con VPS configurada (config/taller.json): lanza el mismo comando en la VPS, en la réplica.
- *  - Sin VPS configurada: error claro. `--local` solo en emergencia, anotado.
+ *  - Sin VPS configurada: ejecuta aqui con aviso (un clon sin taller tiene que poder probarse).
+ *    `--local` sigue siendo la emergencia explicita con taller configurado.
  */
 
 import { spawnSync } from 'node:child_process';

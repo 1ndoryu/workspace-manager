@@ -43,14 +43,17 @@ export function decidirDonde(argv, config, equipo) {
     };
   }
   if (!config) {
-    throw new Error('sin VPS configurada (config/taller.json): no se ejecuta en este equipo. Usa --local solo en emergencia');
+    /* [por qué local y no error] La VPS es opcional: un clon sin taller tiene que poder
+     * probar y analizar en su máquina, diciéndolo. Antes el mando se negaba, así que el
+     * `npm run test` de un recién llegado fallaba antes de ejecutar una sola prueba. */
+    return { donde: 'local', aviso: 'sin taller configurado (config/taller.json): se ejecuta en este equipo' };
   }
   return { donde: 'remoto' };
 }
 
-/* Para mandos que solo piden un análisis al backend: `emergencia` es true con `--local`.
+/* Para mandos que solo piden un análisis al backend: `emergencia` es true cuando corre aquí.
  * [por que] El backend corre en este equipo, así que la decisión se toma aquí, antes de
- * pedir nada: sin VPS y sin `--local` el mando falla con su motivo y no llega a analizar. */
+ * pedir nada: sin taller se analiza aquí con aviso y sin caché, en vez de no analizar. */
 export function emergenciaLocal(argv, config = cargarTaller(), equipo = hostname()) {
   const { donde, aviso } = decidirDonde(argv, config, equipo);
   return { emergencia: donde === 'local', aviso };

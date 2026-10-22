@@ -6,14 +6,17 @@ import { join } from 'node:path';
 import { parsearArgsGate, rutaSnapshot, leerComandos, formatearNuevos, decidirAutogate, colaSalida, lineasAutogate, correrAutogate, ordenSubmodulosReplica, RAIZ } from './gate.mjs';
 import { emergenciaLocal } from '../../shared/vps.mjs';
 
-/* [por que] Sin VPS (config null) y sin --local el mando no analiza: falla con motivo. Con --local
- * la emergencia corre aquí y se avisa. La 89 (hostname del taller) siempre corre allí. */
-test('emergenciaLocal: con VPS va a remoto; sin VPS falla salvo con --local', () => {
+/* [por que] Con taller, el mando manda el análisis allí. Sin taller degrada a este equipo con
+ * aviso (un clon tiene que poder usarlo); `--local` sigue siendo la emergencia explícita.
+ * La 89 (hostname del taller) siempre corre allí. */
+test('emergenciaLocal: con taller va a remoto; sin taller o con --local corre aquí con aviso', () => {
   const taller = { host: 'taller', hostnameTaller: 'taller-remoto' };
   assert.deepEqual(emergenciaLocal(['x', '--inicio'], taller, 'portatil'), { emergencia: false, aviso: undefined });
   assert.equal(emergenciaLocal(['x', '--inicio', '--local'], taller, 'portatil').emergencia, true);
   assert.match(emergenciaLocal(['x', '--local'], taller, 'portatil').aviso, /EMERGENCIA --local/);
-  assert.throws(() => emergenciaLocal(['x', '--inicio'], null, 'portatil'), /sin VPS configurada/);
+  const sinTaller = emergenciaLocal(['x', '--inicio'], null, 'portatil');
+  assert.equal(sinTaller.emergencia, true);
+  assert.match(sinTaller.aviso, /sin taller configurado/);
   assert.equal(emergenciaLocal(['x', '--local'], null, 'portatil').emergencia, true);
   assert.deepEqual(emergenciaLocal(['x', '--inicio'], taller, 'taller-remoto'), { emergencia: false, aviso: undefined });
 });

@@ -58,7 +58,8 @@ un clon recién hecho, sin servidor. Con taller configurado, los proyectos anali
 salvo que el registro diga `analisisEn: "local"`; ver «Funciona con o sin taller».
 
 Para producción: `npm run build` compila el front; `npm run build:server` compila el
-backend a `dist-server/` y `npm run server:compilado` lo arranca.
+backend a `dist-server/` y `npm run server:compilado` lo arranca. `npm run build:app`
+hace las dos cosas en el taller y además compila el `.exe` de escritorio.
 
 Abre `http://127.0.0.1:5175`. El front hace proxy de `/api` al backend e inyecta
 el token de portador en el proxy, así que el navegador nunca lo ve.
@@ -89,7 +90,7 @@ lista de tus proyectos. Las plantillas con la forma esperada están en
 | `config/registro.json` | Un registro por proyecto: `id`, `ruta`, puertos, botón, comandos, healthchecks, y si el análisis corre en remoto (`analisisEn`). |
 | `config/taller.json` | El taller remoto: `host` SSH, `dirRemotoBase`, intérprete de Node (`nodeRemoto`), binario de Mutagen (`sync.binario`), bases de datos (`proyectos.<id>.basedatos`) y el bloque `devPublico` (zona, cuenta y túnel de Cloudflare) si publicas devs. |
 | `config/guard-plantillas.json` | La plantilla del Guardián: qué listas de comandos añadir a cada proyecto según su stack. La pestaña Guardián la edita. |
-| `config/area.json` | Los papeles del área: qué proyecto hace de motor de calidad, gestor de despliegues y limpiador, y quién queda fuera del bump. `despliegueBin` solo hace falta si el ejecutable que instala ese proyecto no se llama como su carpeta. |
+| `config/area.json` | Los papeles del área: qué proyecto hace de motor de calidad, gestor de despliegues y limpiador, quién queda fuera del bump, y las URLs del servicio de métricas (`pulseUrl`, `pulseTallerUrl`). `despliegueBin` solo hace falta si el ejecutable que instala ese proyecto no se llama como su carpeta. |
 | `config/quality-consumidores.json` | A qué proyectos se propagan los cambios de las herramientas de calidad. |
 | `config/quality-excepciones.json` | Excepciones de calidad aceptadas a mano, por regla y ubicación. Lo escribe el flujo de auditoría; no hay plantilla. |
 
@@ -140,6 +141,8 @@ analizar. Ninguna de las dos se sirve nunca si el dato dejó de ser fresco
 | `WM_TOKEN`, `WM_TOKEN_FILE` | Token de portador (ver arriba). |
 | `LIMPIADOR_BIN` | Ruta del binario del limpiador de PC. Por defecto, `data/bin/limpiador.exe`, o el nombre del papel `limpiador` de `area.json`. |
 | `VPS_REFRESH_MS` | Refresco del estado VPS del backend, en ms. Por defecto, `0` (desactivado). |
+| `PULSE_URL`, `PULSE_TOKEN` | Servicio de métricas del área (pestaña VPS). La URL también puede venir de `pulseUrl` en `config/area.json`; sin ninguna, la pestaña dice «sin configurar». |
+| `PULSE_TALLER_URL`, `PULSE_TALLER_TOKEN` | Igual, para el pulse del taller (por su túnel). La URL también puede venir de `pulseTallerUrl`; el token, del `.env` del proyecto que declara `tokenPulse` en su ficha. |
 | `VITE_PORT`, `VITE_HOST`, `VITE_API_PROXY_TARGET` | Puerto, interfaz y destino del front de desarrollo. Pisan a `WS_WEB_PORT`. |
 
 #### Scripts del taller remoto
@@ -237,19 +240,19 @@ va al taller.
 
 ## Pruebas
 
-`npm run test` (suite del servidor y los scripts) y `npm run type-check` corren **solo en el taller remoto**, nunca
-en el portátil: el portátil edita y lo pesado va a la máquina del taller. Los scripts
-`quality:*:test` pasan por `scripts/dev/ejecutar-tests.mjs`, que manda el comando al
-taller. Sin taller configurado el comando falla con un error claro en vez de ejecutarse
-en local.
+`npm run test` (suite del servidor y los scripts) y `npm run type-check` van **al taller
+remoto** cuando hay uno configurado: el portátil edita y lo pesado va a la máquina del taller.
+Los scripts `quality:*:test` pasan por `scripts/dev/ejecutar-tests.mjs`, que manda el comando
+al taller. **Sin taller configurado corren en este equipo y lo dicen**, para que un clon
+recién hecho pueda probarse sin servidor.
 
-La única excepción es `--local`, para una emergencia en la que el taller no esté
+La única excepción con taller es `--local`, para una emergencia en la que el taller no esté
 disponible. Hay que pedirlo a mano y dejar nota en el registro de tareas.
 
 El mismo flag existe en el análisis (`problemas` y `gate --inicio|--cierre`).
 Con `--local` el análisis corre en este equipo, muestra un aviso y **no se lee ni se
 guarda en caché**, para que un dato de emergencia no pase por análisis normal. Sin taller
-y sin `--local` el comando falla con su motivo en vez de analizar en el portátil.
+también analiza aquí, con su aviso: el análisis nunca se queda sin respuesta.
 
 ```bash
 npm run type-check
@@ -269,7 +272,7 @@ El tablero también se entrega como `.exe` de Windows: el front va empotrado y R
 el backend que ya corre y sólo levanta el suyo si no hay ninguno.
 
 ```
-npm run build:app     # front en el taller + cargo xwin (vía run-cargo.mjs → rcargo.mjs)
+npm run build:app     # front + servidor en el taller, y cargo xwin (vía run-cargo.mjs → rcargo.mjs)
 ```
 
 El `.exe` sale en el taller (`…/x86_64-pc-windows-msvc/release/workspace-manager.exe`) y se instala en

@@ -1,4 +1,4 @@
-/* Decisión de destino (VPS / emergencia --local / error sin VPS) y rutas de la réplica. Puros.
+/* Decisión de destino (VPS / aquí / local) y rutas de la réplica. Puros.
  * Fixtures genéricos: ningún host, usuario ni ruta real de un equipo concreto. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,8 +25,10 @@ test('decidirDonde: otro equipo con VPS configurada manda a la VPS', () => {
   assert.deepEqual(decidirDonde([], TALLER, 'portatil-ejemplo'), { donde: 'remoto' });
 });
 
-test('decidirDonde: sin VPS configurada falla con mensaje claro, nunca ejecuta en este equipo', () => {
-  assert.throws(() => decidirDonde([], null, 'portatil-ejemplo'), /sin VPS configurada.*--local/);
+test('decidirDonde: sin VPS configurada degrada a este equipo y lo dice', () => {
+  const r = decidirDonde([], null, 'portatil-ejemplo');
+  assert.equal(r.donde, 'local');
+  assert.match(r.aviso, /sin taller configurado.*este equipo/);
 });
 
 test('decidirDonde: --local es la emergencia explícita y deja aviso', () => {
