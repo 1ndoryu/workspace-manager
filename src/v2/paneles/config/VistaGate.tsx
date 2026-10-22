@@ -7,14 +7,17 @@
 import { useState } from 'react';
 import type { DatosPanelConfig } from './usePanelConfig.js';
 import type { ReporteSincronizacion } from '../../../shared/gate/sincronizacion.js';
+import type { TipoGate } from '../../../shared/gate/proveedores.js';
+import { TIPOS_CON_ARCHIVO } from '../../../shared/gate/catalogo/archivos.js';
 
 /* Acorta un hash para display, igual que corto() de los scripts. */
 function corto(h: string | null): string {
   return h ? h.slice(0, 9) : '--';
 }
 
-type Tool = 'sentinel' | 'varsense';
-const TOOLS: Tool[] = ['sentinel', 'varsense'];
+type Tool = TipoGate;
+/* Derivado del registro: una herramienta nueva aparece aquí sin tocar la vista. */
+const TOOLS: Tool[] = TIPOS_CON_ARCHIVO;
 
 interface Punto {
   proyecto: string;

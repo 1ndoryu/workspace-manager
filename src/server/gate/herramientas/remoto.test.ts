@@ -135,7 +135,7 @@ test('huellaFuentes: cambia con el contenido de las entradas, no con el mtime', 
 
 /* [por que] Análisis a la 89 por defecto (AGENTS §1). El portátil solo con `analisisEn: "local"`
  * explícito en el registro; cualquier otro valor, incluido el alias antiguo, va a la 89. */
-test('modoAnalisisEn: la 89 por defecto; local solo con analisisEn "local"', () => {
+test('modoAnalisisEn: taller por defecto con taller; local sin taller o con marca local', () => {
   const registro = {
     proyectos: [
       { id: 'sistema-legado', analisisEn: 'taller' },
@@ -152,6 +152,11 @@ test('modoAnalisisEn: la 89 por defecto; local solo con analisisEn "local"', () 
   assert.equal(modoAnalisisEn(registro, 'portatil'), 'local', 'la única excepción explícita');
   assert.equal(modoAnalisisEn(registro, 'no-existe'), 'taller');
   assert.equal(modoAnalisisEn({}, 'sitio-api'), 'taller');
+  /* Sin taller configurado no hay dónde analizar: el defecto es local, y el análisis lo dice.
+   * Es lo que hace nativo el producto en un clon; con taller, sigue mandando el taller. */
+  assert.equal(modoAnalisisEn({}, 'sitio-api', false), 'local');
+  assert.equal(modoAnalisisEn(registro, 'portatil', false), 'local', 'la marca explícita manda');
+  assert.equal(modoAnalisisEn(registro, 'sistema-legado', false), 'taller', 'la marca taller manda aunque no haya taller configurado');
 });
 
 test('hostTaller: el alias lo declara la config, y sin ella no hay host', () => {

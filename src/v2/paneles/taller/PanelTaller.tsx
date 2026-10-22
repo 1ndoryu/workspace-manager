@@ -129,7 +129,7 @@ export function PanelTaller() {
           snap={snapAgente}
           discoPct={discoPct}
           tab="taller"
-          etiqueta="Recursos del taller (VPS 89)"
+          etiqueta="Recursos del taller"
           notaDisco="sin dato de disco (sonda del taller sin totalGb)"
         />
         {selFila && (

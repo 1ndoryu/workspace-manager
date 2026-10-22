@@ -3,7 +3,7 @@
  * HTTP público, procesos y escuchas locales, registro) y aquí se decide qué es un problema.
  * Así cada comprobación se prueba con fixtures, sin tocar la 89 ni el laptop. Solo tipos
  * y lógica; sin E/S, para poder importarlo desde cliente y servidor.
- * Cada regla devuelve null si pasa o el detalle si falla. Sin lectura válida de la 89 no se
+ * Cada regla devuelve null si pasa o el detalle si falla. sin lectura válida del taller no se
  * afirma «sano»: se emite A0. */
 import { fallaConector, fallaPublico } from './conformidadPublico.js';
 import type { AmbitoConformidad, EntradaConformidad, EstadoLocal, EstadoPublico, EstadoTaller89, Hallazgo, MuestraHistorial, RegistroConformidad, SeveridadConformidad } from './conformidad-tipos.js';
@@ -86,7 +86,7 @@ const REGLAS_89: Regla89[] = [
   },
   {
     id: 'A3', severidad: 'advertencia',
-    remedio: 'Revisar procesos que consumen memoria en la 89; reducir builds concurrentes.',
+    remedio: 'Revisar procesos que consumen memoria en el taller; reducir builds concurrentes.',
     falla: (t) => {
       const av: string[] = [];
       if (t.memoria.disponibleMiB < MIN_MEMORIA_MIB) av.push(`MemAvailable ${t.memoria.disponibleMiB} MiB (mínimo ${MIN_MEMORIA_MIB})`);
@@ -145,8 +145,8 @@ const REGLAS_89: Regla89[] = [
   },
   {
     id: 'A11', severidad: 'advertencia',
-    remedio: 'Retirar el daemon del manager de la 89 (plan sucesor S3.6).',
-    falla: (t) => (t.managerDaemonVivo ? 'daemon del manager de la 89 sigue vivo' : null),
+    remedio: 'Retirar el daemon del manager del taller (plan sucesor S3.6).',
+    falla: (t) => (t.managerDaemonVivo ? 'daemon del manager del taller sigue vivo' : null),
   },
 ];
 
@@ -167,7 +167,7 @@ const REGLAS_LOCAL: ReglaLocal[] = [
   },
   {
     id: 'A10', ambito: '89', severidad: 'advertencia',
-    remedio: 'Sitios Rust con buildMode builder (AGENTS §9.4: los builds Rust van a la 89).',
+    remedio: 'Sitios Rust con buildMode builder (AGENTS §9.4: los builds Rust van al taller).',
     falla: (e) => {
       const malos = e.registro.sitiosRust.filter((s) => s.buildMode !== 'builder');
       return malos.length ? malos.map((s) => `${s.id} buildMode ${s.buildMode ?? 'sin definir'}`).join(', ') : null;
@@ -214,7 +214,7 @@ export function evaluarConformidad(e: EntradaConformidad): Hallazgo[] {
   if (!e.t89) {
     out.push({
       id: 'A0', ambito: '89', severidad: 'error',
-      detalle: `sin lectura válida de la 89${e.motivoSinLectura ? `: ${e.motivoSinLectura}` : ''}`,
+      detalle: `sin lectura válida del taller${e.motivoSinLectura ? `: ${e.motivoSinLectura}` : ''}`,
       remedio: e.hostTaller
         ? `Comprobar \`ssh ${e.hostTaller}\` (BatchMode) y la red. No se afirma estado sano sin lectura.`
         : 'No hay taller configurado: declarar `host` en la config privada. No se afirma estado sano sin lectura.',

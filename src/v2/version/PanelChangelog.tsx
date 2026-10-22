@@ -91,8 +91,8 @@ export function PanelChangelog({ info, desactualizada, onCerrar }: PanelChangelo
         {/* [por que carga diferida] El changelog crece con cada versión y el panel se abre para
             mirar lo último: se pintan 40 líneas y el resto entra al llegar al final del scroll. */}
         <div className="v2ChangelogCuerpo" ref={refCuerpo} onScroll={alRodar}>
-          {lineas.slice(0, visibles).map((l, i) => (
-            <p key={i} className={`v2Changelog${l.tipo[0].toUpperCase()}${l.tipo.slice(1)}`}>
+          {lineas.slice(0, visibles).map((l) => (
+            <p key={l.n} className={`v2Changelog${l.tipo[0].toUpperCase()}${l.tipo.slice(1)}`}>
               {trozos(l.texto).map((t, j) => (t.codigo ? <code key={j}>{t.texto}</code> : t.texto))}
             </p>
           ))}

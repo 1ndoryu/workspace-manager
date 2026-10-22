@@ -19,8 +19,10 @@ import type { Aviso, TipoAviso } from '../../shared/notificaciones/tipos.js';
 import { ETIQUETA, NIVEL } from '../../shared/notificaciones/tipos.js';
 import { diaLocal, etiquetaDia, horaLocal } from '../../shared/notificaciones/presentacion.js';
 
-/* Icono de cada tipo. Monocromos y a 14 px, como el icono de la campana. */
-export const ICONO: Record<TipoAviso, typeof Bell> = {
+/* Icono de cada tipo. Monocromos y a 14 px, como el icono de la campana. [por que `as const
+ * satisfies`] Es un mapa de constantes: nadie debe poder reasignar una entrada y las mutaciones
+ * se verían en todos los importadores. `satisfies` conserva la comprobación contra el tipo. */
+export const ICONO = {
   'tarea-nueva': Layers,
   'tarea-completada': CheckCheck,
   'problema-detectado': TriangleAlert,
@@ -29,7 +31,7 @@ export const ICONO: Record<TipoAviso, typeof Bell> = {
   'sitio-recuperado': Globe,
   'proyecto-caido': ShieldAlert,
   'proyecto-recuperado': ShieldCheck,
-};
+} as const satisfies Record<TipoAviso, typeof Bell>;
 
 /* Una fila de la lista. `button` nativo y no Button: la fila es texto de dos líneas a todo el
  * ancho, no un control del sistema. Sin hora: el tramo de 6 h ya la sitúa y la hora exacta está en

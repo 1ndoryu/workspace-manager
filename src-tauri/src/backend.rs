@@ -6,7 +6,7 @@
 // lleva unicamente el que arranco ella; dos `node` peleando por el 8787 seria
 // justo el desastre que hay que evitar (decision 0.1 del plan).
 
-use crate::ajustes::PUERTO_API;
+use crate::ajustes::puerto_api;
 use crate::proxy;
 use std::net::TcpStream;
 use std::process::{Child, Command, Stdio};
@@ -44,7 +44,7 @@ impl Backend {
 }
 
 fn responde() -> bool {
-    proxy::salud(PUERTO_API)
+    proxy::salud(puerto_api())
 }
 
 /// Reutiliza el backend vivo o lanza uno. `Err` trae el motivo para la pantalla
@@ -153,7 +153,7 @@ pub fn vigilar(proceso: Arc<Mutex<Option<Backend>>>) {
 /// algo que no es nuestro» en el detalle del aviso.
 pub fn puerto_ocupado() -> bool {
     TcpStream::connect_timeout(
-        &format!("127.0.0.1:{PUERTO_API}").parse().expect("direccion fija"),
+        &format!("127.0.0.1:{}", puerto_api()).parse().expect("direccion fija"),
         Duration::from_millis(300),
     )
     .is_ok()

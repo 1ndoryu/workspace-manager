@@ -46,7 +46,7 @@ import {
 } from './herramientas/ejecucion.js';
 import type { ResultadoSpawn } from './herramientas/ejecucion.js';
 import { correrSentinelRemoto, correrVarsenseRemoto, prepararReplica } from './herramientas/remoto.js';
-import { leerConfigRemota, modoAnalisis } from './herramientas/config.js';
+import { hostTaller, leerConfigRemota, modoAnalisis } from './herramientas/config.js';
 import { mensaje } from './herramientas/ssh.js';
 import type { ConfigRemota } from './herramientas/config.js';
 
@@ -133,6 +133,12 @@ async function analizarEnLocal(p: Proyecto, puerto: PuertoProcesos): Promise<Ana
 const AVISO_EMERGENCIA =
   'EMERGENCIA --local: analizado en este equipo porque la VPS no estaba disponible; no se guarda en caché';
 
+/* Aviso del modo local por ausencia de taller. [por que] Sin `config/taller.json` no hay dónde
+ * más analizar: se analiza aquí y se dice, para que nadie lea «analizado» como «analizado en el
+ * taller». No es la emergencia: este resultado sí es normal y sí se cachea. */
+const AVISO_SIN_TALLER =
+  'analizado en este equipo: no hay taller configurado (falta config/taller.json)';
+
 /* [por que] `--local` es la emergencia de AGENTS §1 (VPS caída): analiza aquí y marca el dato
  * con su aviso. Quien lo llama no lo guarda ni lo reutiliza, así que un análisis de emergencia
  * nunca pasa por análisis normal. */
@@ -149,8 +155,12 @@ async function analizarEmergencia(p: Proyecto, puerto: PuertoProcesos): Promise<
  * el portátil: ese reintento era carga pesada en la laptop (AGENTS §1), y el fallo se ve
  * en el tablero en lugar de esconderse en un análisis local. */
 async function analizarConModo(p: Proyecto, puerto: PuertoProcesos): Promise<AnalisisSentinel> {
-  if (modoAnalisis(p.clave) !== 'taller') return analizarEnLocal(p, puerto);
-  return analizarEnTaller(p);
+  if (modoAnalisis(p.clave) === 'taller') return analizarEnTaller(p);
+  const dato = await analizarEnLocal(p, puerto);
+  /* [por que] Se analiza aquí porque no hay taller, no por elección del proyecto: el dato es
+   * válido y se cachea, pero se dice de dónde sale. Con taller configurado y `analisisEn: local`
+   * la marca es explícita y no hace falta el aviso. */
+  return hostTaller() === null ? { ...dato, aviso: AVISO_SIN_TALLER } : dato;
 }
 
 /* [por que] S3.7: el taller analiza su réplica del proyecto. Antes se vacía la cola de

@@ -35,7 +35,7 @@ fn main() {
              * habria nada que mirar. Se sonda 2 s; si no hay backend, la ventana
              * abre en el aviso, que se reintenta solo, mientras un hilo lo
              * levanta y anota quien es para poder pararlo al cerrar. */
-            if proxy::salud(crate::ajustes::PUERTO_API) {
+            if proxy::salud(crate::ajustes::puerto_api()) {
                 *proceso.lock().expect("candado del backend") = Some(backend::Backend::Externo);
             } else {
                 let hilo = Arc::clone(&al_arrancar);
@@ -56,7 +56,7 @@ fn main() {
                 let proceso = Arc::clone(&al_arrancar);
                 move || backend::vigilar(proceso)
             });
-            let sin_backend = !proxy::salud(crate::ajustes::PUERTO_API);
+            let sin_backend = !proxy::salud(crate::ajustes::puerto_api());
 
             /* Toast del sistema (20AA-27): registra el AUMID en el menú Inicio (sin eso Windows
              * descarta el toast en silencio). El canal lo abre la página, en `enlaces.js`. */

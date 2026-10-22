@@ -13,10 +13,17 @@ const MAX_RESPUESTA: u64 = 64 * 1024 * 1024;
 
 /// Origen del tablero que se presenta al backend en las escrituras.
 /// [por que] La guardia de escritura exige un Origin de la lista del tablero
-/// (`guardian/operacion/seguridad.ts`); el del webview es el puerto efimero de
-/// esta app, que no esta en la lista. Se presenta el de siempre: la app ES el
-/// tablero. El Origin del cliente se valida antes, en `servidor.rs`.
-pub const ORIGEN_TABLERO: &str = "http://127.0.0.1:5175";
+/// (`guardian/operacion/seguridad.ts`), que sale de `WS_WEB_PORT`; el del webview es el puerto
+/// efimero de esta app, que no esta en la lista. Se presenta el del front del tablero. Era una
+/// constante con 5175: mover el front con `WS_WEB_PORT` dejaba todas las escrituras en 403.
+pub fn origen_tablero() -> String {
+    let puerto = std::env::var("WS_WEB_PORT")
+        .ok()
+        .and_then(|v| v.trim().parse::<u16>().ok())
+        .filter(|p| *p > 0)
+        .unwrap_or(5175);
+    format!("http://127.0.0.1:{puerto}")
+}
 
 pub struct Peticion {
     pub metodo: String,
@@ -83,7 +90,7 @@ fn construir(
     if let Some(v) = portador {
         peticion = peticion.set("authorization", &v);
     }
-    peticion = peticion.set("origin", ORIGEN_TABLERO);
+    peticion = peticion.set("origin", &origen_tablero());
     if let Some(t) = &p.tipo {
         peticion = peticion.set("content-type", t);
     }

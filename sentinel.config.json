@@ -23,7 +23,10 @@
         "includePatterns": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.mjs", "**/*.css"],
         "excludePatterns": ["**/node_modules/**", "**/dist/**", "**/dist-server/**", "**/build/**", "**/.git/**", "**/data/**"],
         "directoryExceptions": ["escritura"],
-        "portableBoundaries": {},
+        "portableBoundaries": {
+          "dom": ["/platform/", "/adapters/", "/dom.", "src-tauri/src/enlaces.js"],
+          "window": ["/platform/", "/adapters/", "/navigation/", "src-tauri/src/enlaces.js"]
+        },
         "rules": {},
         "runtime": {
           "minimumVersion": "",

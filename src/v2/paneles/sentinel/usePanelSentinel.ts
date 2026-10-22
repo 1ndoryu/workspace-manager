@@ -11,21 +11,22 @@ import { mensajeDeError, toastError, toastInfo, toastOk } from '../../toast.js';
 import { logger } from '../../../shared/logger.js';
 import type { NodoEsquema } from '../../../shared/gate/modelo/esquema.js';
 import type { TipoGate } from '../../../shared/gate/proveedores.js';
+import { ARCHIVO_POR_TIPO } from '../../../shared/gate/catalogo/archivos.js';
 
-/* Archivos de gate editables (whitelist del server: same list). */
+/* Archivos de gate editables (whitelist del server: misma lista). */
 export const ARCHIVOS = ['sentinel.config.json', 'sentinel.lock.json', 'quality-tools.json', 'varsense.config.json'] as const;
 
-/* Que archivo se edita por ESQUEMA (dirigido por esquema) y cual cae al
- * EditorJson generico. Mapea el archivo a su HERRAMIENTA del gate; el esquema
- * se carga por la API /gate/dinamico (el server lo resuelve) y el cliente es
- * 'tonto'. [por que] E1 gate-dinamico: el bundle deja de importar los ESQUEMA_*
- * estaticos; sentinel.config.json usa el esquema del server (curado contra su
+/* Qué archivo se edita por ESQUEMA (dirigido por esquema) y cuál cae al
+ * EditorJson genérico. Se deriva de `ARCHIVO_POR_TIPO`, dueño único de la
+ * correspondencia herramienta → archivo: añadir una herramienta al registro ya
+ * deja su config con editor de esquema, sin tocar este mapeo.
+ * [por que] E1 gate-dinamico: el bundle deja de importar los ESQUEMA_*
+ * estáticos; sentinel.config.json usa el esquema del server (curado contra su
  * runtime) y varsense.config.json el curado de los configs reales. lock y
- * quality-tools no tienen fuente canonica fiable -> EditorJson generico. */
-export const ARCHIVO_A_TOOL: Partial<Record<(typeof ARCHIVOS)[number], TipoGate>> = {
-  'sentinel.config.json': 'sentinel',
-  'varsense.config.json': 'varsense',
-};
+ * quality-tools no tienen fuente canónica fiable -> EditorJson genérico. */
+export const ARCHIVO_A_TOOL = Object.fromEntries(
+  (Object.keys(ARCHIVO_POR_TIPO) as TipoGate[]).map((tipo) => [ARCHIVO_POR_TIPO[tipo], tipo]),
+) as Partial<Record<(typeof ARCHIVOS)[number], TipoGate>>;
 
 export interface GateRespuesta {
   clave: string;

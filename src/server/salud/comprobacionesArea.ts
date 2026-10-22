@@ -2,7 +2,7 @@
  * máquina (disco, variables, runtime global). Funciones puras sobre DatosArea. */
 import type { Hallazgo } from '../../shared/salud/salud.js';
 import type { Comprobacion, DatosArea } from './tipos.js';
-import { CARPETA_SKILLS, NOMBRE_SENTINEL } from '../plataforma/rutas.js';
+import { CARPETA_SKILLS, NOMBRE_MANAGER, NOMBRE_SENTINEL } from '../plataforma/rutas.js';
 
 // [por que] Compartidas con comprobacionesProyecto.ts y comprobacionesRoadmap.ts.
 export const DIA_MS = 86_400_000;
@@ -40,7 +40,7 @@ export const COMPROBACIONES_AREA: Comprobacion<DatosArea>[] = [
           severidad: 'aviso',
           mensaje: `${sinRegistrar.length} repo(s) sin registrar: ${lista(sinRegistrar)}`,
           accion: 'decláralos en registro.json: como proyecto, o en noAplica con sin-mando-intencional si es a propósito',
-          doc: 'workspace-manager/config/registro.json',
+          doc: `${NOMBRE_MANAGER}/config/registro.json`,
         },
       ];
     },

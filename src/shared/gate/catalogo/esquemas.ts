@@ -13,6 +13,7 @@
  * No importa node: lo usa tambien el cliente. */
 import type { NodoEsquema } from '../modelo/esquema.js';
 import type { TipoGate } from '../proveedores.js';
+import { ARCHIVO_POR_TIPO } from './archivos.js';
 import { ESQUEMA_SENTINEL } from './sentinel.js';
 import { ESQUEMA_VARSENSE } from './varsense.js';
 
@@ -23,9 +24,11 @@ export interface EsquemaHerramienta {
   esquema(): NodoEsquema;
 }
 
+/* El nombre del archivo sale de `archivos.ts` (dueño único de esa correspondencia): aquí solo se
+ * enlaza cada herramienta con su esquema curado. */
 export const ESQUEMAS: readonly EsquemaHerramienta[] = [
-  { tipo: 'sentinel', archivo: 'sentinel.config.json', esquema: ESQUEMA_SENTINEL },
-  { tipo: 'varsense', archivo: 'varsense.config.json', esquema: ESQUEMA_VARSENSE },
+  { tipo: 'sentinel', archivo: ARCHIVO_POR_TIPO.sentinel, esquema: ESQUEMA_SENTINEL },
+  { tipo: 'varsense', archivo: ARCHIVO_POR_TIPO.varsense, esquema: ESQUEMA_VARSENSE },
 ];
 
 /* Esquema de una herramienta, o undefined si no es del gate. */

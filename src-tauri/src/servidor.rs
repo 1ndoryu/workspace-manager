@@ -5,7 +5,7 @@
 // front) y el token lo pone Rust al proxyar `/api`, exactamente como el proxy de
 // Vite en el navegador. El front va empotrado en el exe (`frontendDist`).
 
-use crate::ajustes::{self, PUERTO_API};
+use crate::ajustes::{self, puerto_api};
 use crate::proxy::{self, Peticion};
 use crate::abrir;
 use std::io::Read;
@@ -138,7 +138,7 @@ fn responder<R: Read>(peticion: tiny_http::Request, salida: Response<R>) -> Resu
 /// Reintento del boton de la pantalla de aviso: vuelve a mirar el backend. Solo
 /// lo pulsa alguien cuando ya sabe que no funciona, asi que el bloqueo es corto.
 fn reintentar(proceso: &Mutex<Option<Backend>>) -> Salida {
-    if proxy::salud(PUERTO_API) {
+    if proxy::salud(puerto_api()) {
         let json = serde_json::json!({ "backend": true }).to_string();
         return respuesta(200, "application/json", json.into_bytes(), false);
     }
@@ -222,7 +222,7 @@ fn reenviar(peticion: &mut tiny_http::Request, ruta: &str) -> Salida {
         cuerpo,
     };
 
-    match proxy::reenviar(PUERTO_API, &peticion_api, ajustes::token().as_deref()) {
+    match proxy::reenviar(puerto_api(), &peticion_api, ajustes::token().as_deref()) {
         Ok(r) => respuesta(r.estado, &r.tipo, r.cuerpo, false),
         Err(e) => respuesta(502, "text/plain", e.into_bytes(), false),
     }
@@ -238,7 +238,7 @@ fn flujo(peticion: tiny_http::Request, ruta: &str) -> Result<(), String> {
         cuerpo: Vec::new(),
     };
     let (estado, tipo, lector) =
-        match proxy::reenviar_flujo(PUERTO_API, &peticion_api, ajustes::token().as_deref()) {
+        match proxy::reenviar_flujo(puerto_api(), &peticion_api, ajustes::token().as_deref()) {
             Ok(t) => t,
             Err(e) => return responder(peticion, respuesta(502, "text/plain", e.into_bytes(), false)),
         };

@@ -39,7 +39,7 @@ export interface Enlace {
 /* Nombre de cada nodo, para leerlo fuera del mapa (lista de proyectos, tooltip). */
 export const ETIQUETA_HUB: Record<IdHub, string> = {
   laptop: 'Laptop',
-  vps89: 'VPS 89',
+  vps89: 'VPS del taller',
   produccion: 'Producción',
 };
 

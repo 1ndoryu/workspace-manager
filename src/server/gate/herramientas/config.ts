@@ -5,14 +5,15 @@
  * Sin taller.json todo sigue funcionando en local: la ausencia del fichero es una
  * configuración válida (un clon recién hecho no lo trae), no un error. */
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { RAIZ_REPO } from '../../plataforma/rutas.js';
+/* [por que] `WS_CONFIG_ROOT` es la vía documentada para sacar la config del árbol del repo, y
+ * este módulo la ignoraba: leía siempre `<repo>/config`, así que con la config fuera del repo el
+ * gate decía «sin VPS configurada» aunque el taller estuviera declarado. El resto del servidor ya
+ * usa `rutaConfigPrivada`; aquí se usa igual. */
+import { RAIZ_REPO, rutaConfigPrivada } from '../../plataforma/rutas.js';
 
-/* [por que] RAIZ_REPO y no `import.meta.dirname`: esa propiedad no existe en todos los Node
- * (el de la 89 por fnm en algunos entornos la deja indefinida) y tumbaba al importar. */
 const RAIZ_WM = RAIZ_REPO;
-const RUTA_TALLER = join(RAIZ_WM, 'config', 'taller.json');
-const RUTA_REGISTRO = join(RAIZ_WM, 'config', 'registro.json');
+const rutaTaller = () => rutaConfigPrivada('taller.json', RAIZ_WM);
+const rutaRegistro = () => rutaConfigPrivada('registro.json', RAIZ_WM);
 
 /* Dónde corre el análisis. [por que] `taller` y no el alias de la máquina: el modo
  * describe el papel, no el nombre de un host concreto. */
@@ -66,6 +67,8 @@ export function leerConfigRemota(entorno: NodeJS.ProcessEnv = process.env): Conf
  * dice de qué proyecto se trata y en qué máquina corre. */
 export interface TallerAnalisis {
   host?: unknown;
+  dirRemotoBase?: unknown;
+  sonda?: unknown;
   proyectos?: unknown;
   devPublico?: unknown;
 }
@@ -75,7 +78,7 @@ export interface TallerAnalisis {
  * válida (un clon recién hecho no lo trae), no un error. */
 export function leerTallerSiExiste(): TallerAnalisis | null {
   try {
-    return JSON.parse(readFileSync(RUTA_TALLER, 'utf8')) as TallerAnalisis;
+    return JSON.parse(readFileSync(rutaTaller(), 'utf8')) as TallerAnalisis;
   } catch {
     return null;
   }
@@ -114,21 +117,61 @@ export function cloudflaredEnvDe(t: TallerAnalisis | null = leerTallerSiExiste()
   return typeof ruta === 'string' && ruta.startsWith('/') && !ruta.includes('\n') ? ruta : null;
 }
 
-/* Modo de análisis de un proyecto: la 89 ('taller') salvo que el registro diga `analisisEn: "local"`.
- * [por que] El análisis es trabajo pesado y AGENTS §1 lo manda a la 89. Antes, un proyecto sin
- * marca caía en el portátil y cada análisis nuevo cargaba la laptop. Ahora la única vía al portátil
- * es esa marca explícita en el registro. Sin VPS no baja: el análisis queda en error con su motivo
- * («sin VPS configurada») y el tablero lo muestra. */
+/* Registro privado, o vacío si no existe. [por que] Un clon recién hecho no trae
+ * `config/registro.json`: leerlo sin guarda tumbaba el análisis con un ENOENT crudo, y sin
+ * registro no hay nada que decidir (todo va por el defecto). */
+export function leerRegistroSiExiste(): { proyectos?: Array<{ id?: unknown; analisisEn?: unknown }> } {
+  try {
+    return JSON.parse(readFileSync(rutaRegistro(), 'utf8')) as {
+      proyectos?: Array<{ id?: unknown; analisisEn?: unknown }>;
+    };
+  } catch {
+    return {};
+  }
+}
+
+/* Sonda del taller instalada en el servidor remoto. [por que] Su ruta estaba escrita en el código
+ * (`$HOME/bin/taller-estado`): es una decisión de instalación, no del producto. La config privada
+ * puede declararla (`sonda`); sin declararla vale la del `provision` del taller. Solo se aceptan
+ * rutas absolutas o bajo `$HOME/`, porque van a una línea de comandos por SSH. */
+export function sondaTallerDe(t: TallerAnalisis | null = leerTallerSiExiste()): string {
+  const sonda = (t as { sonda?: unknown } | null)?.sonda;
+  if (typeof sonda === 'string' && (/^\//.test(sonda) || sonda.startsWith('$HOME/')) && /^[A-Za-z0-9._/$-]+$/.test(sonda)) {
+    return sonda;
+  }
+  return '$HOME/bin/taller-estado';
+}
+
+/* Carpeta de datos de la sonda en el taller: `<dirRemotoBase>/_datos`. [por que] El historial se
+ * leía de `$HOME/taller/_datos/estado.jsonl`, incrustando el directorio base de nuestra máquina;
+ * con otro `dirRemotoBase` el panel decía «sin muestras» para siempre. */
+export function dirDatosTaller(t: TallerAnalisis | null = leerTallerSiExiste()): string {
+  const base = (t as { dirRemotoBase?: unknown } | null)?.dirRemotoBase;
+  const raiz = typeof base === 'string' && RUTA_ABSOLUTA_SEGURA.test(base)
+    ? base.replace(/\/+$/, '')
+    : '$HOME/taller';
+  return `${raiz}/_datos`;
+}
+
+/* Modo de análisis de un proyecto. Regla: manda lo que declare el registro (`analisisEn`); si no
+ * declara nada, se analiza en el taller cuando hay taller configurado y en local cuando no lo hay.
+ * [por que] Antes el defecto era siempre `taller`, y sin `config/taller.json` todo proyecto quedaba
+ * en error permanente («sin VPS configurada»): el manager funcionaba, pero su análisis no, y eso
+ * hace inútil el producto en un clon. La regla conserva lo que AGENTS §1 exige donde sí hay taller
+ * —el análisis pesado no baja al portátil ni como reintento— y da comportamiento nativo donde no
+ * lo hay. El aviso de que se analiza en este equipo lo pone `analizador.ts`. */
 export function modoAnalisisEn(
   registro: { proyectos?: Array<{ id?: unknown; analisisEn?: unknown }> },
   clave: string,
+  hayTaller = true,
 ): ModoAnalisis {
   const entrada = registro.proyectos?.find((x) => x.id === clave);
-  return entrada?.analisisEn === 'local' ? 'local' : 'taller';
+  if (entrada?.analisisEn === 'local' || entrada?.analisisEn === 'taller') return entrada.analisisEn;
+  return hayTaller ? 'taller' : 'local';
 }
 
-export function modoAnalisis(clave: string): ModoAnalisis {
-  return modoAnalisisEn(JSON.parse(readFileSync(RUTA_REGISTRO, 'utf8')), clave);
+export function modoAnalisis(clave: string, hayTaller = hostTaller() !== null): ModoAnalisis {
+  return modoAnalisisEn(leerRegistroSiExiste(), clave, hayTaller);
 }
 
 /* Ruta remota del proyecto: <dirRemotoBase>/<clave>. La clave no puede traer barras ni

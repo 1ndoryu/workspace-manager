@@ -229,7 +229,7 @@ fn silenciados_de_la_campana() -> Vec<String> {
         cuerpo: Vec::new(),
     };
     let token = crate::ajustes::token();
-    let Ok(r) = crate::proxy::reenviar(crate::ajustes::PUERTO_API, &peticion, token.as_deref()) else {
+    let Ok(r) = crate::proxy::reenviar(crate::ajustes::puerto_api(), &peticion, token.as_deref()) else {
         return Vec::new();
     };
     if r.estado != 200 {

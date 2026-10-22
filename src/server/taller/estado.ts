@@ -20,7 +20,7 @@ import { leerRegistroConformidad } from './registroConformidad.js';
 import { NOMBRE_MANAGER } from '../plataforma/rutas.js';
 import { BIN_SSH } from '../plataforma/sistema/binarios.js';
 import { escuchasConProceso, obtenerSistemaLocal } from '../plataforma/sistema/sistemaLocal.js';
-import { bdTrabajoDe, cloudflaredEnvDe, hostTaller, leerConfigRemota, leerTallerSiExiste, type TallerAnalisis } from '../gate/herramientas/config.js';
+import { bdTrabajoDe, cloudflaredEnvDe, dirDatosTaller, hostTaller, leerConfigRemota, leerTallerSiExiste, sondaTallerDe, type TallerAnalisis } from '../gate/herramientas/config.js';
 import { errorFormaTaller89, funcionMutagen, parsearHistorial, SCRIPT_MUTAGEN, sesionesMutagenMalas } from './estadoParseo.js';
 
 /* Reexporta la parte pura para que los importadores (y los tests) no cambien. */
@@ -28,8 +28,8 @@ export { parsearHistorial, sesionesMutagenMalas } from './estadoParseo.js';
 
 /* Alias SSH del taller. [por que] Antes era la constante 'taller-ejemplo' incrustada: el alias
  * de la máquina de una persona, que en otro entorno no existe. Lo declara taller.json
- * (`host`), que es privado; sin ese fichero no hay taller que leer y se dice. */
-const SONDA_TALLER = '$HOME/bin/taller-estado';
+ * (`host`), que es privado; sin ese fichero no hay taller que leer y se dice. La sonda también:
+ * `sondaTallerDe` (config privada, o la que instala el provision). */
 const TTL_MS = 60_000;
 const TIMEOUT_SSH_MS = 15_000;
 const TIMEOUT_PUBLICO_MS = 6_000;
@@ -70,7 +70,7 @@ function correr(archivo: string, args: string[], timeoutMs: number): Promise<{ s
 export function argsSondaTaller(t: TallerAnalisis | null = leerTallerSiExiste()): string[] {
   return [
     'env', `TALLER_BD_TRABAJO=${bdTrabajoDe(t) ?? ''}`, `WM_CLOUDFLARED_ENV=${cloudflaredEnvDe(t) ?? ''}`,
-    SONDA_TALLER,
+    sondaTallerDe(t),
   ];
 }
 
@@ -100,7 +100,6 @@ async function leerTaller89(): Promise<{ t89: EstadoTaller89 | null; motivo?: st
 /* [por que] 48 líneas = 4 h de cron de 5 min: lo que el panel enseña, sin bajar el fichero
  * entero (rota a 5 MiB en la sonda). */
 const HISTORIAL_LINEAS = 48;
-const RUTA_HISTORIAL_REMOTA = '$HOME/taller/_datos/estado.jsonl';
 
 /* Lectura por SSH de solo lectura. `|| true`: si el fichero aún no existe (el cron no ha
  * escrito) no es un fallo; un fallo de SSH sí sale con código distinto de 0 y se reporta. */
@@ -111,7 +110,7 @@ async function leerHistorial(): Promise<{ historial: MuestraHistorial[]; motivo?
     '-o', 'BatchMode=yes',
     '-o', 'ConnectTimeout=10',
     host,
-    `tail -n ${HISTORIAL_LINEAS} ${RUTA_HISTORIAL_REMOTA} 2>/dev/null || true`,
+    `tail -n ${HISTORIAL_LINEAS} ${dirDatosTaller()}/estado.jsonl 2>/dev/null || true`,
   ], TIMEOUT_SSH_MS);
   if (r.error) return { historial: [], motivo: r.error };
   const historial = parsearHistorial(r.salida);
