@@ -13,11 +13,11 @@ import { anotarRegistro, leerRegistroOpcional } from '../registro.js';
 import { NOMBRE_QUALITY_TOOLS, RAIZ_REPO } from '../plataforma/rutas.js';
 import type { EstadoGate, Proyecto, SnapshotWorkspace } from '../../shared/types.js';
 
-/* Carpetas que NUNCA se tratan como proyecto, en cualquier area: no son datos
+/* Carpetas que NUNCA se tratan como proyecto, en cualquier área: no son datos
  * nuestros, son de la forma en que un repo se construye y se ejecuta.
- * [por que] Las de una area concreta (carpetas de clientes, agrupaciones
- * propias) NO van aqui: las declara `carpetasIgnoradas` en la config. Antes
- * estaba incrustada una de ellas y el escaner solo servia para una maquina. */
+ * [por que] Las de un área concreta (carpetas de clientes, agrupaciones propias,
+ * documentación) NO van aquí: las declara `carpetasIgnoradas` en la config. Antes
+ * estaban incrustadas y el escáner solo servía para una máquina. */
 const IGNORADAS = new Set([
   '.git',
   'node_modules',
@@ -26,10 +26,6 @@ const IGNORADAS = new Set([
   'uploads',
   '.sentinel',
   NOMBRE_QUALITY_TOOLS,
-  '.archivado',
-  'Agente',
-  'DOCS',
-  'PLUGINS',
 ]);
 
 export interface OpcionesEscaneo {
