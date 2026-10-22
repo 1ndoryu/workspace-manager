@@ -30,7 +30,10 @@
     max-block-size: 80vh;
     display: flex;
     flex-direction: column;
-    gap: var(--v2-spaceSm);
+    gap: var(--v2-spaceXs);
+    /* .v2Superficie trae 4px pensados para una caja con botones dentro; aquí el contenido es
+     * texto corrido y se pega al borde. */
+    padding: var(--v2-spaceMd);
 }
 
 .v2ChangelogCabecera {
@@ -39,15 +42,17 @@
     justify-content: space-between;
     gap: var(--v2-spaceMd);
     flex: none;
+    padding-block-end: var(--v2-spaceXs);
 }
 
 .v2ChangelogVersion {
     font-weight: 600;
+    font-size: var(--v2-textSm);
 }
 
 .v2ChangelogMeta {
     opacity: .65;
-    font-size: .85em;
+    font-size: var(--v2-textXs);
 }
 
 .v2ChangelogAviso {
@@ -57,32 +62,46 @@
 }
 
 /* El historial es lo único que rueda: la cabecera y los avisos se quedan a la vista. */
+/* Sin hueco entre párrafos: el interlineado ya separa, y con un gap por línea el historial se
+ * lee a saltos. La separación va donde toca —antes de cada versión— en .v2ChangelogSeccion. */
 .v2ChangelogCuerpo {
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: var(--v2-spaceXs);
+    display: block;
     min-block-size: 0;
+    line-height: 1.35;
+    padding-inline-end: var(--v2-spaceXs);
+}
+
+.v2ChangelogCuerpo p {
+    margin: 0;
 }
 
 .v2ChangelogTitulo {
     font-weight: 600;
-    font-size: 1.15em;
+    font-size: var(--v2-textSm);
 }
 
 .v2ChangelogSeccion {
     font-weight: 600;
+    font-size: var(--v2-textSm);
     margin-block-start: var(--v2-spaceMd);
+}
+
+.v2ChangelogSeccion:first-child {
+    margin-block-start: 0;
 }
 
 .v2ChangelogSubtitulo {
     opacity: .75;
     text-transform: lowercase;
+    font-size: var(--v2-textSm);
+    margin-block-start: var(--v2-spaceXs);
 }
 
 .v2ChangelogPunto {
-    padding-inline-start: var(--v2-spaceMd);
+    padding-inline-start: var(--v2-spaceSm);
     position: relative;
+    margin-block-start: 2px;
 }
 
 .v2ChangelogPunto::before {
