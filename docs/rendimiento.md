@@ -32,6 +32,23 @@
   probable que vengan de un workspace distinto (el portátil) o de la época en serie.
   Hasta medirlos en el mismo entorno no se citan como hecho.
 
+## Sincronización del gate (medido 2026-10-22, portátil)
+
+Método: llamadas HTTP reales al backend recién reiniciado (`curl`/`Invoke-WebRequest` con el
+token), sin caché caliente; el informe de sincronización además se cronometró como script suelto.
+Máquina: portátil (donde corre el manager), área con 23 proyectos.
+
+| Operación | Antes | Después | Por qué |
+|---|---|---|---|
+| `GET /api/gate/sincronizacion`, primera llamada | 11,95 s | 4,77 s | los dos scripts van en paralelo y los `ls-remote` de cada checkout también |
+| `GET /api/gate/sincronizacion`, en caché (60 s) | 0,04 s | 0,04 s | igual: la caché no cambia |
+| `verificar-alineacion.mjs --json` (script suelto) | 6,97 s | 4,26 s | 8 `ls-remote` en paralelo en vez de en serie |
+| `GET /api/workspace?forzar=1` | 4,49 s | 2,54 s | escaneo con 4 git en paralelo (ya existía; medido de nuevo) |
+
+Lo que queda: `ls-remote` es red, no CPU; con el remoto lento el suelo son ~2 s. La caché de
+60 s y el botón «verificar alineación» (`forzar`) siguen mandando: nunca se sirve un informe
+más viejo que ese minuto.
+
 ## Dónde se referencia
 
 - `src/server/rutas/rutasGate.ts` (`proyectoParaGate`): por qué el gate usa el snapshot.
