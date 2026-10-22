@@ -2,9 +2,12 @@
   "$formato": 1,
   "$nota": "Papeles del area: que proyecto hace cada cosa que el manager no puede adivinar. Copia este fichero a config/area.json y pon los nombres de tus proyectos. Todos los campos son opcionales: un papel ausente (o el fichero entero) solo desactiva su funcion, con un aviso que lo dice. `notificaciones: false` apaga la campana entera: ni pasadas ni canal en vivo.",
   "$despliegueBin": "Solo si el ejecutable que instala tu proyecto de despliegue NO se llama como su carpeta. Pon el nombre base, sin extension. Si falta, se usa el del papel.",
+  "$pulse": "URL base del servicio de metricas (pulse) del area y, si aplica, la del taller por su tunel. Sin declararlas, esas pestanas dicen 'sin configurar'; el codigo no asume ningun host ni puerto.",
   "sentinel": "mi-motor-de-calidad",
   "despliegue": "mi-gestor-de-despliegues",
   "limpiador": "mi-limpiador",
+  "pulseUrl": "http://127.0.0.1:3000",
+  "pulseTallerUrl": null,
   "bump": {
     "excluidos": ["proyecto-que-no-propaga-pins"]
   },

@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { adaptar, esDetalle, esDiscoHost, esSnapshot } from './vpsPulseParseo.js';
+import { papelesDeArea } from '../plataforma/area.js';
 
 export { enriquecerConSitios, extraerUuidContenedor } from './vpsPulseParseo.js';
 export type { InfoSitio } from './vpsPulseParseo.js';
@@ -171,15 +172,14 @@ export function crearAgente(op: OpcionesAgente): {
   return { snapshot, detalleSitio };
 }
 
-/* Instancia desde env (PULSE_URL + PULSE_TOKEN>=32) o desde el token local
- * estable que el mando dev guarda en <repo>/logs/.pulse-token (gitignored)
- * al arrancar pulse. Sin PULSE_URL se supone pulse local (127.0.0.1:3000).
- * Sin token (ni env ni fichero) la ruta responde `sin-configurar` y el
- * frontend usa legacy. Singleton perezoso (el null NO se cachea: reintenta
- * cada vez hasta que el token exista) y el token nunca se expone. */
-/* Pulse local por defecto (sin PULSE_URL). Con nombre, para no esconder el puerto en la línea. */
-const PULSE_LOCAL_POR_DEFECTO = 'http://127.0.0.1:3000';
-
+/* Instancia desde el entorno (`PULSE_URL` + `PULSE_TOKEN`>=32), o desde la URL
+ * declarada en los papeles del área y el token local estable que el mando dev
+ * guarda en <repo>/logs/.pulse-token (gitignored) al arrancar pulse. Sin URL en
+ * ninguno de los dos sitios no hay destino: la ruta responde `sin-configurar` y
+ * el frontend usa legacy, en vez de sondear un puerto que aquí no es de nadie.
+ * Sin token (ni entorno ni fichero) pasa lo mismo. Singleton perezoso (el null
+ * NO se cachea: reintenta cada vez hasta que el token exista) y el token nunca
+ * se expone. */
 let prod: {
   snapshot: () => Promise<VpsAgenteRespuesta>;
   detalleSitio: (uuid: string) => Promise<VpsAgenteDetalleRespuesta>;
@@ -200,7 +200,10 @@ export function agenteProd(entorno: NodeJS.ProcessEnv = process.env): {
   snapshot: () => Promise<VpsAgenteRespuesta>;
   detalleSitio: (uuid: string) => Promise<VpsAgenteDetalleRespuesta>;
 } | null {
-  const base = (entorno['PULSE_URL'] ?? '').trim() || PULSE_LOCAL_POR_DEFECTO;
+  /* [por qué] La URL sale del entorno o de `config/area.json`, nunca del código:
+   * un `127.0.0.1:3000` incrustado sondeaba el puerto de otro en cualquier máquina. */
+  const base = (entorno['PULSE_URL'] ?? '').trim() || (papelesDeArea().pulseUrl ?? '');
+  if (!base) return null;
   const token = (entorno['PULSE_TOKEN'] ?? '').trim() || leerTokenLocal();
   if (token.length < 32) return null;
   if (!prod) prod = crearAgente({ baseUrl: base, token });

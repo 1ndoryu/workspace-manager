@@ -27,11 +27,26 @@ export interface PapelesArea {
    * y produce `coolify-manager`). Sin declararlo vale el del papel. */
   despliegueBin: string | null;
   limpiador: string | null;
+  /** URL base del servicio de métricas (pulse) del área. [por qué] Antes el
+   * código asumía `http://127.0.0.1:3000`: un host y un puerto incrustados que
+   * en otra máquina apuntan a cualquier cosa. Sin declararlo, esa pestaña dice
+   * «sin configurar» en vez de inventarse un destino. */
+  pulseUrl: string | null;
+  /** Igual, para el pulse del taller (el que se lee por el túnel). */
+  pulseTallerUrl: string | null;
   /** Proyectos que el propagador de pins (`quality:bump`) no debe tocar. */
   bumpExcluidos: string[];
 }
 
-const VACIOS: PapelesArea = { sentinel: null, despliegue: null, despliegueBin: null, limpiador: null, bumpExcluidos: [] };
+const VACIOS: PapelesArea = {
+  sentinel: null,
+  despliegue: null,
+  despliegueBin: null,
+  limpiador: null,
+  pulseUrl: null,
+  pulseTallerUrl: null,
+  bumpExcluidos: [],
+};
 
 function texto(v: unknown): string | null {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
@@ -53,6 +68,8 @@ export function papelesDeArea(): PapelesArea {
     despliegue: texto(d.despliegue),
     despliegueBin: texto(d.despliegueBin),
     limpiador: texto(d.limpiador),
+    pulseUrl: texto(d.pulseUrl),
+    pulseTallerUrl: texto(d.pulseTallerUrl),
     bumpExcluidos: Array.isArray(bump.excluidos)
       ? bump.excluidos.filter((x): x is string => texto(x) !== null)
       : [],

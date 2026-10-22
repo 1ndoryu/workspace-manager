@@ -1,13 +1,21 @@
 /* Papeles del área: qué proyecto NUESTRO hace cada cosa que el manager no puede
  * adivinar por sí solo.
- * [por qué] Gemelo de `src/shared/area.ts` (los `.mjs` sueltos no pueden
+ * [por qué] Gemelo de `src/server/plataforma/area.ts` (los `.mjs` sueltos no pueden
  * importar TypeScript; es la misma duplicación documentada que en `rutas`).
  * Sin `config/area.json` no se rompe nada: cada papel ausente es `null` y quien
  * lo usa desactiva su función diciéndolo. */
 import { readFileSync } from 'node:fs';
 import { rutaConfigPrivada } from './rutas.mjs';
 
-const VACIOS = { sentinel: null, despliegue: null, despliegueBin: null, limpiador: null, bumpExcluidos: [] };
+const VACIOS = {
+  sentinel: null,
+  despliegue: null,
+  despliegueBin: null,
+  limpiador: null,
+  pulseUrl: null,
+  pulseTallerUrl: null,
+  bumpExcluidos: [],
+};
 
 function texto(v) {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
@@ -28,6 +36,8 @@ export function papelesDeArea() {
     despliegue: texto(crudo.despliegue),
     despliegueBin: texto(crudo.despliegueBin),
     limpiador: texto(crudo.limpiador),
+    pulseUrl: texto(crudo.pulseUrl),
+    pulseTallerUrl: texto(crudo.pulseTallerUrl),
     bumpExcluidos: Array.isArray(bump.excluidos)
       ? bump.excluidos.filter((x) => texto(x) !== null)
       : [],

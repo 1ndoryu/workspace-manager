@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { VpsAgenteRespuesta } from '../../shared/types.js';
 import { RAIZ_AREA } from '../plataforma/rutas.js';
+import { papelesDeArea } from '../plataforma/area.js';
 import { leerRegistroOpcional } from '../registro.js';
 import { crearAgente } from '../vps/agente.js';
 
@@ -41,13 +42,15 @@ function leerTokenDelProyecto(): string {
   }
 }
 
-/* Puerto local del túnel de glory-pulse (`Arranque up glory-pulse`). Es otro servicio que el pulse
- * local de vps/agente.ts, aunque coincida el puerto: por eso tiene constante propia. */
-const PULSE_TALLER_TUNEL_POR_DEFECTO = 'http://127.0.0.1:3000';
+/* Puerto local del túnel de pulse (`Arranque up <pulse>`). [por qué] Estaba incrustado
+ * (`127.0.0.1:3000`) y en otra máquina ese puerto es de otro servicio: la URL base sale del
+ * entorno o de `pulseTallerUrl` en `config/area.json`; sin ninguna, la ruta dice
+ * «sin configurar» en vez de inventarse un destino. */
 
 /* Configuración efectiva. El entorno llega como parámetro para probar sin tocar variables reales. */
 export function configTaller(entorno: NodeJS.ProcessEnv = process.env): ConfigTaller | null {
-  const base = (entorno['PULSE_TALLER_URL'] ?? '').trim() || PULSE_TALLER_TUNEL_POR_DEFECTO;
+  const base = (entorno['PULSE_TALLER_URL'] ?? '').trim() || (papelesDeArea().pulseTallerUrl ?? '');
+  if (!base) return null;
   const token =
     (entorno['PULSE_TALLER_TOKEN'] ?? '').trim() || leerTokenDelProyecto();
   if (token.length < 32) return null;
