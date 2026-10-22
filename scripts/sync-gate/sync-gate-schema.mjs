@@ -10,10 +10,10 @@
  * poder colgarlo de CI/guard. NUNCA modifica la curacion ni el JSON de ningun
  * proyecto: solo reporta; el alineado manual queda documentado.
  *
- * Uso:  pnpm sync:gate            (corre contra el runtime EN USO: checkout
+ * Uso:  npm run sync:gate            (corre contra el runtime EN USO: checkout
  *                                  compartido del area > versiones instaladas)
- *       pnpm sync:gate --json
- *       pnpm sync:gate --dts <archivo>  (comparar contra un .d.ts especifico;
+ *       npm run sync:gate -- --json
+ *       npm run sync:gate -- --dts <archivo>  (comparar contra un .d.ts especifico;
  *                                        util en CI/tests; ignora la version
  *                                        instalada)
  *

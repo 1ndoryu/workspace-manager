@@ -24,8 +24,8 @@
  * archivo el script informa y sale en verde, que es lo que le toca a un clone
  * recien hecho.
  *
- * Uso:  pnpm sync:quality            (recorre los consumidores declarados)
- *       pnpm sync:quality --json      (salida JSON en stdout)
+ * Uso:  npm run sync:quality            (recorre los consumidores declarados)
+ *       npm run sync:quality -- --json  (salida JSON en stdout)
  *
  * Exit codes:
  *   0  todos los consumidores con gate apuntan al commit comun y al checkout

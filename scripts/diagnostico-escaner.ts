@@ -1,5 +1,5 @@
 /* Diagnostico rapido del escaner con datos reales: muestra el resumen del area,
- * agentes globales y un resumen por proyecto. Uso: pnpm exec tsx scripts/diagnostico-escaner.ts */
+ * agentes globales y un resumen por proyecto. Uso: npx tsx scripts/diagnostico-escaner.ts */
 import { escanearWorkspace } from '../src/server/scanner/workspace.js';
 import { RAIZ_AREA, CARPETA_SKILLS } from './shared/rutas.mjs';
 
