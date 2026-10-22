@@ -34,6 +34,7 @@ import { crearManejadorTareas } from './tareas/rutasTareas.js';
 import { puenteTareas } from './tareas/puente-tareas.js';
 import { crearSincroniaFondo } from './tareas/sincronizacion/sincronia-fondo.js';
 import { crearServicioNotificaciones } from './notificaciones/notificaciones.js';
+import { campanaActiva } from './notificaciones/ajustes.js';
 import { fuentesReales } from './notificaciones/componer.js';
 import { crearManejadorNotificaciones } from './notificaciones/rutasNotificaciones.js';
 import { crearBusEventos } from './eventos/bus.js';
@@ -84,9 +85,13 @@ const sincronia = crearSincroniaFondo({proyectos: leerProyectos, puente: puenteT
 const bus = crearBusEventos();
 const publicadores = crearPublicadores(bus);
 const manejarEventos = crearManejadorEventos(bus, publicadores.ajustarLatido);
+/* Interruptor de la campana (20AA-32): se lee una vez, en el arranque. Apagada, ni siquiera se
+ * componen las fuentes —componer no lee nada, pero así no queda ni el objeto—. */
+const campana = campanaActiva();
 const notificaciones = crearServicioNotificaciones({
   rutaFichero: join(RAIZ_DATOS, 'cache', 'notificaciones.json'),
-  fuentes: fuentesReales(),
+  fuentes: campana.activa ? fuentesReales() : [],
+  campana,
   /* La campana y el canal son dos vistas del mismo aviso: el toast del sistema (20AA-27) y la
    * pestaña lo leen del mismo evento, así que no pueden decir cosas distintas. */
   alAviso: (aviso) => bus.publicar('avisos', aviso),

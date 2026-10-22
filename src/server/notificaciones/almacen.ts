@@ -12,9 +12,11 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
+  CAMPANA_ACTIVA,
   TIPOS as TIPOS_AVISO,
   type Aviso,
   type EstadoNotificaciones,
+  type InterruptorCampana,
   type PreferenciasNotificaciones,
   type TipoAviso,
 } from '../../shared/notificaciones/tipos.js';
@@ -63,6 +65,7 @@ export interface AlmacenNotificaciones {
 export function crearAlmacenNotificaciones(
   rutaFichero: string,
   ahora: () => number = Date.now,
+  campana: InterruptorCampana = CAMPANA_ACTIVA,
 ): AlmacenNotificaciones {
   const cargado = cargar(rutaFichero);
   let motor = cargado.motor;
@@ -110,7 +113,7 @@ export function crearAlmacenNotificaciones(
   }
 
   return {
-    estado: () => ({ avisos: [...avisos], preferencias: { ...preferencias }, fuentesRotas: [...fuentesRotas], pasadaEn }),
+    estado: () => ({ avisos: [...avisos], preferencias: { ...preferencias }, fuentesRotas: [...fuentesRotas], pasadaEn, campana }),
     anadir(nuevos) {
       if (nuevos.length === 0) return;
       /* El más nuevo primero: la campana no reordena y el tope corta por el final. */

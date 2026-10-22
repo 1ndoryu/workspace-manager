@@ -37,7 +37,10 @@ function fuenteFalsa(nombre = 'tareas'): FuenteFalsa {
 const e = (clave: string): Entidad => ({ clave, titulo: `Tarea ${clave}`, detalle: 'wm' });
 
 /* Servicio + servidor en un puerto efímero. Devuelve también la limpieza. */
-async function montar(fuentes: Fuente[] = []): Promise<{
+async function montar(
+  fuentes: Fuente[] = [],
+  campana?: { activa: boolean; motivo: string | null },
+): Promise<{
   servicio: ServicioNotificaciones;
   base: string;
   cerrar: () => Promise<void>;
@@ -49,6 +52,7 @@ async function montar(fuentes: Fuente[] = []): Promise<{
     /* Calma mínima: las pruebas no esperan ventanas. */
     calmaMs: 1,
     latidoMs: 60_000,
+    ...(campana === undefined ? {} : { campana }),
   });
   const manejar = crearManejadorNotificaciones(servicio);
   const server: Server = createServer((req, res) => {
@@ -166,6 +170,31 @@ test('el canal manda la historia al conectar y respeta Last-Event-ID al reconect
       resto.filter((l) => l.startsWith('id:')),
       [`id: ${nuevo.id}`],
     );
+  } finally {
+    await cerrar();
+  }
+});
+
+test('apagada: ni lee las fuentes, ni arma pasadas, ni abre el canal (20AA-32)', async () => {
+  const f = fuenteFalsa();
+  f.estado = [e('a')];
+  const { servicio, base, cerrar } = await montar([f], { activa: false, motivo: 'desactivada en config/area.json' });
+  try {
+    assert.deepEqual(await servicio.correr(), []);
+    servicio.programar();
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(f.llamadas, 0, 'una pasada apagada no puede tocar la fuente');
+
+    /* El estado sigue contestando (el frente pregunta por el interruptor) y lo dice. */
+    const estado = (await (await fetch(`${base}/api/notificaciones`)).json()) as {
+      campana: { activa: boolean; motivo: string | null };
+    };
+    assert.equal(estado.campana.activa, false);
+    assert.match(estado.campana.motivo ?? '', /area[.]json/);
+
+    /* 410: `EventSource` no reintenta ante un 4xx, un SSE vacío sí se quedaría colgado. */
+    const canal = await fetch(`${base}/api/notificaciones/eventos`);
+    assert.equal(canal.status, 410);
   } finally {
     await cerrar();
   }

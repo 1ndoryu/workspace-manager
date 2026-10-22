@@ -13,7 +13,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { json, leerBody } from '../http.js';
 import { TIPOS } from '../../shared/notificaciones/tipos.js';
-import type { TipoAviso } from '../../shared/notificaciones/tipos.js';
+import type { InterruptorCampana, TipoAviso } from '../../shared/notificaciones/tipos.js';
 import type { ServicioNotificaciones } from './notificaciones.js';
 
 /* Lista única del contrato, para validar el filtro `?tipo=` de la campana. */
@@ -38,7 +38,15 @@ export function crearManejadorNotificaciones(servicio: ServicioNotificaciones) {
       return true;
     }
 
+    /* Apagada (20AA-32): el canal no se abre. [por que un error y no un SSE vacío] Una conexión
+     * abierta sin eventos se queda colgada para siempre en cada pestaña y en el toast del sistema
+     * (Rust la reabre al volver al frente). 410 dice «esto ya no está» y `EventSource` deja de
+     * reintentar en vez de golpear cada 3 s. */
     if (ruta === '/api/notificaciones/eventos' && req.method === 'GET') {
+      if (!servicio.campana.activa) {
+        json(res, 410, { error: 'campana-apagada', motivo: servicio.campana.motivo });
+        return true;
+      }
       atenderCanal(req, res, servicio, url);
       return true;
     }

@@ -99,8 +99,22 @@ export interface Fuente {
   tipoBaja: TipoAviso;
   /* Entidades presentes ahora mismo. [por que] Nunca lanza hacia el motor: si su origen falla
    * devuelve lo último bueno que tenga (o nada) y lo dice en `problema`. Una fuente rota no
-   * puede tumbar el resto de avisos. */
-  leer(): Promise<{ entidades: Entidad[]; problema: string | null }>;
+   * puede tumbar el resto de avisos.
+   * [por que `sinLectura`] `problema` mezcla dos casos que el motor no puede tratar igual: «leí
+   * bien y esta fuente tiene un aviso» y «no pude preguntar». Con `entidades: []` y un problema,
+   * lo segundo se leía como «ya no hay nada» y anunciaba bajas masivas seguidas de altas cuando
+   * la lectura volvía (20AA-31: la campana repetía los mismos 5 problemas cada pasada). Una
+   * fuente que no pudo leer marca `sinLectura: true` y el motor no toca su memoria.
+   * [por que `sinVer`] A veces la lectura funciona pero solo de una parte: la consola sabe de los
+   * proyectos analizados y nada de los demás (un proyecto con cambios sin commitear pierde su
+   * análisis por frescura). Esos prefijos de clave no se pueden dar de baja: callar un problema
+   * porque no se pudo mirar es anunciar una resolución falsa. */
+  leer(): Promise<{
+    entidades: Entidad[];
+    problema: string | null;
+    sinLectura?: boolean;
+    sinVer?: string[];
+  }>;
 }
 
 /* Ajustes de la usuaria, persistidos junto a los avisos. */
@@ -109,6 +123,19 @@ export interface PreferenciasNotificaciones {
   silenciados: TipoAviso[];
 }
 
+/* Interruptor de la función (20AA-32). [por que dentro del estado] El frente tiene que saber si la
+ * campana está apagada para no pintarla ni abrir el canal; si el dato no viajara en el mismo GET,
+ * la pestaña abriría un SSE contra un servidor que no piensa avisar de nada. */
+export interface InterruptorCampana {
+  activa: boolean;
+  /* Por qué está apagada, ya en español, para el tooltip. `null` cuando está activa. */
+  motivo: string | null;
+}
+
+/* El interruptor por defecto. [por que un valor compartido y no un literal en cada sitio] El
+ * almacén y el servicio tienen que decir lo mismo cuando nadie ha configurado nada. */
+export const CAMPANA_ACTIVA: InterruptorCampana = { activa: true, motivo: null };
+
 export interface EstadoNotificaciones {
   avisos: Aviso[];
   preferencias: PreferenciasNotificaciones;
@@ -116,4 +143,5 @@ export interface EstadoNotificaciones {
   fuentesRotas: { fuente: string; problema: string }[];
   /* ISO de la última pasada terminada, o null. */
   pasadaEn: string | null;
+  campana: InterruptorCampana;
 }

@@ -8,10 +8,12 @@
  * aviso a la campana y al toast del sistema (20AA-27). Rust no puede tener su propia idea de qué
  * pasó, o los dos avisos dirían cosas distintas. */
 import { EventEmitter } from 'node:events';
+import { CAMPANA_ACTIVA } from '../../shared/notificaciones/tipos.js';
 import type {
   Aviso,
   EstadoNotificaciones,
   Fuente,
+  InterruptorCampana,
   TipoAviso,
 } from '../../shared/notificaciones/tipos.js';
 import { crearAlmacenNotificaciones, type AlmacenNotificaciones } from './almacen.js';
@@ -31,6 +33,11 @@ export const LATIDO_MS = 10_000;
 export interface OpcionesServicio {
   rutaFichero: string;
   fuentes: Fuente[];
+  /* Interruptor de la función (20AA-32). Apagada: `correr` no lee ninguna fuente, `programar` no
+   * arma temporizador y `suscribir` no enciende el latido. [por que aquí y no solo en el entry]
+   * Un `if` en cada disparador (escaneo, gesto, latido, ruta SSE) se olvida en el quinto; el
+   * servicio es el único sitio por el que pasan todas las pasadas. */
+  campana?: InterruptorCampana;
   /* Reloj inyectable para las pruebas. */
   ahora?: () => Date;
   calmaMs?: number;
@@ -55,6 +62,8 @@ export interface ServicioNotificaciones {
   correr: () => Promise<Aviso[]>;
   marcarLeidos: (ids?: number[]) => void;
   silenciar: (tipos: TipoAviso[]) => void;
+  /* El interruptor que este servicio aplica, para que las rutas no lo dupliquen. */
+  campana: InterruptorCampana;
   /* Suscripción para el SSE: devuelve la baja. */
   suscribir: (aviso: (a: Aviso) => void) => () => void;
   detener: () => Promise<void>;
@@ -62,7 +71,12 @@ export interface ServicioNotificaciones {
 }
 
 export function crearServicioNotificaciones(opciones: OpcionesServicio): ServicioNotificaciones {
-  const almacen = crearAlmacenNotificaciones(opciones.rutaFichero, () => (opciones.ahora ?? (() => new Date()))().getTime());
+  const campana = opciones.campana ?? CAMPANA_ACTIVA;
+  const almacen = crearAlmacenNotificaciones(
+    opciones.rutaFichero,
+    () => (opciones.ahora ?? (() => new Date()))().getTime(),
+    campana,
+  );
   const ahora = opciones.ahora ?? (() => new Date());
   const calmaMs = opciones.calmaMs ?? CALMA_MS;
   const latidoMs = opciones.latidoMs ?? LATIDO_MS;
@@ -80,6 +94,8 @@ export function crearServicioNotificaciones(opciones: OpcionesServicio): Servici
   }
 
   async function correr(): Promise<Aviso[]> {
+    /* Apagada no se lee nada: es la promesa entera de la 20AA-32 (cero lecturas, cero avisos). */
+    if (!campana.activa) return [];
     /* Una sola pasada a la vez: dos lecturas seguidas de las mismas fuentes producirían el mismo
      * diff, y el segundo intentaría emitir avisos ya emitidos. Quien llega mientras corre espera
      * a la que hay. */
@@ -101,6 +117,7 @@ export function crearServicioNotificaciones(opciones: OpcionesServicio): Servici
   }
 
   function programar(): void {
+    if (!campana.activa) return;
     if (temporizador !== null) return;
     const t = setTimeout(() => {
       temporizador = null;
@@ -113,6 +130,7 @@ export function crearServicioNotificaciones(opciones: OpcionesServicio): Servici
 
   /* El latido solo existe mientras haya alguien escuchando. */
   function ajustarLatido(): void {
+    if (!campana.activa) return;
     if (suscriptores > 0 && latido === null) {
       latido = setInterval(() => void correr(), latidoMs);
       (latido as { unref?: () => void }).unref?.();
@@ -126,6 +144,7 @@ export function crearServicioNotificaciones(opciones: OpcionesServicio): Servici
 
   return {
     estado: () => almacen.estado(),
+    campana,
     programar,
     correr,
     marcarLeidos(ids) {
