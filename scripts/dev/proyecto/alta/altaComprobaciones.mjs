@@ -7,7 +7,7 @@ import { basename, join } from 'node:path';
 import { BIN_GIT } from '../../../shared/binarios.mjs';
 import { baseDe } from '../cierre.mjs';
 import {
-  AGENTS_PROPIOS, CARPETAS_AGENTE, GITIGNORE, IGNORAR_CSS, MANIFIESTOS, ROADMAP_PLANTILLA,
+  AGENTS_PROPIOS, CARPETAS_AGENTE, GITIGNORE, MANIFIESTOS, ROADMAP_PLANTILLA,
   comprobarRegistro, fallo, ok, omitida,
 } from './altaReglas.mjs';
 
@@ -120,24 +120,49 @@ export function comprobarSentinel(ruta) {
   }
 }
 
-function hayCss(dir, profundidad = 0) {
-  if (profundidad > 3) return false;
-  let entradas;
-  try {
-    entradas = readdirSync(dir, { withFileTypes: true });
-  } catch {
+/* Mismas reglas que `hayEstilos` del tablero (`src/server/scanner/gate.ts`): extensiones de hoja
+ * de estilo y configs de tailwind, ocultos fuera, y topes de profundidad y entradas. [por que]
+ * Antes solo miraba `.css` hasta tres niveles: un proyecto con SCSS (o con tailwind config) salía
+ * «sin CSS propio» en el alta, pero el tablero sí le exigía varsense. Las dos reglas son el mismo
+ * concepto en dos runtimes; el test diferencial de `gate.test.ts` las compara sobre el mismo árbol. */
+const EXTENSION_ESTILOS = /\.(css|scss|sass|less|styl|pcss)$/i;
+const CONFIG_TAILWIND = /^tailwind\.config\.(js|cjs|mjs|ts)$/i;
+const DIRECTORIOS_IGNORADOS = new Set(['node_modules', 'target', 'dist', 'build', 'out', 'coverage']);
+const PROFUNDIDAD_MAX = 6;
+const ENTRADAS_MAX = 5000;
+
+export function hayCss(ruta) {
+  let presupuesto = ENTRADAS_MAX;
+
+  function recorrer(dir, profundidad) {
+    /* Agotar profundidad o presupuesto asume que hay estilos: el alta no debe dar por bueno un
+     * proyecto sin varsense solo porque no terminó de mirar (misma dirección segura que el tablero). */
+    if (profundidad > PROFUNDIDAD_MAX) return true;
+    let entradas;
+    try {
+      entradas = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return true;
+    }
+    for (const e of entradas) {
+      if (--presupuesto < 0) return true;
+      if (e.isDirectory()) {
+        if (e.name.startsWith('.') || DIRECTORIOS_IGNORADOS.has(e.name)) continue;
+        if (recorrer(join(dir, e.name), profundidad + 1)) return true;
+      } else if (EXTENSION_ESTILOS.test(e.name) || CONFIG_TAILWIND.test(e.name)) {
+        return true;
+      }
+    }
     return false;
   }
-  return entradas.some((e) => {
-    if (e.isDirectory()) return !IGNORAR_CSS.has(e.name) && hayCss(join(dir, e.name), profundidad + 1);
-    return e.name.endsWith('.css');
-  });
+
+  return recorrer(ruta, 0);
 }
 
 export function comprobarVarsense(ruta) {
-  if (!hayCss(ruta)) return omitida('varsense', 'sin CSS propio');
+  if (!hayCss(ruta)) return omitida('varsense', 'sin estilos propios');
   if (existsSync(join(ruta, 'varsense.config.json'))) return ok('varsense', 'varsense.config.json');
-  return fallo('varsense', 'hay CSS y falta varsense.config.json', 'configúralo con la skill varsense (AGENTS §9.3)');
+  return fallo('varsense', 'hay estilos y falta varsense.config.json', 'configúralo con la skill varsense (AGENTS §9.3)');
 }
 
 export function comprobarCargo(ruta) {

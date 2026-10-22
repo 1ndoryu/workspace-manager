@@ -63,3 +63,70 @@ describe('gate: sinEstilos', () => {
     assert.equal(g.sinEstilos, false);
   });
 });
+
+/* [17AA-5] El alta (`scripts/dev/proyecto/alta`) y el tablero deciden con la misma pregunta
+ * «¿este proyecto tiene estilos?», pero en runtimes distintos: el `.mjs` no puede importar el
+ * `.ts`. Antes no coincidían (el alta solo miraba `.css` hasta 3 niveles), así que un proyecto
+ * con SCSS salía «sin CSS propio» en el alta y el tablero sí le exigía varsense. Esta guarda
+ * compara los dos veredictos sobre el mismo árbol: si una regla cambia sin la otra, falla. */
+async function cargarHayCssAlta(): Promise<(ruta: string) => boolean> {
+  const mod = (await import(
+    new URL('../../../scripts/dev/proyecto/alta/altaComprobaciones.mjs', import.meta.url).href
+  )) as { hayCss: (ruta: string) => boolean };
+  return mod.hayCss;
+}
+
+describe('detección de estilos: alta y tablero coinciden', () => {
+  let raiz: string;
+
+  before(() => {
+    mkdirSync(raizTemporales(), { recursive: true });
+    raiz = mkdtempSync(join(raizTemporales(), 'estilos-gemelos-'));
+  });
+
+  after(() => {
+    rmSync(raiz, { recursive: true, force: true });
+  });
+
+  const casos: { nombre: string; crear: (p: string) => void }[] = [
+    {
+      nombre: 'SCSS anidado',
+      crear: (p) => {
+        mkdirSync(join(p, 'src', 'ui'), { recursive: true });
+        writeFileSync(join(p, 'src', 'ui', 'tema.scss'), '');
+      },
+    },
+    { nombre: 'tailwind.config', crear: (p) => writeFileSync(join(p, 'tailwind.config.js'), '') },
+    {
+      nombre: 'CSS solo en carpeta oculta',
+      crear: (p) => {
+        mkdirSync(join(p, '.cache'), { recursive: true });
+        writeFileSync(join(p, '.cache', 'a.css'), '');
+      },
+    },
+    {
+      nombre: 'CSS solo en node_modules',
+      crear: (p) => {
+        mkdirSync(join(p, 'node_modules', 'lib'), { recursive: true });
+        writeFileSync(join(p, 'node_modules', 'lib', 'a.css'), '');
+      },
+    },
+    {
+      nombre: 'CSS solo en build',
+      crear: (p) => {
+        mkdirSync(join(p, 'build'), { recursive: true });
+        writeFileSync(join(p, 'build', 'a.css'), '');
+      },
+    },
+    { nombre: 'sin estilos', crear: (p) => writeFileSync(join(p, 'index.js'), '') },
+  ];
+
+  it('mismos veredictos sobre el mismo árbol', async () => {
+    const hayCssAlta = await cargarHayCssAlta();
+    for (const caso of casos) {
+      const p = mkdtempSync(join(raiz, 'caso-'));
+      caso.crear(p);
+      assert.equal(hayCssAlta(p), hayEstilos(p), caso.nombre);
+    }
+  });
+});

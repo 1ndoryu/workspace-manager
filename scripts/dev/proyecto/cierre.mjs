@@ -111,13 +111,18 @@ const RE_HECHA = /\[x\]|~~|\u2705/;
 const RE_ZONA_TAREAS =
   /^(?:siguiente bloque|bloque actual|ahora|(?:tareas? )?pendientes?|backlog|tareas?|por hacer|cola|desarrollo pendiente)/;
 
-/* Lineas que pueden contener una tarea abierta: las de una seccion de tareas, al primer nivel.
- * [por que] Se normaliza como el parser (`\r?\n` y sin espacios finales): con ficheros CRLF el
- * `$` de los regex no casaba y el cierre no veia NINGUNA tarea abierta (falso verde medido en
+/* Lineas que pueden contener una tarea abierta: las de una seccion de tareas, al primer nivel, y
+ * cualquier casilla fuera de «Planes activos». [por que] La casilla es la forma canonica de una
+ * tarea, este donde este: si alguien la deja bajo «Bloqueos», sigue siendo trabajo abierto y darla
+ * por cerrada seria un falso verde (la direccion peligrosa). La exclusion por zona vale para
+ * menciones SIN casilla, que es el caso de los 22 falsos «sigue abierta» medidos el 2026-10-19.
+ * [por que se normaliza como el parser] `\r?\n` y sin espacios finales: con ficheros CRLF el `$`
+ * de los regex no casaba y el cierre no veia NINGUNA tarea abierta (falso verde medido en
  * glory-harness-19aa el 2026-10-19). */
 function lineasDeTarea(texto) {
   const salida = [];
   let enTareas = false;
+  let enPlanes = false;
   for (const cruda of texto.split(/\r?\n/)) {
     const linea = cruda.replace(/\s+$/, '');
     const h = linea.match(/^(#{2,4})\s+(.+)$/);
@@ -130,6 +135,9 @@ function lineasDeTarea(texto) {
           .trim()
           .toLowerCase();
         enTareas = RE_ZONA_TAREAS.test(n);
+        /* Planes activos lista rutas de plan, no tareas: el parser del tablero ignora sus
+         * lineas aunque lleven casilla, y el cierre tiene que ver lo mismo. */
+        enPlanes = /^planes? activos?\b/.test(n);
       }
       /* Un heading dentro de la zona con el ID es una tarea escrita como heading. */
       if (enTareas) salida.push(linea);
@@ -137,7 +145,7 @@ function lineasDeTarea(texto) {
     }
     /* Sub-pasos sangrados de una tarea: no son tareas (igual que el parser). */
     if (/^\s+\S/.test(linea)) continue;
-    if (enTareas) salida.push(linea);
+    if (enTareas || (!enPlanes && /^[-*]\s+\[[ xX]\]/.test(linea))) salida.push(linea);
   }
   return salida;
 }
