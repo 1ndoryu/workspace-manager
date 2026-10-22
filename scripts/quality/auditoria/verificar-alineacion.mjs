@@ -32,12 +32,15 @@
  *       ausente). Sirve de guard para CI/gate: un release de varsense/sentinel
  *       que no haya llegado a todos los pins rompe el veredicto.
  */
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { RAIZ_REPO, rutaConfigPrivada } from '../../shared/rutas.mjs';
 import { BIN_GIT } from '../../shared/binarios.mjs';
 import { HERRAMIENTAS_GATE } from '../../shared/herramientas.mjs';
+
+const execFileAsync = promisify(execFile);
 
 /* Mapa id → ruta absoluta del repo, derivado del registro privado.
  * [por que] Antes era una lista de proyectos incrustada en el código: ataba el
@@ -76,6 +79,25 @@ function git(cwd, ...args) {
 }
 
 function corto(h) { return h ? h.slice(0, 9) : '--'; }
+
+/* Igual que `git`, sin bloquear. [por que] El coste del informe son las consultas de red
+ * (`ls-remote` de cada checkout): en serie, cada una es una ida y vuelta que no depende de
+ * las demás. Con esto las de todos los checkouts se solapan (7 s → ~2,5 s medidos). */
+async function gitAsync(cwd, ...args) {
+  const clave = `async\0${cwd}\0${args.join('\0')}`;
+  if (MEMO.has(clave)) return MEMO.get(clave);
+  let valor;
+  try {
+    const { stdout } = await execFileAsync(BIN_GIT, ['-C', cwd, ...args], {
+      encoding: 'utf8', windowsHide: true, timeout: 20000, maxBuffer: 16 * 1024 * 1024,
+    });
+    valor = stdout.trim();
+  } catch {
+    valor = null;
+  }
+  MEMO.set(clave, valor);
+  return valor;
+}
 
 /** Expande releaseRefs (refs/tags/v* → refs concretos existentes). */
 function expandirRefs(checkout, releaseRefs) {
@@ -178,11 +200,11 @@ function cmpSemver(a, b) {
  * (sin fetch, sin mutar nada). Fail-open: sin remoto o sin red el resultado es
  * desactualizado=null (desconocido), nunca un desalineamiento. No toca el exit
  * del script: es informacion para el panel, no guarda de CI. */
-function remotoUpstream(dir, tool) {
+async function remotoUpstream(dir, tool) {
   const base = { dir, tool, url: null, headLocal: null, headRemoto: null, tags: [], desactualizado: null };
   if (!dir || !existsSync(dir)) return base;
-  base.headLocal = git(dir, 'rev-parse', 'HEAD');
-  const url = git(dir, 'remote', 'get-url', 'origin');
+  base.headLocal = await gitAsync(dir, 'rev-parse', 'HEAD');
+  const url = await gitAsync(dir, 'remote', 'get-url', 'origin');
   if (!url) return base;
   base.url = url;
   /* Un solo ls-remote sin filtros: devuelve HEAD y las tags en el MISMO viaje
@@ -191,7 +213,7 @@ function remotoUpstream(dir, tool) {
    * completa: aquí el informe entero esperaba al doble de round-trips. El
    * listado sin filtros trae HEAD y refs/tags/* igual que las dos consultas
    * separadas; solo añade refs/heads/*, que se ignora. */
-  const out = git(dir, 'ls-remote', url);
+  const out = await gitAsync(dir, 'ls-remote', url);
   if (out) {
     for (const ln of out.split('\n')) {
       const m = /^([0-9a-f]{40})\s+(.+)$/.exec(ln.trim());
@@ -214,7 +236,7 @@ function remotoUpstream(dir, tool) {
   return base;
 }
 
-function main() {
+async function main() {
   const arg = process.argv[2];
   const json = process.argv.includes('--json');
   const filtro = arg && !arg.startsWith('--') ? arg : null;
@@ -251,17 +273,19 @@ function main() {
 
   /* Chequeo upstream por checkout distinto (219A-1): un dir = un runtime.
    * [por que] Deduplicado por dir para no repetir ls-remote cuando varios
-   * consumidores comparten el mismo checkout (caso comun del area). */
-  const remotos = [];
+   * consumidores comparten el mismo checkout (caso comun del area). Las
+   * consultas van en paralelo: son red, no dependen unas de otras. */
+  const pendientes = [];
   const vistos = new Map();
   for (const f of filas) {
     if (!f.dir || vistos.has(f.dir)) continue;
     vistos.set(f.dir, true);
-    remotos.push(remotoUpstream(f.dir, f.tool || null));
+    pendientes.push(remotoUpstream(f.dir, f.tool || null));
   }
+  const respuestasRemotas = await Promise.all(pendientes);
 
   if (json) {
-    console.log(JSON.stringify({ filas, alineados: filas.length - desalineados.length, total: filas.length, desalineados: desalineados.length, ok: desalineados.length === 0, remotos }, null, 2));
+    console.log(JSON.stringify({ filas, alineados: filas.length - desalineados.length, total: filas.length, desalineados: desalineados.length, ok: desalineados.length === 0, remotos: respuestasRemotas }, null, 2));
   } else {
     console.log('Alineación sentinel/varsense por consumidor (pin | runtime | publicado):');
     console.log('-'.repeat(120));
@@ -276,7 +300,7 @@ function main() {
     if (desalineados.length === 0) console.log(`OK: ${filas.length} filas, todo ALINEADO.`);
     else console.log(`DESALINEADO: ${desalineados.length}/${filas.length} filas requieren acción (exit 1).`);
     console.log('Upstream por checkout (ls-remote, sin fetch):');
-    for (const r of remotos) {
+    for (const r of respuestasRemotas) {
       const marca = r.desactualizado === true ? 'DESACTUALIZADO' : r.desactualizado === false ? 'al día' : 'desconocido';
       console.log(`  ${(r.tool || '?').padEnd(10)} ${marca} local=${corto(r.headLocal)} remoto=${corto(r.headRemoto)}${r.tags.length ? ` tags=${r.tags.map((t) => t.tag).join(',')}` : ''}`);
     }
@@ -284,4 +308,7 @@ function main() {
   process.exit(desalineados.length === 0 ? 0 : 1);
 }
 
-main();
+main().catch((err) => {
+  console.error(`verificar-alineacion: ${err?.message ?? err}`);
+  process.exit(2);
+});
