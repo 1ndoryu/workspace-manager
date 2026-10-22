@@ -11,6 +11,8 @@ import type { Fuente } from '../../shared/notificaciones/tipos.js';
 import type { Proyecto } from '../../shared/tipos/proyecto.js';
 import { snapshotArea } from '../snapshot.js';
 import { recogerFuentes, agruparProblemas } from '../rutas/rutasConsola.js';
+import { proyectosSinAnalisisVigente } from '../gate/analizador.js';
+import { proyectosSinAuditoriaVigente } from '../gate/vulnerabilidades/vulnerabilidades.js';
 import { leerSitios } from '../vps/rutas/rutasVps.js';
 import { agenteTaller } from '../taller/agenteTaller.js';
 import { proyectosDelTaller } from '../taller/proyectosTaller.js';
@@ -40,7 +42,16 @@ async function leerGruposDeProblemas() {
   /* La misma agregación que responde `/api/consola/problemas`, sin forzar nada: análisis,
    * auditoría, salud y taller salen de sus cachés. */
   const fuentes = await recogerFuentes(false, false);
-  return agruparProblemas(fuentes);
+  /* Del MISMO snapshot: los grupos de arriba y los proyectos sin mirar son una sola foto.
+   * El prefijo `proyecto|` es el del grupo de la consola (`grupo|categoría|huella`); los grupos
+   * sintéticos del área no son proyectos y no se frenan. */
+  const sinVer = [
+    ...new Set([
+      ...proyectosSinAnalisisVigente(fuentes.snapshot),
+      ...proyectosSinAuditoriaVigente(fuentes.snapshot),
+    ]),
+  ].map((p) => `${p.clave}|`);
+  return { grupos: agruparProblemas(fuentes), sinVer };
 }
 
 async function leerTaller() {

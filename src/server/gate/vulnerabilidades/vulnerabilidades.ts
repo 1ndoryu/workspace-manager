@@ -206,6 +206,14 @@ export function auditoriasVigentes(proyectos: Proyecto[]): AnalisisVulnerabilida
   return separarVigencia(proyectos, frescoDeProyecto, vulnerabilidadesFrescas).vigentes;
 }
 
+/* Proyectos cuyas vulnerabilidades no se están mirando (sin auditoría vigente). Misma idea que
+ * `proyectosSinAnalisisVigente`: una clave que falta por frescura no es un problema resuelto
+ * (20AA-31). La fuente de problemas las une antes de pasarlas al motor. */
+export function proyectosSinAuditoriaVigente(snapshot: { proyectos: Proyecto[] }): Proyecto[] {
+  const vigentes = new Set(auditoriasVigentes(snapshot.proyectos).map((v) => v.clave));
+  return snapshot.proyectos.filter((p) => !vigentes.has(p.clave));
+}
+
 export function auditoriaVigentePara(p: Proyecto): AnalisisVulnerabilidades | null {
   return vulnerabilidadesFrescas(p.clave, frescoDe(p, detectarLockfiles(p.ruta)));
 }

@@ -11,18 +11,35 @@ import { AUSENCIAS_PARA_BAJA, estadoMotorInicial, pasada, type EstadoMotor } fro
  * [por que] Permite escribir «pasada 1 ve A y B; pasada 2 sólo A» sin tocar nada más. */
 function fuenteGuion(
   nombre: string,
-  lecturas: { entidades: Entidad[] | null; problema?: string | null }[],
+  lecturas: {
+    entidades: Entidad[] | null;
+    problema?: string | null;
+    /* Lectura parcial (20AA-31): prefijos de clave que esta pasada no alcanza a ver. */
+    sinVer?: string[];
+    /* Lectura fallida sin lanzar: el motor debe tratarla como rota. */
+    sinLectura?: boolean;
+  }[],
 ): Fuente & { llamadas: number } {
   const f = {
     nombre,
     tipoAlta: 'tarea-nueva' as const,
     tipoBaja: 'tarea-completada' as const,
     llamadas: 0,
-    leer(): Promise<{ entidades: Entidad[]; problema: string | null }> {
+    leer(): Promise<{
+      entidades: Entidad[];
+      problema: string | null;
+      sinLectura?: boolean;
+      sinVer?: string[];
+    }> {
       const lectura = lecturas[Math.min(f.llamadas, lecturas.length - 1)];
       f.llamadas += 1;
       if (lectura.entidades === null) return Promise.reject(new Error(lectura.problema ?? 'sin leer'));
-      return Promise.resolve({ entidades: lectura.entidades, problema: lectura.problema ?? null });
+      return Promise.resolve({
+        entidades: lectura.entidades,
+        problema: lectura.problema ?? null,
+        sinLectura: lectura.sinLectura,
+        sinVer: lectura.sinVer,
+      });
     },
   };
   return f;
@@ -157,6 +174,53 @@ test('el estado del motor sobrevive a un viaje por JSON sin duplicar avisos', as
   const recuperado = JSON.parse(JSON.stringify(conNuevo.estado)) as EstadoMotor;
   const tras = await pasada([f], recuperado);
   assert.equal(tras.avisos.length, 0, 'releer lo mismo no puede repetir el aviso');
+});
+
+test('lo que la lectura no alcanzó a ver no se da de baja y vuelve sin ser nuevo', async () => {
+  /* Caso real (20AA-31): el proyecto pierde su análisis por frescura y su problema desaparece de
+   * la consola dos pasadas seguidas. Sin `sinVer` se anunciaba «resuelto» y luego «nuevo». */
+  const f = fuenteGuion('problemas', [
+    { entidades: [e('PROYECTO|sentinel|x'), e('OTRO|sentinel|y')] },
+    { entidades: [e('OTRO|sentinel|y')], sinVer: ['PROYECTO|'] },
+    { entidades: [e('OTRO|sentinel|y')], sinVer: ['PROYECTO|'] },
+    { entidades: [e('PROYECTO|sentinel|x'), e('OTRO|sentinel|y')] },
+  ]);
+  let estado = estadoMotorInicial();
+  for (let i = 0; i < 3; i += 1) {
+    const r = await pasada([f], estado);
+    estado = r.estado;
+    assert.equal(r.avisos.length, 0, `pasada ${i + 1}: no hay transición real que anunciar`);
+  }
+  assert.ok(estado.memorias.problemas['PROYECTO|sentinel|x'], 'la clave sin ver sigue en memoria');
+  const vuelta = await pasada([f], estado);
+  assert.equal(vuelta.avisos.length, 0, 'volver a verla no la convierte en nueva');
+});
+
+test('una lectura parcial no silencia las bajas de lo que sí se miró', async () => {
+  const f = fuenteGuion('problemas', [
+    { entidades: [e('PROYECTO|sentinel|x'), e('OTRO|sentinel|y')] },
+    { entidades: [], sinVer: ['PROYECTO|'] },
+    { entidades: [], sinVer: ['PROYECTO|'] },
+  ]);
+  const base = await pasada([f], estadoMotorInicial());
+  const dudosa = await pasada([f], base.estado);
+  const baja = await pasada([f], dudosa.estado);
+  assert.equal(baja.avisos.length, 1);
+  assert.equal(baja.avisos[0].clave, 'OTRO|sentinel|y', 'lo mirado y ausente sí baja');
+  assert.ok(baja.estado.memorias.problemas['PROYECTO|sentinel|x']);
+  assert.ok(!baja.estado.memorias.problemas['OTRO|sentinel|y']);
+});
+
+test('`sinLectura` sin excepción se trata igual que una fuente rota', async () => {
+  const f = fuenteGuion('sitios', [
+    { entidades: [e('s1')] },
+    { entidades: [], problema: 'no se pudo leer', sinLectura: true },
+  ]);
+  const base = await pasada([f], estadoMotorInicial());
+  const r = await pasada([f], base.estado);
+  assert.equal(r.avisos.length, 0, 'no leer no es «ya no hay nada»');
+  assert.equal(r.rotas.length, 1);
+  assert.deepEqual(Object.keys(r.estado.memorias.sitios), ['s1']);
 });
 
 test('AUSENCIAS_PARA_BAJA coincide con lo que aplica el motor', async () => {

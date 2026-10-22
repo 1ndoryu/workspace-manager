@@ -54,6 +54,8 @@ interface LecturaFuente {
   fuente: Fuente;
   entidades: Entidad[] | null;
   problema: string | null;
+  /* Prefijos de clave que esta lectura NO cubre: sus entidades no se dan de baja. */
+  sinVer: string[];
 }
 
 /* Una pasada completa. `leerTodas` las lee en paralelo: una fuente lenta no retrasa a las
@@ -70,11 +72,22 @@ export async function pasada(
     fuentes.map(async (fuente) => {
       try {
         const r = await fuente.leer();
-        return { fuente, entidades: r.entidades, problema: r.problema };
+        /* Una fuente que no pudo leer es tan rota como una que lanza (ver `Fuente.sinLectura`). */
+        return {
+          fuente,
+          entidades: r.sinLectura === true ? null : r.entidades,
+          problema: r.problema,
+          sinVer: r.sinVer ?? [],
+        };
       } catch (e) {
         /* [por que] Una fuente que lanza se trata como rota, no como vacía: si no, la pasada
          * declararía que todo desapareció. */
-        return { fuente, entidades: null, problema: e instanceof Error ? e.message : String(e) };
+        return {
+          fuente,
+          entidades: null,
+          problema: e instanceof Error ? e.message : String(e),
+          sinVer: [],
+        };
       }
     }),
   );
@@ -100,7 +113,7 @@ export async function pasada(
 
     const previa = siguiente.memorias[fuente.nombre];
     const anteriores = siguiente.amortiguaciones[fuente.nombre] ?? { dudosas: {} };
-    const nuevas = diffDe(fuente, previa ?? null, lectura.entidades, anteriores, cuando);
+    const nuevas = diffDe(fuente, previa ?? null, lectura.entidades, lectura.sinVer, anteriores, cuando);
     siguiente.memorias[fuente.nombre] = nuevas.memoria;
     siguiente.amortiguaciones[fuente.nombre] = nuevas.amortiguacion;
     crudos.push(...nuevas.avisos);
@@ -122,6 +135,7 @@ function diffDe(
   fuente: Fuente,
   previa: MemoriaFuente | null,
   entidades: Entidad[],
+  sinVer: string[],
   amortiguacion: Amortiguacion,
   cuando: string,
 ): { memoria: MemoriaFuente; amortiguacion: Amortiguacion; avisos: Omit<Aviso, 'id' | 'leido'>[] } {
@@ -142,6 +156,13 @@ function diffDe(
   if (previa !== null) {
     for (const clave of Object.keys(previa)) {
       if (presentes.has(clave)) continue;
+      /* Fuera de lo que esta lectura alcanza a ver: no es una baja, es una incógnita. La clave
+       * sigue en la memoria con su texto, así que cuando vuelva a verse no se anunciará como
+       * nueva ni habrá anunciado antes una resolución que no ocurrió (20AA-31). */
+      if (sinVer.some((prefijo) => clave.startsWith(prefijo))) {
+        memoria[clave] = previa[clave];
+        continue;
+      }
       const faltas = (amortiguacion.dudosas[clave] ?? 0) + 1;
       if (faltas < AUSENCIAS_PARA_BAJA) {
         /* Todavía no es una baja: la entidad sigue contando y no se anuncia. */

@@ -54,7 +54,7 @@ export function fuenteTareas(leerProyectos: () => Proyecto[] | Promise<Proyecto[
       } catch (err) {
         /* Sin lectura no se puede decir que nada desapareció: se declara rota (el motor no toca su
          * memoria) y se sigue con las demás fuentes. */
-        return { entidades: [], problema: `no se pudo leer el roadmap: ${mensaje(err)}` };
+        return { entidades: [], problema: `no se pudo leer el roadmap: ${mensaje(err)}`, sinLectura: true };
       }
     },
   };

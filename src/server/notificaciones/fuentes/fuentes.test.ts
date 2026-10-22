@@ -8,7 +8,8 @@ import type { VpsAgenteContenedor } from '../../../shared/tipos/vps.js';
 import type { ProyectoTaller } from '../../../shared/taller/proyecto.js';
 import type { GrupoProblemas } from './problemas.js';
 import { entidadesDeTareas, fuenteTareas } from './tareas.js';
-import { entidadesDeProblemas, fuenteProblemas, huellaMotivo } from './problemas.js';
+import { huellaMotivo } from '../../../shared/consola/clasificacionConsola/consola-util.js';
+import { entidadesDeProblemas, fuenteProblemas } from './problemas.js';
 import { entidadesDeSitios, entidadesDeTaller, fuenteSitios, fuenteTaller } from './servicios.js';
 
 /* Proyecto mínimo: solo lo que la fuente mira. */
@@ -55,6 +56,7 @@ test('tareas: si el lector lanza, la fuente lo declara y no devuelve entidades',
   const r = await f.leer();
   assert.deepEqual(r.entidades, []);
   assert.match(r.problema ?? '', /disco roto/);
+  assert.equal(r.sinLectura, true, 'sin lectura, el motor no puede dar nada por desaparecido');
 });
 
 /* --- problemas ----------------------------------------------------------------------------- */
@@ -110,10 +112,22 @@ test('problemas: la huella quita números, mayúsculas y acentos', () => {
   assert.notEqual(huellaMotivo('puerto ocupado'), huellaMotivo('puerto libre'));
 });
 
-test('problemas: sin consola, la fuente lo declara', async () => {
+test('problemas: sin consola, la fuente lo declara y no toca la memoria del motor', async () => {
   const r = await fuenteProblemas(() => Promise.reject(new Error('sin snapshot'))).leer();
   assert.deepEqual(r.entidades, []);
   assert.match(r.problema ?? '', /sin snapshot/);
+  /* [por que] Leer «nada» no es leer «cero problemas»: sin esto el motor anunciaba resueltos. */
+  assert.equal(r.sinLectura, true);
+});
+
+test('problemas: un proyecto sin análisis vigente no cuenta como problema resuelto', async () => {
+  const r = await fuenteProblemas(async () => ({
+    grupos: [grupo('wm', 'wm', [{ categoria: 'sentinel', motivo: 'a.ts:1 — X — roto', seriedad: null }])],
+    sinVer: ['PROYECTO|'],
+  })).leer();
+  assert.equal(r.entidades.length, 1);
+  assert.deepEqual(r.sinVer, ['PROYECTO|']);
+  assert.equal(r.sinLectura, undefined);
 });
 
 /* --- sitios (producción) -------------------------------------------------------------------- */
@@ -136,12 +150,14 @@ test('sitios: sin lectura no se declara nada (ni entidades ni caídas)', async (
   ).leer();
   assert.deepEqual(r.entidades, []);
   assert.match(r.problema ?? '', /VPS inalcanzable/);
+  assert.equal(r.sinLectura, true);
 });
 
 test('sitios: una lista vacía y una lectura rota se distinguen', async () => {
   const vacia = await fuenteSitios(() => Promise.resolve({ sitios: [], sinLectura: null })).leer();
   assert.deepEqual(vacia.entidades, []);
   assert.equal(vacia.problema, null, 'lista vacía es un dato: no hay ningún sitio vivo');
+  assert.equal(vacia.sinLectura, undefined, 'una lista vacía no es una lectura rota');
 });
 
 /* --- taller (89) --------------------------------------------------------------------------- */
@@ -161,6 +177,7 @@ const PROYECTOS: ProyectoTaller[] = [
 test('taller: vivo el que tiene algún proceso arriba; el parado no entra', () => {
   const entidades = entidadesDeTaller([contenedor('proyecto-a', 'running')], PROYECTOS);
   assert.deepEqual(entidades.map((e) => e.clave), ['taller:proyecto-a']);
+  assert.equal(entidades[0].titulo, 'proyecto del taller: proyecto-a');
   assert.equal(entidades[0].detalle, 'a.test');
 });
 
@@ -175,7 +192,7 @@ test('taller: un proyecto con un proceso caído y otro vivo sigue arriba', () =>
 test('taller: un proceso vivo que no está en el registro también cuenta', () => {
   const entidades = entidadesDeTaller([contenedor('suelto', 'running')], PROYECTOS);
   assert.deepEqual(entidades.map((e) => e.clave), ['taller:suelto']);
-  assert.equal(entidades[0].detalle, 'en el taller');
+  assert.equal(entidades[0].detalle, 'sin hostname en el taller');
 });
 
 test('taller: sin pulse configurado lo dice y no anuncia caídas', async () => {
@@ -184,6 +201,7 @@ test('taller: sin pulse configurado lo dice y no anuncia caídas', async () => {
   ).leer();
   assert.deepEqual(r.entidades, []);
   assert.match(r.problema ?? '', /sin pulse/);
+  assert.equal(r.sinLectura, true, 'sin pulse no se sabe nada del taller, ni siquiera que esté vacío');
 });
 
 test('taller: un error del agente se anota pero los datos que lleguen valen', async () => {

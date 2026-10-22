@@ -7,6 +7,8 @@
  * viejo en uno nuevo. La huella quita lo que fluctúa (números, tiempos, pids) y deja lo que
  * identifica: la categoría, el archivo, el paquete, la regla. */
 import type { Entrada } from '../../../shared/consola/clasificacionConsola/consola-tipos.js';
+/* La huella es una sola para toda la consola (20AA-30 N4-1): aquí ya no se calcula, se usa. */
+import { huellaMotivo } from '../../../shared/consola/clasificacionConsola/consola-util.js';
 import type { Entidad, Fuente } from '../../../shared/notificaciones/tipos.js';
 
 export interface GrupoProblemas {
@@ -24,20 +26,6 @@ export const TOPE_PROBLEMAS = 1000;
  *  - `dev`, `taller`: hablan de procesos y conformidad de la máquina; su altibajo es constante y
  *    ya se ve en el panel del mando dev. Un toast por cada arranque no informa de nada. */
 const SIN_AVISO = new Set<string>(['pendiente', 'dev', 'taller']);
-
-/* Normaliza el motivo para que su huella sobreviva a lo que cambia sin significar nada: números
- * (líneas, contadores, pids, puertos) se colapsan y los espacios se juntan. Lo que queda es el
- * asunto. */
-export function huellaMotivo(motivo: string): string {
-  return motivo
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/\d+/g, '#')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 160);
-}
 
 export function entidadesDeProblemas(grupos: GrupoProblemas[]): Entidad[] {
   const salida: Entidad[] = [];
@@ -63,18 +51,35 @@ function recortar(texto: string, max: number): string {
   return texto.length <= max ? texto : `${texto.slice(0, max - 1)}…`;
 }
 
-/* La fuente. `leerGrupos` la inyecta el servidor con la agregación de la consola ya resuelta (la
- * misma función que responde `/api/consola/problemas`), así que aquí no hay E/S ni rutas. */
-export function fuenteProblemas(leerGrupos: () => GrupoProblemas[] | Promise<GrupoProblemas[]>): Fuente {
+/* Lo que devuelve una lectura: los grupos y qué proyectos no se pudieron mirar. [por que una sola
+ * lectura] `sinVer` describe ESA agregación; pedirlos por separado daría dos fotos distintas. */
+export interface LecturaProblemas {
+  grupos: GrupoProblemas[];
+  /* Prefijos de clave (`proyecto|`) cuyos problemas no se pueden dar de baja por no haberlos
+   * mirado (sin análisis vigente): no verlos no es resolverlos (20AA-31). */
+  sinVer: string[];
+}
+
+/* La fuente. `leer` la inyecta el servidor con la agregación de la consola ya resuelta (la misma
+ * función que responde `/api/consola/problemas`), así que aquí no hay E/S ni rutas. */
+export function fuenteProblemas(
+  leer: () => LecturaProblemas | Promise<LecturaProblemas>,
+): Fuente {
   return {
     nombre: 'problemas',
     tipoAlta: 'problema-detectado',
     tipoBaja: 'problema-resuelto',
     async leer() {
       try {
-        return { entidades: entidadesDeProblemas(await leerGrupos()), problema: null };
+        const r = await leer();
+        return { entidades: entidadesDeProblemas(r.grupos), problema: null, sinVer: r.sinVer };
       } catch (err) {
-        return { entidades: [], problema: `no se pudo leer la consola: ${err instanceof Error ? err.message : String(err)}` };
+        /* `sinLectura`: sin la consola no se puede decir que los problemas se resolvieron. */
+        return {
+          entidades: [],
+          problema: `no se pudo leer la consola: ${err instanceof Error ? err.message : String(err)}`,
+          sinLectura: true,
+        };
       }
     },
   };

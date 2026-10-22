@@ -40,10 +40,10 @@ export function fuenteSitios(leer: () => Promise<DatosSitios>): Fuente {
     async leer() {
       try {
         const datos = await leer();
-        if (datos.sinLectura !== null) return { entidades: [], problema: datos.sinLectura };
+        if (datos.sinLectura !== null) return { entidades: [], problema: datos.sinLectura, sinLectura: true };
         return { entidades: entidadesDeSitios(datos), problema: null };
       } catch (err) {
-        return { entidades: [], problema: `no se pudo leer producción: ${mensaje(err)}` };
+        return { entidades: [], problema: `no se pudo leer producción: ${mensaje(err)}`, sinLectura: true };
       }
     },
   };
@@ -67,8 +67,10 @@ export function entidadesDeTaller(contenedores: VpsAgenteContenedor[], proyectos
     const ficha = proyectos.find((p) => p.id === nombre) ?? null;
     salida.push({
       clave: `taller:${nombre}`,
-      titulo: nombre,
-      detalle: ficha?.hostname ?? 'en el taller',
+      /* El nombre del proyecto a secas no decía qué había pasado: la fila se lee «workspace-manager
+       * y nada más». El título dice el hecho y el detalle, dónde. */
+      titulo: `proyecto del taller: ${nombre}`,
+      detalle: ficha?.hostname ?? 'sin hostname en el taller',
     });
   }
   return salida;
@@ -93,13 +95,15 @@ export function fuenteTaller(leer: () => Promise<DatosTaller>): Fuente {
     async leer() {
       try {
         const datos = await leer();
-        if (!datos.disponible) return { entidades: [], problema: `taller sin pulse: ${datos.error ?? 'sin-configurar'}` };
+        if (!datos.disponible) {
+          return { entidades: [], problema: `taller sin pulse: ${datos.error ?? 'sin-configurar'}`, sinLectura: true };
+        }
         return {
           entidades: entidadesDeTaller(datos.contenedores, datos.proyectos),
           problema: datos.error === null ? null : `taller: ${datos.error}`,
         };
       } catch (err) {
-        return { entidades: [], problema: `no se pudo leer el taller: ${mensaje(err)}` };
+        return { entidades: [], problema: `no se pudo leer el taller: ${mensaje(err)}`, sinLectura: true };
       }
     },
   };

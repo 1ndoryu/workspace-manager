@@ -61,6 +61,17 @@ export function analisisVigentes(proyectos: Proyecto[]): AnalisisSentinel[] {
   return separarVigencia(proyectos.filter(esElegible), claveVigente, analisisFresco).vigentes;
 }
 
+/* Proyectos que la consola NO puede mirar en este barrido: los elegibles sin análisis vigente
+ * (árbol sucio, HEAD nuevo o análisis que falló). [por que se exporta] El motor de avisos da por
+ * resuelta una clave que deja de aparecer, y sin esto un cambio sin commitear en un proyecto se
+ * leía como «sus cinco problemas se resolvieron»: la campana anunciaba resueltos y nuevos en
+ * bucle con los mismos cinco (20AA-31). El criterio es el mismo que `analisisVigentes`; que esté
+ * aquí y no en la fuente de avisos evita que las dos copias se separen. */
+export function proyectosSinAnalisisVigente(snapshot: { proyectos: Proyecto[] }): Proyecto[] {
+  const vigentes = new Set(analisisVigentes(snapshot.proyectos).map((a) => a.clave));
+  return snapshot.proyectos.filter((p) => esElegible(p) && !vigentes.has(p.clave));
+}
+
 export function analisisVigentePara(p: Proyecto): AnalisisSentinel | null {
   return analisisFresco(p.clave, claveVigente(p));
 }
