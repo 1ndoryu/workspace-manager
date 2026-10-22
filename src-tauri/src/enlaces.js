@@ -61,7 +61,12 @@
 
   let canal = null;
   let fallos = 0;
+  /* Campana apagada (20AA-32): el servidor contesta 410 y no se reintenta. [por que aqui] Sin esto
+   * `EventSource` volveria cada 3 s para siempre: una peticion por segundo y medio por ventana
+   * abierta, justo lo que el interruptor quiere evitar. */
+  let apagada = false;
   const conectar = () => {
+    if (apagada) return;
     canal = new EventSource('/api/notificaciones/eventos?sin-historia=1');
     canal.onopen = () => {
       fallos = 0;
@@ -73,17 +78,26 @@
     canal.addEventListener('aviso', (ev) => avisar(ev.data, 0));
     /* `EventSource` reintenta solo y conserva `Last-Event-ID`, que es justo lo que hace falta
      * cuando el backend se reinicia. Pero sin backend reintentaria cada 3 s para siempre: tras
-     * cinco fallos seguidos se calla hasta que la ventana vuelva al frente. */
+     * cinco fallos seguidos se calla hasta que la ventana vuelva al frente. El 410 no es un fallo:
+     * es que la campana esta apagada, y se recuerda para no volver a preguntar. */
     canal.onerror = () => {
       if (++fallos < 5) return;
       canal.close();
       canal = null;
     };
   };
-  conectar();
+  /* Un 410 llega por el proxy tal cual; `EventSource` no da el codigo, asi que se mira una vez
+   * antes de abrir. Cuesta una peticion por arranque de ventana y evita el bucle del 410. */
+  fetch('/api/notificaciones')
+    .then((r) => r.ok ? r.json() : null)
+    .then((estado) => {
+      apagada = estado !== null && estado.campana && estado.campana.activa === false;
+      if (!apagada) conectar();
+    })
+    .catch(() => conectar());
 
   const despertar = () => {
-    if (canal === null) conectar();
+    if (!apagada && canal === null) conectar();
     if (document.visibilityState === 'visible') recuperar();
   };
   window.addEventListener('focus', despertar);
