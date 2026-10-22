@@ -17,6 +17,7 @@ import { useDesplegable } from './useDesplegable.js';
 import { useRecorteNav } from './useRecorteNav.js';
 import { Campana } from '../../notificaciones/Campana.js';
 import { useNotificaciones } from '../../notificaciones/useNotificaciones.js';
+import { IndicadorVersion } from '../../version/IndicadorVersion.js';
 import './NavBar.css';
 
 const CENTRALES: { clave: PanelCentral; icono: LucideIcon; etiqueta: string }[] = [
@@ -252,6 +253,9 @@ export function NavBar() {
        * otro hijo de la barra: no hay que registrarlo a mano. */}
       <div className="v2NavFijo">
         {conCampana && <Campana />}
+        {/* Versión: el último control, siempre visible, para contestar «¿está actualizada?» sin
+         * salir del panel en el que estés. `useRecorteNav` lo descubre del DOM como el resto. */}
+        <IndicadorVersion />
       </div>
       {/* Fila de medida: fuera de flujo, sin pintar y fuera del arbol de
        * accesibilidad. Nunca se recorta, asi que sus anchos son los naturales.

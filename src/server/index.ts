@@ -24,6 +24,7 @@ import { estadoTaller } from './taller/estado.js';
 import { arrancarSupervisor } from './taller/tuneles.js';
 import { manejarRutasTallerAgente } from './taller/rutasTallerAgente.js';
 import { manejarRutasSalud } from './rutas/salud/rutasSalud.js';
+import { manejarRutasVersion } from './rutas/rutasVersion.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
 import { manejarRutasVps } from './vps/rutas/rutasVps.js';
 import { manejarRutasVpsHistorial } from './vps/rutas/rutasVpsHistorial.js';
@@ -145,6 +146,7 @@ const MANEJADORES_API: ManejadorRuta[] = [
   manejarRutasTaller,       /* /api/taller/estado (S3) */
   manejarRutasTallerAgente, /* /api/taller/agente y /api/taller/pieza (20AA-16) */
   manejarRutasSalud,        /* /api/salud/* (10AA-2 F8) */
+  manejarRutasVersion,      /* /api/version y /api/version/changelog (2026-10-22) */
   manejarEventos,           /* /api/eventos (20AA-24 F3): canal único del tablero */
   manejarNotificaciones,    /* /api/notificaciones* (20AA-25): campana y canal SSE */
   manejarTareas,            /* /api/tareas/* (07AA-5 F2): el puente custodia la sesión D1 */

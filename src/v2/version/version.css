@@ -1,0 +1,93 @@
+/* Indicador de versión del nav y panel del changelog (2026-10-22).
+ * [por que solo layout] La especificación de diseño del área prohíbe especificación visual local:
+ * el botón es .botonV2 y la superficie .v2Superficie; aquí solo van los contenedores que no
+ * existen en la receta canónica. */
+
+.v2NavVersion {
+    flex: none;
+}
+
+/* Texto de la versión: no se parte nunca; el nav mide por él como por cualquier otro grupo fijo. */
+.v2NavVersionTexto {
+    white-space: nowrap;
+}
+
+/* Distintivo de «el proceso va por detrás del código»: un punto, no un color de alarma. */
+.v2NavVersionPunto {
+    inline-size: 5px;
+    block-size: 5px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+/* El aviso pesa más que el resto: es lo único del panel que pide una acción. */
+.v2NavVersionVieja {
+    font-weight: 600;
+}
+
+.v2Changelog {
+    max-inline-size: 720px;
+    max-block-size: 80vh;
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceSm);
+}
+
+.v2ChangelogCabecera {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--v2-spaceMd);
+    flex: none;
+}
+
+.v2ChangelogVersion {
+    font-weight: 600;
+}
+
+.v2ChangelogMeta {
+    opacity: .65;
+    font-size: .85em;
+}
+
+.v2ChangelogAviso {
+    flex: none;
+    border-inline-start: 2px solid currentColor;
+    padding-inline-start: var(--v2-spaceSm);
+}
+
+/* El historial es lo único que rueda: la cabecera y los avisos se quedan a la vista. */
+.v2ChangelogCuerpo {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-spaceXs);
+    min-block-size: 0;
+}
+
+.v2ChangelogTitulo {
+    font-weight: 600;
+    font-size: 1.15em;
+}
+
+.v2ChangelogSeccion {
+    font-weight: 600;
+    margin-block-start: var(--v2-spaceMd);
+}
+
+.v2ChangelogSubtitulo {
+    opacity: .75;
+    text-transform: lowercase;
+}
+
+.v2ChangelogPunto {
+    padding-inline-start: var(--v2-spaceMd);
+    position: relative;
+}
+
+.v2ChangelogPunto::before {
+    content: "—";
+    position: absolute;
+    inset-inline-start: 0;
+    opacity: .5;
+}
