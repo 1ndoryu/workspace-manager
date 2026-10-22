@@ -1,7 +1,7 @@
 /* SSH al taller: ejecutar un comando y dejar un archivo en la VPS. */
 
-import { argsSsh, shQuote } from '../../remoto/rcargo.mjs';
-import { BIN_SSH } from '../../shared/binarios.mjs';
+import { argsSsh, shQuote } from '../../../remoto/rcargo.mjs';
+import { BIN_SSH } from '../../../shared/binarios.mjs';
 import { execFile, spawn } from 'node:child_process';
 
 export function sshRemoto(config, comando, timeoutMs = 30_000) {

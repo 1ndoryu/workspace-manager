@@ -2,7 +2,7 @@
  * y la curacion ESQUEMA_SENTINEL (objeto -> arbol de formas). Sin disco: la lectura del
  * archivo esta en syncGateLectura.mjs. */
 
-import { ESQUEMA_SENTINEL } from '../src/shared/gate/catalogo/sentinel.js';
+import { ESQUEMA_SENTINEL } from '../../src/shared/gate/catalogo/sentinel.js';
 
 /* ------------------------------------------------------------------ *
  *  Parsing del config.d.ts (interface SentinelConfigFile del runtime)

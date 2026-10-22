@@ -9,7 +9,7 @@ import { raizTemporales } from '../../../shared/rutas.mjs';
 
 import { filtrarSqlParaPg16, leerUrlBdLocal } from '../entorno.mjs';
 import { marcaTiempo } from '../estado.mjs';
-import { escribirArchivoRemoto, sshRemoto } from '../ssh.mjs';
+import { escribirArchivoRemoto, sshRemoto } from '../red/ssh.mjs';
 
 function ejecutarLocal(binario, args, env, timeoutMs) {
   return new Promise((resolveP) => {

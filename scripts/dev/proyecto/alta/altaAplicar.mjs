@@ -3,7 +3,7 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { baseDe } from './cierre.mjs';
+import { baseDe } from '../cierre.mjs';
 import { git, gitOk } from './altaComprobaciones.mjs';
 import { MENSAJES, RAMA_ALTA } from './altaReglas.mjs';
 

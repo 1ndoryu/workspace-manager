@@ -1,9 +1,9 @@
 /* Sondas de salud: HTTP local y remoto, y lectura de la escucha (ss/netstat). */
 
-import { puertosRemotosDe } from '../doctor.mjs';
+import { puertosRemotosDe } from '../../doctor.mjs';
 import http from 'node:http';
 
-import { comandoSondaRemota } from './comandos.mjs';
+import { comandoSondaRemota } from '../comandos.mjs';
 import { sshRemoto } from './ssh.mjs';
 
 export function analizarEscucha(salidaSs, puerto) {

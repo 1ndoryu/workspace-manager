@@ -4,8 +4,8 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { BIN_GIT } from '../../shared/binarios.mjs';
-import { baseDe } from './cierre.mjs';
+import { BIN_GIT } from '../../../shared/binarios.mjs';
+import { baseDe } from '../cierre.mjs';
 import {
   AGENTS_PROPIOS, CARPETAS_AGENTE, GITIGNORE, IGNORAR_CSS, MANIFIESTOS, ROADMAP_PLANTILLA,
   comprobarRegistro, fallo, ok, omitida,

@@ -4,8 +4,8 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-import { rutaConfigPrivada } from './shared/rutas.mjs';
-import { BIN_GIT } from './shared/binarios.mjs';
+import { rutaConfigPrivada } from '../shared/rutas.mjs';
+import { BIN_GIT } from '../shared/binarios.mjs';
 import { QITOOLS, corto, esCompartido } from './quality-sync-puro.mjs';
 
 /* Consumidores del gate: QUE proyectos del area reciben el pin. [por que] Es

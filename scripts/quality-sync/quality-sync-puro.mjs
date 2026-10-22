@@ -2,7 +2,7 @@
  * y deciden si un checkout es el compartido. */
 
 import { join } from 'node:path';
-import { RAIZ_AREA } from './shared/rutas.mjs';
+import { RAIZ_AREA } from '../shared/rutas.mjs';
 
 /* Checkout compartido del gate (carpeta fija del area, sin leer disco). */
 export const CHECKOUT = join(RAIZ_AREA, '.quality-tools');

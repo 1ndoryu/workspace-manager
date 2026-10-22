@@ -11,7 +11,7 @@ import { comando, ejecutar, leerJsonDeTexto } from './utilidades.mjs';
  * `sync:quality`, así no puede haber consumidores que se propaguen y no se
  * verifiquen (o al revés). */
 export function consumidoresDeclarados() {
-  const guard = path.join(MANAGER, 'scripts', 'quality-sync.mjs');
+  const guard = path.join(MANAGER, 'scripts', 'quality-sync', 'quality-sync.mjs');
   const resultado = ejecutar(comando(process.execPath, [guard, '--json']), MANAGER);
   const reporte = leerJsonDeTexto(resultado.salida);
   if (!reporte?.consumidores) {

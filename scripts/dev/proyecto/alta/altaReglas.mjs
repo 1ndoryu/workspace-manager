@@ -3,7 +3,7 @@
  * a releer las comprobaciones. */
 
 import { resolve } from 'node:path';
-import { NOMBRE_QUALITY_TOOLS } from '../../shared/rutas.mjs';
+import { NOMBRE_QUALITY_TOOLS } from '../../../shared/rutas.mjs';
 
 export const ok = (nombre, detalle) => ({ nombre, ok: true, detalle });
 export const fallo = (nombre, detalle, accion, plan = {}) => ({ nombre, ok: false, detalle, accion, ...plan });

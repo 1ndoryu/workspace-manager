@@ -6,6 +6,7 @@ import { campoStr, json, leerBody } from '../../http.js';
 import { snapshotArea } from '../../snapshot.js';
 import { doctorCacheado } from '../../gate/herramientas/doctor.js';
 import { esquemaGate, reglasGate } from '../../gate/herramientas/proveedor.js';
+import { tiposDeGate } from '../../../shared/gate/proveedores.js';
 import { correrSincronizacion } from '../../gate/sincronizacion.js';
 import { analizarParaGate, analizarProyecto, analizarTodo, analisisVigentes, analisisVigentePara, esElegible } from '../../gate/analizador.js';
 import { compararHallazgos } from '../../gate/hallazgos/comparacion.js';
@@ -77,9 +78,12 @@ export async function reglas(c: Contexto): Promise<void> {
  * real de ningún proyecto. */
 export async function esquemaDinamico(c: Contexto): Promise<void> {
   if (!soloMetodo(c, 'GET')) return;
-  const tool = (c.url.searchParams.get('tool') ?? '') as 'sentinel' | 'varsense';
-  if (tool !== 'sentinel' && tool !== 'varsense') {
-    json(c.res, 400, { error: 'tool invalido (sentinel|varsense)' });
+  const pedido = c.url.searchParams.get('tool') ?? '';
+  /* La validez la dicta el registro de proveedores, no una lista escrita aquí: una herramienta
+   * nueva queda servida en cuanto se registra. */
+  const tool = tiposDeGate().find((t) => t === pedido);
+  if (!tool) {
+    json(c.res, 400, { error: `tool invalido (${tiposDeGate().join('|')})` });
     return;
   }
   const r = esquemaGate(tool);

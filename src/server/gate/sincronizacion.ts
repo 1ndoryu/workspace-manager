@@ -20,7 +20,7 @@ const RAIZ_REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..'
  * de workspace-manager (scripts/quality-sync.mjs) y NO dentro de ningun
  * proyecto; se ejecuta con node (entry, sin shell) para seguridad. */
 function rutaScript(): string {
-  return join(RAIZ_REPO, 'scripts', 'quality-sync.mjs');
+  return join(RAIZ_REPO, 'scripts', 'quality-sync', 'quality-sync.mjs');
 }
 
 

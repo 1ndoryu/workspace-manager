@@ -3,7 +3,7 @@
 
 import { isAbsolute, normalize, resolve } from 'node:path';
 
-import { RAIZ_REPO } from '../doctor.mjs';
+import { RAIZ_REPO } from '../../doctor.mjs';
 
 export function rutaAbsDe(entrada) {
   return isAbsolute(entrada.ruta) ? normalize(entrada.ruta) : resolve(RAIZ_REPO, entrada.ruta);

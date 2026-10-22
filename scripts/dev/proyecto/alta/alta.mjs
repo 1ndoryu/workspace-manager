@@ -7,8 +7,8 @@
  * nunca se crea solo: solo se marca ✗ con la acción. */
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
-import { RAIZ } from './gate.mjs';
-import { rutaConfigPrivada } from '../../shared/rutas.mjs';
+import { RAIZ } from '../gate.mjs';
+import { rutaConfigPrivada } from '../../../shared/rutas.mjs';
 import { comprobarAlta } from './altaComprobaciones.mjs';
 import { aplicarAlta } from './altaAplicar.mjs';
 import { norma } from './altaReglas.mjs';

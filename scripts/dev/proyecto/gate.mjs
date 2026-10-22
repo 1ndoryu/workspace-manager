@@ -17,7 +17,7 @@ import { cabeceraAutorizacion } from '../token.mjs';
 import { URL_API } from '../../shared/puertos.mjs';
 import { cargarTaller, dirRemotoDe, ejecutarEnVps, emergenciaLocal, mensajeSinVps } from '../../shared/vps.mjs';
 import { asegurarSesion } from '../../remoto/rcargo.mjs';
-import { rutaAbsDe } from '../remoto/rutaLocal.mjs';
+import { rutaAbsDe } from '../remoto/red/rutaLocal.mjs';
 
 export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const API = URL_API;

@@ -1,12 +1,12 @@
 /* Tunel SSH del laptop a la VPS: args, marcador, identidad y ciclo de vida. */
 
-import { procesosDe, puertosRemotosDe, reenviosTunel } from '../doctor.mjs';
-import { BIN_SSH } from '../../shared/binarios.mjs';
+import { procesosDe, puertosRemotosDe, reenviosTunel } from '../../doctor.mjs';
+import { BIN_SSH } from '../../../shared/binarios.mjs';
 import { execFile, spawn } from 'node:child_process';
 import { closeSync, mkdirSync, openSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { DIR_LOGS } from './estado.mjs';
+import { DIR_LOGS } from '../estado.mjs';
 import { pidsEscuchandoLocal } from './sondas.mjs';
 
 const fragmentoReenvio = (local, remoto) => `127.0.0.1:${local}:127.0.0.1:${remoto}`;

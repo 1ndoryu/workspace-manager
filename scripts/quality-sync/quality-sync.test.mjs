@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { raizTemporales } from './shared/rutas.mjs';
+import { raizTemporales } from '../shared/rutas.mjs';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SYNC = path.join(AQUI, 'quality-sync.mjs');

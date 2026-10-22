@@ -10,10 +10,10 @@ import { comandoConstruirFront, comandoNpmCi, comandoPrecompilar, comandoRemotoU
 import { contenidoEnvFrontend, contenidoEnvRemoto, entornoRemoto, validarHostRemoto } from './entorno.mjs';
 import { escribirEstado, escribirEstadoTunel, leerEstado, rutaEstado } from './estado.mjs';
 import { estadoRemoto, localesTodos, marcadorSonda, pararSesiones, pararSesionesPuertos, puertosConEntornoDistinto, puertosTodos, rutaSonda } from './ficha.mjs';
-import { rutaAbsDe } from './rutaLocal.mjs';
-import { esperarEscucha, esperarLibre, esperarSonda, esperarSondaRemota } from './sondas.mjs';
-import { escribirArchivoRemoto, sshRemoto } from './ssh.mjs';
-import { abrirTunel, abrirTunelPares, matarTunel, puertosLocalesDe, tunelVivo, tunelesNuestrosEnPuertos, usaTunel } from './tunel.mjs';
+import { rutaAbsDe } from './red/rutaLocal.mjs';
+import { esperarEscucha, esperarLibre, esperarSonda, esperarSondaRemota } from './red/sondas.mjs';
+import { escribirArchivoRemoto, sshRemoto } from './red/ssh.mjs';
+import { abrirTunel, abrirTunelPares, matarTunel, puertosLocalesDe, tunelVivo, tunelesNuestrosEnPuertos, usaTunel } from './red/tunel.mjs';
 
 const TIMEOUT_BUILD_MS = 900_000;
 

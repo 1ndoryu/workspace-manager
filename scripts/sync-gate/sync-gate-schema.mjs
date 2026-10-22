@@ -24,7 +24,7 @@
  *   2  variacion de version del runtime respecto de la curacion */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { raizVersiones, checkoutSentinel, versionRuntime, versionSentinel, VERSION_CURACION_SENTINEL } from '../src/server/gate/herramientas/proveedor.js';
+import { raizVersiones, checkoutSentinel, versionRuntime, versionSentinel, VERSION_CURACION_SENTINEL } from '../../src/server/gate/herramientas/proveedor.js';
 // Reparto: parseo puro en syncGateParseo.mjs, comparacion en syncGateComparar.mjs y lectura del .d.ts en syncGateLectura.mjs.
 import { leerEsquemaCuracion } from './syncGateParseo.mjs';
 import { compararEsquemas } from './syncGateComparar.mjs';

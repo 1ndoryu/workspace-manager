@@ -28,7 +28,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 
 import { cargarConfig, detectarRama, rutasRemotas, shQuote } from '../../../remoto/rcargo.mjs';
-import { sshRemoto } from '../../remoto/ssh.mjs';
+import { sshRemoto } from '../../remoto/red/ssh.mjs';
 import { RAIZ_REPO } from '../base.mjs';
 
 /* Veredictos. `al-dia` no es aviso: solo sale con `todos`. */

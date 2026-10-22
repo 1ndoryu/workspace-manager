@@ -6,9 +6,9 @@ import { localesDeModo, puertosRemotosDe } from '../doctor.mjs';
 import { borrarRegistro, comandoSesiones, sesionTmux } from './comandos.mjs';
 import { entornoRemoto } from './entorno.mjs';
 import { leerEstado } from './estado.mjs';
-import { esperarSonda, esperarSondaRemota, pidDeEscucha, variablesDistintas } from './sondas.mjs';
-import { sshRemoto } from './ssh.mjs';
-import { puertosLocalesDe, tunelVivo, usaTunel } from './tunel.mjs';
+import { esperarSonda, esperarSondaRemota, pidDeEscucha, variablesDistintas } from './red/sondas.mjs';
+import { sshRemoto } from './red/ssh.mjs';
+import { puertosLocalesDe, tunelVivo, usaTunel } from './red/tunel.mjs';
 
 export function puertosTodos(ficha) {
   const dev = ficha.puertosRemotos ?? ficha.puertos ?? [];

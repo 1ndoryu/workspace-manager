@@ -10,7 +10,7 @@ import { RAIZ_DATOS, RAIZ_REPO } from './plataforma/rutas.js';
  * limite de lineas; tener aqui una copia era una segunda fuente de verdad del
  * mismo escaneo (y arrastraba estos imports). */
 import { alEscanearWorkspace, snapshotArea } from './snapshot.js';
-import { manejarRutasGate } from './rutas/rutasGate.js';
+import { manejarRutasGate } from './rutas/rutasGate/rutasGate.js';
 import { manejarRutasAlta } from './rutas/rutasAlta.js';
 import { manejarRutasGuardian } from './rutas/guardian/rutasGuardian.js';
 import { manejarRutasConfig } from './rutas/rutasConfig.js';

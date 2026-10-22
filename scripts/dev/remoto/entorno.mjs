@@ -5,7 +5,7 @@ import { MODOS, PUERTOS_PROTEGIDOS, entradaEfectiva, modoDe, puertosRemotosDe } 
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
-import { rutaAbsDe } from './rutaLocal.mjs';
+import { rutaAbsDe } from './red/rutaLocal.mjs';
 
 function validarBloqueBuild(b) {
   if (typeof b !== 'object' || b === null) return 'modo build sin bloque build en la ficha';

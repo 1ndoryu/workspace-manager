@@ -13,7 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { asegurarSesion, cargarConfig, detectarRama, rutasRemotas } from '../../remoto/rcargo.mjs';
 import { comandoConstruirFront } from '../remoto/comandos.mjs';
-import { sshRemoto } from '../remoto/ssh.mjs';
+import { sshRemoto } from '../remoto/red/ssh.mjs';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 /* Un `.mjs` no importa TypeScript: mismo origen del dato que `WS_AREA_ROOT` de

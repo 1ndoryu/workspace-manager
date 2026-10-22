@@ -9,10 +9,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { json, leerArchivo } from '../http.js';
-import { snapshotArea } from '../snapshot.js';
-import { ARCHIVOS_GATE } from '../scanner/gate.js';
-import { guardarArchivoGate } from './rutasGate/rutasGate-escritura.js';
+import { json, leerArchivo } from '../../http.js';
+import { snapshotArea } from '../../snapshot.js';
+import { ARCHIVOS_GATE } from '../../scanner/gate.js';
+import { guardarArchivoGate } from './rutasGate-escritura.js';
 import {
   analizarUno,
   analizarTodoWorkspace,
@@ -27,7 +27,7 @@ import {
   vulnerabilidadesUno,
   type Contexto,
   type Manejador,
-} from './rutasGate/rutasGate-handlers.js';
+} from './rutasGate-handlers.js';
 
 /* Gate por proyecto: leer/editar los archivos de config (sentinel / varsense).
  * [por que] El panel de configuración por proyecto muestra el estado del gate y

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { raizTemporales } from '../../shared/rutas.mjs';
+import { raizTemporales } from '../../../shared/rutas.mjs';
 import {
   aplicarAlta,
   alta,

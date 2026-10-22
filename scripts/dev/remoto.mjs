@@ -11,11 +11,11 @@
  * partio por dominio en scripts/dev/remoto/ y este archivo quedo como barril:
  * los consumidores (dev.mjs, acciones.mjs) siguen importando de aqui igual.
  *
- *   ssh.mjs       comandos por SSH a la VPS
+ *   red/ssh.mjs       comandos por SSH a la VPS
  *   comandos.mjs  construccion de los comandos remotos (arranque, build, npm ci)
- *   sondas.mjs    sondas de salud y lectura de la escucha (ss/netstat)
+ *   red/sondas.mjs    sondas de salud y lectura de la escucha (ss/netstat)
  *   estado.mjs    estado en disco del taller (PID del tunel)
- *   tunel.mjs     tunel SSH: args, marcador, identidad y ciclo de vida
+ *   red/tunel.mjs     tunel SSH: args, marcador, identidad y ciclo de vida
  *   entorno.mjs   validacion de la ficha y generacion de los .env
  *   ficha.mjs     puertos, healths y estado real de una entrada en la VPS
  *   bd/sincronizar.mjs  sincronizacion de la base de datos (dumps, conteos, desvio)
@@ -31,9 +31,9 @@ export { esEntradaRemota, entradaEfectiva, MODO_POR_DEFECTO, modoDe, urlsServida
 
 export { borrarRegistro, comandoConstruirFront, comandoNpmCi, comandoPrecompilar, comandoRemotoUp, comandoSondaRemota, DIR_SUPERVISAR, rutaLogNpmCi, rutaRegistro } from './remoto/comandos.mjs';
 
-export { analizarEscucha, pidDeEscucha, pidsEscuchandoLocal, variablesDistintas } from './remoto/sondas.mjs';
+export { analizarEscucha, pidDeEscucha, pidsEscuchandoLocal, variablesDistintas } from './remoto/red/sondas.mjs';
 
-export { argsTunel, marcadorTunel, tunelDePuertosNuestros, tunelEsNuestro } from './remoto/tunel.mjs';
+export { argsTunel, marcadorTunel, tunelDePuertosNuestros, tunelEsNuestro } from './remoto/red/tunel.mjs';
 
 export { contenidoEnvFrontend, contenidoEnvRemoto, filtrarSqlParaPg16, leerUrlBdLocal, validarHostRemoto } from './remoto/entorno.mjs';
 

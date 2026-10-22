@@ -9,7 +9,7 @@ import { logs, open, status, stop } from './acciones.mjs';
 import { problemas } from './taller/consola.mjs';
 import { comandos, gate } from './proyecto/gate.mjs';
 import { cierre } from './proyecto/cierre.mjs';
-import { alta } from './proyecto/alta.mjs';
+import { alta } from './proyecto/alta/alta.mjs';
 import { artefactos } from './proyecto/artefactos.mjs';
 import { app } from './proyecto/app-escritorio.mjs';
 import { despachar as remoto, despacharPermanente, entradaRemotaDe } from './remoto.mjs';

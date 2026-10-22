@@ -36,7 +36,7 @@
  *   2  error de entorno/data (no se pudo leer algo, area no hallada) */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { RAIZ_AREA, rutaConfigPrivada } from './shared/rutas.mjs';
+import { RAIZ_AREA, rutaConfigPrivada } from '../shared/rutas.mjs';
 // Reparto: lo puro en quality-sync-puro.mjs y la lectura de git/config en quality-sync-git.mjs.
 import { CHECKOUT, HERRAMIENTAS, QITOOLS, corto } from './quality-sync-puro.mjs';
 import { compararTool, gitHead, gitSucio, leerConsumidores, leerManifest } from './quality-sync-git.mjs';
