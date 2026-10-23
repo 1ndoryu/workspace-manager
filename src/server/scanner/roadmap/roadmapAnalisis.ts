@@ -189,6 +189,11 @@ export function analizarRoadmap(texto: string): AnalisisRoadmap {
         subtareaActual = null;
         sangradoTarea = false;
         sangradoSubtarea = false;
+        /* Se cuenta como pendiente —es trabajo abierto y perderlo seria peor— pero se dice: su
+         * sitio es «Siguiente bloque» o «Pendientes» (D8). */
+        if (!enTareas) {
+          problemas.push({ linea: n, texto: linea.trim(), motivo: 'tarea en una sección que no es de trabajo abierto' });
+        }
       } else if (casilla[1] === ' ')
         problemas.push({ linea: n, texto: linea.trim(), motivo: 'casilla sin ID en la forma del protocolo' });
       else
@@ -200,13 +205,20 @@ export function analizarRoadmap(texto: string): AnalisisRoadmap {
       return;
     }
 
-    if (!enTareas) return;
-
     const item = linea.match(RE_ITEM_ID);
     if (item && RE_ID.test(item[1] ?? item[2] ?? '')) {
-      problemas.push({ linea: n, texto: linea.trim(), motivo: 'tarea sin casilla' });
+      /* [por que también fuera de las zonas de tareas] El 2026-10-23 una tarea vivia en
+       * «Bloqueos» con forma de tarea y sin casilla: el tablero no la contaba y nadie se enteraba. En zona de tareas falta la casilla; fuera de ellas es una tarea en el sitio
+       * equivocado. Las dos se dicen, con motivos distintos (la consola agrupa por motivo). */
+      problemas.push({
+        linea: n,
+        texto: linea.trim(),
+        motivo: enTareas ? 'tarea sin casilla' : 'tarea con ID fuera de las secciones de tareas',
+      });
       return;
     }
+
+    if (!enTareas) return;
     if (linea.startsWith('|') && RE_ID.test(linea)) {
       problemas.push({ linea: n, texto: linea.trim(), motivo: 'tarea en tabla' });
     }

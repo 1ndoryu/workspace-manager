@@ -67,8 +67,23 @@ describe('roadmap: tarea canonica', () => {
 });
 
 describe('roadmap: lo que no es una tarea', () => {
-  it('fuera de una zona de tareas, un bullet con ID es prosa', () => {
+  /* [por que] El 2026-10-23 una tarea de un proyecto vivia en «Bloqueos» con forma de tarea
+   * sin casilla y el tablero no la veia: el trabajo existia y nada lo decia. Prosa con un ID
+   * dentro de una frase sigue sin ser tarea (control negativo de abajo). */
+  it('fuera de una zona de tareas, un bullet con ID es una tarea mal colocada', () => {
     const texto = '# Roadmap — x\n\n## Bloqueos\n\n- `16A-5` — **CERRADO (2026-10-17):** otra cosa.\n';
+    assert.deepEqual(motivos(texto), ['tarea con ID fuera de las secciones de tareas']);
+  });
+
+  it('una tarea con casilla fuera de sitio se cuenta y se avisa', () => {
+    const texto = '# Roadmap — x\n\n## Bloqueos\n\n- [ ] `16A-5` — **Algo.**\n';
+    const a = analizarRoadmap(texto);
+    assert.deepEqual(a.tareas.map((t) => t.id), ['16A-5']);
+    assert.deepEqual(a.problemas.map((p) => p.motivo), ['tarea en una sección que no es de trabajo abierto']);
+  });
+
+  it('prosa con IDs dentro de una frase no es una tarea', () => {
+    const texto = '# Roadmap — x\n\n## Bloqueos\n\nDecidido: `13AA-2` queda para su ventana.\n';
     assert.deepEqual(analizarRoadmap(texto).problemas, []);
   });
 
@@ -286,6 +301,10 @@ describe('roadmap: resumenRoadmap', () => {
 
   it('cuenta pendientes, planes, lineas y problemas de formato', () => {
     const p = mkdtempSync(join(raiz, 'con-roadmap-'));
+    /* [por que] Los planes activos salen del disco: el plan declarado tiene que existir, o el
+     * resumen diria 0 aunque el roadmap lo liste. */
+    mkdirSync(join(p, 'Agente', 'planes'), { recursive: true });
+    writeFileSync(join(p, 'Agente', 'planes', 'plan-x-2026-10-19.md'), '1. **F1** hecho\n');
     writeFileSync(
       join(p, 'roadmap.md'),
       [

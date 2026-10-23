@@ -186,13 +186,20 @@ assert.notEqual(resultado(c, proyecto({ esRust: false })).omitida, null);
       { id: 'planes-y-roadmap', severidad: 'info' },
     ]);
     /* [por que] Con casillas abiertas y declarado en «Planes activos» el plan sigue activo:
-     * no hay que cerrarlo. */
+     * no hay que cerrarlo. El roadmap lo cita con la ruta completa (como D8), el lector da la
+     * relativa: la comparación no puede depender de la forma. */
     assert.deepEqual(
       resultado(c, proyecto({
         planesActivos: [{ archivo: 'plan-y.md', modificadoMs: viejo, abiertas: 3 }],
-        roadmap: roadmapOk({ planes: ['plan-y.md'] }),
+        roadmap: roadmapOk({ planes: ['Agente/planes/plan-y.md'] }),
       })).hallazgos,
       [],
+    );
+    /* [por que] Un plan declarado que no está en disco es un enlace muerto en la cola de trabajo:
+     * aviso, y no info (esto sí es un error del roadmap, no una recomendación). */
+    assert.deepEqual(
+      resultado(c, proyecto({ roadmap: roadmapOk({ planes: ['Agente/planes/plan-borrado.md'] }) })).hallazgos,
+      [{ id: 'planes-y-roadmap', severidad: 'aviso' }],
     );
     /* [por que] Con trabajo abierto que el roadmap no declara, el plan es invisible desde la
      * cola: se avisa (info, no cuenta en `problemas (N)`). */

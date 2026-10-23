@@ -26,13 +26,10 @@ export interface RamaSuelta {
   ultimoCommitMs: number;
 }
 
-export interface PlanActivo {
-  archivo: string;
-  modificadoMs: number;
-  /* Casillas `- [ ]` sin marcar. [por que] Un plan con trabajo abierto está activo, aunque
-   * lleve días sin tocarse: la alarma por antigüedad solo vale si ya no queda nada abierto. */
-  abiertas: number;
-}
+/* El tipo vive con su lector (`scanner/roadmap/planesDisco.ts`): la fuente de un plan es su
+ * ubicación en disco, no el bloque «Planes activos» del roadmap. */
+import type { PlanActivo } from '../scanner/roadmap/planesDisco.js';
+export type { PlanActivo };
 
 export interface DatosProyecto {
   clave: string;

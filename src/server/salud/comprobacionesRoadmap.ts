@@ -9,6 +9,13 @@ import { DIA_MS, lista } from './comprobacionesArea.js';
 
 const DIAS_PLAN_INACTIVO = 14;
 
+/* El roadmap cita planes con la ruta desde la raíz (`Agente/planes/x.md`) y el lector da la
+ * relativa a `Agente/planes/`: se compara por el nombre del fichero, que es único en la carpeta
+ * y tolera que un plan viva en una subcarpeta. */
+function declarado(d: DatosProyecto, archivo: string): boolean {
+  return d.roadmap.planes.some((r) => r === archivo || r.endsWith(`/${archivo}`) || archivo.endsWith(`/${r}`));
+}
+
 export const COMPROBACIONES_ROADMAP: Comprobacion<DatosProyecto>[] = [
   {
     /* Forma del roadmap segun el protocolo (D8 de AGENTS-detalle.md). [por que] El tablero
@@ -99,7 +106,7 @@ export const COMPROBACIONES_ROADMAP: Comprobacion<DatosProyecto>[] = [
             mensaje: `plan ${plan.archivo} sin casillas abiertas y sin cambios hace ${dias} días`,
             accion: 'ciérralo (planes/completados/) si está terminado',
           });
-        } else if (plan.abiertas > 0 && !d.roadmap.planes.includes(plan.archivo)) {
+        } else if (plan.abiertas > 0 && !declarado(d, plan.archivo)) {
           /* Trabajo en vuelo que el roadmap no declara: invisible desde la cola. */
           hallazgos.push({
             id: 'planes-y-roadmap',
@@ -108,6 +115,18 @@ export const COMPROBACIONES_ROADMAP: Comprobacion<DatosProyecto>[] = [
             accion: 'decláralo en la sección «Planes activos» del roadmap o ciérralo si terminó',
           });
         }
+      }
+      /* [por que] El plan existe por su ubicación, no por su línea en el MD: una ruta declarada
+       * que ya no está en disco es un enlace muerto en la cola de trabajo (pasó el 2026-10-23). */
+      for (const ruta of d.roadmap.planes) {
+        const nombre = ruta.slice(ruta.lastIndexOf('/') + 1);
+        if (d.planesActivos.some((p) => p.archivo === nombre || p.archivo.endsWith(`/${nombre}`))) continue;
+        hallazgos.push({
+          id: 'planes-y-roadmap',
+          severidad: 'aviso',
+          mensaje: `el roadmap declara un plan que no está en Agente/planes/: ${ruta}`,
+          accion: 'corrige la ruta o quita la línea de «Planes activos»',
+        });
       }
       if (d.enlacesRotos.length > 0) {
         hallazgos.push({

@@ -8,6 +8,7 @@ import { join, parse } from 'node:path';
 import type { Proyecto } from '../../shared/types.js';
 import { leerArchivo } from '../http.js';
 import { leerSentinelLock } from '../scanner/gate.js';
+import { planesEnDisco } from '../scanner/roadmap/planesDisco.js';
 import { analizarRoadmap } from '../scanner/roadmap/roadmap.js';
 import { PUERTO_GIT, type PuertoGit } from '../scanner/git.js';
 import { diferenciasPlantilla, leerPolitica } from '../guardian/configuracion/politica.js';
@@ -16,9 +17,9 @@ import type { DatosArea, DatosProyecto, EstadoGuard, PlanActivo, RamaSuelta } fr
 import type { Entorno } from './entorno.js';
 import { medirTmp } from './recoger/tmp.js';
 import { copiasSkill, skillArranque } from './recoger/skill.js';
-import { abiertasDelPlan, encabezados } from './recoger/puro.js';
+import { encabezados } from './recoger/puro.js';
 import { NOMBRE_CARPETA_CLAUDE, NOMBRE_SENTINEL } from '../plataforma/rutas.js';
-export { abiertasDelPlan } from './recoger/puro.js';
+export { abiertasDelPlan } from '../scanner/roadmap/planesDisco.js';
 
 const GB = 1024 ** 3;
 /* [por que] Presupuesto de la medición de C:\tmp: `du` tarda minutos; el tablero no
@@ -111,24 +112,6 @@ async function ramasSueltas(ruta: string, puerto: PuertoGit = PUERTO_GIT): Promi
   return ramas;
 }
 
-function planesActivos(ruta: string, declarados: string[]): PlanActivo[] {
-  const dir = join(ruta, 'Agente', 'planes');
-  let nombres: string[];
-  try {
-    nombres = readdirSync(dir);
-  } catch {
-    return [];
-  }
-  /* [por que] README.md es el índice de la carpeta, no un plan: no entra en la comprobación. */
-  return nombres
-    .filter((n) => n.endsWith('.md') && n !== 'README.md')
-    .map((archivo) => ({
-      archivo,
-      modificadoMs: statSync(join(dir, archivo)).mtimeMs,
-      abiertas: abiertasDelPlan(leerArchivo(join(dir, archivo)) ?? '', declarados, archivo),
-    }));
-}
-
 /* Enlaces .md de roadmap.md que apuntan a ficheros inexistentes. */
 function enlacesRotos(ruta: string, texto: string): string[] {
   const rotos = new Set<string>();
@@ -187,7 +170,7 @@ export async function recogerProyectos(
       guard: estadoGuard(p.ruta, p.clave, ctx.plantilla),
       ramas: await ramasSueltas(p.ruta),
       instruccionesProhibidas: DOCS_PROHIBIDOS.filter((f) => existsSync(join(p.ruta, f))),
-      planesActivos: planesActivos(p.ruta, roadmap.planes),
+      planesActivos: planesEnDisco(p.ruta, roadmap.planes),
       roadmap,
       enlacesRotos: enlacesRotos(p.ruta, roadmapTexto),
       toolchainFrontend: toolchainFrontend(p.ruta),
