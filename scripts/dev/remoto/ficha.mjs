@@ -1,14 +1,22 @@
 /* Lectura de la ficha de una entrada remota: puertos, healths y estado real en la VPS. */
 
 import { rutasRemotas, shQuote } from '../../remoto/rcargo.mjs';
-import { localesDeModo, puertosRemotosDe } from '../doctor.mjs';
+import { localesDeModo, paresTunelPortatil, puertosRemotosDe } from '../doctor.mjs';
 
 import { borrarRegistro, comandoSesiones, sesionTmux } from './comandos.mjs';
 import { entornoRemoto } from './entorno.mjs';
 import { leerEstado } from './estado.mjs';
 import { esperarSonda, esperarSondaRemota, pidDeEscucha, variablesDistintas } from './red/sondas.mjs';
 import { sshRemoto } from './red/ssh.mjs';
-import { puertosLocalesDe, tunelVivo, usaTunel } from './red/tunel.mjs';
+import { puertosLocalesDe, tunelesNuestrosEnPuertos, tunelVivo, usaTunel } from './red/tunel.mjs';
+
+// Túneles ssh del portátil que la entrada declara en `tunelPortatil`/`tunelesExtra` y siguen vivos.
+// Sin `tunelSsh` el `up` no los abre, así que sirven para saber si el acceso local existe, no para gestionarlos.
+async function tunelesPortatilVivos(config, entrada) {
+  const pares = paresTunelPortatil(entrada);
+  if (!pares.length) return [];
+  return tunelesNuestrosEnPuertos(config, pares.map(([l]) => l), pares.map(([, r]) => r));
+}
 
 export function puertosTodos(ficha) {
   const dev = ficha.puertosRemotos ?? ficha.puertos ?? [];
@@ -62,6 +70,9 @@ export const marcadorSonda = (entrada, puerto) => saludDe(entrada, puerto).marca
 export async function estadoRemoto(config, id, entrada) {
   const tunel = usaTunel(entrada);
   const pidTunel = tunel ? await tunelVivo(config, entrada, leerEstado(id)) : null;
+  // [por que] Sin `tunelSsh` el `up` no abre el túnel del portátil, pero uno de `tunelPortatil` puede
+  // seguir vivo (p. ej. abierto con `--solo-tunel`): `status` lo cuenta en vez de decir «sin tunel» (20AA-12).
+  const pidPortatil = tunel ? null : (await tunelesPortatilVivos(config, entrada))[0] ?? null;
   const remotos = puertosRemotosDe(entrada);
   // [por que] Sin puertos no hay sesiones ni sondas: `[].every` daba «bajo-mando» aunque la réplica
   // no existiera, y `up` se saltaba el sync (varsense quedó sin ~/taller/varsense). Aquí «arriba» =
@@ -87,7 +98,7 @@ export async function estadoRemoto(config, id, entrada) {
   } else if (!tunel && sesionesVivas.length) {
     sondasOk = await Promise.all(remotos.map((p) => esperarSondaRemota(config, p, rutaSonda(entrada, p), 3000, marcadorSonda(entrada, p))));
   }
-  const conexion = tunel ? `tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}` : 'sin tunel';
+  const conexion = tunel ? `tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}` : pidPortatil ? `tunel portatil pid ${pidPortatil}` : 'sin tunel';
   const detalle = `tmux ${sesionesVivas.length}/${remotos.length}, ${conexion}, probe ${sondasOk.filter(Boolean).length}/${remotos.length}`;
   if (sesionesVivas.length === remotos.length && (pidTunel || !tunel) && sondasOk.every(Boolean)) {
     return { estado: 'bajo-mando', pidTunel, motivo: `${config.host}: ${detalle}` };
