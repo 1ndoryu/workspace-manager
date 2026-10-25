@@ -105,6 +105,18 @@ void describe('crearMuestreador', () => {
     assert.equal(m.estado().pasadas, 1);
   });
 
+  void it('el anillo por sitio de vps se alimenta solo de la fuente vps, sin petición del tablero', async () => {
+    const vistos: number[] = [];
+    const { m } = montar(
+      { vps: async () => snap(T0, 3), taller: async () => snap(T0, 4) },
+      { sitiosVps: (s) => vistos.push(s.ts) },
+    );
+    await m.muestrearAhora();
+    await m.muestrearAhora();
+    /* Dos pasadas = dos snapshots de vps, ninguno de taller (su anillo no es por sitio). */
+    assert.deepEqual(vistos, [T0, T0]);
+  });
+
   void it('no solapa dos pasadas', async () => {
     let enVuelo = 0;
     let maximo = 0;

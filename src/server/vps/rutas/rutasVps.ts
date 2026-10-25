@@ -8,6 +8,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { json } from '../../http.js';
 import type { VpsAviso, VpsConfig, VpsDetalle, VpsPieza, VpsSitio } from '../../../shared/types.js';
+import type { VpsAgenteSnapshot } from '../../../shared/tipos/vps.js';
 import { agenteProd, enriquecerConSitios, type InfoSitio } from '../agente.js';
 import { historialProd } from '../historial.js';
 import {
@@ -157,9 +158,6 @@ async function responderAgente(res: ServerResponse): Promise<void> {
   const r = await agente.snapshot();
   if (r.disponible && r.snapshot) {
     const contenedores = enriquecerConSitios(r.snapshot.contenedores, mapaSitios);
-    /* [07AA-4] Persiste las sumas por sitio de lo YA servido (cero
-     * consultas extra; best-effort, nunca rompe la respuesta). */
-    historialProd().anotar(contenedores, r.snapshot.ts);
     json(res, 200, {
       ...r,
       snapshot: { ...r.snapshot, contenedores },
@@ -167,6 +165,15 @@ async function responderAgente(res: ServerResponse): Promise<void> {
     return;
   }
   json(res, 200, r);
+}
+
+/* [07AA-4, 20AA-18] Anota las sumas por sitio del snapshot de vps en el anillo persistente. La llama
+ * el muestreo de fondo (muestreador.ts), no cada petición /agente: así el tramo viejo del detalle no
+ * depende de que una pestaña esté pidiendo el panel. Enriquece con el mismo mapa que la respuesta y el
+ * anillo ya limita la cadencia a 30 s por sitio. Best-effort: nunca lanza. */
+export function anotarSitiosVps(snap: VpsAgenteSnapshot): void {
+  asegurarMapaSitios();
+  historialProd().anotar(enriquecerConSitios(snap.contenedores, mapaSitios), snap.ts);
 }
 
 /* [309A-2] Detalle por sitio en una conexión: proxy a

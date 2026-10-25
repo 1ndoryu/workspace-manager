@@ -31,7 +31,8 @@ export function usePanelTaller() {
 
   /* El historial de cada fila se alimenta de las MISMAS sumas que la tabla: una sola verdad, y las
    * claves coinciden (`proyecto:<id>`), que es lo que enlaza fila y chispa. Sin base persistente:
-   * el historial de la sonda del taller es global, no por proyecto. */
+   * el historial de la sonda del taller es global, no por proyecto. Decisión escrita en
+   * Agente/documentacion/historial/chispa-taller-sin-historial-2026-10-25.md (20AA-18). */
   const sumas = sumarPorSitio(filas.map((f) => ({ clave: f.clave, cpu: f.cpu, mem: f.mem })));
   const { rangoId, elegirRango, seriePara } = useHistorialSitios(snapAgente, {
     tab: 'taller',

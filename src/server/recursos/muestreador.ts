@@ -15,6 +15,7 @@ import {
 } from '../../shared/recursosHistorial.js';
 import { agenteProd } from '../vps/agente.js';
 import { agenteTaller } from '../taller/agenteTaller.js';
+import { anotarSitiosVps } from '../vps/rutas/rutasVps.js';
 import { historialRecursosProd, type crearHistorialRecursos } from './historial.js';
 
 /* Cadencia del fondo. Lenta a propósito (20AA-17): un minuto. */
@@ -24,6 +25,9 @@ export interface OpcionesMuestreador {
   historial: ReturnType<typeof crearHistorialRecursos>;
   /* Snapshot por tab; null = esa fuente no está configurada (p. ej. sin token). */
   fuentes: Record<TabRecursos, () => Promise<VpsAgenteSnapshot | null>>;
+  /* Anillo por sitio de vps (20AA-18): recibe cada snapshot de vps ya leído. Opcional: sin él solo
+   * corre el anillo de recursos (pruebas). */
+  sitiosVps?: (snap: VpsAgenteSnapshot) => void;
   intervaloMs?: number;
   ahora?: () => number;
 }
@@ -60,6 +64,7 @@ export function crearMuestreador(op: OpcionesMuestreador) {
           const r = muestraDeSnapshot(snap, disco.get(tab) ?? null, ahora());
           disco.set(tab, r.disco);
           op.historial.anotar(tab, r.muestra);
+          if (tab === 'vps') op.sitiosVps?.(snap);
           muestras += 1;
         } catch (e) {
           /* Una fuente caída no tumba la otra ni la pasada entera. */
@@ -116,7 +121,11 @@ let prod: ReturnType<typeof crearMuestreador> | null = null;
 /* Singleton de producción: el servidor directo lo arranca una vez (index.ts). */
 export function muestreadorProd(): ReturnType<typeof crearMuestreador> {
   if (!prod) {
-    prod = crearMuestreador({ historial: historialRecursosProd(), fuentes: fuentesProd() });
+    prod = crearMuestreador({
+      historial: historialRecursosProd(),
+      fuentes: fuentesProd(),
+      sitiosVps: anotarSitiosVps,
+    });
   }
   return prod;
 }
