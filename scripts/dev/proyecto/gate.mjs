@@ -23,7 +23,9 @@ export const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..',
 const API = URL_API;
 export const CLAVES_COMANDOS = ['gate', 'test-archivo', 'typecheck', 'build'];
 const USO = `uso:
-  gate <id> --inicio     guarda la línea base de hallazgos antes de la tarea
+  gate <id> --inicio [--desde HEAD]   guarda la línea base de hallazgos antes de la tarea
+                         (--desde HEAD: la base es el export de HEAD, sin cambios sin guardar;
+                          no admite --local ni se combina con --cierre)
   gate <id> --cierre [--tarea <ID>]   hallazgos nuevos frente a la base + autogate
                          (comandos.gate, en la 89; sin orden se omite con aviso;
                           --tarea pasa el ID al gate del proyecto: sin él, el autogate
@@ -33,12 +35,14 @@ const USO = `uso:
   comandos <id>          contrato de comandos del proyecto (registro.json)`;
 
 /* Argumentos de `gate`: <id>, exactamente uno de --inicio / --cierre y, opcionales,
- * --forzar, --local y --tarea <ID>. */
+ * --forzar, --local, --tarea <ID> y --desde HEAD (solo con --inicio). */
 export function parsearArgsGate(argv) {
   const [id, ...resto] = argv;
   if (!id || id.startsWith('--')) return { error: 'falta <id> del proyecto' };
   const conocidas = ['--inicio', '--cierre', '--forzar', '--local'];
-  const extra = resto.filter((a, i) => !conocidas.includes(a) && a !== '--tarea' && resto[i - 1] !== '--tarea');
+  // [por que] Las opciones con valor se saltan junto a su valor, o el valor se tomaría por opción desconocida.
+  const conValor = ['--tarea', '--desde'];
+  const extra = resto.filter((a, i) => !conocidas.includes(a) && !conValor.includes(a) && !conValor.includes(resto[i - 1]));
   if (extra.length) return { error: `opción no reconocida: ${extra[0]}` };
   const inicio = resto.includes('--inicio');
   const cierre = resto.includes('--cierre');
@@ -46,12 +50,21 @@ export function parsearArgsGate(argv) {
   const iTarea = resto.indexOf('--tarea');
   const tarea = iTarea >= 0 ? resto[iTarea + 1] : undefined;
   if (iTarea >= 0 && (!tarea || tarea.startsWith('--'))) return { error: '--tarea necesita un <ID>' };
+  const iDesde = resto.indexOf('--desde');
+  const desde = iDesde >= 0 ? resto[iDesde + 1] : undefined;
+  if (iDesde >= 0 && (!desde || desde.startsWith('--'))) return { error: '--desde necesita un valor (HEAD)' };
+  if (desde !== undefined && desde !== 'HEAD') return { error: `--desde solo admite HEAD, no '${desde}'` };
+  // [por que] El cierre compara contra la base ya guardada: una base de HEAD solo se fija al empezar.
+  if (desde && cierre) return { error: '--desde HEAD solo vale con --inicio: el cierre compara con la base guardada' };
+  // [por que] El export de HEAD vive en la 89; la emergencia --local analiza aquí y no tiene de dónde sacarlo.
+  if (desde && resto.includes('--local')) return { error: '--desde HEAD no admite --local: el export vive en la 89' };
   return {
     id,
     modo: inicio ? 'inicio' : 'cierre',
     forzar: resto.includes('--forzar'),
     local: resto.includes('--local'),
     tarea,
+    desde,
   };
 }
 
@@ -239,12 +252,12 @@ export async function gate(argv) {
   if (destino.aviso) console.error(destino.aviso);
   try {
     if (p.modo === 'inicio') {
-      const a = await pedir('POST', '/api/gate/analizar', { clave: p.id, forzar: p.forzar, arbol: true, local: destino.emergencia });
+      const a = await pedir('POST', '/api/gate/analizar', { clave: p.id, forzar: p.forzar, arbol: true, local: destino.emergencia, desde: p.desde });
       if (a.estado === 'error') throw new Error(`el análisis falló: ${a.error ?? 'sin detalle'}`);
       const ruta = rutaSnapshot(p.id);
       mkdirSync(dirname(ruta), { recursive: true });
-      writeFileSync(ruta, `${JSON.stringify({ clave: p.id, creadoEn: new Date().toISOString(), hallazgos: a.hallazgos }, null, 2)}\n`);
-      console.log(`gate ${p.id} --inicio: ${a.hallazgos.length} hallazgos de base en data/gate-inicio/${p.id}.json`);
+      writeFileSync(ruta, `${JSON.stringify({ clave: p.id, creadoEn: new Date().toISOString(), origen: p.desde ?? 'arbol', hallazgos: a.hallazgos }, null, 2)}\n`);
+      console.log(`gate ${p.id} --inicio${p.desde ? ` (base: export de ${p.desde})` : ''}: ${a.hallazgos.length} hallazgos de base en data/gate-inicio/${p.id}.json`);
       return 0;
     }
     const ruta = rutaSnapshot(p.id);

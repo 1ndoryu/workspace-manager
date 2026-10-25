@@ -22,8 +22,8 @@ test('emergenciaLocal: con taller va a remoto; sin taller o con --local corre aq
 });
 
 test('parsearArgsGate exige id y exactamente un modo', () => {
-  assert.deepEqual(parsearArgsGate(['proyecto-b', '--inicio']), { id: 'proyecto-b', modo: 'inicio', forzar: false, local: false, tarea: undefined });
-  assert.deepEqual(parsearArgsGate(['proyecto-b', '--cierre']), { id: 'proyecto-b', modo: 'cierre', forzar: false, local: false, tarea: undefined });
+  assert.deepEqual(parsearArgsGate(['proyecto-b', '--inicio']), { id: 'proyecto-b', modo: 'inicio', forzar: false, local: false, tarea: undefined, desde: undefined });
+  assert.deepEqual(parsearArgsGate(['proyecto-b', '--cierre']), { id: 'proyecto-b', modo: 'cierre', forzar: false, local: false, tarea: undefined, desde: undefined });
   assert.equal(parsearArgsGate(['proyecto-b', '--cierre', '--forzar']).forzar, true);
   assert.equal(parsearArgsGate(['proyecto-b', '--cierre', '--local']).local, true);
   assert.ok(parsearArgsGate([]).error);
@@ -31,6 +31,19 @@ test('parsearArgsGate exige id y exactamente un modo', () => {
   assert.ok(parsearArgsGate(['x']).error);
   assert.ok(parsearArgsGate(['x', '--inicio', '--cierre']).error);
   assert.ok(parsearArgsGate(['x', '--inicio', '--raro']).error);
+});
+
+/* [por que 20AA-15] La base de HEAD se fija al empezar y solo ahí: el cierre compara con lo guardado. */
+test('parsearArgsGate acepta --desde HEAD solo con --inicio', () => {
+  assert.equal(parsearArgsGate(['x', '--inicio', '--desde', 'HEAD']).desde, 'HEAD');
+  assert.equal(parsearArgsGate(['x', '--desde', 'HEAD', '--inicio']).modo, 'inicio');
+  assert.ok(parsearArgsGate(['x', '--cierre', '--desde', 'HEAD']).error);
+  assert.ok(parsearArgsGate(['x', '--inicio', '--desde', 'main']).error);
+  assert.ok(parsearArgsGate(['x', '--inicio', '--desde']).error);
+  assert.ok(parsearArgsGate(['x', '--inicio', '--desde', '--forzar']).error);
+  assert.ok(parsearArgsGate(['x', '--inicio', '--desde', 'HEAD', '--local']).error);
+  // El valor de --tarea no cuenta como opción desconocida.
+  assert.equal(parsearArgsGate(['x', '--cierre', '--tarea', '20AA-15']).error, undefined);
 });
 
 test('rutaSnapshot usa data/gate-inicio y admite espacios en la clave', () => {
