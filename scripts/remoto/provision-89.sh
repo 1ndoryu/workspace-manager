@@ -154,7 +154,23 @@ if [[ -n "${CM_HEAVY_HELD:-}" ]] ||
   exec "$@"
 fi
 exec 9>>/run/lock/cm-heavy.lock
-flock -w "$ESPERA" 9 || { echo "cm-heavy: otro build ocupa el lock tras ${ESPERA} s" >&2; exit 75; }
+# Registro de esperas [20AA-8]: una línea por espera de 1 s o más, y por tiempo agotado, para
+# medir la cola (cuántas esperas pasan de 60 s, cuándo y de qué comando). Solo añade; si no
+# puede escribir, el build sigue igual: el registro nunca debe bloquear ni cambiar el resultado.
+LOG_ESPERAS="${CM_HEAVY_LOG:-$HOME/.local/share/cm-heavy/esperas.log}"
+registrar_espera() {
+  local espera="$1" estado="$2"; shift 2
+  local cmd="$*"
+  cmd="${cmd//$'\n'/ }"; cmd="${cmd:0:160}"
+  { mkdir -p "$(dirname "$LOG_ESPERAS")" &&
+    printf '%s espera=%ss estado=%s cmd=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$espera" "$estado" "$cmd" >> "$LOG_ESPERAS"; } 2>/dev/null || true
+}
+INICIO_ESPERA=$(date +%s)
+flock -w "$ESPERA" 9 || {
+  registrar_espera "$(( $(date +%s) - INICIO_ESPERA ))" tiempo_agotado "$@"
+  echo "cm-heavy: otro build ocupa el lock tras ${ESPERA} s" >&2; exit 75; }
+ESPERADO=$(( $(date +%s) - INICIO_ESPERA ))
+if (( ESPERADO >= 1 )); then registrar_espera "$ESPERADO" adquirido "$@"; fi
 # Buzón con nuestro PID: el shell lo conserva al hacer `exec` del scope (`$$` sobrevive), así
 # que las etapas de dentro, que pierden `CM_HEAVY_HELD` porque Sentinel filtra el entorno,
 # nos encuentran en su cadena de padres y saben que el candado ya es suyo. Vive aparte del
