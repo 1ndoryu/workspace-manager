@@ -9,7 +9,7 @@ import { estadoGitAsync } from './git.js';
 import type { PuertoGit } from './puertoGit.js';
 import { estadoGate, diagnosticarGate } from './gate.js';
 import { resumenRoadmap } from './roadmap/roadmap.js';
-import { resumenAgents, agentesGlobales } from './agents.js';
+import { resumenAgents, agentesGlobales } from './agentes/agents.js';
 import { leerConfigArea } from '../configArea.js';
 import { anotarRegistro, leerRegistroOpcional } from '../registro.js';
 import { NOMBRE_QUALITY_TOOLS, RAIZ_REPO } from '../plataforma/rutas.js';
