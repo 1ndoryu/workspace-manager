@@ -3,7 +3,7 @@
 import { rutasRemotas, shQuote } from '../../remoto/rcargo.mjs';
 import { localesDeModo, paresTunelPortatil, puertosRemotosDe } from '../doctor.mjs';
 
-import { borrarRegistro, comandoSesiones, sesionTmux } from './comandos.mjs';
+import { borrarRegistro, comandoDuenosRemotos, comandoSesiones, sesionTmux } from './comandos.mjs';
 import { entornoRemoto } from './entorno.mjs';
 import { leerEstado } from './estado.mjs';
 import { esperarSonda, esperarSondaRemota, pidDeEscucha, variablesDistintas } from './red/sondas.mjs';
@@ -67,6 +67,30 @@ export const rutaSonda = (entrada, puerto) => saludDe(entrada, puerto).ruta ?? '
 export const marcadorSonda = (entrada, puerto) => saludDe(entrada, puerto).marcador ?? null;
 
 
+// Lee la salida de `comandoDuenosRemotos`. Una linea por puerto: `<puerto> <dueno> <pid|-> <comando>`.
+export function analizarDuenos(salida) {
+  return salida.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).map((linea) => {
+    const [puerto, estado, pid, ...cmd] = linea.split(/\s+/);
+    return { puerto: Number(puerto), estado, pid: pid === '-' ? null : Number(pid), cmd: cmd.join(' ') };
+  });
+}
+
+// Puertos cuyo oyente NO es de este proyecto (12AA-7). `ok:false` si no se pudo comprobar: sin datos no hay verde.
+export async function ajenosEnPuertos(config, id, puertos) {
+  if (!puertos.length) return { ok: true, ajenos: [] };
+  const dir = rutasRemotas(config, id, 'main').dirRemoto;
+  const r = await sshRemoto(config, comandoDuenosRemotos(id, puertos, dir));
+  if (!r.ok) return { ok: false, error: r.error, ajenos: [] };
+  const lineas = analizarDuenos(r.salida);
+  // [por que] Una linea que falte podria ser un puerto ajeno sin ver: se trata como fallo, no como libre.
+  if (lineas.length !== puertos.length) return { ok: false, error: `salida inesperada (${lineas.length}/${puertos.length} puertos)`, ajenos: [] };
+  return { ok: true, ajenos: lineas.filter((l) => l.estado === 'ajeno') };
+}
+
+export function resumenAjenos(ajenos) {
+  return ajenos.map((a) => (a.pid ? `puerto ${a.puerto} lo ocupa pid ${a.pid} (${a.cmd}), no el proyecto` : `puerto ${a.puerto} lo ocupa un proceso ajeno (pid no visible)`)).join('; ');
+}
+
 export async function estadoRemoto(config, id, entrada) {
   const tunel = usaTunel(entrada);
   const pidTunel = tunel ? await tunelVivo(config, entrada, leerEstado(id)) : null;
@@ -101,6 +125,11 @@ export async function estadoRemoto(config, id, entrada) {
   const conexion = tunel ? `tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}` : pidPortatil ? `tunel portatil pid ${pidPortatil}` : 'sin tunel';
   const detalle = `tmux ${sesionesVivas.length}/${remotos.length}, ${conexion}, probe ${sondasOk.filter(Boolean).length}/${remotos.length}`;
   if (sesionesVivas.length === remotos.length && (pidTunel || !tunel) && sondasOk.every(Boolean)) {
+    // [por que] El probe responde 200 aunque el puerto lo tenga otro proceso: sin mirar el dueño, eso
+    // era `bajo-mando` y `up` respondía `ya-arriba` (12AA-7).
+    const duenos = await ajenosEnPuertos(config, id, remotos);
+    if (!duenos.ok) return { estado: 'deriva', pidTunel, motivo: `${config.host}: ${detalle}; no compruebo el dueño de los puertos (${duenos.error})` };
+    if (duenos.ajenos.length) return { estado: 'deriva', pidTunel, motivo: `${config.host}: ${resumenAjenos(duenos.ajenos)}` };
     return { estado: 'bajo-mando', pidTunel, motivo: `${config.host}: ${detalle}` };
   }
   if (sesionesVivas.length === 0 && !pidTunel) {

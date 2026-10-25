@@ -9,7 +9,7 @@ import { sincronizarBd } from './bd/sincronizar.mjs';
 import { comandoConstruirFront, comandoNpmCi, comandoPrecompilar, comandoRemotoUp, rutaLogNpmCi, sesionTmux } from './comandos.mjs';
 import { contenidoEnvFrontend, contenidoEnvRemoto, entornoRemoto, validarHostRemoto } from './entorno.mjs';
 import { escribirEstado, escribirEstadoTunel, leerEstado, rutaEstado } from './estado.mjs';
-import { estadoRemoto, localesTodos, marcadorSonda, pararSesiones, pararSesionesPuertos, puertosConEntornoDistinto, puertosTodos, rutaSonda } from './ficha.mjs';
+import { ajenosEnPuertos, estadoRemoto, localesTodos, marcadorSonda, pararSesiones, pararSesionesPuertos, puertosConEntornoDistinto, puertosTodos, resumenAjenos, rutaSonda } from './ficha.mjs';
 import { rutaAbsDe } from './red/rutaLocal.mjs';
 import { esperarEscucha, esperarLibre, esperarSonda, esperarSondaRemota } from './red/sondas.mjs';
 import { escribirArchivoRemoto, sshRemoto } from './red/ssh.mjs';
@@ -155,6 +155,11 @@ export async function upRemoto(config, id, entrada, args = []) {
   // [por que] Antes del estado: si la sesión de sync se perdió, `up` la restaura aunque los procesos sigan vivos.
   const sync = asegurarSesion({ config, proyecto: id, rutaLocal: rutaAbsDe(entrada), rutas });
   if (sync !== 0) return { codigo: 1, resumen: `up ${id}: sincronizacion con ${config.host} no lista (mutagen, codigo ${sync}): NO verde` };
+  // [por que] Un puerto ocupado por otro proceso no es un `ya-arriba` ni un arranque: el nuestro chocaría
+  // con él y el probe daría verde con su respuesta. Va antes de parar nada: no se toca ningún proceso (12AA-7).
+  const duenosPrevios = await ajenosEnPuertos(config, id, puertosRemotosDe(entrada));
+  if (!duenosPrevios.ok) return { codigo: 1, resumen: `up ${id}: no compruebo el dueño de los puertos en ${config.host} (${duenosPrevios.error}): NO verde` };
+  if (duenosPrevios.ajenos.length) return { codigo: 1, resumen: `up ${id}: ${resumenAjenos(duenosPrevios.ajenos)}: NO verde` };
   // Las sesiones del otro modo no las ve `estadoRemoto` (mira los puertos del modo efectivo), así que
   // un proyecto que cambia de modo se quedaría con las dos arriba. Se paran aquí, antes de mirar el estado.
   const ajenos = puertosTodos(ficha).filter((p) => !puertosRemotosDe(entrada).includes(p));
@@ -253,6 +258,14 @@ export async function upRemoto(config, id, entrada, args = []) {
   if (!escucha.ok) {
     if (escucha.publico) await pararSesiones(config, id, ficha);
     return { codigo: 1, resumen: `up ${id}: ${escucha.motivo}: NO verde` };
+  }
+  // [por que] Otro proceso puede haber ganado el puerto mientras arrancábamos: nuestra sesión falla y el
+  // probe daría verde con su respuesta. Se para solo nuestra sesión de ese puerto; el proceso ajeno no se toca.
+  const duenosTras = await ajenosEnPuertos(config, id, remotos);
+  if (!duenosTras.ok) return { codigo: 1, resumen: `up ${id}: no compruebo el dueño de los puertos tras arrancar (${duenosTras.error}): NO verde` };
+  if (duenosTras.ajenos.length) {
+    await pararSesionesPuertos(config, id, duenosTras.ajenos.map((a) => a.puerto));
+    return { codigo: 1, resumen: `up ${id}: ${resumenAjenos(duenosTras.ajenos)}: NO verde` };
   }
   let pid = null;
   let creado = null;

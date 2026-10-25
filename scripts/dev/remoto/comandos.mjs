@@ -137,6 +137,35 @@ export function comandoSesiones(sesiones) {
   return sesiones.map((s) => `if tmux has-session -t ${shQuote(s)} 2>/dev/null; then echo ${shQuote(s)}; fi`).join('; ');
 }
 
+// Por cada puerto dice quien lo escucha: `nuestro` si desciende del panel tmux del proyecto o corre
+// desde su carpeta; `ajeno` si no; `libre` si nadie. Una sola llamada ssh para todos los puertos.
+// [por que] `ss` solo nombra al oyente: sin subir por el arbol de procesos no se sabe si lo lanzo
+// este proyecto. Sin esto, un puerto ocupado por otro proceso daba `ya-arriba` (12AA-7).
+// Salida: `<puerto> <nuestro|ajeno|libre> <pid|-> <comando>`, una linea por puerto.
+export function comandoDuenosRemotos(id, puertos, dirRemoto) {
+  const script = [
+    'dueno() {',
+    '  p=$1; s=$2; dir=$3',
+    '  linea=$(ss -ltnpH | grep -m1 ":$p ")',
+    '  [ -z "$linea" ] && { echo "$p libre - -"; return; }',
+    '  pid=$(echo "$linea" | grep -o "pid=[0-9]*" | cut -d= -f2)',
+    // [por que] Sin pid visible (oyente de otro usuario) no se puede demostrar que sea nuestro: va como ajeno.
+    '  [ -z "$pid" ] && { echo "$p ajeno - (pid no visible)"; return; }',
+    '  cmd=$(tr "\\0" " " < /proc/$pid/cmdline 2>/dev/null | cut -c1-160)',
+    '  pane=$(tmux display-message -p -t "$s" "#{pane_pid}" 2>/dev/null)',
+    '  est=ajeno; x=$pid',
+    '  while [ -n "$x" ] && [ "$x" -gt 1 ]; do',
+    '    [ "$x" = "$pane" ] && { est=nuestro; break; }',
+    '    x=$(sed "s/.*) //" /proc/$x/stat 2>/dev/null | cut -d" " -f2)',
+    '  done',
+    '  case "$(readlink /proc/$pid/cwd 2>/dev/null)/ $cmd" in *"$dir"/*) est=nuestro;; esac',
+    '  echo "$p $est $pid ${cmd:-(sin cmdline)}"',
+    '}',
+    ...puertos.map((p) => `dueno ${p} ${shQuote(sesionTmux(id, p))} ${shQuote(dirRemoto)}`),
+  ].join('\n');
+  return `bash -c ${shQuote(script)}`;
+}
+
 // Puertos remotos de TODOS los modos de la ficha (dev ∪ build). [por que] Las sesiones tmux se
 // nombran por puerto, asi que al cambiar de modo la sesion del otro modo quedaba viva y sin dueno:
 // un `up` en build con el vite de dev arriba dejaba 150-650 MB huerfanos, justo lo que build ahorra.
