@@ -17,6 +17,7 @@ import type { InformeDev } from '../../shared/dev.js';
 import { snapshotArea } from '../snapshot.js';
 import { RAIZ_REPO } from '../plataforma/rutas.js';
 import { obtenerSistemaLocal } from '../plataforma/sistema/sistemaLocal.js';
+import { escuchasTaller89 } from '../taller/estado.js';
 
 /* Doctor relativo a la raiz del repo, no al cwd: el servidor puede arrancarse
  * desde cualquier directorio. */
@@ -83,10 +84,15 @@ export async function obtenerVigilancia(): Promise<{
   inflight = (async () => {
     /* [por que] Snapshot y sistema no dependen el uno del otro: van a la vez, así el CIM
      * (~2,5 s en frío) no se suma al snapshot antes de lanzar el doctor. */
-    const [{ snapshot }, sistema] = await Promise.all([
+    const [{ snapshot }, sistemaLocal, escuchas89] = await Promise.all([
       snapshotArea(false),
       obtenerSistemaLocal().catch(() => undefined),
+      escuchasTaller89().catch(() => null),
     ]);
+    /* [por que 20AA-33] Las escuchas de la 89 van en `sistema.taller89`: un servicio remoto servido
+     * con el túnel cerrado se clasifica por ahí, no por un túnel que no existe. Sin sistema local no
+     * se adjunta (el doctor lee sus sensores y no tiene con qué cruzar). */
+    const sistema = sistemaLocal ? { ...sistemaLocal, taller89: escuchas89 } : undefined;
     const dir = mkdtempSync(join(tmpdir(), 'wm-dev-'));
     try {
       const tmp = join(dir, 'snapshot.json');

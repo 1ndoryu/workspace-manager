@@ -184,6 +184,14 @@ export function puertoDeSaludValido(puerto, entrada) {
   return entrada.puertos.includes(puerto) || remotos.includes(puerto) || build.includes(puerto);
 }
 
+/* ¿Escucha la 89 ese puerto TCP? `escuchas` es `snapshot.sistema.taller89.escuchas` (sonda `ss`
+ * por SSH). null = no hubo lectura de la 89: no afirma nada.
+ * [por que 20AA-33] Sin esto, un servicio remoto con el túnel cerrado salía `parado` aunque la 89
+ * lo sirviera; el túnel solo lo acerca al portátil, no decide si vive. */
+export function escuchaEnTaller(puerto, escuchas) {
+  return Array.isArray(escuchas) && escuchas.some((e) => e.puerto === puerto && e.proto === 'tcp');
+}
+
 
 /* Bloque `build` de una ficha remota (16AA-18): declara sus propios puertos, botones, locales,
  * healths y el comando que construye el front. En build el backend sirve `frontend/dist`, así que

@@ -5,7 +5,7 @@ import { basename } from 'node:path';
 import { RAIZ_REPO } from './base.mjs';
 import { repoPrincipalDeWorktree } from './worktree.mjs';
 import { datosCimDe, normalizarRuta, procesosSshVivos, sensoresDeSistema, sshDeSistema } from './sistema/procesos.mjs';
-import { atribuirHuerfano, auxiliarDe, entradaEfectiva, esAppInstalada, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeListener, tunelDeQuien } from './sistema/puertos.mjs';
+import { atribuirHuerfano, auxiliarDe, entradaEfectiva, escuchaEnTaller, esAppInstalada, esDelProyecto, esEntradaRemota, esSistemaIgnorado, localesDeModo, marcadorPuerto, puertosRemotosDe, sondear, tunelDeEntrada, tunelDeListener, tunelDeQuien } from './sistema/puertos.mjs';
 import { esPermanente } from './ficha/validacion-reglas.mjs';
 import { entradaDeProyecto } from './clasificar-entrada.mjs';
 
@@ -33,6 +33,8 @@ export async function clasificar(proyectos, registro, escucha, ignorados = [], e
     ? sensoresDeSistema(sistema, pids)
     : await datosCimDe(pids, { servicios: ignoradosSis.some((s) => s.servicio) });
   const areaNorm = normalizarRuta(RAIZ_REPO);
+  // [por que 20AA-33] Escuchas de la 89 (snapshot.sistema.taller89): null si el servidor no las trajo.
+  const escuchaTaller = sistema?.taller89?.escuchas ?? null;
 
   const candidatos = escucha.filter((e) => {
     if (e.ip === '127.0.0.1' || e.ip === '::1') return true;
@@ -70,7 +72,7 @@ export async function clasificar(proyectos, registro, escucha, ignorados = [], e
       }
       continue;
     }
-    const r = await clasificarEntrada(p, entrada, porPuerto, procs);
+    const r = await clasificarEntrada(p, entrada, porPuerto, procs, escuchaTaller);
     for (const k of r.consumidos) consumidos.add(k);
     // `permanente` viaja al tablero para pintar la casilla sin releer el registro en el cliente.
     resultado.push({ clave: p.clave, id: entrada.id, estado: r.estado, motivo: r.motivo, permanente: esPermanente(entrada) });
@@ -138,7 +140,7 @@ export async function clasificar(proyectos, registro, escucha, ignorados = [], e
  * puerto para que `up` decida sin reinterpretar strings. situacion:
  * arriba | libre | ocupado-desconocido | duplicado | no-verificable |
  * sin-probe. Solo `libre` autoriza arrancar; el resto rehusa en voz alta. */
-export async function clasificarEntrada(p, entrada, porPuerto, procs) {
+export async function clasificarEntrada(p, entrada, porPuerto, procs, escuchaTaller = null) {
   // [por que 06AA-1] Entrada con aviso de registro = no-actuable: deriva con
   // el motivo del aviso, sin mirar puertos (ni `up` ni `status` la tocan;
   // `up` solo la reanima por la via `reconstruir` en arrancarUno).
@@ -259,10 +261,19 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs) {
    * `tunelSsh: false` el portátil no abre túneles a propósito y esos puertos los
    * verifica la 89: darlos por libres era el falso «libre (parado)» de MN. */
   if (remota && sinTunel.length > 0) {
-    if (saludLocal.length === 0) {
-      return { estado: 'parado', motivo: `tunel cerrado (${sinTunel.join(', ')})`, detalle: [], consumidos };
+    // [por que 20AA-33] Un puerto sin túnel que la 89 sirve está vivo: el túnel solo lo acerca al
+    // portátil. Lo que no sirve la 89 sigue con la regla de siempre.
+    const enTaller = sinTunel.filter((pt) => escuchaEnTaller(pt, escuchaTaller));
+    const cerrados = sinTunel.filter((pt) => !enTaller.includes(pt));
+    if (cerrados.length > 0 && saludLocal.length === 0 && enTaller.length === 0) {
+      return { estado: 'parado', motivo: `tunel cerrado (${cerrados.join(', ')})`, detalle: [], consumidos };
     }
-    if (entrada.tunelSsh !== false) fijarDeriva(`tunel cerrado (${sinTunel.join(', ')})`);
+    if (cerrados.length > 0 && entrada.tunelSsh !== false) fijarDeriva(`tunel cerrado (${cerrados.join(', ')})`);
+    // [por que] Se mira al final: un probe local verde o una deriva ya fijada mandan.
+    if (enTaller.length > 0 && estado === null) {
+      estado = 'bajo-mando';
+      motivo = `escucha en la 89 por ssh (ss), túnel cerrado: ${enTaller.join(', ')}`;
+    }
   }
   /* [por que] Ninguna ficha llega aqui sin puertos salvo que lo declare: `sinServicio` (se
    * normaliza a `puertos: []`) o `puertosRemotos: []` («no expongas nada»). Antes eso devolvia

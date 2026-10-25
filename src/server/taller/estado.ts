@@ -231,6 +231,14 @@ async function calcular(): Promise<EstadoTallerCompleto> {
 let cache: { en: number; valor: EstadoTallerCompleto } | null = null;
 let vuelo: Promise<EstadoTallerCompleto> | null = null;
 
+/* Escuchas TCP de la 89 para el doctor (`snapshot.sistema.taller89`). [por que] Salen de la
+ * misma lectura cacheada de `estadoTaller` (sonda `ss` por SSH): no hay una segunda sesión SSH.
+ * null = no hubo lectura de la 89 (el doctor entonces no afirma nada sobre sus puertos). */
+export async function escuchasTaller89(): Promise<{ direccion: string; puerto: number; proto: 'tcp' | 'udp' }[] | null> {
+  const { entrada } = await estadoTaller();
+  return entrada.t89 ? entrada.t89.escuchas.map(({ direccion, puerto, proto }) => ({ direccion, puerto, proto })) : null;
+}
+
 /* Estado del taller. `forzar` ignora la caché (no el vuelo en curso: ya es fresco). Un error
  * de registro o de lectura propio se propaga; no se cachea. */
 export function estadoTaller(forzar = false): Promise<EstadoTallerCompleto> {
