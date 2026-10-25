@@ -130,15 +130,17 @@ cat > /usr/local/bin/cm-heavy <<'EOF'
 #!/usr/bin/env bash
 # Builds pesados de a uno (flock), con techo de memoria y preflight (plan F1, Presupuesto de RAM).
 # MemoryMax=4G acota el build: si se pasa, el OOM lo mata DENTRO de su scope y la maquina sigue viva.
-# Por eso el suelo (MIN_MB, 4608) es el techo del build (4G) MAS 512 MB de margen para el resto
-# (Postgres, tmux dev, dockerd, opencode). Bajado de 6144 a 4608 el 2026-10-17 (peticion de la
-# usuaria): 6144 dejaba fuera builds que si caben. No bajar de 4096: por debajo del techo, el build
-# admitido no puede caber nunca y se garantiza el OOM. Sale con 75 si no puede ejecutar (memoria o
-# disco): el build no arranca y el mensaje dice que falta. cm-sweep limpia antes (F5).
+# El suelo (MIN_MB) iba a ser el techo del build (4G) MAS 512 MB de margen para el resto (Postgres,
+# tmux dev, dockerd, opencode): 4608. Bajado de 6144 a 4608 el 2026-10-17 (peticion de la usuaria:
+# 6144 dejaba fuera builds que si caben). El 2026-10-25 la usuaria lo bajo a 4096 para desbloquear
+# gates bloqueados por RAM (4,0-4,4 GB libres): ese margen de 512 MB ya no existe y el resto de
+# procesos puede quedar justo; vigilar OOM. Por debajo de 4096 el build admitido no cabe nunca.
+# Sale con 75 si no puede ejecutar (memoria o disco): el build no arranca y el mensaje dice que falta.
+# cm-sweep limpia antes (F5).
 set -euo pipefail
 ESPERA="${CM_HEAVY_ESPERA:-600}"
 MEM_MAX="${CM_HEAVY_MEM_MAX:-4G}"
-MIN_MB="${CM_HEAVY_MIN_MB:-4608}"
+MIN_MB="${CM_HEAVY_MIN_MB:-4096}"
 MIN_DISCO_GB="${CM_HEAVY_MIN_DISK_GB:-15}"
 (($#)) || { echo "uso: cm-heavy <comando...>" >&2; exit 2; }
 # [10AA-3] Reentrante: si un cm-heavy ancestro ya tiene el candado, no se vuelve a pedir.
