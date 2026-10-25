@@ -116,10 +116,11 @@ export async function estadoRemoto(config, id, entrada) {
   const sesionesVivas = remotos.filter((p) => vivas.includes(sesionTmux(id, p)));
   // [por que] Un solo intento de 2 s daba «deriva» falso tras un arranque en frío del túnel; se reintenta hasta 3 s.
   // Sin túnel, el probe solo corre si hay sesiones: sin ellas no hay nada que sondear.
+  // [por que] Con el túnel cerrado el probe local no dice nada: se sondea en la 89 (20AA-33), que es donde vive el servicio.
   let sondasOk = remotos.map(() => false);
   if (tunel && pidTunel) {
     sondasOk = await Promise.all(remotos.map((p, i) => esperarSonda(puertosLocalesDe(entrada)[i], rutaSonda(entrada, p), 3000, marcadorSonda(entrada, p))));
-  } else if (!tunel && sesionesVivas.length) {
+  } else if (sesionesVivas.length) {
     sondasOk = await Promise.all(remotos.map((p) => esperarSondaRemota(config, p, rutaSonda(entrada, p), 3000, marcadorSonda(entrada, p))));
   }
   const conexion = tunel ? `tunel ${pidTunel ? `pid ${pidTunel}` : 'caido'}` : pidPortatil ? `tunel portatil pid ${pidPortatil}` : 'sin tunel';
@@ -131,6 +132,14 @@ export async function estadoRemoto(config, id, entrada) {
     if (!duenos.ok) return { estado: 'deriva', pidTunel, motivo: `${config.host}: ${detalle}; no compruebo el dueño de los puertos (${duenos.error})` };
     if (duenos.ajenos.length) return { estado: 'deriva', pidTunel, motivo: `${config.host}: ${resumenAjenos(duenos.ajenos)}` };
     return { estado: 'bajo-mando', pidTunel, motivo: `${config.host}: ${detalle}` };
+  }
+  // [por que] Servido en la 89 con el túnel del portátil caído: sigue en `deriva` (el `up` debe reabrir el
+  // túnel y `bajo-mando` le haría responder ya-arriba sin hacerlo), pero el motivo ya no lo esconde.
+  if (tunel && !pidTunel && sesionesVivas.length === remotos.length && sondasOk.every(Boolean)) {
+    const duenos = await ajenosEnPuertos(config, id, remotos);
+    if (duenos.ok && !duenos.ajenos.length) {
+      return { estado: 'deriva', pidTunel, motivo: `${config.host}: ${detalle}; servido en la 89, falta el túnel del portátil (up lo reabre)` };
+    }
   }
   if (sesionesVivas.length === 0 && !pidTunel) {
     return { estado: 'parado', pidTunel, motivo: `${config.host}: ${detalle}` };
