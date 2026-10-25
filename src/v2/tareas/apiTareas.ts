@@ -37,9 +37,10 @@ function mensajeFallo(operacion: string, err: unknown): Error {
 
 export async function estadoTareas(): Promise<TareasEstado> {
   try {
-    const { data } = await axios.get<TareasEstado>('/api/tareas/estado');
+    // [por que 19AA-8] El puente manda `conCredenciales`; `configurado` no llega nunca.
+    const { data } = await axios.get<Omit<TareasEstado, 'configurado'> & { conCredenciales?: boolean }>('/api/tareas/estado');
     return {
-      configurado: data.configurado === true,
+      configurado: data.conCredenciales === true,
       disponible: data.disponible === true,
       motivo: typeof data.motivo === 'string' ? data.motivo : null,
       base: baseDeEstado(data.base),
