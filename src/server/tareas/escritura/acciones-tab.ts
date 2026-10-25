@@ -26,6 +26,7 @@ import {
   type ProyectoRoadmap,
   type RefSubtarea,
 } from './accion-roadmap.js';
+import { leerDelDisco } from './escribir-roadmaps.js';
 import { espejoDeAlta, espejoDeSubtarea } from './acciones-tab/espejos.js';
 import type { ItemVersionado, ReordenarMovimiento } from '../nucleo/tipos.js';
 import type { ParcheTarea } from '../tarea-unitaria.js';
@@ -62,6 +63,16 @@ export async function proyectoDeColumna(deps: DepsAccionesTab, columna: number):
  * no se sabe en que linea del archivo vive. Si el padre no viene del roadmap, la subtarea tampoco
  * tiene casa en el archivo. */
 
+/* Por que no se puede convertir una raiz: su borrado se lleva el bloque entero, y con subtareas propias
+ * en el archivo las perderia sin aviso. Devuelve el motivo, o null si la raiz se puede convertir. */
+function motivoNoConvertir(deps: DepsAccionesTab, p: ProyectoRoadmap, idRaiz: string): string | null {
+  const lectura = (deps.leerRoadmap ?? leerDelDisco)(p.ruta);
+  if (lectura === null) return 'sin-roadmap';
+  const t = lectura.tareas.find((x) => x.id === idRaiz);
+  if (t === undefined) return 'no-esta-en-el-roadmap';
+  return t.subtareas.length > 0 ? 'tiene-subtareas' : null;
+}
+
 /* Lo que hay que hacer con la subtarea que se acaba de guardar en TASK. */
 async function trasGuardarSubtarea(deps: DepsAccionesTab, columna: number, item: ItemVersionado): Promise<EscrituraTab> {
   const parentId = typeof item.item.parentId === 'number' ? item.item.parentId : null;
@@ -77,6 +88,13 @@ async function trasGuardarSubtarea(deps: DepsAccionesTab, columna: number, item:
     const d = depsRoadmap(deps);
     const texto = typeof item.item.texto === 'string' ? item.item.texto : '';
     const conEspejo = espejoDeItem(item.item)?.sub === true;
+    /* [por que] Una raiz arrastrada bajo otra llega con su espejo de tarea, no de subtarea: si se
+     * escribiera como alta, el archivo tendria la tarea dos veces (la raiz y la subtarea). */
+    const raiz = conEspejo ? null : idRoadmapDeItem(item.item);
+    const motivo = raiz === null ? null : motivoNoConvertir(deps, p, raiz);
+    if (motivo !== null) {
+      return { roadmap: { accion: 'editar-sub', proyecto: p.nombre, id: raiz, linea: null, escribio: false, aviso: `no-convierte: ${motivo}` }, repetir: null };
+    }
 
     const r = conEspejo
       ? editarSubtarea(d, p, idPadre, refDeSubtarea(item.item), {
@@ -91,6 +109,12 @@ async function trasGuardarSubtarea(deps: DepsAccionesTab, columna: number, item:
         : crearSubtarea(d, p, idPadre, { texto, propiedades: propiedadesDeItem(item.item), completada: item.item.completado === true });
     if (r === null) return VACIO;
     if (!r.escribio) return { roadmap: resumen(r), repetir: null };
+    /* La subtarea ya esta bajo su padre: ahora se quita la linea de la raiz. Va despues para que un
+     * fallo al crear la subtarea no deje la tarea sin ninguna linea. */
+    if (raiz !== null) {
+      const q = borrarDelRoadmap(d, p, raiz);
+      if (!q.escribio) return { roadmap: resumen(q), repetir: null };
+    }
     const espejo = espejoDeSubtarea(deps, p, idPadre, huecoDeEtiqueta(r.id ?? ''));
     return { roadmap: resumen(r), repetir: espejo === null ? null : repetirSubtarea(item, espejo) };
   } catch (e) {

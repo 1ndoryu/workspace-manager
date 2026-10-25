@@ -282,6 +282,31 @@ void describe('acciones-tab', () => {
     assert.equal(t.leer(), CUERPO);
   });
 
+  void it('una raiz arrastrada bajo otra se convierte en subtarea: sale su linea y entra sangrada', async () => {
+    /* 20AA-13: la raiz 20AA-2 llega con parentId = 20AA-1. Sin convertirla quedaria dos veces. */
+    const enTask = [espejado(9001, '20AA-1', { texto: 'Primera.' }), espejado(9002, '20AA-2', { texto: 'Segunda.', parentId: 9001 })];
+    const t = taller(CUERPO, enTask);
+    const r = await trasGuardar(t.deps, COLUMNA, enTask[1] as ItemVersionado, { texto: 'Segunda.', parentId: 9001 });
+    assert.equal(r.roadmap?.escribio, true);
+    const leido = analizarRoadmap(t.leer());
+    assert.deepEqual(leido.tareas.map((x) => x.id), ['20AA-1']);
+    assert.equal(leido.tareas[0]?.subtareas.length, 1);
+    assert.match(t.leer(), /^ {2}- \[ \] \*\*Segunda\.\*\*$/m);
+    assert.equal(r.repetir?.parentId, 9001);
+    const espejo = espejoDeItem({ roadmap: (r.repetir?.payload as Record<string, unknown> | undefined)?.roadmap });
+    assert.equal(espejo?.sub, true);
+  });
+
+  void it('una raiz con subtareas propias no se convierte: el archivo queda igual y el aviso lo dice', async () => {
+    /* Borrarla se llevaria sus subtareas: se niega y avisa. */
+    const enTask = [espejado(9002, '20AA-2', { texto: 'Segunda.' }), espejado(9001, '20AA-1', { texto: 'Primera.', parentId: 9002 })];
+    const t = taller(CON_SUB, enTask);
+    const r = await trasGuardar(t.deps, COLUMNA, enTask[1] as ItemVersionado, { texto: 'Primera.', parentId: 9002 });
+    assert.equal(r.roadmap?.escribio, false);
+    assert.equal(r.roadmap?.aviso, 'no-convierte: tiene-subtareas');
+    assert.equal(t.leer(), CON_SUB);
+  });
+
   void it('borrar una subtarea se lleva su linea y deja el bloque del padre entero', async () => {
     const enTask = [espejado(9001, '20AA-1', { texto: 'Primera.' }), subtareaDe(9002, 9001, {})];
     const t = taller(CON_SUB, enTask);
