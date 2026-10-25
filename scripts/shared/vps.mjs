@@ -51,6 +51,14 @@ export function decidirDonde(argv, config, equipo) {
   return { donde: 'remoto' };
 }
 
+/* Etiqueta de DÓNDE se compiló y probó (`ejecutor` de evidencia y certificación). El defecto
+ * 'taller' es el nombre genérico; `etiquetaEjecutor` de taller.json lo cambia sin tocar código.
+ * [por que] Va en la clave de la certificación: cambiarla invalida las reutilizadas, a propósito. */
+export function etiquetaEjecutor(destino, config) {
+  if (destino.donde === 'local') return 'local';
+  return typeof config?.etiquetaEjecutor === 'string' && config.etiquetaEjecutor ? config.etiquetaEjecutor : 'taller';
+}
+
 /* Para mandos que solo piden un análisis al backend: `emergencia` es true cuando corre aquí.
  * [por que] El backend corre en este equipo, así que la decisión se toma aquí, antes de
  * pedir nada: sin taller se analiza aquí con aviso y sin caché, en vez de no analizar. */

@@ -21,7 +21,9 @@ IP_PEER="${PEER_IP:?define PEER_IP (IP del laptop dentro de la VPN)}"
 # [por que] Con `sudo bash`, $HOME es /root: la carpeta del operador se lee de passwd, no de $HOME.
 HOME_OPERADOR="$(getent passwd "$OPERADOR" | cut -d: -f6)"
 : "${HOME_OPERADOR:?no existe el usuario OPERADOR=$OPERADOR en passwd}"
-LOG="$HOME_OPERADOR/taller/_logs/root-taller-89.log"
+# [por que] Mismo override que provision-89.sh (TALLER_HOME): el taller puede no estar en <home>/taller.
+TALLER_HOME="${TALLER_HOME:-$HOME_OPERADOR/taller}"
+LOG="$TALLER_HOME/_logs/root-taller-89.log"
 
 [ "$(id -u)" -eq 0 ] || { echo "Ejecutar con sudo." >&2; exit 1; }
 mkdir -p "$(dirname "$LOG")"
@@ -73,7 +75,7 @@ else
 fi
 
 # 5. Docker: solo lectura (F5). No se hace prune ni se borra nada.
-docker system df -v > "$HOME_OPERADOR/taller/_logs/f5-docker-df-$(date +%F).txt"
+docker system df -v > "$TALLER_HOME/_logs/f5-docker-df-$(date +%F).txt"
 echo "docker system df guardado en _logs/f5-docker-df-$(date +%F).txt"
 
 echo "-- wg show (sin claves privadas)"; wg show "$IFAZ" | grep -v 'private key' || true

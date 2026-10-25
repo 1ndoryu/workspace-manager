@@ -6,7 +6,7 @@ import path from 'node:path';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
-import { cargarTaller, comandoEnVps, decidirDonde, dentroDe, dirRemotoDe, dirRemotoDeHerramienta, ejecutarEnVps, mensajeSinVps } from './vps.mjs';
+import { cargarTaller, comandoEnVps, decidirDonde, dentroDe, dirRemotoDe, dirRemotoDeHerramienta, ejecutarEnVps, etiquetaEjecutor, mensajeSinVps } from './vps.mjs';
 
 const TALLER = {
   host: 'remoto-ejemplo',
@@ -121,4 +121,11 @@ test('cargarTaller: JSON corrupto falla nombrando el fichero y el remedio, no co
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('etiquetaEjecutor: por defecto taller, local en emergencia, y la etiqueta de taller.json la cambia', () => {
+  assert.equal(etiquetaEjecutor({ donde: 'aqui' }, TALLER), 'taller');
+  assert.equal(etiquetaEjecutor({ donde: 'remoto' }, null), 'taller');
+  assert.equal(etiquetaEjecutor({ donde: 'local' }, TALLER), 'local');
+  assert.equal(etiquetaEjecutor({ donde: 'remoto' }, { ...TALLER, etiquetaEjecutor: 'vps-ejemplo' }), 'vps-ejemplo');
 });

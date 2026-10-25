@@ -108,7 +108,8 @@ done | paste -sd, -)
 CF_VER=$(timeout 2 cloudflared --version 2>/dev/null | awk '{print $3}')
 if [ -n "$CF_VER" ]; then CF_VER_J=$(json_str "$CF_VER"); else CF_VER_J=null; fi
 # [por que] El nombre del fichero de entorno del túnel es de cada taller: va por WM_CLOUDFLARED_ENV.
-# Sin ella no se lee el modo y queda null (degradación, no fallo).
+# El defecto es el fichero de siempre; si no existe, el modo queda null (degradación, no fallo).
+WM_CLOUDFLARED_ENV="${WM_CLOUDFLARED_ENV:-$HOME/.config/cloudflared/mn-dev.env}"
 CF_MODO=""
 [ -n "${WM_CLOUDFLARED_ENV:-}" ] && CF_MODO=$(stat -c %a "$WM_CLOUDFLARED_ENV" 2>/dev/null)
 if [ -n "$CF_MODO" ]; then CF_MODO_J=$(json_str "$CF_MODO"); else CF_MODO_J=null; fi

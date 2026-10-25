@@ -39,6 +39,7 @@ import {
   decidirDonde,
   dirRemotoDeHerramienta,
   ejecutarEnVps,
+  etiquetaEjecutor,
   mensajeSinVps,
 } from '../shared/vps.mjs';
 import {
@@ -74,7 +75,7 @@ try {
 if (destino.aviso) process.stderr.write(`[quality:setup] ${destino.aviso}\n`);
 // [por que] `ejecutor` dice DÓNDE se compiló: en la VPS (también si este equipo ES la VPS) o en local por emergencia.
 // [por que] Nombre genérico: el taller puede ser cualquier VPS; el nombre concreto va en config/taller.json.
-const ejecutor = destino.donde === 'local' ? 'local' : 'taller';
+const ejecutor = etiquetaEjecutor(destino, taller);
 
 /* Carpeta en la 89 donde compilar `source`: SIEMPRE un checkout por commit fuera de la réplica.
  * [10AA-3] Antes, un checkout interno (`tools/sentinel` dentro del consumidor) se compilaba en la
