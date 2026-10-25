@@ -157,6 +157,8 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs, escuchaTal
    * al pasar un probe de verdad. */
   let estado = null;
   let motivo = null;
+  // Motivo de un verde (probe 200 o túnel a la 89) pendiente de ver si algún otro puerto cae.
+  let verde = null;
   // [por que 10AA-3] Varios puertos pueden caer a la vez (proyecto-h 3105+5182
   // tras `stop`). Antes cada problema hacía `break`: el 5182 nunca entraba en
   // `detalle`, `up` lanzaba solo 3105 y reportaba "probe verde". Ahora se
@@ -237,11 +239,10 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs, escuchaTal
       detalle.push({ puerto: h.puerto, situacion: 'sin-probe', pids: [propio.pid] });
       continue;
     }
-    /* [por que] El verde se alcanza AQUI y solo aqui: es el unico punto con un probe 200 real. */
-    if (estado === null) {
-      estado = 'bajo-mando';
-      motivo = 'probe verde';
-    }
+    /* [por que] El verde se alcanza AQUI y solo aqui: es el unico punto con un probe 200 real.
+     * Se anota aparte y no fija el estado: un puerto hermano caido despues (5175 libre con el 8787
+     * verde) tiene que ganar como deriva, no quedar tapado por el primer probe. */
+    verde ??= 'probe verde';
     detalle.push({ puerto: h.puerto, situacion: 'arriba', pids: [propio.pid] });
   }
   // [por que] El corte en el primer health fallido dejaba sin consumir los
@@ -271,9 +272,13 @@ export async function clasificarEntrada(p, entrada, porPuerto, procs, escuchaTal
     if (cerrados.length > 0 && entrada.tunelSsh !== false) fijarDeriva(`tunel cerrado (${cerrados.join(', ')})`);
     // [por que] Se mira al final: un probe local verde o una deriva ya fijada mandan.
     if (enTaller.length > 0 && estado === null) {
-      estado = 'bajo-mando';
-      motivo = `escucha en la 89 por ssh (ss), túnel cerrado: ${enTaller.join(', ')}`;
+      verde ??= `escucha en la 89 por ssh (ss), túnel cerrado: ${enTaller.join(', ')}`;
     }
+  }
+  // [por que] El verde se fija al final: solo si ningún puerto quedó caído (deriva) por el camino.
+  if (estado === null && verde) {
+    estado = 'bajo-mando';
+    motivo = verde;
   }
   /* [por que] Ninguna ficha llega aqui sin puertos salvo que lo declare: `sinServicio` (se
    * normaliza a `puertos: []`) o `puertosRemotos: []` («no expongas nada»). Antes eso devolvia
