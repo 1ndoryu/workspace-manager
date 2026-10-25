@@ -16,7 +16,7 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { escribirCertificacion } from './certificacion.mjs';
-import { cargarTaller, decidirDonde, etiquetaEjecutor } from '../shared/vps.mjs';
+import { cargarTaller, decidirDonde } from '../shared/vps.mjs';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SETUP = path.join(AQUI, 'quality-setup.mjs');
