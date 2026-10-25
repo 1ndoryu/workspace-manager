@@ -62,13 +62,11 @@ export function gitAsync(ruta: string, args: string[]): Promise<string | null> {
   });
 }
 
-/** Puerto de git: lo que el escáner necesita de git, sin depender del proceso concreto.
- * [por que] Con el puerto, quien lee estado (rutas, salud, pruebas) puede inyectar una
- * salida fija en vez de lanzar git; `PUERTO_GIT` es la implementación por defecto. */
-export interface PuertoGit {
-  git(ruta: string, args: string[]): string | null;
-  gitAsync(ruta: string, args: string[]): Promise<string | null>;
-}
+/* El puerto (tipo) vive en puertoGit.ts; aquí se reexporta para quien ya lo importaba de git.ts.
+ * [por que] Con el puerto, quien lee estado (rutas, salud, pruebas) puede inyectar una salida
+ * fija en vez de lanzar git; `PUERTO_GIT` es la implementación por defecto. */
+export type { PuertoGit } from './puertoGit.js';
+import type { PuertoGit } from './puertoGit.js';
 
 /** Implementación por defecto del puerto: el git real del sistema. */
 export const PUERTO_GIT: PuertoGit = { git, gitAsync };

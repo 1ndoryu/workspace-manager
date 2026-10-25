@@ -5,7 +5,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { descubrir } from './workspace.js';
+import { descubrir, escanearWorkspace } from './workspace.js';
+import type { PuertoGit } from './puertoGit.js';
 import { raizTemporales } from '../plataforma/sistema/temporales.js';
 
 /* Área con: `a` y `hijo1` con manifiesto (proyectos), `grupo` que solo agrupa, `suelta` y
@@ -45,6 +46,29 @@ test('una carpeta recursiva se baja un nivel y deja los hijos con señal con su 
     assert.equal(hijo.clave, 'grupo/hijo1');
     assert.equal(carpetas.some((c) => c.id === 'grupo'), false, 'la carpeta que agrupa no es proyecto');
     assert.equal(carpetas.some((c) => c.id === 'ign'), false, 'ignorada también dentro de recursiva');
+  } finally {
+    rmSync(raiz, { recursive: true, force: true });
+  }
+});
+
+/* [por que] 19AA-13: el escáner lee git solo por el puerto que recibe. Con un puerto espía se
+ * comprueba que `a` (repo con .git) se consulta por él, y que la herramienta de calidad, aunque
+ * lleve manifiesto, queda fuera por la exclusión a mano (308A-8). */
+test('escanearWorkspace lee git solo por el puerto inyectado y excluye la herramienta de calidad', async () => {
+  const raiz = area();
+  try {
+    mkdirSync(join(raiz, 'a', '.git'));
+    mkdirSync(join(raiz, '.quality-tools'));
+    writeFileSync(join(raiz, '.quality-tools', 'package.json'), '{}');
+    mkdirSync(join(raiz, 'skills'));
+    const consultas: string[] = [];
+    const espia: PuertoGit = {
+      git: (ruta) => (consultas.push(ruta), null),
+      gitAsync: async (ruta) => (consultas.push(ruta), null),
+    };
+    const snap = await escanearWorkspace({ raiz, carpetaSkills: join(raiz, 'skills'), puerto: espia });
+    assert.deepEqual(snap.proyectos.map((p) => p.id), ['a']);
+    assert.ok(consultas.includes(join(raiz, 'a')), `consultas=${consultas}`);
   } finally {
     rmSync(raiz, { recursive: true, force: true });
   }

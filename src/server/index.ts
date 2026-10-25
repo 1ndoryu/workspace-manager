@@ -26,6 +26,7 @@ import { manejarRutasTallerAgente } from './taller/rutasTallerAgente.js';
 import { manejarRutasSalud } from './rutas/salud/rutasSalud.js';
 import { manejarRutasVersion } from './rutas/rutasVersion.js';
 import { manejarRutasRepos } from './rutas/rutasRepos.js';
+import { PUERTO_GIT } from './scanner/git.js';
 import { manejarRutasVps } from './vps/rutas/rutasVps.js';
 import { manejarRutasVpsHistorial } from './vps/rutas/rutasVpsHistorial.js';
 import { manejarRutasRecursos } from './recursos/rutasRecursos.js';
@@ -135,7 +136,7 @@ const MANEJADORES_API: ManejadorRuta[] = [
   (req, res, url, ruta) => manejarRutasConfig(req, res, url, ruta, publicadores.publicarWorkspace), /* /api/config* */
   manejarRutasDocumentos,   /* /api/skills/*, /api/agentes */
   manejarRutasArchivos,     /* /api/archivos* */
-  manejarRutasRepos,        /* /api/repos/* */
+  (req, res, url, ruta) => manejarRutasRepos(req, res, url, ruta, PUERTO_GIT), /* /api/repos/* */
   manejarRutasVps,          /* /api/vps/* (299A-5, solo lectura) */
   manejarRutasVpsPiezas,    /* /api/vps/pieza (0110A-3 F3): archivo aparte por el refactor de rutasVps */
   manejarRutasVpsHistorial, /* /api/vps/historial (07AA-4): archivo aparte por el límite de líneas */

@@ -3,6 +3,7 @@
  * config y de documentos lo consumen sin importar el entry (sin ciclos). */
 import { obtenerSnapshot, type CacheResultado } from './cache.js';
 import { escanearWorkspace, refrescarGit } from './scanner/workspace.js';
+import { PUERTO_GIT } from './scanner/git.js';
 import { CARPETA_SKILLS, RAIZ_AREA } from './plataforma/rutas.js';
 
 /* Quien quiere enterarse de cada escaneo de verdad (20AA-10 F6).
@@ -19,9 +20,9 @@ export function alEscanearWorkspace(fn: (() => void) | null): void {
 export async function snapshotArea(forzar: boolean): Promise<CacheResultado> {
   const resultado = await obtenerSnapshot(
     RAIZ_AREA,
-    () => escanearWorkspace({ raiz: RAIZ_AREA, carpetaSkills: CARPETA_SKILLS }),
+    () => escanearWorkspace({ raiz: RAIZ_AREA, carpetaSkills: CARPETA_SKILLS, puerto: PUERTO_GIT }),
     forzar,
-    refrescarGit,
+    (snapshot) => refrescarGit(snapshot, PUERTO_GIT),
   );
   /* Solo cuando el escaneo ha sido de verdad: si el snapshot salio de cache, los roadmaps del
    * disco no se han vuelto a mirar y avisar aqui dispararia la sincronia en cada GET. */

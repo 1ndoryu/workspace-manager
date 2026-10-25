@@ -10,12 +10,16 @@ import { json } from '../http.js';
 import { snapshotArea } from '../snapshot.js';
 import { detalleSync } from '../scanner/git.js';
 import { detalleArchivos } from '../scanner/gitDiffs.js';
+import type { PuertoGit } from '../scanner/puertoGit.js';
 
+/* [por que] `puerto` llega por parámetro desde el composition root (index.ts): esta ruta no
+ * elige qué git usar, solo lo pasa a quien lee el repo (19AA-13). */
 export async function manejarRutasRepos(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
   ruta: string,
+  puerto: PuertoGit,
 ): Promise<boolean> {
   /* Detalle de sync: la clave se resuelve desde el snapshot (anti-traversal,
    * mismo patron que /api/proyecto/gate); 404 si no existe o no es git. */
@@ -31,7 +35,7 @@ export async function manejarRutasRepos(
       json(res, 404, { error: 'Proyecto no encontrado o no es git', clave });
       return true;
     }
-    json(res, 200, { clave, ...detalleSync(proyecto.ruta) });
+    json(res, 200, { clave, ...detalleSync(proyecto.ruta, puerto) });
     return true;
   }
   /* Archivos con cambios + diffs para el lateral (299A-4): misma
@@ -48,7 +52,7 @@ export async function manejarRutasRepos(
       json(res, 404, { error: 'Proyecto no encontrado o no es git', clave });
       return true;
     }
-    json(res, 200, { clave, ...detalleArchivos(proyecto.ruta) });
+    json(res, 200, { clave, ...detalleArchivos(proyecto.ruta, puerto) });
     return true;
   }
   return false;

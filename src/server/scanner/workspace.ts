@@ -4,7 +4,9 @@
  * solo agrupan: dentro puede haber un repo de verdad -> se baja un nivel. */
 import { existsSync, readdirSync } from 'node:fs';
 import { join, normalize, relative, sep } from 'node:path';
-import { detectarGit, estadoGitAsync } from './git.js';
+import { detectarGit } from './gitDeteccion.js';
+import { estadoGitAsync } from './git.js';
+import type { PuertoGit } from './puertoGit.js';
 import { estadoGate, diagnosticarGate } from './gate.js';
 import { resumenRoadmap } from './roadmap/roadmap.js';
 import { resumenAgents, agentesGlobales } from './agents.js';
@@ -13,24 +15,18 @@ import { anotarRegistro, leerRegistroOpcional } from '../registro.js';
 import { NOMBRE_QUALITY_TOOLS, RAIZ_REPO } from '../plataforma/rutas.js';
 import type { EstadoGate, Proyecto, SnapshotWorkspace } from '../../shared/types.js';
 
-/* Carpetas que NUNCA se tratan como proyecto, en cualquier área: no son datos
- * nuestros, son de la forma en que un repo se construye y se ejecuta.
- * [por que] Las de un área concreta (carpetas de clientes, agrupaciones propias,
- * documentación) NO van aquí: las declara `carpetasIgnoradas` en la config. Antes
- * estaban incrustadas y el escáner solo servía para una máquina. */
-const IGNORADAS = new Set([
-  '.git',
-  'node_modules',
-  'dist',
-  'temp',
-  'uploads',
-  '.sentinel',
-  NOMBRE_QUALITY_TOOLS,
-]);
+/* Exclusiones a mano, por encima de la regla de señal (308A-8). Son pocas y cada una tiene motivo:
+ * - `.git`: es el gitdir de un repo, nunca un proyecto en sí (detectarGit lo vería como repo).
+ * - `NOMBRE_QUALITY_TOOLS`: herramienta del gate del área, no un proyecto aunque lleve manifiesto.
+ * [por que] Lo demás (node_modules, dist, temp…) ya no está en esta lista: sin señal no es
+ * proyecto, y si tiene señal y hay que ocultarlo, va a `carpetasIgnoradas` o `ignorados` de la config. */
+const EXCLUIDAS_A_MANO = new Set(['.git', NOMBRE_QUALITY_TOOLS]);
 
 export interface OpcionesEscaneo {
   raiz: string;
   carpetaSkills: string;
+  /* Git inyectado: el escáner nunca lanza git por su cuenta (19AA-13). */
+  puerto: PuertoGit;
 }
 
 /* Clave unica de un proyecto: ruta relativa al area, separador '/'. */
@@ -139,13 +135,13 @@ export async function escanearWorkspace(opts: OpcionesEscaneo): Promise<Snapshot
   const config = leerConfigArea(opts.raiz);
   const sinGate = new Set(config.sinGate ?? []);
   const varsenseOpcional = new Set(config.varsenseOpcional ?? []);
-  const ignoradas = new Set([...IGNORADAS, ...(config.carpetasIgnoradas ?? [])]);
+  const ignoradas = new Set([...EXCLUIDAS_A_MANO, ...(config.carpetasIgnoradas ?? [])]);
   const recursivas = new Set(config.carpetasRecursivas ?? []);
 
   const { carpetas, repos } = descubrir(opts.raiz, ignoradas, recursivas);
   /* El orden de llegada no importa: la lista se ordena por id más abajo. */
   const deRepos = await mapLimitado(repos, REPOS_EN_PARALELO, (r) =>
-    proyectoCompleto(opts.raiz, r.ruta, r.id, r.tipo, r.padre, sinGate, varsenseOpcional));
+    proyectoCompleto(opts.raiz, r.ruta, r.id, r.tipo, r.padre, sinGate, varsenseOpcional, opts.puerto));
   const proyectos: Proyecto[] = [...carpetas, ...deRepos];
 
   /* Clave en los proyectos git y filtro de ignorados. [por que] La config
@@ -179,8 +175,9 @@ async function proyectoCompleto(
   id: string,
   tipo: 'repo' | 'worktree',
   padre: string | null,
-  sinGate: Set<string> = new Set(),
-  varsenseOpcional: Set<string> = new Set(),
+  sinGate: Set<string>,
+  varsenseOpcional: Set<string>,
+  puerto: PuertoGit,
 ): Promise<Proyecto> {
   const clave = claveDe(ruta, raiz);
   const gate = estadoGate(ruta);
@@ -209,7 +206,7 @@ async function proyectoCompleto(
      * la réplica de la 89). Lo consume la clasificación compartida, que no
      * puede mirar rutas por sí misma (no tiene Node). */
     esMando: normalize(ruta).toLowerCase() === normalize(RAIZ_REPO).toLowerCase(),
-    git: await estadoGitAsync(ruta),
+    git: await estadoGitAsync(ruta, puerto),
     gate: gateReal,
     gateProblemas: diagnosticarGate(ruta),
     roadmap: resumenRoadmap(ruta),
@@ -222,9 +219,9 @@ async function proyectoCompleto(
  * ahead) se quedaba congelado en el momento del escaneo: el tablero daba «16 sin
  * commitear» con el repo ya limpio. Releer solo git es mucho más barato que el
  * escaneo completo (gate, roadmap, agentes), así que basta con esto. */
-export async function refrescarGit(snapshot: SnapshotWorkspace): Promise<SnapshotWorkspace> {
+export async function refrescarGit(snapshot: SnapshotWorkspace, puerto: PuertoGit): Promise<SnapshotWorkspace> {
   const proyectos = await mapLimitado(snapshot.proyectos, REPOS_EN_PARALELO, async (p) =>
-    p.esGit ? { ...p, git: await estadoGitAsync(p.ruta) } : p);
+    p.esGit ? { ...p, git: await estadoGitAsync(p.ruta, puerto) } : p);
   return { ...snapshot, proyectos, resumen: resumenDe(proyectos), gitEn: new Date().toISOString() };
 }
 
