@@ -206,15 +206,18 @@ async function prepararSentinelRemoto(
 }
 
 /* Sentinel en la 89. Lanza si no hay fuentes locales, si la copia falla o si no se
- * obtiene reporte. */
+ * obtiene reporte. `ws` (20AA-15) analiza otro árbol, p. ej. el export de HEAD; por defecto
+ * es la réplica del proyecto. */
 export async function correrSentinelRemoto(
   clave: string,
   cfg: ConfigRemota,
   rutaLocal: string,
   puerto: PuertoRemoto = PUERTO_REMOTO,
+  ws?: string,
 ): Promise<ResultadoSpawn> {
   const rt = await prepararSentinelRemoto(clave, cfg, rutaLocal, puerto);
-  const r = await puerto.ssh(cfg, comandoAnalisis({ env: rt.env, node: cfg.nodeRemoto, cli: rt.cli, verbo: 'analyze', workspace: rt.ws }), TIMEOUT_ANALISIS_MS);
+  const workspace = ws ?? rt.ws;
+  const r = await puerto.ssh(cfg, comandoAnalisis({ env: rt.env, node: cfg.nodeRemoto, cli: rt.cli, verbo: 'analyze', workspace }), TIMEOUT_ANALISIS_MS);
   const dato = parsearReporte(r.stdout);
   if (!dato) throw new Error(`sentinel en ${cfg.host} no devolvió reporte${r.fallo ? `: ${r.fallo}` : ''}`);
   return { version: rt.version, commit: null, dato };
@@ -246,11 +249,11 @@ export async function correrVarsenseRemoto(
   cfg: ConfigRemota,
   rutaLocal: string,
   puerto: PuertoRemoto = PUERTO_REMOTO,
+  ws: string = rutaRemota(cfg, clave),
 ): Promise<ResultadoSpawn> {
   const local = fuentesVarsense();
   if (!local) throw new Error('fuentes de varsense no encontradas (falta src/ o package.json)');
   const { base, cli } = await prepararRuntimeRemoto(clave, cfg, 'varsense', local, puerto);
-  const ws = rutaRemota(cfg, clave);
   /* Repos anidados: la réplica no los lleva marcados (Mutagen ignora `.git`) y
    * varsense los recorrería enteros, mientras el portátil los salta. */
   const marcas = await puerto.ssh(cfg, comandoMarcasRepos(ws, reposAnidados(rutaLocal)), TIMEOUT_SONDA_MS);

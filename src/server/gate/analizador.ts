@@ -46,8 +46,9 @@ import {
 } from './herramientas/ejecucion.js';
 import type { ResultadoSpawn } from './herramientas/ejecucion.js';
 import { correrSentinelRemoto, correrVarsenseRemoto, prepararReplica } from './herramientas/remoto.js';
-import { hostTaller, leerConfigRemota, modoAnalisis } from './herramientas/config.js';
-import { mensaje } from './herramientas/ssh.js';
+import { hostTaller, leerConfigRemota, modoAnalisis, rutaBaseRemota } from './herramientas/config.js';
+import { enviarHead, mensaje } from './herramientas/ssh.js';
+import { PUERTO_GIT } from '../scanner/git.js';
 import type { ConfigRemota } from './herramientas/config.js';
 
 /* La lectura de lo guardado se reexporta aqui a proposito: este fichero es la
@@ -250,6 +251,48 @@ export async function analizarParaGate(p: Proyecto, forzar = false, emergencia =
     cacheGate.delete(p.clave);
   }
   return dato;
+}
+
+/* Base del gate desde HEAD (20AA-15, `gate --inicio --desde HEAD`): analiza el export de HEAD en
+ * la 89 y deja el árbol de trabajo intacto. [por que] Así el `--inicio` no obliga a guardar, medir y
+ * restaurar a mano cuando ya hay cambios sin commitear. Solo proyectos de taller: sin taller no hay
+ * dónde exportar, y se dice en vez de analizar en el portátil. La caché va por HEAD y por la misma
+ * frescura que el resto (versiones, modo), no por el árbol. */
+const cacheHead = new Map<string, { clave: string; dato: AnalisisSentinel }>();
+export async function analizarDesdeHead(p: Proyecto, forzar = false): Promise<AnalisisSentinel> {
+  if (modoAnalisis(p.clave) !== 'taller') {
+    return datoError(p.clave, 'gate --desde HEAD solo analiza proyectos del taller (analisisEn: taller)');
+  }
+  const head = (await PUERTO_GIT.gitAsync(p.ruta, ['rev-parse', 'HEAD']))?.trim() ?? '';
+  if (!head) return datoError(p.clave, 'no se pudo leer HEAD (¿repo sin commits?)');
+  const clave = `${frescoDe(p)}|${head}`;
+  const previo = cacheHead.get(p.clave);
+  if (!forzar && previo?.clave === clave) return previo.dato;
+  const dato = await correrDesdeHead(p);
+  if (esCacheable(dato)) cacheHead.set(p.clave, { clave, dato });
+  else cacheHead.delete(p.clave);
+  return dato;
+}
+
+/* Exporta HEAD a la base remota y la analiza allí. Un fallo de exportación o de cualquiera de las dos
+ * herramientas queda en el dato, sin lanzar. */
+async function correrDesdeHead(p: Proyecto): Promise<AnalisisSentinel> {
+  const clave = p.clave;
+  let cfg: ConfigRemota;
+  let base: string;
+  try {
+    cfg = leerConfigRemota();
+    base = rutaBaseRemota(cfg, clave);
+    await enviarHead(cfg, p.ruta, base);
+  } catch (err) {
+    return datoError(clave, `export de HEAD en el taller no arrancó: ${mensaje(err)}`);
+  }
+  const conVs = varsenseAplica(p.ruta);
+  const [[res, errorRes], [resVs, errorVs]] = await Promise.all([
+    intentar(() => correrSentinelRemoto(clave, cfg, p.ruta, undefined, base)),
+    intentar(() => (conVs ? correrVarsenseRemoto(clave, cfg, p.ruta, undefined, base) : Promise.resolve(null))),
+  ]);
+  return montarAnalisis(p, res, resVs, base, { sentinel: errorRes, varsense: errorVs });
 }
 
 /* Barrido serial del workspace: analiza solo los elegibles UNO POR UNO

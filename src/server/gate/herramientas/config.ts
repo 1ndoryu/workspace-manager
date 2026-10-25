@@ -194,3 +194,12 @@ export function rutaRuntimeRemota(cfg: ConfigRemota, clave: string, tool: string
   rutaRemota(cfg, clave);
   return `${cfg.dirRemotoBase.replace(/\/+$/, '')}/_quality-tools/${clave}/${tool}`;
 }
+
+/* Base del gate de un proyecto en la 89 (20AA-15): <dirRemotoBase>/_gate-base/<clave>, donde
+ * `--inicio --desde HEAD` vuelca el export de HEAD. [por que] Fuera de la réplica por la misma
+ * razón que los runtimes: Mutagen la borraría en el siguiente flush. Es desechable: se regenera
+ * en cada análisis. */
+export function rutaBaseRemota(cfg: ConfigRemota, clave: string): string {
+  rutaRemota(cfg, clave);
+  return `${cfg.dirRemotoBase.replace(/\/+$/, '')}/_gate-base/${clave}`;
+}

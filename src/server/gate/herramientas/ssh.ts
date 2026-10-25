@@ -8,7 +8,7 @@
  * que no respondía colgaba la petición para siempre. Aquí todos comparten `argsSsh` y
  * todos vencen. */
 import { spawn } from 'node:child_process';
-import { BIN_SSH, BIN_TAR } from '../../plataforma/sistema/binarios.js';
+import { BIN_GIT, BIN_SSH, BIN_TAR } from '../../plataforma/sistema/binarios.js';
 import type { ConfigRemota } from './config.js';
 
 /* [por que] Tope de salida: el reporte de un proyecto grande (993 archivos) supera el
@@ -125,7 +125,7 @@ function porTuberia(
   comandoSsh: string,
   timeoutMs: number,
   lista?: string,
-  binTar = BIN_TAR,
+  binLocal = BIN_TAR,
 ): Promise<void> {
   return new Promise((ok, mal) => {
     let resuelto = false;
@@ -137,7 +137,7 @@ function porTuberia(
       if (fallo) mal(new Error(fallo));
       else ok();
     };
-    const tar = spawn(binTar, argsTar, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    const tar = spawn(binLocal, argsTar, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     const ssh = spawn(BIN_SSH, argsSsh(cfg, comandoSsh, false), {
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -219,4 +219,13 @@ export function enviarArbol(
     `${entradas.join('\n')}\n`,
     tar,
   );
+}
+
+/* Envía el export de HEAD de `ruta` a `destino` en la VPS, sin tocar el árbol de trabajo
+ * (20AA-15). [por que] `git archive` empaqueta solo lo commiteado: lo que el portátil tenga sin
+ * guardar no entra, y eso es lo que el gate debe medir. Borra `destino` antes, así no sobrevive
+ * ningún fichero de un export anterior. */
+export function enviarHead(cfg: ConfigRemota, ruta: string, destino: string): Promise<void> {
+  const orden = `rm -rf ${comillas(destino)} && mkdir -p ${comillas(destino)} && tar -C ${comillas(destino)} -xf -`;
+  return porTuberia(cfg, ['-C', ruta, 'archive', '--format=tar', 'HEAD'], orden, TIMEOUT_ENVIO_MS, undefined, BIN_GIT);
 }

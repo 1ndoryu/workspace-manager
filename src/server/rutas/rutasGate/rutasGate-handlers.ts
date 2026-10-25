@@ -8,7 +8,7 @@ import { doctorCacheado } from '../../gate/herramientas/doctor.js';
 import { esquemaGate, reglasGate } from '../../gate/herramientas/proveedor.js';
 import { tiposDeGate } from '../../../shared/gate/proveedores.js';
 import { correrSincronizacion } from '../../gate/sincronizacion.js';
-import { analizarParaGate, analizarProyecto, analizarTodo, analisisVigentes, analisisVigentePara, esElegible } from '../../gate/analizador.js';
+import { analizarDesdeHead, analizarParaGate, analizarProyecto, analizarTodo, analisisVigentes, analisisVigentePara, esElegible } from '../../gate/analizador.js';
 import { compararHallazgos } from '../../gate/hallazgos/comparacion.js';
 import { auditarProyecto, auditarTodo, auditoriaVigentePara, auditoriasVigentes } from '../../gate/vulnerabilidades/vulnerabilidades.js';
 import type { AnalisisSentinel, AnalisisVulnerabilidades, HallazgoSentinel } from '../../../shared/types.js';
@@ -118,13 +118,24 @@ export async function sincronizacion(c: Contexto): Promise<void> {
  * (branch+HEAD+version) evita revert spawns sin cambios. */
 export async function analizarUno(c: Contexto): Promise<void> {
   if (!soloMetodo(c, 'POST')) return;
-  const body = (await leerBody(c.req)) as { clave?: unknown; forzar?: unknown; arbol?: unknown; local?: unknown };
+  const body = (await leerBody(c.req)) as { clave?: unknown; forzar?: unknown; arbol?: unknown; local?: unknown; desde?: unknown };
   const clave = campoStr(body, 'clave', '');
   const forzar = body.forzar === true;
   /* arbol=true: análisis del gate (cuenta el árbol de trabajo, caché por huella). */
   const arbol = body.arbol === true;
   /* local=true: emergencia (`--local`), se analiza aquí y no se cachea. */
   const emergencia = body.local === true;
+  /* desde='HEAD': la base sale del export de HEAD en la 89 y no del árbol (20AA-15). Solo casa con
+   * `--inicio` (arbol) y no con la emergencia, que se analiza en el portátil. */
+  const desde = body.desde;
+  if (desde !== undefined && desde !== 'HEAD') {
+    json(c.res, 400, { error: "desde solo admite 'HEAD'", clave });
+    return;
+  }
+  if (desde === 'HEAD' && (!arbol || emergencia)) {
+    json(c.res, 400, { error: "desde 'HEAD' requiere arbol=true y no admite local", clave });
+    return;
+  }
   const proyecto = arbol ? await proyectoParaGate(clave) : (await escaneoFresco()).proyectos.find((p) => p.clave === clave);
   if (!proyecto) {
     json(c.res, 404, { error: 'Proyecto no encontrado', clave });
@@ -132,6 +143,10 @@ export async function analizarUno(c: Contexto): Promise<void> {
   }
   if (!esElegible(proyecto)) {
     json(c.res, 400, { error: 'El proyecto no usa sentinel (no se puede analizar)', clave });
+    return;
+  }
+  if (desde === 'HEAD') {
+    json(c.res, 200, await analizarDesdeHead(proyecto, forzar));
     return;
   }
   json(c.res, 200, await (arbol ? analizarParaGate(proyecto, forzar, emergencia) : analizarProyecto(proyecto, forzar, emergencia)));
