@@ -25,6 +25,7 @@ import {
   faltaTargetXwin,
   argsConTargetXwin,
   TARGET_WINDOWS,
+  esComandoDeLock,
 } from './rcargo.mjs';
 import { rutaConfigPrivada } from '../shared/rutas.mjs';
 
@@ -317,4 +318,11 @@ test('aviso de Cargo.lock: Cargo.toml sin lock local; con lock o sin Cargo.toml,
   assert.match(avisoCargoLock('/p', con(['Cargo.toml'])), /Cargo\.lock/);
   assert.equal(avisoCargoLock('/p', con(['Cargo.toml', 'Cargo.lock'])), null);
   assert.equal(avisoCargoLock('/p', con(['package.json'])), null);
+});
+
+test('esComandoDeLock: solo los subcomandos que escriben Cargo.lock traen el lock de vuelta', () => {
+  assert.equal(esComandoDeLock(['update', '-p', 'rustls']), true);
+  assert.equal(esComandoDeLock(['generate-lockfile']), true);
+  assert.equal(esComandoDeLock(['check']), false);
+  assert.equal(esComandoDeLock([]), false);
 });
