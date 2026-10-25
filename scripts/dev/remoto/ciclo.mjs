@@ -9,7 +9,7 @@ import { sincronizarBd } from './bd/sincronizar.mjs';
 import { comandoConstruirFront, comandoNpmCi, comandoPrecompilar, comandoRemotoUp, rutaLogNpmCi, sesionTmux } from './comandos.mjs';
 import { contenidoEnvFrontend, contenidoEnvRemoto, entornoRemoto, validarHostRemoto } from './entorno.mjs';
 import { escribirEstado, escribirEstadoTunel, leerEstado, rutaEstado } from './estado.mjs';
-import { ajenosEnPuertos, estadoRemoto, localesTodos, marcadorSonda, pararSesiones, pararSesionesPuertos, puertosConEntornoDistinto, puertosTodos, resumenAjenos, rutaSonda } from './ficha.mjs';
+import { ajenosEnPuertos, estadoRemoto, localesTodos, marcadorSonda, pararSesiones, pararSesionesPuertos, puertosConEntornoDistinto, puertosDeSalida, puertosTodos, resumenAjenos, rutaSonda } from './ficha.mjs';
 import { rutaAbsDe } from './red/rutaLocal.mjs';
 import { esperarEscucha, esperarLibre, esperarSonda, esperarSondaRemota } from './red/sondas.mjs';
 import { escribirArchivoRemoto, sshRemoto } from './red/ssh.mjs';
@@ -33,8 +33,9 @@ async function sesionesSinSupervisar(config, id, puertos) {
   const r = await sshRemoto(config, consulta);
   if (!r.ok) return [];
   /* A numeros: llegan como texto del `echo` y con texto `indexOf` nunca encuentra su puerto
-   * (`-1`), asi que se acabaria lanzando el boton de otro puerto en esa sesion. */
-  return r.salida.split(/\r?\n/).map((l) => Number(l.trim())).filter((n) => Number.isInteger(n));
+   * (`-1`), asi que se acabaria lanzando el boton de otro puerto en esa sesion. Solo los pedidos:
+   * con todas supervisadas la salida es vacia y `Number('')` daba un puerto 0 (20AA-12). */
+  return puertosDeSalida(r.salida, puertos);
 }
 
 // Dónde deja el front construido `npm run build` en los seis proyectos del taller. Es el directorio

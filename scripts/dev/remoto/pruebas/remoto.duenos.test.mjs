@@ -2,7 +2,17 @@
  * Puros: el script real corre en la 89 y se prueba allí con un fixture propio. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analizarDuenos, resumenAjenos } from '../ficha.mjs';
+import { analizarDuenos, puertosDeSalida, resumenAjenos } from '../ficha.mjs';
+
+test('puertosDeSalida: salida vacia (todas supervisadas) no inventa el puerto 0 (20AA-12)', () => {
+  assert.deepEqual(puertosDeSalida('', [3110, 20241]), []);
+  assert.deepEqual(puertosDeSalida('\n', [3110, 20241]), []);
+});
+
+test('puertosDeSalida: solo devuelve los puertos pedidos, como numeros', () => {
+  assert.deepEqual(puertosDeSalida('3110\n20241\n', [3110, 20241]), [3110, 20241]);
+  assert.deepEqual(puertosDeSalida('0\n3110\n', [3110]), [3110]);
+});
 
 test('analizarDuenos separa nuestro, ajeno, libre y pid no visible', () => {
   const salida = [

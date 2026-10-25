@@ -67,6 +67,12 @@ export const rutaSonda = (entrada, puerto) => saludDe(entrada, puerto).ruta ?? '
 export const marcadorSonda = (entrada, puerto) => saludDe(entrada, puerto).marcador ?? null;
 
 
+// Lee la salida de `sesionesSinSupervisar`: un puerto por linea, solo los pedidos. Salida vacia
+// (todas supervisadas) no es el puerto 0: `Number('')` vale 0 y es entero, asi que se filtra por la lista.
+export function puertosDeSalida(salida, puertos) {
+  return salida.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map(Number).filter((n) => puertos.includes(n));
+}
+
 // Lee la salida de `comandoDuenosRemotos`. Una linea por puerto: `<puerto> <dueno> <pid|-> <comando>`.
 export function analizarDuenos(salida) {
   return salida.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).map((linea) => {
