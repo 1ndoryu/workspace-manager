@@ -76,6 +76,9 @@ export function PanelNavegador() {
                 <Button
                   className="navegadorSubir"
                   onClick={() => void cargarDir(padre)}
+                  /* [por que] El nombre accesible sale de aria-label: el contenido "↑" solo
+                   * diria una flecha al lector de pantalla. */
+                  aria-label={`Subir a ${padre}`}
                   title={`Subir a ${padre}`}
                 >
                   ↑
