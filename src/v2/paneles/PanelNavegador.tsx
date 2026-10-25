@@ -117,6 +117,9 @@ export function PanelNavegador() {
         titulo={abierto ? abierto.nombre : 'visor'}
         meta={abierto ? abierto.ruta : undefined}
         etiqueta="Contenido del archivo"
+        /* [por que 19AA-2] Columna sin scroll propio: el <pre> llena la caja y es quien desplaza.
+         * Con el cuerpo como scroller (sin esto) el <pre> no desplazaba con el teclado. */
+        columna
         acciones={mensaje && abierto ? <span className="docsMensaje">{mensaje}</span> : undefined}
       >
         {!abierto && !cargandoArchivo && <div className="docsVacio">elige un archivo para verlo</div>}
@@ -128,7 +131,10 @@ export function PanelNavegador() {
                 archivo binario o no legible — no se puede mostrar como texto
               </div>
             ) : (
-              <pre className="panelDocsPre">{abierto.contenido}</pre>
+              /* [por que 19AA-2] El visor es el que desplaza el archivo largo, pero un <pre> sin
+               * tabIndex no entra en el orden de Tab: con teclado no había forma de llegar a él ni
+               * de bajar. Enfocable, las flechas y Re Pág/Av Pág suben por su contenedor. */
+              <pre className="panelDocsPre" tabIndex={0} aria-label={`Contenido de ${abierto.nombre}`}>{abierto.contenido}</pre>
             )}
           </>
         )}
