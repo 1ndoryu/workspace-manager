@@ -4,7 +4,7 @@
  * completo de markdown. */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AgentesInfo, ResumenAgents, SkillGlobal } from '../../shared/types.js';
+import type { AgentesInfo, ResumenAgents, SkillGlobal } from '../../../shared/types.js';
 
 /* [por que] Quita comillas envolventes (simples o dobles) que YAML puede
  * colocar alrededor de un valor escalar de una linea. */
