@@ -14,10 +14,10 @@ import { fileURLToPath } from 'node:url';
 import { exigirConfigPrivada } from '../shared/rutas.mjs';
 import { BIN_GIT, BIN_SSH } from '../shared/binarios.mjs';
 import { correr, shQuote } from './proceso.mjs';
-import { ignoresAlDia, ignoresDeProyecto, ignoresDeSesion, argsCrearSesion, nombreSesion } from './sesion-sync.mjs';
+import { ignoresAlDia, ignoresDeProyecto, ignoresDeSesion, argsCrearSesion, nombreSesion } from './sync/sesion-sync.mjs';
 
 // Re-exportado: los consumidores (y los tests) lo importan desde rcargo.
-export { slugSesion, nombreSesion, ignoresDeProyecto, argsCrearSesion, ignoresDeSesion, ignoresAlDia } from './sesion-sync.mjs';
+export { slugSesion, nombreSesion, ignoresDeProyecto, argsCrearSesion, ignoresDeSesion, ignoresAlDia } from './sync/sesion-sync.mjs';
 
 export { shQuote };
 
