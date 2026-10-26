@@ -33,6 +33,42 @@ function carpetaDe(id) {
   return existsSync(path.join(fuera, 'src-tauri')) ? fuera : null;
 }
 
+/* Front y servidor compilados en la 89 con el mismo ayudante que `up`. Devuelve 0 o el código de salida. */
+async function construirFrontPropio(config, rutas, id) {
+  console.log(`app: construyendo el front de ${id} en la 89`);
+  const front = await sshRemoto(
+    config,
+    comandoConstruirFront(rutas, id, ['npm', 'run', 'build']),
+    TIMEOUT_BUILD_MS,
+  );
+  if (!front.ok) {
+    console.error(`app: el front no compiló (log: ${rutas.dirLogs}/construir-front-${id}.log)`);
+    if (front.error) console.error(front.error);
+    return 1;
+  }
+  const hayDist = await sshRemoto(config, `test -f ${rutas.dirRemoto}/dist/index.html`);
+  if (!hayDist.ok) {
+    console.error(`app: el front no dejó dist/index.html en ${config.host}`);
+    return 1;
+  }
+  /* Servidor compilado: la app arranca `node dist-server/server/index.js` desde el repo.
+   * [por qué aquí] Lo construía `npm run build` en la cabeza de quien se acordara; un clon
+   * nuevo compilaba el .exe y se quedaba sin backend. Va por el mismo ayudante (wrapper). */
+  console.log(`app: compilando el servidor de ${id} en la 89`);
+  const servidor = await sshRemoto(
+    config,
+    comandoConstruirFront(rutas, id, ['npm', 'run', 'build:server'], 'servidor'),
+    TIMEOUT_BUILD_MS,
+  );
+  const hayServidor = await sshRemoto(config, `test -f ${rutas.dirRemoto}/dist-server/server/index.js`);
+  if (!servidor.ok || !hayServidor.ok) {
+    console.error(`app: el servidor no compiló (log: ${rutas.dirLogs}/construir-servidor-${id}.log)`);
+    if (servidor.error) console.error(servidor.error);
+    return 1;
+  }
+  return 0;
+}
+
 export async function app(resto) {
   const [id] = resto;
   if (!id || id.startsWith('--')) {
@@ -61,37 +97,15 @@ export async function app(resto) {
     return sync;
   }
 
-  /* 2) Front en la 89: es lo que se empotra en el exe. */
-  console.log(`app: construyendo el front de ${id} en la 89`);
-  const front = await sshRemoto(
-    config,
-    comandoConstruirFront(rutas, id, ['npm', 'run', 'build']),
-    TIMEOUT_BUILD_MS,
-  );
-  if (!front.ok) {
-    console.error(`app: el front no compiló (log: ${rutas.dirLogs}/construir-front-${id}.log)`);
-    if (front.error) console.error(front.error);
-    return 1;
-  }
-  const hayDist = await sshRemoto(config, `test -f ${rutas.dirRemoto}/dist/index.html`);
-  if (!hayDist.ok) {
-    console.error(`app: el front no dejó dist/index.html en ${config.host}`);
-    return 1;
-  }
-  /* 2b) Servidor compilado: la app arranca `node dist-server/server/index.js` desde el repo.
-   * [por qué aquí] Lo construía `npm run build` en la cabeza de quien se acordara; un clon
-   * nuevo compilaba el .exe y se quedaba sin backend. Va por el mismo ayudante (wrapper). */
-  console.log(`app: compilando el servidor de ${id} en la 89`);
-  const servidor = await sshRemoto(
-    config,
-    comandoConstruirFront(rutas, id, ['npm', 'run', 'build:server'], 'servidor'),
-    TIMEOUT_BUILD_MS,
-  );
-  const hayServidor = await sshRemoto(config, `test -f ${rutas.dirRemoto}/dist-server/server/index.js`);
-  if (!servidor.ok || !hayServidor.ok) {
-    console.error(`app: el servidor no compiló (log: ${rutas.dirLogs}/construir-servidor-${id}.log)`);
-    if (servidor.error) console.error(servidor.error);
-    return 1;
+  /* 2) Front en la 89: es lo que se empotra en el exe. Sin `package.json` propio
+   * (app que empotra el front de otro proyecto, p. ej. un exe que consume el dist de su web)
+   * no hay nada que construir aquí: `tauri.conf` apunta al `dist` ajeno y `tauri build`
+   * falla si no existe. El artefacto ajeno lo vigila `Arranque artefactos`. */
+  if (existsSync(path.join(raizProyecto, 'package.json'))) {
+    const ok = await construirFrontPropio(config, rutas, id);
+    if (ok !== 0) return ok;
+  } else {
+    console.log(`app: ${id} no tiene front propio; empotra el dist de su artefacto consumido`);
   }
 
   /* 3) El exe, por el wrapper del proyecto: nunca `cargo` desde aquí. */
