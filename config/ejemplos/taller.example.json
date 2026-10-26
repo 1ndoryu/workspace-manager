@@ -34,7 +34,10 @@
       "gateway/sesiones",
       "gateway/media",
       "gateway/qr-wa_*.png"
-    ]
+    ],
+    "ignorarPorProyecto": {
+      "<PROYECTO_CON_DATOS_LOCALES>": ["/data"]
+    }
   },
   "bd": {
     "usuario": "<USUARIO_BD>",

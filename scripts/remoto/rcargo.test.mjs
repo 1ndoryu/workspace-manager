@@ -129,6 +129,16 @@ test('sesión Mutagen: réplica unidireccional con exclusiones', () => {
   assert.equal(args.at(-1), `${config.host}:${config.dirRemotoBase}/sistema-legado`);
 });
 
+// Un patrón por proyecto (`ignorarPorProyecto`) entra solo en la sesión de ese proyecto.
+test('ignorarPorProyecto añade su patrón solo a su proyecto', () => {
+  const cfg = { ...FIXTURE, sync: { ignorar: ['.git'], ignorarPorProyecto: { 'limpiador-pc': ['/data'] } } };
+  const propio = argsCrearSesion(cfg, 'limpiador-pc', 'C:\\x\\limpiador-pc');
+  const ajeno = argsCrearSesion(cfg, 'otro', 'C:\\x\\otro');
+  assert.ok(propio.includes('/data'));
+  assert.ok(!ajeno.includes('/data'));
+  assert.ok(ajeno.includes('.git'));
+});
+
 /* [10AA-3] La sesión viva no se actualiza sola cuando `sync.ignorar` crece (esta versión de Mutagen
  * no tiene `sync configure`), así que hay que poder leer sus patrones y decidir si recrearla. */
 test('ignoresDeSesion lee los patrones de la sesión y calla si no entiende la salida', () => {

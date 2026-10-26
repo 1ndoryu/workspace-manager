@@ -121,9 +121,17 @@ export function rutasRemotas(config, proyecto, rama) {
   };
 }
 
+// Patrones que la réplica de un proyecto no envía: los globales de `sync.ignorar` más los de
+// `sync.ignorarPorProyecto[<proyecto>]` (p. ej. datos locales que no deben viajar a la 89).
+export function ignoresDeProyecto(config, proyecto) {
+  const globales = config.sync?.ignorar ?? [];
+  const propios = config.sync?.ignorarPorProyecto?.[proyecto] ?? [];
+  return [...globales, ...propios];
+}
+
 // Argumentos de `mutagen sync create`. Réplica laptop→89: la VPS nunca escribe de vuelta.
 export function argsCrearSesion(config, proyecto, rutaLocal) {
-  const ignorar = config.sync.ignorar.flatMap((p) => ['--ignore', p]);
+  const ignorar = ignoresDeProyecto(config, proyecto).flatMap((p) => ['--ignore', p]);
   return [
     'sync', 'create',
     '--name', nombreSesion(proyecto),
@@ -297,7 +305,7 @@ export function asegurarSesion({ config, proyecto, rutaLocal, rutas = null, dryR
   const vivos = lista.status === 0
     ? ignoresDeSesion(correr(mutagen, ['sync', 'list', '--template', '{{json .}}', sesion], { dryRun, cwd, silencioso: true }).stdout)
     : null;
-  const desalineada = vivos !== null && !ignoresAlDia(config.sync?.ignorar ?? [], vivos);
+  const desalineada = vivos !== null && !ignoresAlDia(ignoresDeProyecto(config, proyecto), vivos);
   if (desalineada) {
     process.stdout.write(`rcargo: la sesión ${sesion} ignora otros patrones que sync.ignorar; se recrea\n`);
     if (correr(mutagen, ['sync', 'terminate', sesion], { dryRun, cwd, silencioso: true }).status !== 0) return 1;
