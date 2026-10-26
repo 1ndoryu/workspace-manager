@@ -9,7 +9,9 @@ import { entradaEfectiva, puertoDeSaludValido, validarBloqueBuild } from '../sis
 
 // [por que 06AA-1] Campos admitidos por el registro: cualquier otro es error de escritura.
 // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-const CONOCIDAS = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'tunelPortatil', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto', 'sinServicio', 'permanente', 'supervisar', 'notaModo']);
+const CONOCIDAS = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'tunelPortatil', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto', 'appEscritorio', 'sinServicio', 'permanente', 'supervisar', 'notaModo']);
+// [por que] `appEscritorio.instalado` lo lee el atribuidor de puertos (esAppInstalada) para no
+// dar por hueco el exe de la app de escritorio del propio proyecto; sin la clave, el registro se rechaza.
 
 // [por que 06AA-1] Un aviso sin id no tiene a quien anotarse: solo con id valido se puede marcar la entrada.
 export const idValido = (e) => typeof e.id === 'string' && e.id.length > 0;
