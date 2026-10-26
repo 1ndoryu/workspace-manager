@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs';
 import { isAbsolute, normalize, resolve, sep } from 'node:path';
 
 import { EXES_PERMITIDOS, SCRIPTS_NODO_VALIDOS } from '../base.mjs';
+import { esEntradaRemota } from '../sistema/puertos/modo.mjs';
 
 export function motivoRutaInexistente(e, rutaAbs) {
   return existsSync(rutaAbs) ? null : `registro: '${e.id}' ruta inexistente (${e.ruta})`;
@@ -53,6 +54,8 @@ export function motivoExes(e, rutaAbs) {
     const esBinarioAbsoluto = /^[a-z]:[\\/]/i.test(argv[0]) && exe.endsWith('.exe') && existsSync(resolve(argv[0]));
     const esExeAbsoluto = /^[a-z]:[\\/]/i.test(argv[0]) && exe.endsWith('.exe');
     if (esExeAbsoluto && !existsSync(resolve(argv[0]))) {
+      // [por que] En una ficha remota el `boton` es de este equipo y no se lanza: el exe vive en el host (`botonRemoto`). Su ausencia aquí no es deriva ni motivo de reconstruir en el portátil.
+      if (esEntradaRemota(e)) continue;
       if (e._manifestAbs) {
         e._exeAusente = argv[0];
         return `registro: '${e.id}' exe ausente, reconstruible con up (${argv[0]})`;
