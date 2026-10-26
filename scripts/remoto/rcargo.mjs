@@ -330,10 +330,19 @@ export function esComandoDeLock(args) {
   return ['update', 'generate-lockfile'].includes(args[0]);
 }
 
+// Carpeta (relativa a la raíz del proyecto) donde vive el Cargo.lock: la del --manifest-path, o la raíz.
+// Sin esto, un proyecto con el crate en subcarpeta (pulse/Cargo.toml) perdía el lock al reanudar Mutagen.
+export function carpetaDelLock(args) {
+  const i = args.findIndex((a) => a === '--manifest-path' || a.startsWith('--manifest-path='));
+  if (i === -1) return '.';
+  const ruta = args[i].includes('=') ? args[i].split('=')[1] : args[i + 1];
+  return ruta ? path.posix.dirname(ruta.replace(/\\/g, '/')) : '.';
+}
+
 /* [por que] La réplica es one-way: Mutagen devuelve la 89 a la copia del laptop en segundos, así que
  * un Cargo.lock generado allí se pierde antes de poder copiarlo. Se pausa la sesión después del envío
  * (antes, el flush se negaría), se ejecuta cargo, se trae el lock y se reanuda siempre (finally). */
-function ejecutarLockRemoto({ config, proyecto, cwd, rutas, remoto, dryRun }) {
+function ejecutarLockRemoto({ config, proyecto, cwd, rutas, remoto, dryRun, carpeta = '.' }) {
   const mutagen = config.sync?.binario || 'mutagen';
   const sesion = nombreSesion(proyecto);
   if (correr(mutagen, ['sync', 'pause', sesion], { dryRun, cwd, silencioso: true }).status !== 0) return 1;
@@ -341,8 +350,9 @@ function ejecutarLockRemoto({ config, proyecto, cwd, rutas, remoto, dryRun }) {
     const estado = correr(BIN_SSH, argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;
     if (estado !== 0) return estado;
     const raiz = git(cwd, ['rev-parse', '--show-toplevel']) ?? cwd;
-    const origen = `${config.host}:${rutas.dirRemoto}/Cargo.lock`;
-    const copia = correr('scp', ['-o', 'BatchMode=yes', origen, path.join(raiz, 'Cargo.lock')], { dryRun, cwd, heredar: true }).status;
+    const origen = `${config.host}:${rutas.dirRemoto}/${carpeta === '.' ? '' : `${carpeta}/`}Cargo.lock`;
+    const destino = path.join(raiz, carpeta, 'Cargo.lock');
+    const copia = correr('scp', ['-o', 'BatchMode=yes', origen, destino], { dryRun, cwd, heredar: true }).status;
     if (copia !== 0) console.error('rcargo: no se pudo traer Cargo.lock de la VPS; el lock del laptop no cambió');
     return copia === 0 ? 0 : 1;
   } finally {
@@ -393,7 +403,7 @@ export function ejecutarRemoto({ config, proyecto, rama, cwd, args, dryRun, extr
   if (esVps()) return correr('bash', ['-lc', comandoLocal(config, rutas, cwd, args, nombreBd, preparar, extra)], { dryRun, cwd, heredar: true }).status;
 
   const remoto = construirComandoRemoto(config, rutas, args, nombreBd, preparar, extra);
-  if (esComandoDeLock(args)) return ejecutarLockRemoto({ config, proyecto, cwd, rutas, remoto, dryRun });
+  if (esComandoDeLock(args)) return ejecutarLockRemoto({ config, proyecto, cwd, rutas, remoto, dryRun, carpeta: carpetaDelLock(args) });
   const estado = correr(BIN_SSH, argsSsh(config, remoto), { dryRun, cwd, heredar: true }).status;
   /* [por que] 255 es fallo de ssh (la 89 no contesta), no de cargo: se nombra aparte.
    * Sin --local: cargo no tiene ruta de emergencia, así que el remedio es esperar. */

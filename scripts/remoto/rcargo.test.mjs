@@ -26,6 +26,7 @@ import {
   argsConTargetXwin,
   TARGET_WINDOWS,
   esComandoDeLock,
+  carpetaDelLock,
 } from './rcargo.mjs';
 import { rutaConfigPrivada } from '../shared/rutas.mjs';
 
@@ -318,6 +319,13 @@ test('aviso de Cargo.lock: Cargo.toml sin lock local; con lock o sin Cargo.toml,
   assert.match(avisoCargoLock('/p', con(['Cargo.toml'])), /Cargo\.lock/);
   assert.equal(avisoCargoLock('/p', con(['Cargo.toml', 'Cargo.lock'])), null);
   assert.equal(avisoCargoLock('/p', con(['package.json'])), null);
+});
+
+test('carpetaDelLock: el lock sigue al --manifest-path (subcarpeta) o queda en la raíz', () => {
+  assert.equal(carpetaDelLock(['update', '-p', 'rustls']), '.');
+  assert.equal(carpetaDelLock(['update', '--manifest-path', 'pulse/Cargo.toml']), 'pulse');
+  assert.equal(carpetaDelLock(['update', '--manifest-path=pulse/Cargo.toml']), 'pulse');
+  assert.equal(carpetaDelLock(['update', '--manifest-path', 'Cargo.toml']), '.');
 });
 
 test('esComandoDeLock: solo los subcomandos que escriben Cargo.lock traen el lock de vuelta', () => {
