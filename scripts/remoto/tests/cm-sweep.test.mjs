@@ -13,7 +13,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'cm-sweep.sh');
+// El script vive un nivel por encima: el test está en `tests/` para no saturar `remoto/`.
+const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'cm-sweep.sh');
 const HAY_GIT = (() => {
   try {
     execFileSync('git', ['--version'], { stdio: 'ignore' });
