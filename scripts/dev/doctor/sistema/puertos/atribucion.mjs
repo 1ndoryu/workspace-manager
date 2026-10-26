@@ -52,8 +52,12 @@ export function esAppInstalada(proc, entradas) {
   if (!proc?.exe) return false;
   const exe = normalizarRuta(proc.exe);
   for (const e of entradas) {
-    const instalado = e?.consumeArtefacto?.instalado;
-    if (typeof instalado === 'string' && instalado !== '' && exe === normalizarRuta(instalado)) return true;
+    // [por que] Dos orígenes del mismo exe instalado: el artefacto consumido (proyecto-escritorio)
+    // y la app de escritorio del propio proyecto (`appEscritorio`, workspace-manager). Su listener
+    // hacia el backend 8787 es la app en uso, no un hueco.
+    for (const instalado of [e?.consumeArtefacto?.instalado, e?.appEscritorio?.instalado]) {
+      if (typeof instalado === 'string' && instalado !== '' && exe === normalizarRuta(instalado)) return true;
+    }
   }
   return false;
 }
