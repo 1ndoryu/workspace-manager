@@ -113,6 +113,37 @@ export function paresTunelPortatil(entrada) {
   });
 }
 
+/* Reenvíos INVERSOS que el portátil ofrece a la 89 (`ssh -R`): pares [puerto en la 89, puerto del
+ * portátil]. [por que] Hay servicios que viven solo en el portátil (el WebLink del BDP del TPV) y
+ * que un proyecto de la 89 necesita alcanzar; el `-L` no sirve porque va en sentido contrario.
+ * Puro y genérico. */
+export function paresTunelInverso(entrada) {
+  const vistos = new Set();
+  return (entrada.tunelInverso ?? []).map(([r, l]) => [r, l]).filter(([r, l]) => {
+    const clave = `${r}:${l}`;
+    if (vistos.has(clave)) return false;
+    vistos.add(clave);
+    return true;
+  });
+}
+
+/* Reenvíos `-R` de un ssh, como pares [puerto en la 89, puerto del portátil]. Puro.
+ * [por que] Misma tolerancia al bind explícito que `reenviosTunel`. */
+export function reenviosInversos(cmd) {
+  return [...String(cmd ?? '').matchAll(/-R\s+(?:127\.0\.0\.1:)?(\d+):(?:127\.0\.0\.1|localhost):(\d+)/g)].map(
+    (m) => [Number(m[1]), Number(m[2])],
+  );
+}
+
+/* ¿`proc` es el ssh inverso de esta entrada? Mismo host y TODOS sus `-R` son pares declarados. */
+export function tunelInversoDe(proc, entrada) {
+  if (!proc?.cmd || !/^ssh(\.exe)?$/i.test(proc.imagen ?? '')) return false;
+  if (!esEntradaRemota(entrada) || !proc.cmd.includes(entrada.host)) return false;
+  const reenvios = reenviosInversos(proc.cmd);
+  const pares = paresTunelInverso(entrada);
+  return reenvios.length > 0 && reenvios.every(([r, l]) => pares.some(([pr, pl]) => pr === r && pl === l));
+}
+
 /* ¿`proc` es el túnel del portátil de esta entrada? Valida el HOST y que TODOS sus reenvíos sean
  * pares declarados; a diferencia de `tunelDeEntrada` admite `tunelPortatil`, y a diferencia de un
  * juego exacto tolera que la ficha haya dejado de declarar un par: si no lo reconociéramos, el

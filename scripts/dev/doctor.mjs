@@ -34,6 +34,7 @@ export {
   escanearEscucha,
   parsearNetstat,
   procesosDe,
+  procesosSshVivos,
 } from './doctor/sistema/procesos.mjs';
 
 export {
@@ -47,6 +48,9 @@ export {
   urlsServidas,
   paresTunel,
   paresTunelPortatil,
+  paresTunelInverso,
+  reenviosInversos,
+  tunelInversoDe,
   tunelPortatilDe,
   reenviosTunel,
   tunelDeEntrada,

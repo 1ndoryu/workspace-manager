@@ -14,7 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { sesionDev } from '../../shared/taller/sesiones.js';
-import { esPermanente } from '../../../scripts/dev/doctor.mjs';
+import { esPermanente, procesosSshVivos, reenviosInversos } from '../../../scripts/dev/doctor.mjs';
 import { ejecutarAccionDev, type ResultadoAccionDev } from '../dev/acciones.js';
 import { rutaConfigPrivada } from '../plataforma/rutas.js';
 
@@ -33,6 +33,9 @@ export interface EntradaTunel {
   sesiones: string[];
   /* Puertos locales que el portátil necesita: los del túnel del proyecto. */
   puertosLocales: number[];
+  /* Reenvíos inversos `-R` [puerto en la 89, puerto del portátil]: servicios que solo viven en el
+   * portátil y que la 89 debe alcanzar. Solo aparece si la ficha declara `tunelInverso`. */
+  inversos?: [number, number][];
 }
 
 /* Forma mínima de la ficha que el supervisor necesita. `permanente` y `supervisar` vienen las
@@ -49,6 +52,7 @@ interface ProyectoRegistro {
   puertosRemotos?: unknown;
   puertosLocales?: unknown;
   tunelPortatil?: unknown;
+  tunelInverso?: unknown;
   build?: { puertos?: unknown; puertosLocales?: unknown };
 }
 
@@ -93,13 +97,15 @@ export function tunelesDelRegistro(crudo: unknown): EntradaTunel[] {
     if (id === '' || typeof p.host !== 'string' || p.host === '') continue;
     if (!esPermanente(p as { permanente?: boolean; supervisar?: boolean })) continue;
     const reenvios = reenviosPortatil(p);
-    if (reenvios.length === 0) continue;
+    const inversos = pares(p.tunelInverso);
+    if (reenvios.length === 0 && inversos.length === 0) continue;
     const enBuild = p.modo === 'build' || (p.modo === undefined && p.build !== undefined);
     const remotos = enBuild ? numeros(p.build?.puertos) : numeros(p.puertosRemotos ?? p.puertos);
     salida.push({
       id,
       sesiones: remotos.map((puerto) => sesionDev(id, puerto)),
       puertosLocales: reenvios.map(([local]) => local),
+      ...(inversos.length > 0 ? { inversos } : {}),
     });
   }
   return salida;
@@ -125,9 +131,18 @@ export function puertoEscucha(puerto: number, timeoutMs = TIMEOUT_SONDEO_MS): Pr
   });
 }
 
+/* ¿Hay un ssh del portátil que ofrezca cada reenvío inverso? Un `-R` no deja puerto escuchando en
+ * el portátil que se pueda sondear, así que se mira el proceso. [por que] Basta: sus keepalives
+ * (45 s) lo matan si la 89 deja de contestar, así que un ssh vivo es un túnel vivo. */
+export async function inversosVivos(inversos: readonly [number, number][]): Promise<boolean> {
+  const ofrecidos = (await procesosSshVivos()).flatMap((p) => reenviosInversos(p.cmd));
+  return inversos.every(([r, l]) => ofrecidos.some(([or, ol]) => or === r && ol === l));
+}
+
 export interface DepsTuneles {
   entradas?: EntradaTunel[];
   probar?: (puerto: number) => Promise<boolean>;
+  probarInversos?: (inversos: readonly [number, number][]) => Promise<boolean>;
   reparar?: (id: string) => Promise<ResultadoAccionDev>;
   ahora?: () => number;
 }
@@ -149,7 +164,8 @@ function avisarFallo(id: string, motivo: string): void {
   process.stderr.write(`[tuneles] no se pudo reabrir el tunel de "${id}": ${motivo}\n`);
 }
 
-/* Revisa los túneles y repara los que hagan falta. Devuelve los ids reparados en
+/* Revisa los túneles y repara los que hagan falta (los `-L` por su puerto local; los `-R` por
+ * la existencia de su ssh). Devuelve los ids reparados en
  * esta pasada; la reparación sigue en segundo plano (abrir un ssh tarda segundos
  * y quien llama puede ser una ruta HTTP).
  * [por que] Basta con que UN puerto local del proyecto no escuche para reparar: el túnel es un
@@ -161,13 +177,15 @@ export async function revisarTuneles(
 ): Promise<string[]> {
   const entradas = deps.entradas ?? entradasConTunel();
   const probar = deps.probar ?? puertoEscucha;
+  const probarInversos = deps.probarInversos ?? inversosVivos;
   const reparar = deps.reparar ?? ((id: string) => ejecutarAccionDev('up', id, { soloTunel: true }));
   const ahora = deps.ahora ?? Date.now;
   const reparados: string[] = [];
   for (const e of entradas) {
     if (!e.sesiones.some((s) => tmuxVivos.includes(s))) continue;
     const vivos = await Promise.all(e.puertosLocales.map((p) => probar(p)));
-    if (vivos.every(Boolean)) continue;
+    const inversosOk = e.inversos === undefined || (await probarInversos(e.inversos));
+    if (vivos.every(Boolean) && inversosOk) continue;
     if (enVuelo.has(e.id)) continue;
     const ultimo = ultimoIntento.get(e.id);
     if (ultimo !== undefined && ahora() - ultimo < ENFRIAMIENTO_MS) continue;

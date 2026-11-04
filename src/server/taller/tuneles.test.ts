@@ -144,3 +144,40 @@ test('reenviosPortatil coincide con paresTunelPortatil del doctor', async () => 
   ];
   for (const f of fichas) assert.deepEqual(reenviosPortatil(f), paresTunelPortatil(f), JSON.stringify(f));
 });
+
+/* Túnel inverso (04AB-1): el `-R` no deja puerto que sondear en el portátil; lo que cuenta es que
+ * exista el ssh. Sin él, el supervisor repara aunque todos los `-L` escuchen. */
+test('tunelesDelRegistro: una ficha con solo `tunelInverso` también se vigila', () => {
+  const salida = tunelesDelRegistro({
+    proyectos: [
+      { id: 'con-bdp', host: 'taller-ejemplo', permanente: true, tunelSsh: false, puertosRemotos: [3105], tunelInverso: [[8071, 8070]] },
+      { id: 'sin-inverso', host: 'taller-ejemplo', permanente: true, puertosRemotos: [3106] },
+    ],
+  });
+  assert.deepEqual(salida, [
+    { id: 'con-bdp', sesiones: ['dev-con-bdp-3105'], puertosLocales: [], inversos: [[8071, 8070]] },
+    { id: 'sin-inverso', sesiones: ['dev-sin-inverso-3106'], puertosLocales: [3106] },
+  ]);
+});
+
+test('repara cuando los `-L` escuchan pero el ssh inverso no existe', async () => {
+  const entradas: EntradaTunel[] = [{ id: 'proyecto-e', sesiones: ['dev-proyecto-e-3105'], puertosLocales: [3105], inversos: [[8071, 8070]] }];
+  const pedidos: string[] = [];
+  const reparados = await revisarTuneles(['dev-proyecto-e-3105'], {
+    entradas,
+    probar: vivo,
+    probarInversos: caido,
+    reparar: espia(pedidos),
+    ahora: () => 7_000_000,
+  });
+  assert.deepEqual(reparados, ['proyecto-e']);
+  assert.deepEqual(pedidos, ['proyecto-e']);
+});
+
+test('no toca nada si los `-L` escuchan y el ssh inverso vive', async () => {
+  const entradas: EntradaTunel[] = [{ id: 'proyecto-f', sesiones: ['dev-proyecto-f-3105'], puertosLocales: [3105], inversos: [[8071, 8070]] }];
+  const pedidos: string[] = [];
+  const reparados = await revisarTuneles(['dev-proyecto-f-3105'], { entradas, probar: vivo, probarInversos: vivo, reparar: espia(pedidos) });
+  assert.deepEqual(reparados, []);
+  assert.deepEqual(pedidos, []);
+});

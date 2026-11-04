@@ -1,6 +1,6 @@
 /* Tunel SSH del laptop a la VPS: args, marcador, identidad y ciclo de vida. */
 
-import { procesosDe, puertosRemotosDe, reenviosTunel } from '../../doctor.mjs';
+import { procesosDe, procesosSshVivos, puertosRemotosDe, reenviosInversos, reenviosTunel, tunelInversoDe } from '../../doctor.mjs';
 import { BIN_SSH } from '../../../shared/binarios.mjs';
 import { execFile, spawn } from 'node:child_process';
 import { closeSync, mkdirSync, openSync } from 'node:fs';
@@ -160,6 +160,42 @@ export async function abrirTunelPares(config, pares, id) {
   const proc = await esperarTunel(hijo, (p) => Boolean(p.creado) && reenviosTunel(p.cmd).length > 0);
   if (!proc) return { pid: null, rutaLog };
   return { pid: hijo.pid, creado: proc.creado, rutaLog };
+}
+
+/* Abre el ssh INVERSO (`-R`): la 89 alcanza por su loopback un servicio que solo vive en el
+ * portátil. Va en su propio ssh, aparte de los `-L`: un `-R` que choca (el puerto de la 89 sigue
+ * tomado por un ssh muerto que su sshd aún no ha soltado) no debe tumbar los reenvíos directos.
+ * [por que] Mismos keepalives que `abrirTunelPares`: cae en ~45 s y el supervisor lo rearma. */
+export async function abrirTunelInverso(config, pares, id) {
+  mkdirSync(DIR_LOGS, { recursive: true });
+  const rutaLog = join(DIR_LOGS, `remoto-tunel-inverso-${id}.log`);
+  const fd = openSync(rutaLog, 'a');
+  const args = [
+    '-N',
+    '-o', 'ExitOnForwardFailure=yes',
+    '-o', 'ControlMaster=no',
+    '-o', 'ControlPath=none',
+    '-o', 'BatchMode=yes',
+    '-o', 'ConnectTimeout=10',
+    '-o', 'ServerAliveInterval=15',
+    '-o', 'ServerAliveCountMax=3',
+    '-o', 'TCPKeepAlive=yes',
+    ...pares.flatMap(([enHost, local]) => ['-R', fragmentoReenvio(enHost, local)]),
+    config.host,
+  ];
+  const hijo = spawn(BIN_SSH, args, { detached: true, stdio: ['ignore', fd, fd], windowsHide: true });
+  hijo.on('error', () => {});
+  hijo.unref();
+  closeSync(fd);
+  if (!hijo.pid) return { pid: null, rutaLog };
+  const proc = await esperarTunel(hijo, (p) => Boolean(p.creado) && reenviosInversos(p.cmd).length > 0);
+  if (!proc) return { pid: null, rutaLog };
+  return { pid: hijo.pid, creado: proc.creado, rutaLog };
+}
+
+/* Pids de los ssh inversos vivos de esta entrada (los que hay que cerrar antes de abrir otro). */
+export async function inversosNuestros(entrada) {
+  return (await procesosSshVivos()).filter((p) => p.pid && tunelInversoDe({ ...p, creado: p.creado ?? true }, entrada)).map((p) => p.pid);
 }
 
 export async function matarTunel(pid) {

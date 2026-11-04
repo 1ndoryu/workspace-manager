@@ -9,7 +9,7 @@ import { entradaEfectiva, puertoDeSaludValido, validarBloqueBuild } from '../sis
 
 // [por que 06AA-1] Campos admitidos por el registro: cualquier otro es error de escritura.
 // [por que] `procesosAceptados` lo lee cierre.mjs (excepción de procesos propios, b4ac545); sin él el doctor marcaba deriva.
-const CONOCIDAS = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'tunelPortatil', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto', 'appEscritorio', 'sinServicio', 'permanente', 'supervisar', 'notaModo']);
+const CONOCIDAS = new Set(['id', 'ruta', 'boton', 'puertos', 'procesosAceptados', 'healths', 'timeoutMs', 'arranqueMs', 'expectedCmdline', 'tipoLauncher', 'dominio', 'requiere', 'env', 'reconstruir', 'auxiliares', 'comandos', 'host', 'analisisEn', 'envRemoto', 'botonRemoto', 'puertosRemotos', 'puertosLocales', 'tunelSsh', 'tunelesExtra', 'tunelPortatil', 'tunelInverso', 'hostsPublicos', 'puertosPublicos', 'buildMode', 'precompilar', 'dependencias', 'modo', 'build', 'envTareas', 'tokenPulse', 'higieneRust', 'despliegue', 'consumeArtefacto', 'appEscritorio', 'sinServicio', 'permanente', 'supervisar', 'notaModo']);
 // [por que] `appEscritorio.instalado` lo lee el atribuidor de puertos (esAppInstalada) para no
 // dar por hueco el exe de la app de escritorio del propio proyecto; sin la clave, el registro se rechaza.
 
@@ -96,6 +96,9 @@ export function motivoCamposTaller(e) {
   // (una app local que habla con el servicio por un puerto fijo, p. ej.). El supervisor del tablero
   // los rearma junto con los del proyecto. `tunelesExtra` no sirve para eso: es del proyecto.
   if ('tunelPortatil' in e && (!Array.isArray(e.tunelPortatil) || e.tunelPortatil.some((p) => !Array.isArray(p) || p.length !== 2 || p.some((n) => !Number.isInteger(n) || n < 1024 || n > 65535)))) return `registro: '${e.id}' tunelPortatil debe ser array de pares [local, remoto] (1024-65535)`;
+  // [por que] tunelInverso: servicios que viven SOLO en el portátil y que la 89 necesita alcanzar
+  // (el WebLink del BDP del TPV). Pares [puerto en la 89, puerto del portátil]; van por `ssh -R`.
+  if ('tunelInverso' in e && (!Array.isArray(e.tunelInverso) || e.tunelInverso.some((p) => !Array.isArray(p) || p.length !== 2 || p.some((n) => !Number.isInteger(n) || n < 1024 || n > 65535)))) return `registro: '${e.id}' tunelInverso debe ser array de pares [puerto en la 89, puerto del portatil] (1024-65535)`;
   return null;
 }
 

@@ -6,3 +6,11 @@
 export const esPermanente: (entrada?: { permanente?: boolean; supervisar?: boolean }) => boolean;
 
 export const paresTunelPortatil: (entrada: unknown) => [number, number][];
+
+export const paresTunelInverso: (entrada: unknown) => [number, number][];
+
+/* Reenvíos `-R` de una línea de comandos ssh, como pares [puerto en la 89, puerto del portátil]. */
+export const reenviosInversos: (cmd: unknown) => [number, number][];
+
+/* ssh.exe vivos del portátil (los túneles). `cmd` es la línea de comandos completa. */
+export const procesosSshVivos: () => Promise<{ pid: number | null; cmd: string | null; imagen: string | null; creado: string | null }[]>;

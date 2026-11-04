@@ -1,7 +1,7 @@
 /* Ciclo de vida remoto: preparar, up, status, stop y logs. */
 
 import { asegurarSesion, comandoBaseRemota, detectarRama, rutasRemotas, shQuote } from '../../remoto/rcargo.mjs';
-import { entradaEfectiva, esPermanente, modoDe, paresTunelPortatil, puertosRemotosDe } from '../doctor.mjs';
+import { entradaEfectiva, esPermanente, modoDe, paresTunelInverso, paresTunelPortatil, puertosRemotosDe } from '../doctor.mjs';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -13,7 +13,7 @@ import { ajenosEnPuertos, estadoRemoto, localesTodos, marcadorSonda, pararSesion
 import { rutaAbsDe } from './red/rutaLocal.mjs';
 import { esperarEscucha, esperarLibre, esperarSonda, esperarSondaRemota } from './red/sondas.mjs';
 import { escribirArchivoRemoto, sshRemoto } from './red/ssh.mjs';
-import { abrirTunel, abrirTunelPares, matarTunel, puertosLocalesDe, tunelVivo, tunelesNuestrosEnPuertos, usaTunel } from './red/tunel.mjs';
+import { abrirTunel, abrirTunelInverso, abrirTunelPares, inversosNuestros, matarTunel, puertosLocalesDe, tunelVivo, tunelesNuestrosEnPuertos, usaTunel } from './red/tunel.mjs';
 
 const TIMEOUT_BUILD_MS = 900_000;
 
@@ -312,16 +312,30 @@ export async function upRemoto(config, id, entrada, args = []) {
  * con los pares de la lab (lo que vigila el supervisor, que también mira 33110). */
 export async function upRemotoTunel(config, id, entrada) {
   const pares = paresTunelPortatil(entrada);
-  if (!pares.length) return { codigo: 1, resumen: `up ${id} --solo-tunel: la ficha no declara ningun reenvio para el portatil` };
-  const locales = pares.map(([l]) => l);
-  const remotos = pares.map(([, r]) => r);
-  // Primero se matan los túneles nuestros que ocupan esos puertos: con ExitOnForwardFailure un
-  // puerto tomado hace fallar el nuevo (pasó con MN al cambiar de modo).
-  for (const pid of await tunelesNuestrosEnPuertos(config, locales, remotos)) await matarTunel(pid);
-  const t = await abrirTunelPares(config, pares, id);
-  if (!t.pid) return { codigo: 1, resumen: `up ${id} --solo-tunel: el tunel no levanto (log ${t.rutaLog})` };
-  escribirEstadoTunel(id, { pid: t.pid, creado: t.creado, pares, en: new Date().toISOString() });
-  return { codigo: 0, resumen: `up ${id} --solo-tunel: tunel reabierto (pid ${t.pid}, ${pares.map(([l, r]) => `${l}->${r}`).join(', ')})` };
+  const inversos = paresTunelInverso(entrada);
+  if (!pares.length && !inversos.length) return { codigo: 1, resumen: `up ${id} --solo-tunel: la ficha no declara ningun reenvio para el portatil` };
+  const partes = [];
+  if (pares.length) {
+    const locales = pares.map(([l]) => l);
+    const remotos = pares.map(([, r]) => r);
+    // Primero se matan los túneles nuestros que ocupan esos puertos: con ExitOnForwardFailure un
+    // puerto tomado hace fallar el nuevo (pasó con MN al cambiar de modo).
+    for (const pid of await tunelesNuestrosEnPuertos(config, locales, remotos)) await matarTunel(pid);
+    const t = await abrirTunelPares(config, pares, id);
+    if (!t.pid) return { codigo: 1, resumen: `up ${id} --solo-tunel: el tunel no levanto (log ${t.rutaLog})` };
+    escribirEstadoTunel(id, { pid: t.pid, creado: t.creado, pares, en: new Date().toISOString() });
+    partes.push(`tunel reabierto (pid ${t.pid}, ${pares.map(([l, r]) => `${l}->${r}`).join(', ')})`);
+  }
+  if (inversos.length) {
+    // [por que] El inverso va en su ssh aparte y se cierra el anterior si sigue vivo: dos `-R` al
+    // mismo puerto de la 89 se pisan (ExitOnForwardFailure). Si el viejo ya murió pero el sshd de la
+    // 89 aún no soltó el puerto, este intento falla y el supervisor lo repite al siguiente minuto.
+    for (const pid of await inversosNuestros(entrada)) await matarTunel(pid);
+    const ti = await abrirTunelInverso(config, inversos, id);
+    if (!ti.pid) return { codigo: 1, resumen: `up ${id} --solo-tunel: el tunel inverso no levanto (log ${ti.rutaLog})` };
+    partes.push(`inverso reabierto (pid ${ti.pid}, ${inversos.map(([r, l]) => `89:${r}<-${l}`).join(', ')})`);
+  }
+  return { codigo: 0, resumen: `up ${id} --solo-tunel: ${partes.join('; ')}` };
 }
 
 export async function statusRemoto(config, id, entrada) {

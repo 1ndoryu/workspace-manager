@@ -160,7 +160,7 @@ export async function procesosSshVivos() {
   try {
     const sal = (await correrPs(script)).trim();
     const j = sal ? JSON.parse(sal) : [];
-    return (Array.isArray(j) ? j : [j]).map((f) => ({ creado: f.creado ?? null, exe: f.exe ?? null, cmd: f.cmd ?? null, imagen: f.imagen ?? null }));
+    return (Array.isArray(j) ? j : [j]).map((f) => ({ pid: f.pid ?? null, creado: f.creado ?? null, exe: f.exe ?? null, cmd: f.cmd ?? null, imagen: f.imagen ?? null }));
   } catch {
     return [];
   }
