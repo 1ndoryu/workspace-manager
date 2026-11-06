@@ -35,8 +35,11 @@ function soloMetodo(c: Contexto, metodo: string): boolean {
 async function proyectoParaGate(clave: string) {
   const buscar = async (forzar: boolean) =>
     (await snapshotArea(forzar)).snapshot.proyectos.find((p) => p.clave === clave);
-  /* [por que] `await` en cada lado: con `??` directo, una promesa nunca es nula y no se re-escanearía. */
-  return (await buscar(false)) ?? buscar(true);
+  /* [por que] Re-escanea también si la caché tiene el proyecto pero sin puerta sentinel: un bootstrap
+   * recién creado (sentinel.config.json) no aparece hasta que el snapshot se refresca. */
+  const enCache = await buscar(false);
+  if (enCache && esElegible(enCache)) return enCache;
+  return buscar(true);
 }
 
 /* Re-escaneo genuino (git, HEAD, rama) para los botones «escanea ahora».
