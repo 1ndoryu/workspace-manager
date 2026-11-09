@@ -92,6 +92,17 @@ export function argsConTargetXwin(args) {
   return faltaTargetXwin(args) ? [...args, '--target', TARGET_WINDOWS] : args;
 }
 
+/* [por que] cargo-xwin guarda el SDK/MSVC en `~/.cache/cargo-xwin`, y `cm-sweep` barre `~/.cache`
+ * a los 7 días: se lo lleva entero y el siguiente build cruzado muere en el enlace con
+ * «could not open 'kernel32.lib'» (caso real 2026-11-09, un `.exe` de Tauri). `~/.local/share` está en
+ * la lista NUNCA del barrido, así que la caché se pide ahí. El `$HOME` va sin comillas a propósito:
+ * lo tiene que expandir el shell de la 89, no el portátil. */
+export const XWIN_CACHE = 'XWIN_CACHE_DIR="$HOME/.local/share/cargo-xwin"';
+
+export function entornoXwin(args) {
+  return args[0] === 'xwin' ? [XWIN_CACHE] : [];
+}
+
 // [por que] El .cargo/config.toml de un proyecto puede fijar `build.rustc-wrapper` a un binario de
 // Windows (proyecto-g lo hace con sccache): en la 89 no existe y el build muere con «could not execute
 // process .../sccache.exe (os error 2)». El entorno manda sobre el fichero, así que se limpia en todo
@@ -174,6 +185,7 @@ export function construirComandoRemoto(config, rutas, args, nombreBd = null, pre
     SIN_RUSTC_WRAPPER,
     ...(nombreBd ? [`DATABASE_URL=${shQuote(urlBaseRemota(config.bd, nombreBd))}`] : []),
     `CARGO_TARGET_DIR=${shQuote(rutas.target)}`,
+    ...entornoXwin(args),
     ...extra,
   ].join(' ');
   const interno = [
@@ -193,6 +205,7 @@ export function comandoLocal(config, rutas, cwd, args, nombreBd = null, preparar
     SIN_RUSTC_WRAPPER,
     ...(nombreBd ? [`DATABASE_URL=${shQuote(urlBaseRemota(config.bd, nombreBd))}`] : []),
     `CARGO_TARGET_DIR=${shQuote(rutas.target)}`,
+    ...entornoXwin(args),
     ...extra,
   ].join(' ');
   return [

@@ -24,6 +24,7 @@ import {
   avisoCargoLock,
   faltaTargetXwin,
   argsConTargetXwin,
+  entornoXwin,
   TARGET_WINDOWS,
   esComandoDeLock,
   carpetaDelLock,
@@ -228,6 +229,18 @@ test('xwin: se fuerza el target de Windows; uno explícito manda', () => {
   // Los subcomandos normales de cargo no se tocan.
   assert.equal(faltaTargetXwin(['test', '--target', 'x']), false);
   assert.deepEqual(argsConTargetXwin(['build', '--release']), ['build', '--release']);
+});
+
+/* La caché de cargo-xwin vivía en `~/.cache`, que cm-sweep barre a los 7 días: se la llevó y el
+ * build cruzado murió en el enlace con «could not open 'kernel32.lib'» (2026-11-09, un `.exe` de Tauri).
+ * Va en `~/.local/share`, que está en la lista NUNCA del barrido. */
+test('xwin: la caché vive fuera de ~/.cache, donde cm-sweep no la borre', () => {
+  const rutas = rutasRemotas(config, 'P', 'main');
+  const conXwin = construirComandoRemoto(config, rutas, ['xwin', 'build'])[2];
+  assert.ok(conXwin.includes(enCadena('XWIN_CACHE_DIR="$HOME/.local/share/cargo-xwin"')), conXwin);
+  assert.ok(!conXwin.includes('XWIN_CACHE_DIR="$HOME/.cache'), conXwin);
+  // Un cargo normal no lleva la variable: solo el build cruzado usa esa caché.
+  assert.deepEqual(entornoXwin(['build', '--release']), []);
 });
 
 test('base por rama: paquete con guiones bajos; main/master sin sufijo', () => {
