@@ -8,7 +8,7 @@
  * a su vez delega en `rcargo.mjs` (candado de carga, target de Windows). */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { asegurarSesion, cargarConfig, detectarRama, rutasRemotas } from '../../remoto/rcargo.mjs';
@@ -33,8 +33,32 @@ function carpetaDe(id) {
   return existsSync(path.join(fuera, 'src-tauri')) ? fuera : null;
 }
 
+/* Scripts de `package.json` del proyecto, leídos en el portátil (el árbol es el mismo). */
+function scriptsDe(raizProyecto) {
+  try {
+    return JSON.parse(readFileSync(path.join(raizProyecto, 'package.json'), 'utf8')).scripts ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/* Lo que `tauri.conf.json` empotra: la ruta (relativa a `src-tauri/`) donde `tauri build` espera
+ * el front. Es la fuente, no una convención: hay apps que apuntan al `dist` de OTRO proyecto y
+ * otras a un `ui/` estático que no se compila. Sin este dato el wrapper exigía `dist/index.html`
+ * y daba por roto un front que estaba bien. */
+function frontEmpotrado(raizProyecto) {
+  try {
+    const conf = JSON.parse(readFileSync(path.join(raizProyecto, 'src-tauri', 'tauri.conf.json'), 'utf8'));
+    const rel = conf?.build?.frontendDist;
+    return typeof rel === 'string' ? path.resolve(raizProyecto, 'src-tauri', rel) : null;
+  } catch {
+    return null;
+  }
+}
+
 /* Front y servidor compilados en la 89 con el mismo ayudante que `up`. Devuelve 0 o el código de salida. */
-async function construirFrontPropio(config, rutas, id) {
+async function construirFrontPropio(config, rutas, id, raizProyecto) {
+  const scripts = scriptsDe(raizProyecto);
   console.log(`app: construyendo el front de ${id} en la 89`);
   const front = await sshRemoto(
     config,
@@ -46,14 +70,26 @@ async function construirFrontPropio(config, rutas, id) {
     if (front.error) console.error(front.error);
     return 1;
   }
-  const hayDist = await sshRemoto(config, `test -f ${rutas.dirRemoto}/dist/index.html`);
-  if (!hayDist.ok) {
-    console.error(`app: el front no dejó dist/index.html en ${config.host}`);
-    return 1;
+  /* El front empotrado tiene que existir en la 89. `frontEmpotrado` da la ruta de verdad; si
+   * apunta FUERA del proyecto (el dist de otro), ese artefacto lo construye su dueño y aquí solo
+   * se avisa: no es este árbol el que tiene que dejarlo. */
+  const esperado = frontEmpotrado(raizProyecto);
+  const relEsperado = esperado ? path.relative(raizProyecto, esperado) : null;
+  const esDeOtro = relEsperado?.startsWith('..');
+  const destino = relEsperado && !esDeOtro ? `${rutas.dirRemoto}/${relEsperado}` : null;
+  if (destino) {
+    const hay = await sshRemoto(config, `test -f ${destino}/index.html`);
+    if (!hay.ok) {
+      console.error(`app: el front no dejó ${relEsperado}/index.html en ${config.host}`);
+      return 1;
+    }
   }
   /* Servidor compilado: la app arranca `node dist-server/server/index.js` desde el repo.
    * [por qué aquí] Lo construía `npm run build` en la cabeza de quien se acordara; un clon
-   * nuevo compilaba el .exe y se quedaba sin backend. Va por el mismo ayudante (wrapper). */
+   * nuevo compilaba el .exe y se quedaba sin backend. Va por el mismo ayudante (wrapper).
+   * [por qué condicionado] Solo las apps que SIRVEN un backend lo tienen; glory-web es una
+   * ventana de WebView2 sobre la web y no gasta `build:server`, así que exigirlo la rompía. */
+  if (!scripts['build:server']) return 0;
   console.log(`app: compilando el servidor de ${id} en la 89`);
   const servidor = await sshRemoto(
     config,
@@ -67,6 +103,22 @@ async function construirFrontPropio(config, rutas, id) {
     return 1;
   }
   return 0;
+}
+
+/* Nombre del paquete de la app, del `[package].name` de `src-tauri/Cargo.toml`. [por qué] En un
+ * workspace, `cargo build` sin `-p` compila el paquete RAÍZ: en glory-web ese es una lib vacía y
+ * el wrapper decía «listo» sin ningún .exe (el de la app es `glory-web-app`). El paquete de la
+ * ventana es siempre el de `src-tauri/`. */
+function paqueteDeLaApp(raizProyecto) {
+  try {
+    const toml = readFileSync(path.join(raizProyecto, 'src-tauri', 'Cargo.toml'), 'utf8');
+    /* Solo la sección `[package]` de la cabecera: un `name` de una dependencia no vale. */
+    const cabecera = toml.split(/^\[/m)[1] ?? '';
+    const nombre = /^name\s*=\s*"([^"]+)"/m.exec(cabecera)?.[1];
+    return nombre ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function app(resto) {
@@ -102,15 +154,19 @@ export async function app(resto) {
    * no hay nada que construir aquí: `tauri.conf` apunta al `dist` ajeno y `tauri build`
    * falla si no existe. El artefacto ajeno lo vigila `Arranque artefactos`. */
   if (existsSync(path.join(raizProyecto, 'package.json'))) {
-    const ok = await construirFrontPropio(config, rutas, id);
+    const ok = await construirFrontPropio(config, rutas, id, raizProyecto);
     if (ok !== 0) return ok;
   } else {
     console.log(`app: ${id} no tiene front propio; empotra el dist de su artefacto consumido`);
   }
 
-  /* 3) El exe, por el wrapper del proyecto: nunca `cargo` desde aquí. */
+  /* 3) El exe, por el wrapper del proyecto: nunca `cargo` desde aquí. `-p` con el paquete de
+   * `src-tauri/` cuando la raíz es un workspace con otro paquete (glory-web): sin eso se compila
+   * la lib raíz, sale código 0 y no hay .exe. */
   console.log(`app: compilando ${id} para Windows`);
-  const build = spawnSync(process.execPath, [wrapper, 'xwin', 'build', '--release'], {
+  const paquete = paqueteDeLaApp(raizProyecto);
+  const args = [wrapper, 'xwin', 'build', '--release', ...(paquete ? ['-p', paquete] : [])];
+  const build = spawnSync(process.execPath, args, {
     cwd: raizProyecto,
     stdio: 'inherit',
   });
