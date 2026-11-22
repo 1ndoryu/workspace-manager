@@ -39,7 +39,7 @@ if (-not $DestinoDir) { $DestinoDir = Join-Path $env:USERPROFILE "bin" }
 if (-not $HostRemoto) {
   $ficha = Join-Path $PSScriptRoot "..\config\taller.json"
   if (-not (Test-Path -LiteralPath $ficha)) {
-    throw "Falta $ficha: define -HostRemoto o crea la config privada (config\ejemplos\taller.example.json)."
+    throw "Falta ${ficha}: define -HostRemoto o crea la config privada (config\ejemplos\taller.example.json)."
   }
   $HostRemoto = (Get-Content -Raw -LiteralPath $ficha | ConvertFrom-Json).host
 }
