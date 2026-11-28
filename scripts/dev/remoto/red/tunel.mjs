@@ -1,6 +1,6 @@
 /* Tunel SSH del laptop a la VPS: args, marcador, identidad y ciclo de vida. */
 
-import { procesosDe, procesosSshVivos, puertosRemotosDe, reenviosInversos, reenviosTunel, tunelInversoDe } from '../../doctor.mjs';
+import { esEntradaRemota, paresTunelPortatil, procesosDe, procesosSshVivos, puertosRemotosDe, reenviosInversos, reenviosTunel, tunelInversoDe, tunelPortatilDe } from '../../doctor.mjs';
 import { BIN_SSH } from '../../../shared/binarios.mjs';
 import { execFile, spawn } from 'node:child_process';
 import { closeSync, mkdirSync, openSync } from 'node:fs';
@@ -196,6 +196,30 @@ export async function abrirTunelInverso(config, pares, id) {
 /* Pids de los ssh inversos vivos de esta entrada (los que hay que cerrar antes de abrir otro). */
 export async function inversosNuestros(entrada) {
   return (await procesosSshVivos()).filter((p) => p.pid && tunelInversoDe({ ...p, creado: p.creado ?? true }, entrada)).map((p) => p.pid);
+}
+
+/* PID del túnel del PORTÁTIL que ya cubre los reenvíos de `entrada`, en cualquier forma aceptada
+ * (`paresTunelPortatil` admite `tunelPortatil` además del modo efectivo), buscando en los ssh vivos
+ * y no solo en el estado del `up`.
+ * [por que] El túnel permanente (`up --solo-tunel`, el que rearma el supervisor) se registra en
+ * `remoto-tunel-<id>.json`, que el arranque del `up` no lee: el `up` no encontraba PID propio,
+ * abría otro ssh con los mismos `-L`, chocaba en el puerto local ocupado y devolvía «túnel ssh no
+ * levantó» con el servicio perfectamente sano (el falso negativo del roadmap). Adoptarlo ahorra el
+ * ssh de más y, sobre todo, deja de mentir: el túnel que ya hay es el que el `up` necesita. */
+export async function tunelPortatilVivo(config, entrada) {
+  const pares = paresTunelPortatil(entrada);
+  if (!pares.length || !esEntradaRemota(entrada)) return null;
+  // Los puertos del modo efectivo tienen que estar todos: un ssh que solo lleve `tunelPortatil` no
+  // sirve para sondear el proyecto y el `up` seguiría necesitando el suyo.
+  const delProyecto = puertosRemotosDe(entrada).map((r, i) => `${puertosLocalesDe(entrada)[i]}:${r}`);
+  const vivos = await procesosSshVivos();
+  const nuestro = vivos.find((p) => {
+    if (!p.pid || !tunelPortatilDe({ ...p, creado: p.creado ?? true }, entrada)) return false;
+    const reenvios = new Set(reenviosTunel(p.cmd).map(([l, r]) => `${l}:${r}`));
+    return delProyecto.every((par) => reenvios.has(par));
+  });
+  if (!nuestro?.pid) return null;
+  return { pid: nuestro.pid, creado: nuestro.creado ?? null };
 }
 
 export async function matarTunel(pid) {

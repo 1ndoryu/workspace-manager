@@ -13,7 +13,7 @@ import { ajenosEnPuertos, estadoRemoto, localesTodos, marcadorSonda, pararSesion
 import { rutaAbsDe } from './red/rutaLocal.mjs';
 import { esperarEscucha, esperarLibre, esperarSonda, esperarSondaRemota } from './red/sondas.mjs';
 import { escribirArchivoRemoto, sshRemoto } from './red/ssh.mjs';
-import { abrirTunel, abrirTunelInverso, abrirTunelPares, inversosNuestros, matarTunel, puertosLocalesDe, tunelVivo, tunelesNuestrosEnPuertos, usaTunel } from './red/tunel.mjs';
+import { abrirTunel, abrirTunelInverso, abrirTunelPares, inversosNuestros, matarTunel, puertosLocalesDe, tunelPortatilVivo, tunelVivo, tunelesNuestrosEnPuertos, usaTunel } from './red/tunel.mjs';
 
 const TIMEOUT_BUILD_MS = 900_000;
 
@@ -274,10 +274,20 @@ export async function upRemoto(config, id, entrada, args = []) {
     pid = previo.pidTunel;
     creado = leerEstado(id)?.tunelCreado ?? null;
     if (!pid) {
-      const t = await abrirTunel(config, entrada, id);
-      if (!t.pid) return { codigo: 1, resumen: `up ${id}: tunel ssh no levanto o no es el nuestro (log ${t.rutaLog}): NO verde` };
-      pid = t.pid;
-      creado = t.creado;
+      /* [por que] El túnel permanente (`up --solo-tunel`) ya puede estar cubriendo estos reenvíos
+       * y su PID vive en otro registro que este camino no lee. Abrir otro ssh choca en el puerto
+       * local (`ExitOnForwardFailure`) y el comando decía «túnel ssh no levantó» con el servicio
+       * sano: se adopta el que ya está. */
+      const portatil = await tunelPortatilVivo(config, entrada);
+      if (portatil) {
+        pid = portatil.pid;
+        creado = portatil.creado;
+      } else {
+        const t = await abrirTunel(config, entrada, id);
+        if (!t.pid) return { codigo: 1, resumen: `up ${id}: tunel ssh no levanto o no es el nuestro (log ${t.rutaLog}): NO verde` };
+        pid = t.pid;
+        creado = t.creado;
+      }
     }
   }
   for (const [i, p] of remotos.entries()) {
